@@ -36,9 +36,48 @@ class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-
 <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
 </button>
 
-<button class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition">
-A
+<div x-data="{ open:false }" class="relative">
+
+<button 
+@click="open=!open"
+class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition">
+
+{{ strtoupper(substr(Auth::user()->name,0,1)) }}
+
 </button>
+
+<div 
+x-show="open"
+@click.outside="open=false"
+x-transition
+class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+
+<div class="px-4 py-3 border-b text-sm">
+
+<p class="font-semibold text-gray-800">
+{{ Auth::user()->name }}
+</p>
+
+<p class="text-gray-400 text-xs">
+{{ Auth::user()->role }}
+</p>
+
+</div>
+
+<form method="POST" action="{{ route('logout') }}">
+@csrf
+
+<button type="submit"
+class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition">
+<i class="fas fa-sign-out-alt mr-2"></i>
+Logout
+</button>
+
+</form>
+
+</div>
+
+</div>
 
 </div>
 </div>
@@ -94,9 +133,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 
 <div class="space-y-1 text-sm">
 
-<a href="/"
+<a href="{{ route('corporate') }}"
 class="block px-3 py-2 rounded-lg transition
-{{ request()->is('/') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+{{ request()->is('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 Company General Information
 </a>
 
