@@ -74,7 +74,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Contacts</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="{{ route('company.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->routeIs('company.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-city text-base"></i>
 <span>Company</span>
 </a>
@@ -84,6 +86,47 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 
 
 <!-- SECOND SIDEBAR -->
+@if (request()->routeIs('company.show'))
+<aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+<div class="px-4 py-3 border-b border-gray-100">
+<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Company</p>
+</div>
+
+<div class="flex-1 overflow-y-auto p-3">
+<div class="space-y-1 text-sm">
+
+<a href="#" class="block px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 font-semibold">
+KYC
+</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">History</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Consultation notes</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Activities</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Deals</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Contacts</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Projects</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Regular</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Products</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Services</a>
+
+<div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Corporate/Formation</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">BIR & Tax</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">National</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">LGU</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Accounting</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Banking</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Legal</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Operations</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">201 Files</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Correspondence</a>
+</div>
+
+</div>
+</div>
+
+</aside>
+@elseif (!request()->routeIs('company.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -148,6 +191,7 @@ Task Owner
 </div>
 
 </aside>
+@endif
 
 
 
