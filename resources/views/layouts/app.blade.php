@@ -69,7 +69,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Activities</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="/contacts"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('contacts*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-users text-base"></i>
 <span>Contacts</span>
 </a>
@@ -84,6 +86,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 
 
 <!-- SECOND SIDEBAR -->
+@unless (request()->routeIs('contacts.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -148,6 +151,7 @@ Task Owner
 </div>
 
 </aside>
+@endunless
 
 
 
