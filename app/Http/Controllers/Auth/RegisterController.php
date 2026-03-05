@@ -6,14 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class RegisterController extends Controller
 {
 
     public function show()
-    {
-        return view('auth.register');
+{
+    if(Auth::check()){
+        return redirect()->route('corporate');
     }
+
+    return view('auth.register');
+}
 
     public function submit(Request $request)
     {
