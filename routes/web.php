@@ -22,4 +22,27 @@ Route::middleware('auth')->group(function () {
         return view('corporate.company-general-information');
     })->name('corporate');
 
+    Route::get('/lgu', function () {
+    return view('corporate.lgu');
+    })->name('lgu');
+
+    Route::get('/accounting', function () {
+    return view('corporate.accounting');
+    })->name('accounting');
+
+    Route::get('/banking', function () {
+    return view('corporate.banking');
+    })->name('banking');
+
+    Route::get('/operations', function () {
+    return view('corporate.operations');
+    })->name('operations');
+
+    Route::get('/correspondence', function () {
+    return view('corporate.correspondence');
+    })->name('correspondence');
+
+    
+    
+
 });
