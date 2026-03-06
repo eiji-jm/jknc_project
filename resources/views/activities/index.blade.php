@@ -1,20 +1,36 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showTaskModal: false }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" 
+     x-data="{ 
+        showTaskModal: false,
+        activeTab: 'task',
+        selectAll: false,
+        selectedTasks: [],
+        tasks: ['1', '2'],
+        filterDropdownOpen: false
+     }">
 
     <!-- Header Tabs -->
     <div class="flex items-center justify-center gap-12 py-3 mb-4">
-        <button class="px-8 py-1.5 bg-[#8FA8CB] text-white rounded-full font-semibold text-sm shadow-sm transition-colors hover:bg-[#7b93b6]">
+        <button @click="activeTab = 'task'" 
+                :class="activeTab === 'task' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Task
         </button>
-        <button class="px-8 py-1.5 text-gray-600 font-semibold text-sm rounded-full transition-colors hover:bg-gray-100">
+        <button @click="activeTab = 'events'" 
+                :class="activeTab === 'events' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Events
         </button>
-        <button class="px-8 py-1.5 text-gray-600 font-semibold text-sm rounded-full transition-colors hover:bg-gray-100">
+        <button @click="activeTab = 'call'" 
+                :class="activeTab === 'call' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Call
         </button>
-        <button class="px-8 py-1.5 text-gray-600 font-semibold text-sm rounded-full transition-colors hover:bg-gray-100">
+        <button @click="activeTab = 'meetings'" 
+                :class="activeTab === 'meetings' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Meetings
         </button>
     </div>
@@ -26,13 +42,31 @@
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <!-- Left Toolbar -->
             <div class="flex items-center gap-3">
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded">
+                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors">
                     <i class="fas fa-bars text-sm"></i>
                 </button>
-                <button class="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">
-                    All Task
-                    <i class="fas fa-chevron-down text-xs text-gray-400"></i>
-                </button>
+                <div class="relative" @click.away="filterDropdownOpen = false">
+                    <button @click="filterDropdownOpen = !filterDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                        All Task
+                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200" :class="filterDropdownOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <!-- Dropdown Panel -->
+                    <div x-show="filterDropdownOpen" 
+                         style="display: none;" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 border border-gray-100">
+                        <div class="py-1" role="menu" aria-orientation="vertical">
+                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">All Tasks</a>
+                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">My Tasks</a>
+                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">Team Tasks</a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Toolbar -->
@@ -67,7 +101,7 @@
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-50">
                         <th class="py-3 px-4 text-xs font-semibold text-gray-600 w-10 text-center">
-                            <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <input type="checkbox" x-model="selectAll" @change="selectedTasks = selectAll ? [...tasks] : []" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Task Name</th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Due Date</th>
@@ -77,11 +111,11 @@
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Task Owner</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-gray-100" x-show="activeTab === 'task'">
                     <!-- Row 1 -->
-                    <tr class="hover:bg-gray-50 group">
+                    <tr class="group transition-colors" :class="selectedTasks.includes('1') ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
                         <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded text-blue-600 border-gray-300">
+                            <input type="checkbox" value="1" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
                         </td>
                         <td class="py-3 px-4 text-sm font-medium text-gray-900">Online Meeting</td>
                         <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
@@ -97,9 +131,9 @@
                     </tr>
                     
                     <!-- Row 2 -->
-                    <tr class="hover:bg-gray-50 group">
+                    <tr class="group transition-colors" :class="selectedTasks.includes('2') ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
                         <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded text-blue-600 border-gray-300">
+                            <input type="checkbox" value="2" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
                         </td>
                         <td class="py-3 px-4 text-sm font-medium text-gray-900">Proposal</td>
                         <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
@@ -110,11 +144,19 @@
                     </tr>
 
                     <!-- Empty filler rows for consistent height mapping to design -->
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
+                    
+                    <!-- Other Tabs Empty States -->
+                    <tr x-show="activeTab !== 'task'" style="display: none;">
+                        <td colspan="7" class="py-12 text-center text-gray-500 text-sm">
+                            <i class="far fa-folder-open text-4xl text-gray-300 mb-3 block"></i>
+                            No items found for <span x-text="activeTab" class="capitalize font-semibold"></span>.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -251,7 +293,7 @@
                 <button @click="showTaskModal = false" class="px-6 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 font-medium text-sm transition shadow-sm">
                     Cancel
                 </button>
-                <button class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-medium text-sm transition shadow-sm">
+                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-medium text-sm transition shadow-sm">
                     Save
                 </button>
             </div>
