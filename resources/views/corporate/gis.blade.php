@@ -5,11 +5,10 @@
 
     <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
 
-        <!-- TOP BAR -->
         <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
             <div class="flex items-center gap-0 overflow-x-auto">
                 <a href="{{ route('corporate.formation') }}"
-                   class="min-w-[118px] px-6 py-3 text-sm font-medium border border-blue-500 bg-blue-50 text-blue-700 text-center">
+                   class="min-w-[118px] px-6 py-3 text-sm font-medium border border-gray-200 bg-white text-gray-800 text-center hover:bg-gray-50">
                     SEC-COI
                 </a>
 
@@ -24,7 +23,7 @@
                 </a>
 
                 <a href="{{ route('corporate.gis') }}"
-                   class="min-w-[90px] px-6 py-3 text-sm font-medium border-t border-b border-r border-gray-200 bg-white text-gray-800 text-center hover:bg-gray-50">
+                   class="min-w-[90px] px-6 py-3 text-sm font-medium border-t border-b border-r border-blue-500 bg-blue-50 text-blue-700 text-center">
                     GIS
                 </a>
             </div>
@@ -41,11 +40,10 @@
                 </button>
 
                 <div class="flex items-center">
-                    <button
-                        @click="openPanel = true"
+                    <button @click="openPanel = true"
                         class="px-4 h-9 rounded-l-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                         <span class="text-base leading-none">+</span>
-                        SEC-COI
+                        SEC-GIS
                     </button>
 
                     <button class="w-10 h-9 rounded-r-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center border-l border-white/20">
@@ -59,72 +57,47 @@
             </div>
         </div>
 
-        <!-- CONTENT -->
         <div class="bg-gray-50 min-h-[680px]">
             <div class="p-3">
                 <div class="overflow-x-auto border border-gray-200 rounded-md bg-white">
-                    <table class="min-w-full text-[11px] text-left text-gray-700">
-                        <thead class="bg-white border-b border-gray-200">
+                    <table class="min-w-full text-[10px] text-left text-gray-700">
+                        <thead class="bg-white border-b border-gray-200 align-top">
                             <tr>
-                                <th class="px-3 py-2 font-semibold">Date Upload</th>
-                                <th class="px-3 py-2 font-semibold">Date Created</th>
-                                <th class="px-3 py-2 font-semibold">Company Reg No.</th>
-                                <th class="px-3 py-2 font-semibold">Corporation Name</th>
-                                <th class="px-3 py-2 font-semibold">Issued On</th>
-                                <th class="px-3 py-2 font-semibold">Issued by</th>
-                                <th class="px-3 py-2 font-semibold">File Upload</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Date Upload</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Uploaded by</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Sec-Submission Status</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Sec-Receive on</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Sec-Period Date</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Company Reg No.</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Corporation Name</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">DATE OF ANNUAL MEETING</th>
+                                <th class="px-2 py-2 font-semibold whitespace-nowrap">Type of Meeting</th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                <td class="px-3 py-2">Jan 08, 2026</td>
-                                <td class="px-3 py-2">Jan 08, 2026</td>
-                                <td class="px-3 py-2">CS202600123</td>
-                                <td class="px-3 py-2 font-semibold text-gray-800">John Kelly &amp; Company, Inc.</td>
-                                <td class="px-3 py-2">Jan 05, 2026</td>
-                                <td class="px-3 py-2">SEC Region VII</td>
-                                <td class="px-3 py-2 text-blue-600 font-medium">sec-coi-jkc.pdf</td>
+                            <tr class="border-b border-gray-200 hover:bg-gray-50 align-top">
+                                <td class="px-2 py-2">Mar 01, 2026</td>
+                                <td class="px-2 py-2 font-semibold text-gray-800">Kelly, John</td>
+                                <td class="px-2 py-2">Submitted</td>
+                                <td class="px-2 py-2">Mar 03, 2026</td>
+                                <td class="px-2 py-2">2026 Filing Period</td>
+                                <td class="px-2 py-2">CS202600123</td>
+                                <td class="px-2 py-2">John Kelly &amp; Company, Inc.</td>
+                                <td class="px-2 py-2">May 15, 2026</td>
+                                <td class="px-2 py-2">Regular Annual Meeting</td>
                             </tr>
 
-                            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                <td class="px-3 py-2">Jan 10, 2026</td>
-                                <td class="px-3 py-2">Jan 10, 2026</td>
-                                <td class="px-3 py-2">CS202600124</td>
-                                <td class="px-3 py-2 font-semibold text-gray-800">Cebu Prime Holdings Corporation</td>
-                                <td class="px-3 py-2">Jan 07, 2026</td>
-                                <td class="px-3 py-2">SEC Main Office</td>
-                                <td class="px-3 py-2 text-blue-600 font-medium">sec-coi-cphc.pdf</td>
-                            </tr>
-
-                            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                <td class="px-3 py-2">Jan 12, 2026</td>
-                                <td class="px-3 py-2">Jan 12, 2026</td>
-                                <td class="px-3 py-2">CS202600125</td>
-                                <td class="px-3 py-2 font-semibold text-gray-800">Visayan Business Solutions, Inc.</td>
-                                <td class="px-3 py-2">Jan 09, 2026</td>
-                                <td class="px-3 py-2">SEC Region VII</td>
-                                <td class="px-3 py-2 text-blue-600 font-medium">sec-coi-vbsi.pdf</td>
-                            </tr>
-
-                            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                <td class="px-3 py-2">Jan 15, 2026</td>
-                                <td class="px-3 py-2">Jan 15, 2026</td>
-                                <td class="px-3 py-2">CS202600126</td>
-                                <td class="px-3 py-2 font-semibold text-gray-800">Metro South Development Corp.</td>
-                                <td class="px-3 py-2">Jan 13, 2026</td>
-                                <td class="px-3 py-2">SEC Main Office</td>
-                                <td class="px-3 py-2 text-blue-600 font-medium">sec-coi-msdc.pdf</td>
-                            </tr>
-
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-3 py-2">Jan 18, 2026</td>
-                                <td class="px-3 py-2">Jan 18, 2026</td>
-                                <td class="px-3 py-2">CS202600127</td>
-                                <td class="px-3 py-2 font-semibold text-gray-800">Blue Horizon Trading Corporation</td>
-                                <td class="px-3 py-2">Jan 16, 2026</td>
-                                <td class="px-3 py-2">SEC Region VII</td>
-                                <td class="px-3 py-2 text-blue-600 font-medium">sec-coi-bhtc.pdf</td>
+                            <tr class="hover:bg-gray-50 align-top">
+                                <td class="px-2 py-2">Mar 03, 2026</td>
+                                <td class="px-2 py-2 font-semibold text-gray-800">Dimpas, Mj</td>
+                                <td class="px-2 py-2">Received</td>
+                                <td class="px-2 py-2">Mar 05, 2026</td>
+                                <td class="px-2 py-2">2026 Filing Period</td>
+                                <td class="px-2 py-2">CS202600124</td>
+                                <td class="px-2 py-2">Cebu Prime Holdings Corporation</td>
+                                <td class="px-2 py-2">Apr 28, 2026</td>
+                                <td class="px-2 py-2">Special Meeting</td>
                             </tr>
                         </tbody>
                     </table>
@@ -133,15 +106,8 @@
         </div>
     </div>
 
-    <!-- DARK OVERLAY -->
-    <div x-show="openPanel"
-         x-transition.opacity
-         class="fixed inset-0 z-[70] bg-black/35"
-         style="display:none;"
-         @click="openPanel = false">
-    </div>
+    <div x-show="openPanel" x-transition.opacity class="fixed inset-0 z-[70] bg-black/35" style="display:none;" @click="openPanel = false"></div>
 
-    <!-- FULL HEIGHT APP-SIDE PANEL -->
     <div x-show="openPanel"
          x-transition:enter="transform transition ease-out duration-300"
          x-transition:enter-start="translate-x-full"
@@ -154,7 +120,7 @@
 
         <div class="h-full flex flex-col">
             <div class="h-16 px-6 border-b border-gray-200 flex items-center justify-between">
-                <h2 class="text-[26px] font-semibold text-gray-900 leading-none">Add SEC-COI Record</h2>
+                <h2 class="text-[26px] font-semibold text-gray-900 leading-none">Add GIS Record</h2>
 
                 <button @click="openPanel = false"
                         class="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 flex items-center justify-center transition">
@@ -165,29 +131,53 @@
             <div class="flex-1 overflow-y-auto px-6 py-6">
                 <div class="space-y-5">
                     <div>
-                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Corporate Name</label>
-                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm" placeholder="Enter corporate name">
+                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Uploaded By</label>
+                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
                     </div>
 
                     <div>
-                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Company Reg No.</label>
-                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm" placeholder="Enter company registration number">
-                    </div>
-
-                    <div>
-                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Issued By</label>
-                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm" placeholder="Enter issuing office or authority">
+                        <label class="block text-[13px] font-medium text-gray-700 mb-2">SEC-Submission Status</label>
+                        <select class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm bg-white">
+                            <option>Submitted</option>
+                            <option>Received</option>
+                            <option>Pending</option>
+                        </select>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[13px] font-medium text-gray-700 mb-2">Issued On</label>
+                            <label class="block text-[13px] font-medium text-gray-700 mb-2">SEC-Receive On</label>
                             <input type="date" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
                         </div>
 
                         <div>
-                            <label class="block text-[13px] font-medium text-gray-700 mb-2">Date Upload</label>
+                            <label class="block text-[13px] font-medium text-gray-700 mb-2">SEC-Period Date</label>
+                            <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm" placeholder="2026 Filing Period">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Company Reg No.</label>
+                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-[13px] font-medium text-gray-700 mb-2">Corporation Name</label>
+                        <input type="text" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[13px] font-medium text-gray-700 mb-2">Date of Annual Meeting</label>
                             <input type="date" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-[13px] font-medium text-gray-700 mb-2">Type of Meeting</label>
+                            <select class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm bg-white">
+                                <option>Regular Annual Meeting</option>
+                                <option>Special Meeting</option>
+                            </select>
                         </div>
                     </div>
 

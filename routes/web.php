@@ -25,5 +25,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/formation', function () {
         return view('corporate.corporate-formation');
     })->name('corporate.formation');
+    
+    Route::get('/corporate/sec-aoi', function () {
+        return view('corporate.sec-aoi');
+    })->name('corporate.sec_aoi');
+
+    Route::get('/corporate/bylaws', function () {
+        return view('corporate.bylaws');
+    })->name('corporate.bylaws');
+
+    Route::get('/corporate/gis', function () {
+        return view('corporate.gis');
+    })->name('corporate.gis');
+
 
 });
