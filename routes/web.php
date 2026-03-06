@@ -22,4 +22,8 @@ Route::middleware('auth')->group(function () {
         return view('corporate.company-general-information');
     })->name('corporate');
 
+    Route::get('/corporate/formation', function () {
+        return view('corporate.corporate-formation');
+    })->name('corporate.formation');
+
 });
