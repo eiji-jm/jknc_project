@@ -8,7 +8,8 @@
         selectAll: false,
         selectedTasks: [],
         tasks: ['1', '2'],
-        filterDropdownOpen: false
+        filterDropdownOpen: false,
+        selectedTaskDetails: null
      }">
 
     <!-- Header Tabs -->
@@ -42,16 +43,13 @@
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <!-- Left Toolbar -->
             <div class="flex items-center gap-3">
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors">
-                    <i class="fas fa-bars text-sm"></i>
-                </button>
-                <div class="relative" @click.away="filterDropdownOpen = false">
-                    <button @click="filterDropdownOpen = !filterDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
-                        All Task
-                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200" :class="filterDropdownOpen ? 'rotate-180' : ''"></i>
+                <div class="relative" x-data="{ taskFilterOpen: false }" @click.away="taskFilterOpen = false">
+                    <button @click="taskFilterOpen = !taskFilterOpen" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors" :class="taskFilterOpen ? 'bg-gray-100' : ''">
+                        <i class="fas fa-filter text-sm"></i>
                     </button>
-                    <!-- Dropdown Panel -->
-                    <div x-show="filterDropdownOpen" 
+                    
+                    <!-- Filter Task Dropdown -->
+                    <div x-show="taskFilterOpen" 
                          style="display: none;" 
                          x-transition:enter="transition ease-out duration-100"
                          x-transition:enter-start="transform opacity-0 scale-95"
@@ -59,11 +57,172 @@
                          x-transition:leave="transition ease-in duration-75"
                          x-transition:leave-start="transform opacity-100 scale-100"
                          x-transition:leave-end="transform opacity-0 scale-95"
-                         class="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 border border-gray-100">
-                        <div class="py-1" role="menu" aria-orientation="vertical">
-                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">All Tasks</a>
-                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">My Tasks</a>
-                            <a href="#" @click.prevent="filterDropdownOpen = false" class="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700">Team Tasks</a>
+                         class="absolute left-0 top-full mt-2 w-64 rounded-xl shadow-lg bg-white ring-1 ring-blue-400 z-50 border border-blue-100">
+                        <div class="py-2">
+                            <div class="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+                                <i class="fas fa-bars text-gray-500"></i>
+                                <span class="text-sm font-semibold text-gray-800">Filter Task</span>
+                            </div>
+                            
+                            <div class="px-4 py-2">
+                                <button class="w-full flex items-center justify-between text-left text-sm text-gray-700 hover:bg-gray-50 p-1 rounded">
+                                    Choose a Property
+                                    <i class="fas fa-caret-down text-gray-400"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="max-h-64 overflow-y-auto" role="menu" aria-orientation="vertical">
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Touched Records</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Untouched Records</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Record Actions</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Related Record Actions</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Closed Time</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Created By</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Created Time</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Description</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Due Date</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Modified By</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Modified Time</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Priority</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Related To</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Status</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Tag</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Task Name</span>
+                                </label>
+                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <span class="text-sm text-gray-700">Task Owner</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative" x-data="{ 
+                        allTaskDropdownOpen: false, 
+                        allTaskTab: 'all_views' 
+                    }" 
+                    @click.away="allTaskDropdownOpen = false">
+                    
+                    <button @click="allTaskDropdownOpen = !allTaskDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+                        <span x-text="activeTab === 'events' ? 'All Events' : 'All Task'">All Task</span>
+                        <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200" :class="allTaskDropdownOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    
+                    <!-- All Task Dropdown Panel -->
+                    <div x-show="allTaskDropdownOpen" 
+                         style="display: none;" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute left-0 mt-2 w-64 rounded-xl shadow-xl bg-white ring-1 ring-blue-500 z-50 border border-blue-400 overflow-hidden">
+                        
+                        <div class="flex flex-col h-full max-h-[400px]">
+                            <!-- Header Tabs -->
+                            <div class="p-2 flex gap-1 bg-white">
+                                <button @click="allTaskTab = 'all_views'" 
+                                        :class="allTaskTab === 'all_views' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                                        class="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+                                    All Views
+                                </button>
+                                <button @click="allTaskTab = 'favorites'" 
+                                        :class="allTaskTab === 'favorites' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
+                                        class="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+                                    Favorites
+                                </button>
+                            </div>
+                            
+                            <!-- Search -->
+                            <div class="px-3 pb-2 pt-1">
+                                <div class="relative">
+                                    <input type="text" placeholder="Search" class="w-full pl-3 pr-8 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+                                    <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Content Area -->
+                            <div class="flex-1 overflow-y-auto pb-2">
+                                <!-- All Views Content -->
+                                <div x-show="allTaskTab === 'all_views'">
+                                    <div class="px-4 py-1.5 text-xs font-bold text-gray-800">Public Views</div>
+                                    <div class="flex flex-col role="menu" aria-orientation="vertical"">
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Closed Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">My Open Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Next 7 Days + Over Due Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Open Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Overdue Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Today + Ovrdue Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Today's Task</a>
+                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Tomorrow's Task</a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Favorites Content -->
+                                <div x-show="allTaskTab === 'favorites'" style="display: none;">
+                                    <div class="py-6 px-4 text-center text-sm text-gray-500">
+                                        No favorite views yet.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Create Task Footer -->
+                            <div class="p-2 bg-white">
+                                <button class="w-full flex items-center justify-center gap-2 py-2 bg-[#8FA8CB] text-white rounded-lg text-sm font-medium hover:bg-[#7a93b5] transition-colors">
+                                    <i class="fas fa-plus text-xs"></i>
+                                    Create Task
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -82,7 +241,7 @@
                 <!-- Primary Action Button -->
                 <button @click="showTaskModal = true" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2">
                     <i class="fas fa-plus text-xs"></i>
-                    Task
+                    <span x-text="activeTab === 'events' ? 'Event' : 'Task'">Task</span>
                     <i class="fas fa-chevron-down text-[10px] ml-1 opacity-80"></i>
                 </button>
                 
@@ -98,7 +257,7 @@
         <!-- Table -->
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
-                <thead>
+                <thead x-show="activeTab === 'task'">
                     <tr class="border-b border-gray-200 bg-gray-50">
                         <th class="py-3 px-4 text-xs font-semibold text-gray-600 w-10 text-center">
                             <input type="checkbox" x-model="selectAll" @change="selectedTasks = selectAll ? [...tasks] : []" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
@@ -111,13 +270,50 @@
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Task Owner</th>
                     </tr>
                 </thead>
+                <thead x-show="activeTab === 'events'" style="display: none;">
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="py-3 px-4 text-xs font-semibold text-gray-600 w-10 text-center">
+                             <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            Title <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            From <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            To <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            Related to <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Host</th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider relative group cursor-pointer">
+                            <div class="flex items-center gap-2">
+                                <i class="far fa-plus-square text-gray-400 hover:text-gray-600 text-sm cursor-pointer"></i> 
+                                Create Field
+                            </div>
+                            <!-- Settings Icon floating right -->
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fas fa-cog text-gray-400 hover:text-gray-600 cursor-pointer text-sm"></i>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'task'">
                     <!-- Row 1 -->
                     <tr class="group transition-colors" :class="selectedTasks.includes('1') ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
                         <td class="py-3 px-4 text-center">
                             <input type="checkbox" value="1" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
                         </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">Online Meeting</td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                            <div class="flex items-center gap-2">
+                                <span>Online Meeting</span>
+                                <button @click="selectedTaskDetails = 'Online Meeting'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
+                                    <i class="far fa-eye text-sm"></i>
+                                </button>
+                            </div>
+                        </td>
                         <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
                         <td class="py-3 px-4"></td>
                         <td class="py-3 px-4"></td>
@@ -135,7 +331,14 @@
                         <td class="py-3 px-4 text-center">
                             <input type="checkbox" value="2" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
                         </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">Proposal</td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                            <div class="flex items-center gap-2">
+                                <span>Proposal</span>
+                                <button @click="selectedTaskDetails = 'Proposal'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
+                                    <i class="far fa-eye text-sm"></i>
+                                </button>
+                            </div>
+                        </td>
                         <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
                         <td class="py-3 px-4"></td>
                         <td class="py-3 px-4"></td>
@@ -144,17 +347,71 @@
                     </tr>
 
                     <!-- Empty filler rows for consistent height mapping to design -->
-                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50" x-show="activeTab === 'task'"><td colspan="7"></td></tr>
-                    
-                    <!-- Other Tabs Empty States -->
-                    <tr x-show="activeTab !== 'task'" style="display: none;">
-                        <td colspan="7" class="py-12 text-center text-gray-500 text-sm">
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                </tbody>
+                
+                <!-- Events Tab Body -->
+                <tbody class="divide-y divide-gray-100" x-show="activeTab === 'events'" style="display: none;">
+                    <tr class="group hover:bg-gray-50 transition-colors">
+                        <td class="py-3 px-4 text-center">
+                            <div class="w-4 h-4 bg-gray-500 rounded-sm mx-auto"></div>
+                        </td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                            <div class="flex items-center gap-2 pl-2">
+                                <span>Online Meeting</span>
+                                <button @click="selectedTaskDetails = 'Online Meeting'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
+                                    <i class="far fa-eye text-sm"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
+                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 25, 2026</td>
+                        <td class="py-3 px-4 text-sm text-gray-600 text-center">B.I.R</td>
+                        <td class="py-3 px-4">
+                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#D1F1DE] text-[#0A5632] rounded text-xs font-medium border border-[#BCE8CD]">
+                                <i class="fas fa-user text-[10px] text-[#0A5632]"></i> John...
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
+                                <i class="fas fa-pencil-alt text-[10px]"></i>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="group hover:bg-gray-50 transition-colors">
+                        <td class="py-3 px-4 text-center">
+                            <div class="w-4 h-4 bg-gray-500 rounded-sm mx-auto"></div>
+                        </td>
+                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                            <div class="flex items-center gap-2 pl-6">
+                                <span>Proposal</span>
+                                <button @click="selectedTaskDetails = 'Proposal'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
+                                    <i class="far fa-eye text-sm"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
+                        <td class="py-3 px-4"></td>
+                        <td class="py-3 px-4"></td>
+                        <td class="py-3 px-4"></td>
+                        <td class="py-3 px-4"></td>
+                    </tr>
+                    <!-- Empty filler rows -->
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                </tbody>
+
+                <!-- Other Tabs Empty States -->
+                <tbody x-show="activeTab !== 'task' && activeTab !== 'events'" style="display: none;">
+                    <tr>
+                        <td colspan="7" class="py-24 text-center text-gray-500 text-sm">
                             <i class="far fa-folder-open text-4xl text-gray-300 mb-3 block"></i>
-                            No items found for <span x-text="activeTab" class="capitalize font-semibold"></span>.
+                            <p>No items found for <span x-text="activeTab" class="capitalize font-semibold"></span>.</p>
                         </td>
                     </tr>
                 </tbody>
@@ -162,28 +419,37 @@
         </div>
 
         <!-- Footer / Pagination Area -->
-        <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-            <div class="flex items-center gap-4 text-xs text-gray-500 font-medium">
-                <span class="flex items-center gap-1 text-gray-700">Total task <span class="bg-gray-200 px-1.5 py-0.5 rounded text-gray-800">21</span></span>
+        <div class="px-6 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
+            <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'task'">
+                <span class="text-gray-600">Total task 21</span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="flex items-center gap-1">Open Task <span class="text-gray-700">11</span></span>
+                <span class="text-blue-600">Open Task 11</span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="flex items-center gap-1">Completed <span class="text-green-600">10</span></span>
+                <span class="text-green-500">Completed 10</span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="flex items-center gap-1">Overdue <span class="text-red-500 font-bold">1</span></span>
+                <span class="text-red-500">Overdue 1</span>
+            </div>
+
+            <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'events'" style="display: none;">
+                <span class="text-gray-600">Total Event <span class="text-xs">1</span></span>
+                <div class="w-px h-3 bg-gray-300"></div>
+                <span class="text-gray-600">Upcoming Events <span class="text-yellow-500">1</span></span>
+                <div class="w-px h-3 bg-gray-300"></div>
+                <span class="text-gray-600">Closed Events <span class="text-green-500">1</span></span>
             </div>
             
-            <div class="flex items-center gap-4 text-xs text-gray-500">
-                <div class="flex items-center gap-2">
-                    Records per page
-                    <select class="border border-gray-300 rounded text-gray-700 text-xs py-0.5 px-1 bg-white">
-                        <option>50</option>
-                    </select>
+            <div class="flex items-center gap-4 text-[11px] text-blue-600 font-semibold tracking-wide bg-blue-50/50 px-3 py-1.5 rounded-md">
+                <div class="flex items-center gap-2 text-blue-600 cursor-pointer">
+                    Records per page 
+                    <button class="focus:outline-none flex items-center gap-1">
+                        50 <i class="fas fa-chevron-down text-[9px] opacity-80"></i>
+                    </button>
                 </div>
+                <div class="w-px h-3 bg-blue-200"></div>
                 <span>1 - 21 of 21</span>
-                <div class="flex items-center gap-1">
-                    <button class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 cursor-not-allowed"><i class="fas fa-chevron-left text-[10px]"></i></button>
-                    <button class="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-200 text-gray-400 cursor-not-allowed"><i class="fas fa-chevron-right text-[10px]"></i></button>
+                <div class="flex items-center gap-2 text-gray-400">
+                    <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-left text-[9px]"></i></button>
+                    <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-right text-[9px]"></i></button>
                 </div>
             </div>
         </div>
@@ -205,7 +471,8 @@
         <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showTaskModal = false"></div>
         
         <!-- Modal Panel -->
-        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-[500px] overflow-hidden transform transition-all"
+        <!-- Modal Panel -->
+        <div class="relative bg-[#f0f2f5] rounded-[20px] shadow-2xl w-full max-w-[678px] transform transition-all border-4 border-white/50 flex flex-col"
              x-transition:enter="ease-out duration-300"
              x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
              x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
@@ -214,88 +481,245 @@
              x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
              
             <!-- Header -->
-            <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                <h3 class="text-xl font-bold text-gray-900 tracking-tight">Create Task</h3>
-                <button @click="showTaskModal = false" class="text-gray-400 hover:text-gray-600 transition">
-                    <i class="fas fa-times text-lg"></i>
-                </button>
+            <div class="px-6 py-4 flex items-center justify-center relative shrink-0 border-b border-gray-200/50">
+                <h3 class="text-xl font-black text-gray-900 tracking-tight">Create Task</h3>
             </div>
             
             <!-- Body -->
-            <div class="bg-[#1c2941] px-8 py-8 space-y-5 text-sm/5">
+            <div class="bg-[#1c2941] rounded-[20px] mx-5 mt-4 mb-5 flex flex-col shadow-inner overflow-hidden">
                 
-                <!-- Extra Task Info Banner -->
-                <div class="flex items-center text-white pb-2">
-                    <span class="w-28 font-medium">Task Information</span>
-                    <div class="flex items-center gap-2 flex-1">
-                        <span class="text-gray-300 text-sm">Owner</span>
-                        <button class="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 transition">
-                            <i class="fas fa-user-circle text-gray-300 text-sm"></i>
-                            John Kelly@gmail.com
-                            <i class="fas fa-chevron-down text-[10px] ml-1 opacity-70"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Fields -->
-                <div class="flex items-center text-white">
-                    <label class="w-28 text-gray-200">Task Name</label>
-                    <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 shadow-inner" />
-                </div>
-
-                <div class="flex text-white">
-                    <label class="w-28 pt-2.5 text-gray-200">Due Date</label>
-                    <div class="flex-1 space-y-2.5">
-                        <div class="relative w-full max-w-[180px]">
-                            <input type="text" placeholder="MM/DD/YYYY" class="w-full bg-white text-gray-900 px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 shadow-inner text-sm" />
-                        </div>
-                        <div class="flex flex-col gap-1.5 ml-1">
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" class="rounded w-4 h-4 border-gray-300 text-blue-600 bg-white/20 border-0 ring-offset-[#1c2941] focus:ring-white">
-                                <span class="text-sm text-gray-300 group-hover:text-white transition">Repeat</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" class="rounded w-4 h-4 border-gray-300 text-blue-600 bg-white/20 border-0 ring-offset-[#1c2941] focus:ring-white">
-                                <span class="text-sm text-gray-300 group-hover:text-white transition">Reminder</span>
-                            </label>
+                <div class="px-8 py-5 space-y-4 text-xs/5">
+                    
+                    <!-- Extra Task Info Banner -->
+                    <div class="flex items-center text-white pb-1">
+                        <span class="w-32 font-semibold text-base tracking-wide">Task Information</span>
+                        <div class="flex items-center justify-end gap-2 flex-1">
+                            <span class="text-gray-200 text-xs">Owner</span>
+                            <button class="bg-white text-gray-800 px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 shadow-sm transition hover:bg-gray-100">
+                                <i class="fas fa-user-circle text-gray-500 text-sm"></i>
+                                John Kelly@gmail.com
+                                <i class="fas fa-caret-down text-[10px] ml-0.5"></i>
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                <div class="flex items-center text-white">
-                    <label class="w-28 text-gray-200">Related To</label>
-                    <div class="relative flex-1 text-gray-900">
-                        <input type="text" placeholder="Search Contacts/Companies/Products" class="w-full bg-white px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 shadow-inner" />
-                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <!-- Fields -->
+                    <div class="flex items-center text-white">
+                        <label class="w-32 text-gray-200">Task Name</label>
+                        <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                     </div>
-                </div>
 
-                <div class="flex text-white">
-                    <label class="w-28 pt-2.5 text-gray-200">Description</label>
-                    <div class="flex-1 space-y-3">
-                        <textarea rows="3" class="w-full bg-white text-gray-900 px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-400 shadow-inner resize-none"></textarea>
-                        <div class="flex flex-col gap-1.5 ml-1 pb-2">
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" class="rounded w-4 h-4 border-gray-300 text-blue-600 bg-white/20 border-0 ring-offset-[#1c2941] focus:ring-white">
-                                <span class="text-sm text-gray-300 group-hover:text-white transition">Mark as High Priority</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer group">
-                                <input type="checkbox" class="rounded w-4 h-4 border-gray-300 text-blue-600 bg-white/20 border-0 ring-offset-[#1c2941] focus:ring-white">
-                                <span class="text-sm text-gray-300 group-hover:text-white transition">Mark as Completed</span>
-                            </label>
+                    <div class="flex text-white">
+                        <label class="w-32 pt-2 text-gray-200">Due Date</label>
+                        <div class="flex-1 space-y-2">
+                            <input type="text" placeholder="MM/DD/YY" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                            <div class="flex flex-col gap-1.5 ml-1">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Repeat</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Reminder</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center text-white pt-1">
+                        <label class="w-32 text-gray-200">Related To</label>
+                        <input type="text" placeholder="Search Contacts/Companies/Products" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
+                    </div>
+
+                    <div class="flex text-white pt-1">
+                        <label class="w-32 pt-2 text-gray-200">Description</label>
+                        <div class="flex-1 space-y-3">
+                            <textarea rows="3" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
+                            <div class="flex flex-col gap-1.5 ml-1 pb-2">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as High Priority</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as Completed</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Footer -->
-            <div class="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-gray-200">
-                <button @click="showTaskModal = false" class="px-6 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 font-medium text-sm transition shadow-sm">
+            <div class="px-8 pb-5 flex items-center justify-center gap-3 shrink-0">
+                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-sm transition shadow-sm min-w-[100px]">
                     Cancel
                 </button>
-                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-medium text-sm transition shadow-sm">
+                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
                     Save
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Details Slide-over Panel -->
+    <div x-show="selectedTaskDetails"
+         x-data="{ taskDetailsTab: 'information' }"
+         style="display: none;"
+         class="fixed bottom-6 right-6 z-50 w-full max-w-[400px] bg-white rounded-xl shadow-2xl border border-blue-400 overflow-hidden flex flex-col transform transition-all"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-8"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-8">
+         
+        <div class="bg-[#1c2941] text-white px-6 py-4 flex items-start justify-between">
+            <div>
+                <h3 class="text-lg font-bold flex items-center gap-2 group cursor-pointer w-fit">
+                    <span x-text="selectedTaskDetails"></span>
+                    <i class="fas fa-pencil-alt text-xs text-gray-400 opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
+                </h3>
+                <div class="flex items-center gap-2 text-sm text-gray-300 mt-1 group cursor-pointer w-fit">
+                    <i class="fas fa-user-circle"></i>
+                    <span>John Kelly</span>
+                    <i class="fas fa-pencil-alt text-[10px] opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 text-gray-300">
+                <button class="hover:text-white transition"><i class="fas fa-external-link-alt"></i></button>
+                <button class="hover:text-white transition"><i class="fas fa-ellipsis-v"></i></button>
+                <button @click="selectedTaskDetails = null" class="hover:text-white ml-2 transition">
+                    <i class="far fa-times-circle text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Body -->
+        <div class="flex flex-col flex-1 bg-white">
+            
+            <!-- Tabs -->
+            <div class="flex px-6 pt-2 border-b border-gray-100">
+                <button @click="taskDetailsTab = 'information'" 
+                        :class="taskDetailsTab === 'information' ? 'bg-[#8FA8CB] text-white' : 'text-gray-500 hover:bg-gray-50'"
+                        class="px-6 py-2 rounded-t-lg text-sm font-semibold transition">
+                    Information
+                </button>
+                <button @click="taskDetailsTab = 'notes'" 
+                        :class="taskDetailsTab === 'notes' ? 'bg-[#8FA8CB] text-white font-semibold' : 'text-gray-500 hover:bg-gray-50 font-medium'"
+                        class="px-6 py-2 rounded-t-lg text-sm transition">
+                    Notes
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
+                
+                <!-- Information Tab Content -->
+                <div x-show="taskDetailsTab === 'information'">
+                    <h4 class="font-bold text-gray-900 text-sm mb-4">Task Details</h4>
+                
+                <div class="space-y-4">
+                    <!-- Detail Row -->
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Due Date</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>Yesterday, 04:00 PM to 05:00 PM</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Priority</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>15 minutes before start time</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Status</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>Online</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Reminder</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>On due date, 10:00 AM</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Description</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition min-h-[20px]">
+                            <span></span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Related To</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>Sample Company</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+
+                    <div class="flex group">
+                        <div class="w-32 text-sm text-gray-500">Last Modified</div>
+                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <span>John Kelly on Yesterday, 2:51 PM</span>
+                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h4 class="font-bold text-gray-900 text-sm mb-3">Tags</h4>
+                    <span class="inline-flex items-center justify-center bg-[#8FA8CB] text-white rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
+                        <i class="fas fa-plus mr-1"></i>
+                        Tag
+                    </span>
+                </div>
+                </div>
+
+                <!-- Notes Tab Content -->
+                <div x-show="taskDetailsTab === 'notes'" style="display: none;">
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+                        <textarea class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
+                        <div class="flex justify-end mt-2">
+                            <button class="px-4 py-1.5 bg-[#1c2941] text-white text-xs font-semibold rounded-lg hover:bg-[#151f33] transition">Save Note</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Example Note -->
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                JK
+                            </div>
+                            <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="font-semibold text-gray-900">John Kelly</span>
+                                    <div class="flex items-center gap-2">
+                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 hover:text-blue-600 cursor-pointer"></i>
+                                            <i class="far fa-trash-alt text-[10px] text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                        </div>
+                                        <span class="text-xs text-gray-500">Just now</span>
+                                    </div>
+                                </div>
+                                <p class="text-gray-700">Follow up on the proposal details and confirm the meeting time for next week.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
         </div>
     </div>
