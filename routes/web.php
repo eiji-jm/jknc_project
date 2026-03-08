@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\GisController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -18,14 +19,22 @@ Route::post('/logout',[LoginController::class,'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/corporate',function(){
-        return view('corporate.company-general-information');
-    })->name('corporate');
+    // COMPANY GENERAL INFORMATION
+    Route::get('/corporate', [GisController::class,'companyInfo'])->name('corporate');
 
+    Route::get('/corporate/company-general-information', [GisController::class,'companyInfo'])
+        ->name('corporate.companyinfo');
+
+    // GIS PAGE
+    Route::get('/corporate/gis', [GisController::class,'index'])->name('corporate.gis');
+
+    Route::post('/corporate/gis/store', [GisController::class,'store'])->name('gis.store');
+
+    // OTHER CORPORATE PAGES
     Route::get('/corporate/formation', function () {
         return view('corporate.corporate-formation');
     })->name('corporate.formation');
-    
+
     Route::get('/corporate/sec-aoi', function () {
         return view('corporate.sec-aoi');
     })->name('corporate.sec_aoi');
@@ -33,10 +42,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/bylaws', function () {
         return view('corporate.bylaws');
     })->name('corporate.bylaws');
-
-    Route::get('/corporate/gis', function () {
-        return view('corporate.gis');
-    })->name('corporate.gis');
-
 
 });
