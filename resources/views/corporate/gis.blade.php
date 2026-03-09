@@ -2,7 +2,7 @@
 
 @section('content')
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ openPanel:false, tab:'gis' }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ openPanel:false, tab:null }">
 
 <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
 
@@ -98,8 +98,8 @@ Stockholders
 <div class="bg-gray-50 min-h-[680px] px-6 py-4">
 
 
-<!-- GIS TABLE -->
-<div x-show="tab=='gis'">
+<!-- GIS TABLE (DEFAULT VIEW) -->
+<div x-show="tab==null">
 
 <div class="overflow-x-auto bg-white border border-gray-200 rounded">
 
@@ -351,9 +351,88 @@ Stockholders
 
 </div>
 
+</div>
+</div>
+
+
+<!-- OVERLAY -->
+<div x-show="openPanel"
+x-transition.opacity
+class="fixed inset-0 bg-black/40 z-40"
+@click="openPanel=false"
+style="display:none">
+</div>
+
+
+<!-- SLIDE PANEL -->
+<div x-show="openPanel"
+x-transition:enter="transform transition ease-out duration-300"
+x-transition:enter-start="translate-x-full"
+x-transition:enter-end="translate-x-0"
+x-transition:leave="transform transition ease-in duration-200"
+x-transition:leave-start="translate-x-0"
+x-transition:leave-end="translate-x-full"
+class="fixed top-0 right-0 bottom-0 w-[430px] bg-white border-l border-gray-300 shadow-2xl z-50"
+style="display:none">
+
+<form action="{{ route('gis.store') }}" method="POST" enctype="multipart/form-data" class="h-full flex flex-col">
+
+@csrf
+
+<div class="h-16 px-6 border-b border-gray-200 flex items-center justify-between">
+
+<h2 class="text-xl font-semibold">Add GIS Record</h2>
+
+<button type="button" @click="openPanel=false">
+<i class="fas fa-times"></i>
+</button>
 
 </div>
+
+<div class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+
+<input name="uploaded_by" placeholder="Uploaded By" class="w-full border rounded p-2">
+
+<select name="submission_status" class="w-full border rounded p-2">
+<option>Submitted</option>
+<option>Received</option>
+<option>Pending</option>
+</select>
+
+<input name="receive_on" type="date" class="w-full border rounded p-2">
+
+<input name="period_date" placeholder="Period Date" class="w-full border rounded p-2">
+
+<input name="company_reg_no" placeholder="Company Reg No" class="w-full border rounded p-2">
+
+<input name="corporation_name" placeholder="Corporation Name" class="w-full border rounded p-2">
+
+<input name="annual_meeting" type="date" class="w-full border rounded p-2">
+
+<select name="meeting_type" class="w-full border rounded p-2">
+<option>Regular Annual Meeting</option>
+<option>Special Meeting</option>
+</select>
+
+<input type="file" name="file" class="w-full">
+
 </div>
+
+<div class="px-6 py-4 border-t flex justify-end gap-3">
+
+<button type="button" @click="openPanel=false"
+class="px-4 py-2 border rounded">
+Cancel
+</button>
+
+<button type="submit"
+class="px-4 py-2 bg-blue-600 text-white rounded">
+Save
+</button>
+
+</div>
+
+</form>
 
 </div>
 
