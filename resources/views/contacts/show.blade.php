@@ -4,7 +4,9 @@
 @php
     $statusPillClasses = [
         'Verified' => 'bg-green-100 text-green-700 border border-green-200',
+        'Approved' => 'bg-green-100 text-green-700 border border-green-200',
         'Pending Verification' => 'bg-amber-100 text-amber-700 border border-amber-200',
+        'For Review' => 'bg-amber-100 text-amber-700 border border-amber-200',
         'Not Submitted' => 'bg-gray-100 text-gray-600 border border-gray-200',
         'Rejected' => 'bg-red-100 text-red-700 border border-red-200',
     ];
@@ -34,7 +36,7 @@
                     <span>Phone number: {{ $contact->phone ?: '09345234' }}</span>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusPillClasses[$status] ?? $statusPillClasses['Not Submitted'] }}">{{ strtolower($status) }}</span>
+                    <span id="contactKycHeaderBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusPillClasses[$status] ?? $statusPillClasses['Not Submitted'] }}">{{ $status }}</span>
                     <span class="text-sm text-gray-700">Contact Owner: {{ $contact->owner_name ?: 'John Admin' }}</span>
                 </div>
             </div>
@@ -57,65 +59,379 @@
 
         <section class="flex-1 bg-white p-6">
             @if ($tab === 'kyc')
-                <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-                    <div class="space-y-4">
-                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-                                <h2 class="text-base font-semibold text-gray-900">KYC Information</h2>
-                                <a href="#" class="text-sm text-blue-600 hover:text-blue-700">Edit</a>
+                <div id="kycTabApp">
+                    <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
+                        <div class="space-y-4">
+                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                                <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                                    <h2 class="text-base font-semibold text-gray-900">KYC Information</h2>
+                                    <button id="openKycEditModal" type="button" class="text-sm text-blue-600 hover:text-blue-700">Edit</button>
+                                </div>
+                                <div class="space-y-4 px-4 py-4 text-sm">
+                                    <div>
+                                        <p class="text-gray-500">CIF</p>
+                                        <p id="kycCifValue" class="font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">TIN</p>
+                                        <p id="kycTinValue" class="font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">KYC Status</p>
+                                        <span id="kycCardStatusBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"></span>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Date Verified</p>
+                                        <p id="kycDateVerifiedValue" class="font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Verified By</p>
+                                        <p id="kycVerifiedByValue" class="font-medium text-gray-900"></p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="space-y-4 px-4 py-4 text-sm">
-                                <div>
-                                    <p class="text-gray-500">CIF</p>
-                                    <p class="font-medium text-gray-900">123456</p>
+
+                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                                <div class="border-b border-gray-100 px-4 py-3">
+                                    <h3 class="text-base font-semibold text-gray-900">Actions</h3>
                                 </div>
-                                <div>
-                                    <p class="text-gray-500">TIN</p>
-                                    <p class="font-medium text-gray-900">123-456-789</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500">KYC Status</p>
-                                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusPillClasses[$status] ?? $statusPillClasses['Not Submitted'] }}">
-                                        {{ $status }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500">Date Verified</p>
-                                    <p class="font-medium text-gray-900">02/26/2026</p>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500">Verified By</p>
-                                    <p class="font-medium text-gray-900">{{ $contact->owner_name ?: 'John Admin' }}</p>
+                                <div class="space-y-2 px-4 py-4">
+                                    <button id="submitForVerificationBtn" type="button" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
+                                    <button id="approveKycBtn" type="button" class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300">Approve</button>
+                                    <button id="rejectKycBtn" type="button" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300">Reject</button>
+                                    <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
+                                    <div class="pt-2">
+                                        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">KYC Activity</p>
+                                        <div id="kycActionLogs" class="space-y-1 text-xs text-gray-500"></div>
+                                    </div>
+                                    <p id="kycRejectionNote" class="hidden rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"></p>
                                 </div>
                             </div>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                             <div class="border-b border-gray-100 px-4 py-3">
-                                <h3 class="text-base font-semibold text-gray-900">Actions</h3>
+                                <h2 class="text-base font-semibold text-gray-900">Uploaded Documents</h2>
+                                <p class="mt-1 text-xs text-gray-500">Upload the required KYC documents below before submitting this contact for verification.</p>
                             </div>
-                            <div class="space-y-2 px-4 py-4">
-                                <button class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
-                                <button class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700">Approve</button>
-                                <button class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700">Reject</button>
-                                <div class="pt-3 text-xs text-gray-500">
-                                    <p>Submitted for verification on Apr 02, 2024 by John Admin</p>
-                                    <p class="mt-2">Approved KYC on Apr 24, 2024 by John Admin</p>
+                            <div id="kycDocumentsList" class="max-h-[520px] space-y-3 overflow-y-auto p-4"></div>
+                        </div>
+                    </div>
+
+                    <div id="kycEditModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-16 w-full max-w-xl rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                                <h3 class="text-xl font-semibold text-gray-900">Edit KYC Information</h3>
+                                <button id="closeKycEditModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
+                            </div>
+                            <form id="kycEditForm" class="space-y-4 p-6">
+                                <div>
+                                    <label for="kycEditCif" class="mb-1 block text-sm font-medium text-gray-700">CIF</label>
+                                    <input id="kycEditCif" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <p id="kycErrorCif" class="mt-1 hidden text-xs text-red-600">CIF is required.</p>
                                 </div>
+                                <div>
+                                    <label for="kycEditTin" class="mb-1 block text-sm font-medium text-gray-700">TIN</label>
+                                    <input id="kycEditTin" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <p id="kycErrorTin" class="mt-1 hidden text-xs text-red-600">TIN is required.</p>
+                                </div>
+                                <div>
+                                    <label for="kycEditStatus" class="mb-1 block text-sm font-medium text-gray-700">KYC Status</label>
+                                    <select id="kycEditStatus" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <option>Not Submitted</option>
+                                        <option>Pending Verification</option>
+                                        <option>For Review</option>
+                                        <option>Approved</option>
+                                        <option>Rejected</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="kycEditDateVerified" class="mb-1 block text-sm font-medium text-gray-700">Date Verified</label>
+                                    <input id="kycEditDateVerified" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <p id="kycErrorDateVerified" class="mt-1 hidden text-xs text-red-600">Date Verified is required for Approved status.</p>
+                                </div>
+                                <div>
+                                    <label for="kycEditVerifiedBy" class="mb-1 block text-sm font-medium text-gray-700">Verified By</label>
+                                    <input id="kycEditVerifiedBy" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <p id="kycErrorVerifiedBy" class="mt-1 hidden text-xs text-red-600">Verified By is required for Approved status.</p>
+                                </div>
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <button id="cancelKycEdit" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                                    <button type="submit" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="documentModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-8 w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                                <h3 id="documentModalTitle" class="text-xl font-semibold text-gray-900">Upload CIF Document</h3>
+                                <button id="closeDocumentModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
+                            </div>
+                            <form id="documentForm" class="grid max-h-[82vh] grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
+                                <div class="border-b border-gray-100 p-5 lg:border-b-0 lg:border-r">
+                                    <div id="documentPreviewPanel" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-sm text-gray-500">
+                                        <i class="far fa-file-pdf text-6xl text-gray-400"></i>
+                                        <p class="mt-2">No CIF document selected</p>
+                                        <p class="text-xs">Upload a PDF or image file to preview</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 p-5">
+                                    <div><label for="docTitle" class="mb-1 block text-sm font-medium text-gray-700">Document Title</label><input id="docTitle" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><p id="docErrorTitle" class="mt-1 hidden text-xs text-red-600">Document title is required.</p></div>
+                                    <div><label for="docCertificateNo" class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input id="docCertificateNo" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                    <div><label for="docCompanyRegNo" class="mb-1 block text-sm font-medium text-gray-700">Company Reg No.</label><input id="docCompanyRegNo" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                    <div class="grid grid-cols-2 gap-3"><div><label for="docUploadDate" class="mb-1 block text-sm font-medium text-gray-700">Date Upload</label><input id="docUploadDate" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docCreatedDate" class="mb-1 block text-sm font-medium text-gray-700">Date Created</label><input id="docCreatedDate" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                    <div class="grid grid-cols-2 gap-3"><div><label for="docIssuedOn" class="mb-1 block text-sm font-medium text-gray-700">Issued On</label><input id="docIssuedOn" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docIssuedBy" class="mb-1 block text-sm font-medium text-gray-700">Issued By</label><input id="docIssuedBy" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                    <div>
+                                        <label class="mb-1 block text-sm font-medium text-gray-700">Document</label>
+                                        <label for="docFileInput" class="flex h-11 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-folder-open mr-2 text-blue-600"></i><span id="docFileNameLabel">Upload File</span></label>
+                                        <input id="docFileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
+                                        <button id="clearDocFileBtn" type="button" class="mt-2 hidden text-xs text-gray-500 hover:text-red-600">Remove selected file</button>
+                                        <p id="docErrorFile" class="mt-1 hidden text-xs text-red-600">Please upload a CIF document file.</p>
+                                    </div>
+                                    <div><label for="docRemarks" class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea id="docRemarks" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
+                                    <div class="flex justify-end gap-3 pt-2"><button id="cancelDocumentModal" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button type="submit" id="saveDocumentBtn" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save</button></div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="documentViewModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-10 w-full max-w-5xl rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4"><h3 id="documentViewTitle" class="text-xl font-semibold text-gray-900">Document Details</h3><button id="closeDocumentViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button></div>
+                            <div class="grid grid-cols-1 gap-0 lg:grid-cols-[1.1fr_0.9fr]"><div id="documentViewPreview" class="m-4 flex min-h-[430px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500"></div><div class="space-y-3 border-l border-gray-100 p-5 text-sm"><div><p class="text-gray-500">Document Type</p><p id="viewDocType" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Title</p><p id="viewDocTitle" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">CIF No.</p><p id="viewDocCertificateNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Company Reg No.</p><p id="viewDocCompanyRegNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Upload</p><p id="viewDocUploadDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Created</p><p id="viewDocCreatedDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued On</p><p id="viewDocIssuedOn" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued By</p><p id="viewDocIssuedBy" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Remarks</p><p id="viewDocRemarks" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">File Name</p><p id="viewDocFileName" class="font-medium text-gray-900"></p></div></div></div>
+                            <div class="flex justify-end border-t border-gray-100 px-6 py-4"><button id="closeDocumentViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button></div>
+                        </div>
+                    </div>
+
+                    <div id="rejectKycModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-24 w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="border-b border-gray-100 px-6 py-4"><h3 class="text-xl font-semibold text-gray-900">Reject KYC</h3></div>
+                            <div class="space-y-3 p-6">
+                                <p class="text-sm text-gray-600">Are you sure you want to reject this KYC submission?</p>
+                                <div><label for="rejectReasonInput" class="mb-1 block text-sm font-medium text-gray-700">Rejection Reason (optional)</label><textarea id="rejectReasonInput" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
+                                <div class="flex justify-end gap-3"><button id="cancelRejectKyc" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirmRejectKyc" type="button" class="h-10 rounded-lg bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700">Reject</button></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-                        <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-                            <h2 class="text-base font-semibold text-gray-900">Uploaded Documents</h2>
-                            <a href="#" class="text-sm text-blue-600 hover:text-blue-700">Send CIF</a>
-                        </div>
-                        <div class="flex min-h-[410px] flex-col items-center justify-center text-gray-500">
-                            <i class="far fa-file-alt text-6xl"></i>
-                            <p class="mt-3 text-sm font-medium text-gray-700">No File has been uploaded yet</p>
-                        </div>
-                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const app = document.getElementById('kycTabApp');
+                            if (!app) return;
+                            const q = (id) => document.getElementById(id);
+                            const mockUser = @json($contact->owner_name ?: 'John Admin');
+                            const todayIso = new Date().toISOString().slice(0, 10);
+                            const statusStyles = {'Not Submitted':'bg-gray-100 text-gray-600 border border-gray-200','Pending Verification':'bg-amber-100 text-amber-700 border border-amber-200','For Review':'bg-amber-100 text-amber-700 border border-amber-200','Approved':'bg-green-100 text-green-700 border border-green-200','Rejected':'bg-red-100 text-red-700 border border-red-200'};
+                            const statusRaw = @json($status);
+                            const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
+                            const requiredDocs = [
+                                { key: 'cif', label: 'CIF Document', isCif: true },
+                                { key: 'valid_id', label: 'Valid ID', isCif: false },
+                                { key: 'tin_doc', label: 'TIN Document', isCif: false },
+                                { key: 'supporting_registration', label: 'Supporting Registration Document', isCif: false },
+                            ];
+                            let kyc = { cif:'123456', tin:'123-456-789', status:statusInit || 'Not Submitted', dateVerified: statusInit === 'Approved' ? '2026-02-26' : '', verifiedBy: statusInit === 'Approved' ? mockUser : '', rejectionReason:'', submitted:['Pending Verification','For Review','Approved','Rejected'].includes(statusInit) };
+                            let logs = [`KYC profile loaded by ${mockUser}`];
+                            let docs = { cif: null, valid_id: null, tin_doc: null, supporting_registration: null };
+                            let activeDoc = null; let file = null; let fileUrl = '';
+
+                            const fmtDate = (s) => { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? s : new Intl.DateTimeFormat('en-US',{month:'short',day:'2-digit',year:'numeric'}).format(d); };
+                            const fmtBytes = (n) => !n ? '-' : (n < 1024 ? `${n} B` : (n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`));
+                            const open = (m) => { m.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); };
+                            const close = (m) => { m.classList.add('hidden'); if ([q('kycEditModal'),q('documentModal'),q('documentViewModal'),q('rejectKycModal')].every((x) => x.classList.contains('hidden'))) document.body.classList.remove('overflow-hidden'); };
+                            const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
+                            const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
+                            const docDef = (key) => requiredDocs.find((d) => d.key === key);
+                            const allRequiredUploaded = () => requiredDocs.every((d) => !!docs[d.key]);
+
+                            const render = () => {
+                                q('kycCifValue').textContent = kyc.cif || '-';
+                                q('kycTinValue').textContent = kyc.tin || '-';
+                                q('kycDateVerifiedValue').textContent = fmtDate(kyc.dateVerified);
+                                q('kycVerifiedByValue').textContent = kyc.verifiedBy || '-';
+                                badge(q('kycCardStatusBadge'), kyc.status);
+                                if (q('contactKycHeaderBadge')) badge(q('contactKycHeaderBadge'), kyc.status);
+                                q('kycActionLogs').innerHTML = logs.slice(0, 7).map((l) => `<p>${l}</p>`).join('');
+                                const canReview = kyc.submitted && ['Pending Verification','For Review'].includes(kyc.status);
+                                q('approveKycBtn').disabled = !canReview; q('rejectKycBtn').disabled = !canReview;
+                                q('kycRejectionNote').classList.toggle('hidden', !kyc.rejectionReason);
+                                q('kycRejectionNote').textContent = kyc.rejectionReason ? `Rejection reason: ${kyc.rejectionReason}` : '';
+                                q('kycDocumentsList').innerHTML = requiredDocs.map((req) => {
+                                    const d = docs[req.key];
+                                    const uploaded = !!d;
+                                    return `
+                                        <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-gray-900">${req.label}</p>
+                                                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${uploaded ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}">${uploaded ? 'Uploaded' : 'Missing'}</span>
+                                                    <p class="mt-1 text-xs text-gray-500">${uploaded ? `${d.fileName || '-'} | Upload: ${fmtDate(d.uploadDate)}` : 'No file uploaded yet'}</p>
+                                                </div>
+                                                <div class="flex items-center gap-2 text-xs">
+                                                    <button data-doc-upload="${req.key}" type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">${uploaded ? 'Replace' : 'Upload'}</button>
+                                                    <button data-doc-view="${req.key}" type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 ${uploaded ? '' : 'opacity-40 pointer-events-none'}">View</button>
+                                                    <button data-doc-remove="${req.key}" type="button" class="rounded-md border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50 ${uploaded ? '' : 'opacity-40 pointer-events-none'}">Remove</button>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    `;
+                                }).join('');
+                            };
+
+                            const renderPreview = (name, url, mime) => {
+                                const label = activeDoc ? docDef(activeDoc).label : 'document';
+                                if (!name) { q('documentPreviewPanel').innerHTML = `<i class="far fa-file-pdf text-6xl text-gray-400"></i><p class="mt-2">No ${label.toLowerCase()} selected</p><p class="text-xs">Upload a PDF or image file to preview</p>`; return; }
+                                if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
+                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="CIF preview" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                                else q('documentPreviewPanel').innerHTML = `<div class="text-center"><i class="far fa-file text-5xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${name}</p><p class="text-xs text-gray-500">${mime || 'Document file'}</p></div>`;
+                            };
+
+                            const openDocModal = (docKey) => {
+                                activeDoc = docKey;
+                                const def = docDef(docKey);
+                                const existing = docs[docKey];
+                                file = null; fileUrl = '';
+                                q('documentForm').reset(); q('docUploadDate').value = todayIso; q('docFileNameLabel').textContent = 'Upload File';
+                                q('documentModalTitle').textContent = `${existing ? 'Edit' : 'Upload'} ${def.label}`;
+                                q('docErrorTitle').classList.add('hidden'); q('docErrorFile').classList.add('hidden');
+                                q('clearDocFileBtn').classList.add('hidden');
+                                q('docCertificateNo').closest('div').classList.toggle('hidden', !def.isCif);
+                                q('docCompanyRegNo').closest('div').classList.toggle('hidden', !def.isCif);
+                                q('docCreatedDate').closest('div').classList.toggle('hidden', !def.isCif);
+                                if (existing) {
+                                    q('docTitle').value = existing.title || '';
+                                    q('docCertificateNo').value = existing.certificateNo || '';
+                                    q('docCompanyRegNo').value = existing.companyRegNo || '';
+                                    q('docUploadDate').value = existing.uploadDate || todayIso;
+                                    q('docCreatedDate').value = existing.createdDate || '';
+                                    q('docIssuedOn').value = existing.issuedOn || '';
+                                    q('docIssuedBy').value = existing.issuedBy || '';
+                                    q('docRemarks').value = existing.remarks || '';
+                                    q('docFileNameLabel').textContent = existing.fileName || 'Upload File';
+                                    q('clearDocFileBtn').classList.toggle('hidden', !existing.fileName);
+                                    fileUrl = existing.fileUrl || '';
+                                    renderPreview(existing.fileName, existing.fileUrl, existing.mimeType);
+                                } else {
+                                    renderPreview('', '', '');
+                                }
+                                open(q('documentModal'));
+                            };
+
+                            q('openKycEditModal').addEventListener('click', () => { q('kycEditCif').value = kyc.cif; q('kycEditTin').value = kyc.tin; q('kycEditStatus').value = kyc.status; q('kycEditDateVerified').value = kyc.dateVerified; q('kycEditVerifiedBy').value = kyc.verifiedBy; ['kycErrorCif','kycErrorTin','kycErrorDateVerified','kycErrorVerifiedBy'].forEach((id) => q(id).classList.add('hidden')); open(q('kycEditModal')); });
+                            [q('closeKycEditModal'), q('cancelKycEdit')].forEach((b) => b.addEventListener('click', () => close(q('kycEditModal'))));
+                            [q('closeDocumentModal'), q('cancelDocumentModal')].forEach((b) => b.addEventListener('click', () => close(q('documentModal'))));
+                            [q('closeDocumentViewModal'), q('closeDocumentViewFooter')].forEach((b) => b.addEventListener('click', () => close(q('documentViewModal'))));
+                            q('cancelRejectKyc').addEventListener('click', () => close(q('rejectKycModal')));
+
+                            q('kycEditForm').addEventListener('submit', (e) => {
+                                e.preventDefault();
+                                const s = q('kycEditStatus').value; const req = s === 'Approved';
+                                const okCif = !!q('kycEditCif').value.trim(), okTin = !!q('kycEditTin').value.trim(), okDate = !req || !!q('kycEditDateVerified').value, okBy = !req || !!q('kycEditVerifiedBy').value.trim();
+                                q('kycErrorCif').classList.toggle('hidden', okCif); q('kycErrorTin').classList.toggle('hidden', okTin); q('kycErrorDateVerified').classList.toggle('hidden', okDate); q('kycErrorVerifiedBy').classList.toggle('hidden', okBy);
+                                if (!(okCif && okTin && okDate && okBy)) return;
+                                kyc = { ...kyc, cif: q('kycEditCif').value.trim(), tin: q('kycEditTin').value.trim(), status: s, dateVerified: q('kycEditDateVerified').value, verifiedBy: q('kycEditVerifiedBy').value.trim() };
+                                addLog(`KYC information updated by ${mockUser}`); render(); close(q('kycEditModal'));
+                            });
+
+                            q('docFileInput').addEventListener('change', () => {
+                                const f = q('docFileInput').files?.[0];
+                                if (!f) return;
+                                file = f;
+                                fileUrl = URL.createObjectURL(f);
+                                q('docFileNameLabel').textContent = f.name;
+                                q('clearDocFileBtn').classList.remove('hidden');
+                                renderPreview(f.name, fileUrl, f.type || '');
+                            });
+                            q('clearDocFileBtn').addEventListener('click', () => {
+                                file = null;
+                                fileUrl = '';
+                                q('docFileInput').value = '';
+                                q('docFileNameLabel').textContent = 'Upload File';
+                                q('clearDocFileBtn').classList.add('hidden');
+                                renderPreview('', '', '');
+                            });
+                            q('documentForm').addEventListener('submit', (e) => {
+                                e.preventDefault();
+                                const def = docDef(activeDoc);
+                                const existing = docs[activeDoc];
+                                const title = q('docTitle').value.trim(); const hasFile = !!file || !!existing?.fileName;
+                                q('docErrorTitle').classList.toggle('hidden', !!title); q('docErrorFile').classList.toggle('hidden', hasFile); if (!title || !hasFile) return;
+                                docs[activeDoc] = { type: def.label, title, fileName: file ? file.name : existing.fileName, certificateNo: def.isCif ? q('docCertificateNo').value.trim() : '', companyRegNo: def.isCif ? q('docCompanyRegNo').value.trim() : '', uploadDate: q('docUploadDate').value || todayIso, createdDate: def.isCif ? q('docCreatedDate').value : '', issuedOn: q('docIssuedOn').value, issuedBy: q('docIssuedBy').value.trim(), fileUrl: fileUrl || existing.fileUrl || '#', mimeType: file ? (file.type || 'file') : (existing.mimeType || 'file'), size: file ? file.size : (existing.size || 0), remarks: q('docRemarks').value.trim() };
+                                addLog(`${def.label} ${existing ? 'updated' : 'uploaded'} by ${mockUser}`);
+                                render(); close(q('documentModal'));
+                            });
+
+                            q('kycDocumentsList').addEventListener('click', (e) => {
+                                const uploadKey = e.target.closest('[data-doc-upload]')?.dataset.docUpload;
+                                const viewId = e.target.closest('[data-doc-view]')?.dataset.docView;
+                                const removeId = e.target.closest('[data-doc-remove]')?.dataset.docRemove;
+                                if (uploadKey) {
+                                    openDocModal(uploadKey);
+                                }
+                                if (viewId) {
+                                    const def = docDef(viewId);
+                                    const d = docs[viewId]; if (!d) return;
+                                    q('documentViewTitle').textContent = `${def.label} Details`;
+                                    q('viewDocType').textContent = def.label;
+                                    q('viewDocCertificateNo').parentElement.classList.toggle('hidden', !def.isCif);
+                                    q('viewDocCompanyRegNo').parentElement.classList.toggle('hidden', !def.isCif);
+                                    q('viewDocCreatedDate').parentElement.classList.toggle('hidden', !def.isCif);
+                                    if ((d.mimeType || '').includes('pdf') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<iframe src="${d.fileUrl}" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
+                                    else if ((d.mimeType || '').startsWith('image/') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<img src="${d.fileUrl}" alt="CIF document" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                                    else q('documentViewPreview').innerHTML = `<div class="text-center"><i class="far fa-file text-6xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${d.fileName || '-'}</p><p class="text-xs text-gray-500">${d.mimeType || 'Document'} | ${fmtBytes(d.size)}</p><a class="mt-2 inline-block text-blue-600 hover:text-blue-700" href="${d.fileUrl || '#'}" target="_blank" rel="noopener noreferrer">Open File</a></div>`;
+                                    q('viewDocTitle').textContent = d.title || '-'; q('viewDocCertificateNo').textContent = d.certificateNo || '-'; q('viewDocCompanyRegNo').textContent = d.companyRegNo || '-'; q('viewDocUploadDate').textContent = fmtDate(d.uploadDate); q('viewDocCreatedDate').textContent = fmtDate(d.createdDate); q('viewDocIssuedOn').textContent = fmtDate(d.issuedOn); q('viewDocIssuedBy').textContent = d.issuedBy || '-'; q('viewDocRemarks').textContent = d.remarks || '-'; q('viewDocFileName').textContent = d.fileName || '-';
+                                    open(q('documentViewModal'));
+                                }
+                                if (removeId) {
+                                    const def = docDef(removeId);
+                                    const d = docs[removeId]; if (!d) return;
+                                    if (!window.confirm(`Are you sure you want to remove this ${def.label.toLowerCase()}?`)) return;
+                                    docs[removeId] = null; addLog(`${def.label} removed by ${mockUser}`); render();
+                                }
+                            });
+
+                            q('submitForVerificationBtn').addEventListener('click', () => {
+                                if (!allRequiredUploaded()) {
+                                    q('kycActionWarning').textContent = 'Please upload all required KYC documents before submitting for verification.';
+                                    q('kycActionWarning').classList.remove('hidden');
+                                    setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3400);
+                                    return;
+                                }
+                                kyc.status = 'Pending Verification';
+                                kyc.rejectionReason = '';
+                                kyc.submitted = true;
+                                addLog(`Submitted for verification by ${mockUser}`);
+                                render();
+                            });
+                            q('approveKycBtn').addEventListener('click', () => {
+                                if (!kyc.submitted) {
+                                    q('kycActionWarning').textContent = 'Submit for verification first before approving.';
+                                    q('kycActionWarning').classList.remove('hidden');
+                                    setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3200);
+                                    return;
+                                }
+                                kyc.status = 'Approved'; kyc.dateVerified = todayIso; kyc.verifiedBy = mockUser; kyc.rejectionReason = ''; addLog(`Approved KYC by ${mockUser}`); render();
+                            });
+                            q('rejectKycBtn').addEventListener('click', () => {
+                                if (!kyc.submitted) {
+                                    q('kycActionWarning').textContent = 'Submit for verification first before rejecting.';
+                                    q('kycActionWarning').classList.remove('hidden');
+                                    setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3200);
+                                    return;
+                                }
+                                open(q('rejectKycModal'));
+                            });
+                            q('confirmRejectKyc').addEventListener('click', () => { kyc.status = 'Rejected'; kyc.dateVerified = ''; kyc.rejectionReason = q('rejectReasonInput').value.trim(); q('rejectReasonInput').value = ''; addLog(`Rejected KYC by ${mockUser}`); render(); close(q('rejectKycModal')); });
+                            [q('kycEditModal'), q('documentModal'), q('documentViewModal'), q('rejectKycModal')].forEach((m) => m.addEventListener('click', (e) => { if (e.target === m || e.target.classList.contains('bg-black/25')) close(m); }));
+                            render();
+                        });
+                    </script>
                 </div>
             @endif
 
@@ -252,34 +568,438 @@
             @endif
 
             @if ($tab === 'consultation-notes')
-                <div class="mb-4 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-2xl font-semibold text-gray-900">Consultation Notes</h2>
-                        <p class="text-sm text-gray-500">Record and track all consultation sessions</p>
+                <div id="consultationNotesApp">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-semibold text-gray-900">Consultation Notes</h2>
+                            <p class="text-sm text-gray-500">Record and track all consultation sessions</p>
+                        </div>
+                        <button id="openConsultationNoteModal" type="button" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
+                            + Add Consultation Note
+                        </button>
                     </div>
-                    <button class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">+ Add Consultation Note</button>
-                </div>
-                <div class="space-y-3">
-                    @foreach ($tabData['consultation-notes'] as $note)
-                        <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <h3 class="text-xl font-semibold text-gray-900">{{ $note['title'] }}</h3>
-                                    <p class="mt-1 text-sm text-gray-600">{{ $note['description'] }}</p>
-                                    <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                        <span><i class="far fa-calendar mr-1"></i>{{ $note['date'] }}</span>
-                                        <span><i class="far fa-user mr-1"></i>{{ $note['owner'] }}</span>
-                                        <span><i class="fas fa-paperclip mr-1"></i>{{ $note['attachments'] }}</span>
+
+                    <div id="consultationNotesList" class="space-y-3"></div>
+
+                    <div id="consultationFormModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-10 w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                                <h3 id="consultationFormTitle" class="text-xl font-semibold text-gray-900">Add Consultation Note</h3>
+                                <button id="closeConsultationFormModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
+                            </div>
+                            <form id="consultationForm" class="max-h-[75vh] overflow-y-auto p-6">
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div class="md:col-span-2">
+                                        <label for="noteTitle" class="mb-1 block text-sm font-medium text-gray-700">Note Title</label>
+                                        <input id="noteTitle" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <p id="errorTitle" class="mt-1 hidden text-xs text-red-600">Note title is required.</p>
+                                    </div>
+                                    <div>
+                                        <label for="consultationDate" class="mb-1 block text-sm font-medium text-gray-700">Consultation Date</label>
+                                        <input id="consultationDate" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <p id="errorDate" class="mt-1 hidden text-xs text-red-600">Consultation date is required.</p>
+                                    </div>
+                                    <div>
+                                        <label for="consultationAuthor" class="mb-1 block text-sm font-medium text-gray-700">Author / Created By</label>
+                                        <input id="consultationAuthor" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label for="consultationCategory" class="mb-1 block text-sm font-medium text-gray-700">Tags or Category</label>
+                                        <input id="consultationCategory" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="e.g. Budget Review">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label for="consultationSummary" class="mb-1 block text-sm font-medium text-gray-700">Consultation Summary</label>
+                                        <textarea id="consultationSummary" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label for="consultationDetails" class="mb-1 block text-sm font-medium text-gray-700">Detailed Notes</label>
+                                        <textarea id="consultationDetails" rows="5" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
+                                        <p id="errorBody" class="mt-1 hidden text-xs text-red-600">Provide a summary or detailed notes.</p>
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="mb-1 block text-sm font-medium text-gray-700">Attachments</label>
+                                        <label for="consultationAttachments" class="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-600 hover:bg-gray-100">
+                                            <span><i class="fas fa-paperclip mr-2"></i>Upload files</span>
+                                        </label>
+                                        <input id="consultationAttachments" type="file" multiple class="hidden">
+                                        <div id="selectedAttachments" class="mt-2 space-y-2"></div>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-3 text-gray-500">
-                                    <a href="#"><i class="far fa-eye"></i></a>
-                                    <a href="#"><i class="far fa-pen-to-square"></i></a>
+                                <div class="mt-6 flex justify-end gap-3">
+                                    <button id="cancelConsultationForm" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                                    <button id="saveConsultationNote" type="submit" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save Consultation Note</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="consultationViewModal" class="fixed inset-0 z-[70] hidden">
+                        <div class="absolute inset-0 bg-black/25"></div>
+                        <div class="relative mx-auto mt-14 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-xl">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                                <h3 class="text-xl font-semibold text-gray-900">Consultation Note Details</h3>
+                                <button id="closeConsultationViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
+                            </div>
+                            <div class="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5 text-sm">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Note Title</p>
+                                    <p id="viewNoteTitle" class="mt-1 text-base font-semibold text-gray-900"></p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Consultation Date</p>
+                                        <p id="viewConsultationDate" class="mt-1 text-gray-800"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Author</p>
+                                        <p id="viewConsultationAuthor" class="mt-1 text-gray-800"></p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Summary</p>
+                                    <p id="viewConsultationSummary" class="mt-1 text-gray-700"></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Detailed Notes</p>
+                                    <p id="viewConsultationDetails" class="mt-1 whitespace-pre-wrap text-gray-700"></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Attached Files</p>
+                                    <div id="viewConsultationAttachments" class="mt-2 space-y-2"></div>
                                 </div>
                             </div>
-                        </article>
-                    @endforeach
+                            <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                                <button id="editFromView" type="button" class="h-10 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm text-blue-700 hover:bg-blue-100">Edit</button>
+                                <button id="closeConsultationViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const app = document.getElementById('consultationNotesApp');
+                        if (!app) {
+                            return;
+                        }
+
+                        const notesList = document.getElementById('consultationNotesList');
+                        const openButton = document.getElementById('openConsultationNoteModal');
+                        const formModal = document.getElementById('consultationFormModal');
+                        const viewModal = document.getElementById('consultationViewModal');
+                        const formTitle = document.getElementById('consultationFormTitle');
+                        const form = document.getElementById('consultationForm');
+                        const saveButton = document.getElementById('saveConsultationNote');
+                        const attachmentInput = document.getElementById('consultationAttachments');
+                        const selectedAttachments = document.getElementById('selectedAttachments');
+
+                        const fields = {
+                            title: document.getElementById('noteTitle'),
+                            consultationDate: document.getElementById('consultationDate'),
+                            author: document.getElementById('consultationAuthor'),
+                            summary: document.getElementById('consultationSummary'),
+                            details: document.getElementById('consultationDetails'),
+                            category: document.getElementById('consultationCategory'),
+                        };
+
+                        const errors = {
+                            title: document.getElementById('errorTitle'),
+                            consultationDate: document.getElementById('errorDate'),
+                            body: document.getElementById('errorBody'),
+                        };
+
+                        const defaultAuthor = @json($contact->owner_name ?: 'John Admin');
+                        let notes = @json($tabData['consultation-notes']);
+                        let editNoteId = null;
+                        let viewNoteId = null;
+                        let formAttachments = [];
+
+                        const escapeHtml = (value) => String(value || '')
+                            .replaceAll('&', '&amp;')
+                            .replaceAll('<', '&lt;')
+                            .replaceAll('>', '&gt;')
+                            .replaceAll('"', '&quot;')
+                            .replaceAll("'", '&#039;');
+
+                        const formatDate = (value) => {
+                            if (!value) return '-';
+                            const date = new Date(value + 'T00:00:00');
+                            return Number.isNaN(date.getTime())
+                                ? value
+                                : new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(date);
+                        };
+
+                        const formatBytes = (bytes) => {
+                            if (!bytes || Number.isNaN(Number(bytes))) return '-';
+                            if (bytes < 1024) return `${bytes} B`;
+                            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                        };
+
+                        const normalizeType = (name, rawType) => {
+                            if (rawType) {
+                                const parts = rawType.split('/');
+                                if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
+                            }
+                            const ext = name.includes('.') ? name.split('.').pop() : 'FILE';
+                            return String(ext).toUpperCase();
+                        };
+
+                        const sortNotes = () => {
+                            notes.sort((a, b) => {
+                                const left = new Date(b.consultationDate || 0).getTime();
+                                const right = new Date(a.consultationDate || 0).getTime();
+                                if (left !== right) return left - right;
+                                return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+                            });
+                        };
+
+                        const renderAttachmentsForForm = () => {
+                            if (!formAttachments.length) {
+                                selectedAttachments.innerHTML = '<p class="text-xs text-gray-500">No files selected.</p>';
+                                return;
+                            }
+                            selectedAttachments.innerHTML = formAttachments.map((file) => `
+                                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                                    <div class="min-w-0">
+                                        <p class="truncate font-medium text-gray-800">${escapeHtml(file.name)}</p>
+                                        <p class="text-xs text-gray-500">${escapeHtml(file.type || 'FILE')} | ${escapeHtml(formatBytes(file.size))}</p>
+                                    </div>
+                                    <button type="button" class="remove-attachment text-gray-500 hover:text-red-600" data-file-id="${file.id}">
+                                        <i class="fas fa-xmark"></i>
+                                    </button>
+                                </div>
+                            `).join('');
+                        };
+
+                        const renderNotes = () => {
+                            sortNotes();
+                            if (!notes.length) {
+                                notesList.innerHTML = '<div class="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">No consultation notes yet.</div>';
+                                return;
+                            }
+                            notesList.innerHTML = notes.map((note) => {
+                                const attachmentCount = (note.attachments || []).length;
+                                const attachmentLabel = `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}`;
+                                return `
+                                    <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <h3 class="text-xl font-semibold text-gray-900">${escapeHtml(note.title)}</h3>
+                                                <p class="mt-1 text-sm text-gray-600">${escapeHtml(note.summary || note.details || '')}</p>
+                                                <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                                                    <span><i class="far fa-calendar mr-1"></i>${escapeHtml(formatDate(note.consultationDate))}</span>
+                                                    <span><i class="far fa-user mr-1"></i>${escapeHtml(note.author || defaultAuthor)}</span>
+                                                    <span><i class="fas fa-paperclip mr-1"></i>${attachmentLabel}</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-3 text-gray-500">
+                                                <button type="button" class="note-view hover:text-blue-600" data-note-id="${note.id}" aria-label="View note"><i class="far fa-eye"></i></button>
+                                                <button type="button" class="note-edit hover:text-blue-600" data-note-id="${note.id}" aria-label="Edit note"><i class="far fa-pen-to-square"></i></button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                `;
+                            }).join('');
+                        };
+
+                        const showModal = (modal) => {
+                            modal.classList.remove('hidden');
+                            document.body.classList.add('overflow-hidden');
+                        };
+
+                        const hideModal = (modal) => {
+                            modal.classList.add('hidden');
+                            if (formModal.classList.contains('hidden') && viewModal.classList.contains('hidden')) {
+                                document.body.classList.remove('overflow-hidden');
+                            }
+                        };
+
+                        const resetValidation = () => {
+                            Object.values(errors).forEach((el) => el.classList.add('hidden'));
+                        };
+
+                        const resetForm = () => {
+                            editNoteId = null;
+                            fields.title.value = '';
+                            fields.consultationDate.value = '';
+                            fields.author.value = defaultAuthor;
+                            fields.summary.value = '';
+                            fields.details.value = '';
+                            fields.category.value = '';
+                            formAttachments = [];
+                            attachmentInput.value = '';
+                            resetValidation();
+                            renderAttachmentsForForm();
+                        };
+
+                        const openAddModal = () => {
+                            resetForm();
+                            formTitle.textContent = 'Add Consultation Note';
+                            saveButton.textContent = 'Save Consultation Note';
+                            showModal(formModal);
+                        };
+
+                        const openEditModal = (noteId) => {
+                            const note = notes.find((item) => Number(item.id) === Number(noteId));
+                            if (!note) return;
+
+                            editNoteId = Number(note.id);
+                            fields.title.value = note.title || '';
+                            fields.consultationDate.value = note.consultationDate || '';
+                            fields.author.value = note.author || defaultAuthor;
+                            fields.summary.value = note.summary || '';
+                            fields.details.value = note.details || '';
+                            fields.category.value = note.category || '';
+                            formAttachments = (note.attachments || []).map((file) => ({ ...file }));
+                            attachmentInput.value = '';
+                            resetValidation();
+                            renderAttachmentsForForm();
+
+                            formTitle.textContent = 'Edit Consultation Note';
+                            saveButton.textContent = 'Update Consultation Note';
+                            showModal(formModal);
+                        };
+
+                        const openViewModal = (noteId) => {
+                            const note = notes.find((item) => Number(item.id) === Number(noteId));
+                            if (!note) return;
+
+                            viewNoteId = Number(note.id);
+                            document.getElementById('viewNoteTitle').textContent = note.title || '-';
+                            document.getElementById('viewConsultationDate').textContent = formatDate(note.consultationDate);
+                            document.getElementById('viewConsultationAuthor').textContent = note.author || '-';
+                            document.getElementById('viewConsultationSummary').textContent = note.summary || '-';
+                            document.getElementById('viewConsultationDetails').textContent = note.details || '-';
+
+                            const viewAttachmentList = document.getElementById('viewConsultationAttachments');
+                            const attachments = note.attachments || [];
+                            if (!attachments.length) {
+                                viewAttachmentList.innerHTML = '<p class="text-xs text-gray-500">No attachments</p>';
+                            } else {
+                                viewAttachmentList.innerHTML = attachments.map((file) => `
+                                    <div class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-medium text-gray-800">${escapeHtml(file.name)}</p>
+                                            <p class="text-xs text-gray-500">${escapeHtml(file.type || 'FILE')} | ${escapeHtml(formatBytes(file.size))}</p>
+                                        </div>
+                                        <a href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:text-blue-700">View</a>
+                                    </div>
+                                `).join('');
+                            }
+
+                            showModal(viewModal);
+                        };
+
+                        const validateForm = () => {
+                            resetValidation();
+                            let valid = true;
+                            if (!fields.title.value.trim()) {
+                                errors.title.classList.remove('hidden');
+                                valid = false;
+                            }
+                            if (!fields.consultationDate.value) {
+                                errors.consultationDate.classList.remove('hidden');
+                                valid = false;
+                            }
+                            if (!fields.summary.value.trim() && !fields.details.value.trim()) {
+                                errors.body.classList.remove('hidden');
+                                valid = false;
+                            }
+                            return valid;
+                        };
+
+                        openButton.addEventListener('click', openAddModal);
+
+                        document.getElementById('closeConsultationFormModal').addEventListener('click', () => hideModal(formModal));
+                        document.getElementById('cancelConsultationForm').addEventListener('click', () => hideModal(formModal));
+                        document.getElementById('closeConsultationViewModal').addEventListener('click', () => hideModal(viewModal));
+                        document.getElementById('closeConsultationViewFooter').addEventListener('click', () => hideModal(viewModal));
+                        document.getElementById('editFromView').addEventListener('click', () => {
+                            hideModal(viewModal);
+                            if (viewNoteId !== null) openEditModal(viewNoteId);
+                        });
+
+                        [formModal, viewModal].forEach((modal) => {
+                            modal.addEventListener('click', function (event) {
+                                if (event.target === modal || event.target.classList.contains('bg-black/25')) {
+                                    hideModal(modal);
+                                }
+                            });
+                        });
+
+                        attachmentInput.addEventListener('change', function () {
+                            const files = Array.from(attachmentInput.files || []);
+                            if (!files.length) return;
+
+                            files.forEach((file, index) => {
+                                formAttachments.push({
+                                    id: Date.now() + index + Math.floor(Math.random() * 1000),
+                                    name: file.name,
+                                    type: normalizeType(file.name, file.type),
+                                    size: file.size || 0,
+                                    url: URL.createObjectURL(file),
+                                });
+                            });
+
+                            attachmentInput.value = '';
+                            renderAttachmentsForForm();
+                        });
+
+                        selectedAttachments.addEventListener('click', function (event) {
+                            const button = event.target.closest('.remove-attachment');
+                            if (!button) return;
+                            const targetId = Number(button.dataset.fileId);
+                            formAttachments = formAttachments.filter((file) => Number(file.id) !== targetId);
+                            renderAttachmentsForForm();
+                        });
+
+                        notesList.addEventListener('click', function (event) {
+                            const viewBtn = event.target.closest('.note-view');
+                            const editBtn = event.target.closest('.note-edit');
+
+                            if (viewBtn) {
+                                openViewModal(viewBtn.dataset.noteId);
+                            }
+                            if (editBtn) {
+                                openEditModal(editBtn.dataset.noteId);
+                            }
+                        });
+
+                        form.addEventListener('submit', function (event) {
+                            event.preventDefault();
+                            if (!validateForm()) return;
+
+                            const now = new Date().toISOString();
+                            const payload = {
+                                id: editNoteId ?? Date.now(),
+                                title: fields.title.value.trim(),
+                                consultationDate: fields.consultationDate.value,
+                                author: fields.author.value.trim() || defaultAuthor,
+                                summary: fields.summary.value.trim(),
+                                details: fields.details.value.trim(),
+                                category: fields.category.value.trim(),
+                                attachments: formAttachments.map((item) => ({ ...item })),
+                                createdAt: now,
+                                updatedAt: now,
+                            };
+
+                            if (editNoteId !== null) {
+                                notes = notes.map((item) => Number(item.id) === editNoteId
+                                    ? { ...item, ...payload, createdAt: item.createdAt || now, updatedAt: now }
+                                    : item);
+                            } else {
+                                notes.push(payload);
+                            }
+
+                            renderNotes();
+                            hideModal(formModal);
+                        });
+
+                        renderNotes();
+                    });
+                </script>
             @endif
 
             @if ($tab === 'activities')
