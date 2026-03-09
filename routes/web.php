@@ -43,4 +43,13 @@ Route::middleware('auth')->group(function () {
         return view('corporate.bylaws');
     })->name('corporate.bylaws');
 
+    Route::get('/corporate/gis/capital-structure', [GisController::class,'capitalStructure'])
+    ->name('gis.capital');
+
+    Route::get('/corporate/gis/directors-officers', [GisController::class,'directorsOfficers'])
+    ->name('gis.directors');
+
+    Route::get('/corporate/gis/stockholders', [GisController::class,'stockholders'])
+    ->name('gis.stockholders');
+
 });

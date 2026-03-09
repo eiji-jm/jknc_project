@@ -47,4 +47,19 @@ class GisController extends Controller
         return view('corporate.company-general-information', compact('gis'));
     }
 
+    public function capitalStructure()
+    {
+        return view('corporate.gis-capital-structure');
+    }
+
+    public function directorsOfficers()
+    {
+        return view('corporate.gis-directors-officers');
+    }
+
+    public function stockholders()
+    {
+        return view('corporate.gis-stockholders');
+    }
+
 }
