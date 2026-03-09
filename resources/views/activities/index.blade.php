@@ -1,13 +1,38 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" 
-     x-data="{ 
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #cbd5e1;
+    }
+</style>
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ 
         showTaskModal: false,
         activeTab: 'task',
         selectAll: false,
         selectedTasks: [],
-        tasks: ['1', '2'],
+        tasks: [],
+        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' },
+        
+        events: [],
+        newEvent: { title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' },
+
+        calls: [],
+        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '', status: '' },
+
+        meetings: [],
+        newMeeting: { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
+
         filterDropdownOpen: false,
         selectedTaskDetails: null,
         meetingsSubTab: 'all',
@@ -20,27 +45,237 @@
         showMeetingModal: false,
         selectedMeetingDetails: null,
         meetingDetailsTab: 'information',
-        showVideoPlayer: false
+        showVideoPlayer: false,
+        showCallModal: false,
+        showEventModal: false,
+
+        init() {
+            this.fetchActivities();
+        },
+
+        async fetchActivities() {
+            try {
+                const response = await fetch('/api/activities');
+                const data = await response.json();
+                this.tasks = data.tasks;
+                this.events = data.events;
+                this.calls = data.calls;
+                this.meetings = data.meetings;
+            } catch (error) {
+                console.error('Error fetching activities:', error);
+            }
+        },
+
+        async saveTask() {
+            if (!this.newTask.name) return;
+            try {
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        name: this.newTask.name,
+                        due_date: this.newTask.dueDate,
+                        status: this.newTask.completed ? 'Completed' : 'Open',
+                        priority: this.newTask.priority ? 'High' : 'Normal',
+                        related_to: this.newTask.relatedTo,
+                        owner: this.newTask.owner,
+                        description: this.newTask.description
+                    })
+                });
+                const task = await response.json();
+                this.tasks.unshift(task);
+                this.showTaskModal = false;
+                this.newTask = { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' };
+            } catch (error) {
+                console.error('Error saving task:', error);
+            }
+        },
+
+        async saveEvent() {
+            if (!this.newEvent.title) return;
+            try {
+                const response = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify(this.newEvent)
+                });
+                const event = await response.json();
+                this.events.unshift(event);
+                this.showEventModal = false;
+                this.newEvent = { title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' };
+            } catch (error) {
+                console.error('Error saving event:', error);
+            }
+        },
+
+        async saveCall() {
+            if (!this.newCall.contact) return;
+            try {
+                const response = await fetch('/api/calls', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        contact: this.newCall.contact,
+                        type: this.newCall.type,
+                        start_time: this.newCall.startTime,
+                        start_hour: this.newCall.startHour,
+                        duration: this.newCall.duration,
+                        related_to: this.newCall.relatedTo,
+                        owner: this.newCall.owner,
+                        purpose: this.newCall.purpose,
+                        agenda: this.newCall.agenda,
+                        completed: false
+                    })
+                });
+                const call = await response.json();
+                this.calls.unshift(call);
+                this.showCallModal = false;
+                this.newCall = { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '' };
+            } catch (error) {
+                console.error('Error saving call:', error);
+            }
+        },
+
+        async saveMeeting() {
+            if (!this.newMeeting.title) return;
+            try {
+                const response = await fetch('/api/meetings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        title: this.newMeeting.title,
+                        owner: this.newMeeting.owner,
+                        date: this.newMeeting.date,
+                        time: this.newMeeting.time,
+                        duration: this.newMeeting.duration,
+                        location: this.newMeeting.location,
+                        attendees: this.newMeeting.attendees,
+                        status: 'upcoming',
+                        description: this.newMeeting.description,
+                        has_video: this.newMeeting.hasVideo,
+                        has_audio: this.newMeeting.hasAudio,
+                        has_transcript: this.newMeeting.hasTranscript,
+                        has_minutes: this.newMeeting.hasMinutes
+                    })
+                });
+                const meeting = await response.json();
+                this.meetings.unshift(meeting);
+                this.showMeetingModal = false;
+                this.newMeeting = { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false };
+            } catch (error) {
+                console.error('Error saving meeting:', error);
+            }
+        },
+
+        get taskCounts() {
+            return {
+                total: this.tasks.length,
+                open: this.tasks.filter(t => t.status === 'Open').length,
+                completed: this.tasks.filter(t => t.status === 'Completed').length,
+                overdue: this.tasks.filter(t => {
+                    if (t.status === 'Completed') return false;
+                    if (!t.due_date) return false;
+                    return new Date(t.due_date) < new Date();
+                }).length
+            };
+        },
+
+        get eventCounts() {
+            return {
+                total: this.events.length,
+                upcoming: this.events.filter(e => {
+                    if (!e.from) return false;
+                    return new Date(e.from) > new Date();
+                }).length,
+                closed: this.events.filter(e => {
+                    if (!e.to) return false;
+                    return new Date(e.to) < new Date();
+                }).length
+            };
+        },
+
+        get meetingCounts() {
+            return {
+                total: this.meetings.length,
+                upcoming: this.meetings.filter(m => m.status === 'upcoming').length,
+                completed: this.meetings.filter(m => m.status === 'completed').length
+            };
+        },
+
+        get callCounts() {
+            return {
+                total: this.calls.length,
+                scheduled: this.calls.filter(c => !c.completed).length,
+                overdue: this.calls.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date()).length
+            };
+        },
+
+        get activeList() {
+            if (this.activeTab === 'task') return this.tasks;
+            if (this.activeTab === 'events') return this.events;
+            if (this.activeTab === 'call') return this.calls;
+            if (this.activeTab === 'meetings') return this.meetings;
+            return [];
+        },
+
+        async deleteActivity(id, type) {
+            if (!confirm('Are you sure you want to delete this ' + type.slice(0, -1) + '?')) return;
+            try {
+                const response = await fetch('/api/' + type + '/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                if (response.ok) {
+                    this[type] = this[type].filter(item => item.id !== id);
+                    if (type === 'tasks' && this.selectedTaskDetails?.id === id) this.selectedTaskDetails = null;
+                    if (type === 'meetings' && this.selectedMeetingDetails?.id === id) this.selectedMeetingDetails = null;
+                }
+            } catch (error) {
+                console.error('Error deleting ' + type + ':', error);
+            }
+        },
+
+        get filteredMeetings() {
+            return this.meetings.filter(m => {
+                if (this.meetingsSubTab === 'upcoming') return m.status === 'upcoming';
+                if (this.meetingsSubTab === 'completed') return m.status === 'completed';
+                return true;
+            });
+        }
      }">
 
     <!-- Header Tabs -->
     <div class="flex items-center justify-center gap-12 py-3 mb-4">
-        <button @click="activeTab = 'task'" 
+        <button @click="activeTab = 'task'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
                 :class="activeTab === 'task' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                 class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Task
         </button>
-        <button @click="activeTab = 'events'" 
+        <button @click="activeTab = 'events'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
                 :class="activeTab === 'events' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                 class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Events
         </button>
-        <button @click="activeTab = 'call'" 
+        <button @click="activeTab = 'call'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
                 :class="activeTab === 'call' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                 class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Call
         </button>
-        <button @click="activeTab = 'meetings'" 
+        <button @click="activeTab = 'meetings'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
                 :class="activeTab === 'meetings' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                 class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
             Meetings
@@ -250,7 +485,7 @@
                 </button>
                 
                 <!-- Primary Action Button -->
-                <button @click="activeTab === 'call' ? null : showTaskModal = true" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2">
+                <button @click="activeTab === 'call' ? showCallModal = true : (activeTab === 'events' ? showEventModal = true : (activeTab === 'meetings' ? showMeetingModal = true : showTaskModal = true))" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2">
                     <i class="fas fa-plus text-xs"></i>
                     <span x-text="activeTab === 'events' ? 'Event' : (activeTab === 'call' ? 'Call' : 'Task')">Task</span>
                     <i class="fas fa-chevron-down text-[10px] ml-1 opacity-80"></i>
@@ -279,6 +514,7 @@
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Priority</th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Related to</th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Task Owner</th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                 </thead>
                 <thead x-show="activeTab === 'events'" style="display: none;">
@@ -299,122 +535,94 @@
                             Related to <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Host</th>
-                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider relative group cursor-pointer">
-                            <div class="flex items-center gap-2">
-                                <i class="far fa-plus-square text-gray-400 hover:text-gray-600 text-sm cursor-pointer"></i> 
-                                Create Field
-                            </div>
-                            <!-- Settings Icon floating right -->
-                            <div class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <i class="fas fa-cog text-gray-400 hover:text-gray-600 cursor-pointer text-sm"></i>
-                            </div>
-                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'task'">
-                    <!-- Row 1 -->
-                    <tr class="group transition-colors" :class="selectedTasks.includes('1') ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" value="1" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                            <div class="flex items-center gap-2">
-                                <span>Online Meeting</span>
-                                <button @click="selectedTaskDetails = 'Online Meeting'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
-                                    <i class="far fa-eye text-sm"></i>
+                    <template x-for="task in tasks" :key="task.id">
+                        <tr class="group transition-colors" :class="selectedTasks.includes(task.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" :value="task.id" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
+                            </td>
+                            <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                                <div class="flex items-center gap-2">
+                                    <span x-text="task.name"></span>
+                                    <button @click="selectedTaskDetails = task.name" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
+                                        <i class="far fa-eye text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="task.due_date"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="task.status"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="task.priority"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="task.related_to"></td>
+                            <td class="py-3 px-4">
+                                <template x-if="task.owner">
+                                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#D1F1DE] text-[#0A5632] rounded-full text-xs font-medium border border-[#BCE8CD]">
+                                        <i class="fas fa-user-circle"></i>
+                                        <span x-text="task.owner"></span>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <button @click="deleteActivity(task.id, 'tasks')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Task">
+                                    <i class="far fa-trash-alt text-sm"></i>
                                 </button>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4">
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#D1F1DE] text-[#0A5632] rounded-full text-xs font-medium border border-[#BCE8CD]">
-                                <i class="fas fa-user-circle"></i>
-                                John Kelly@gmail.com
-                            </div>
-                        </td>
-                    </tr>
-                    
-                    <!-- Row 2 -->
-                    <tr class="group transition-colors" :class="selectedTasks.includes('2') ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" value="2" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                            <div class="flex items-center gap-2">
-                                <span>Proposal</span>
-                                <button @click="selectedTaskDetails = 'Proposal'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
-                                    <i class="far fa-eye text-sm"></i>
-                                </button>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                    </tr>
+                            </td>
+                        </tr>
+                    </template>
 
                     <!-- Empty filler rows for consistent height mapping to design -->
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <template x-if="tasks.length < 5">
+                        <template x-for="i in Array.from({length: 5 - tasks.length})">
+                            <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
+                        </template>
+                    </template>
                 </tbody>
                 
                 <!-- Events Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'events'" style="display: none;">
-                    <tr class="group hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                            <div class="flex items-center gap-2 pl-2">
-                                <span>Online Meeting</span>
-                                <button @click="selectedTaskDetails = 'Online Meeting'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
-                                    <i class="far fa-eye text-sm"></i>
-                                </button>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 25, 2026</td>
-                        <td class="py-3 px-4 text-sm text-gray-600 text-center">B.I.R</td>
-                        <td class="py-3 px-4">
-                            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#D1F1DE] text-[#0A5632] rounded text-xs font-medium border border-[#BCE8CD]">
-                                <i class="fas fa-user text-[10px] text-[#0A5632]"></i> John...
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
-                                <i class="fas fa-pencil-alt text-[10px]"></i>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr class="group hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                            <div class="flex items-center gap-2 pl-6">
-                                <span>Proposal</span>
-                                <button @click="selectedTaskDetails = 'Proposal'" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
-                                    <i class="far fa-eye text-sm"></i>
-                                </button>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Feb. 24, 2026</td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                    </tr>
+                    <template x-for="event in events" :key="event.id">
+                        <tr class="group hover:bg-gray-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" class="rounded border-gray-300 transition-colors">
+                            </td>
+                            <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                                <div class="flex items-center gap-2 pl-2">
+                                    <span x-text="event.title"></span>
+                                    <button @click="selectedTaskDetails = event.title" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
+                                        <i class="far fa-eye text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="event.from"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="event.to"></td>
+                            <td class="py-3 px-4 text-sm text-blue-500 font-medium" x-text="event.related_to"></td>
+                            <td class="py-3 px-4">
+                                <template x-if="event.host">
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#D1F1DE] text-[#0A5632] rounded text-xs font-medium border border-[#BCE8CD]">
+                                        <i class="fas fa-user text-[10px] text-[#0A5632]"></i> <span x-text="event.host"></span>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
+                                        <i class="fas fa-pencil-alt text-[10px]"></i>
+                                    </div>
+                                    <button @click="deleteActivity(event.id, 'events')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Event">
+                                        <i class="far fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                     <!-- Empty filler rows -->
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                    <template x-if="events.length < 5">
+                        <template x-for="i in Array.from({length: 5 - events.length})">
+                            <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
+                        </template>
+                    </template>
                 </tbody>
 
                 <!-- Call Tab Header -->
@@ -439,60 +647,53 @@
                             Related to <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Call Owner</th>
-                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider relative group cursor-pointer">
-                            <div class="flex items-center gap-2">
-                                <i class="far fa-plus-square text-gray-400 hover:text-gray-600 text-sm cursor-pointer"></i> 
-                                Create Field
-                            </div>
-                            <div class="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <i class="fas fa-cog text-gray-400 hover:text-gray-600 cursor-pointer text-sm"></i>
-                            </div>
-                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                 </thead>
 
                 <!-- Call Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'call'" style="display: none;">
-                    <tr class="group hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                            <span class="line-through text-gray-400">Person 1</span>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Inbound</td>
-                        <td class="py-3 px-4 text-sm text-gray-600">
-                            <div>Feb 25, 2026</div>
-                            <div class="text-xs text-gray-400">04:00 PM</div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-gray-600">50 secs.</td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Sample Company</td>
-                        <td class="py-3 px-4">
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#D1F1DE] text-[#0A5632] rounded-full text-xs font-medium border border-[#BCE8CD]">
-                                <i class="fas fa-user-circle"></i>
-                                John Kelly @gmail.com
-                            </div>
-                        </td>
-                        <td class="py-3 px-4"></td>
-                    </tr>
-                    <tr class="group hover:bg-gray-50 transition-colors">
-                        <td class="py-3 px-4 text-center">
-                            <input type="checkbox" class="rounded border-gray-300 transition-colors">
-                        </td>
-                        <td class="py-3 px-4 text-sm font-medium text-gray-900">Person 2</td>
-                        <td class="py-3 px-4 text-sm text-gray-600">Outbound</td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                        <td class="py-3 px-4"></td>
-                    </tr>
+                    <template x-for="call in calls" :key="call.id">
+                        <tr class="group hover:bg-gray-50 transition-colors">
+                            <td class="py-3 px-4 text-center">
+                                <input type="checkbox" class="rounded border-gray-300 transition-colors">
+                            </td>
+                            <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                                <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.contact"></span>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="call.type"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600">
+                                <div x-text="call.start_time"></div>
+                                <div class="text-xs text-gray-400" x-text="call.startHour"></div>
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="call.duration"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="call.related_to"></td>
+                            <td class="py-3 px-4">
+                                <template x-if="call.owner">
+                                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#D1F1DE] text-[#0A5632] rounded-full text-xs font-medium border border-[#BCE8CD]">
+                                        <i class="fas fa-user-circle"></i>
+                                        <span x-text="call.owner"></span>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
+                                        <i class="fas fa-pencil-alt text-[10px]"></i>
+                                    </div>
+                                    <button @click="deleteActivity(call.id, 'calls')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Call">
+                                        <i class="far fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                     <!-- Empty filler rows -->
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
-                    <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
+                    <template x-if="calls.length < 5">
+                        <template x-for="i in Array.from({length: 5 - calls.length})">
+                            <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
+                        </template>
+                    </template>
                 </tbody>
             </table>
         </div>
@@ -556,171 +757,67 @@
 
                 <!-- Meeting Cards Area -->
                 <div class="flex-1 p-5 space-y-4 overflow-y-auto">
-                    
-                    <!-- Meeting Card 1: Proposal -->
-                    <div x-show="meetingsSubTab === 'all' || meetingsSubTab === 'upcoming'" class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-3">
-                                <h4 class="text-base font-bold text-gray-900">Proposal - Sample Company</h4>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">upcoming</span>
+                    <template x-for="meeting in filteredMeetings" :key="meeting.id">
+                        <div class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <h4 class="text-base font-bold text-gray-900" x-text="meeting.title"></h4>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border"
+                                          :class="{
+                                              'bg-emerald-100 text-emerald-700 border-emerald-200': meeting.status === 'upcoming',
+                                              'bg-purple-100 text-purple-700 border-purple-200': meeting.status === 'completed'
+                                          }"
+                                          x-text="meeting.status"></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="deleteActivity(meeting.id, 'meetings')" class="text-gray-400 hover:text-red-600 transition-colors mr-2" title="Delete Meeting">
+                                        <i class="far fa-trash-alt text-sm"></i>
+                                    </button>
+                                    <button @click="selectedMeetingDetails = meeting" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
+                                </div>
                             </div>
-                            <button @click="selectedMeetingDetails = { title: 'Proposal - Sample Company', owner: 'John Kelly', date: 'February 26, 2026', time: '10:00 AM', duration: '--', location: '--', attendees: 5, status: 'upcoming', description: '--', hasVideo: true, hasAudio: true, hasTranscript: true, hasMinutes: true }" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
-                        </div>
-                        <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-calendar text-gray-400"></i>
-                                February 26, 2026
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-clock text-gray-400"></i>
-                                10:00 AM
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="fas fa-users text-gray-400"></i>
-                                5 Attendees
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Video Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Audio Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="fas fa-file-alt text-gray-400 text-[10px]"></i>
-                                Transcript
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="far fa-file text-gray-400 text-[10px]"></i>
-                                Minutes
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Meeting Card 2: Client Presentation -->
-                    <div x-show="meetingsSubTab === 'all' || meetingsSubTab === 'completed'" class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-3">
-                                <h4 class="text-base font-bold text-gray-900">Client Presentation - Sample Company</h4>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">completed</span>
+                            <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="far fa-calendar text-gray-400"></i>
+                                    <span x-text="meeting.date"></span>
+                                </span>
+                                <span class="flex items-center gap-1.5">
+                                    <i class="far fa-clock text-gray-400"></i>
+                                    <span x-text="meeting.time"></span>
+                                </span>
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fas fa-users text-gray-400"></i>
+                                    <span x-text="meeting.attendees + ' Attendees'"></span>
+                                </span>
                             </div>
-                            <button @click="selectedMeetingDetails = { title: 'Client Presentation - Sample C...', owner: 'John Kelly', date: 'February 26, 2026', time: '10:00 PM', duration: '--', location: 'California, USA', attendees: 10, status: 'completed', description: '--', hasVideo: true, hasAudio: true, hasTranscript: true, hasMinutes: true }" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
-                        </div>
-                        <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-calendar text-gray-400"></i>
-                                February 26, 2026
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-clock text-gray-400"></i>
-                                10:00 AM
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="fas fa-users text-gray-400"></i>
-                                10 Attendees
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Video Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Audio Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="fas fa-file-alt text-gray-400 text-[10px]"></i>
-                                Transcript
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="far fa-file text-gray-400 text-[10px]"></i>
-                                Minutes
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Meeting Card 3: Product Road Map Review -->
-                    <div x-show="meetingsSubTab === 'all' || meetingsSubTab === 'completed'" class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
-                        <div class="flex items-start justify-between mb-3">
                             <div class="flex items-center gap-3">
-                                <h4 class="text-base font-bold text-gray-900">Product Road Map Review - Sample Company</h4>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">completed</span>
+                                <template x-if="meeting.has_video">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                        Video Recording
+                                    </span>
+                                </template>
+                                <template x-if="meeting.has_audio">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                        Audio Recording
+                                    </span>
+                                </template>
+                                <template x-if="meeting.has_transcript">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
+                                        <i class="fas fa-file-alt text-gray-400 text-[10px]"></i>
+                                        Transcript
+                                    </span>
+                                </template>
+                                <template x-if="meeting.has_minutes">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
+                                        <i class="far fa-file text-gray-400 text-[10px]"></i>
+                                        Minutes
+                                    </span>
+                                </template>
                             </div>
-                            <button @click="selectedMeetingDetails = { title: 'Product Road Map Review', owner: 'John Kelly', date: 'February 26, 2026', time: '10:00 AM', duration: '1 hour', location: '--', attendees: 2, status: 'completed', description: '--', hasVideo: false, hasAudio: true, hasTranscript: true, hasMinutes: true }" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
                         </div>
-                        <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-calendar text-gray-400"></i>
-                                February 26, 2026
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-clock text-gray-400"></i>
-                                10:00 AM
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="fas fa-users text-gray-400"></i>
-                                2 Attendees
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Audio Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="fas fa-file-alt text-gray-400 text-[10px]"></i>
-                                Transcript
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="far fa-file text-gray-400 text-[10px]"></i>
-                                Minutes
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- Meeting Card 4: Weekly Team Sync -->
-                    <div x-show="meetingsSubTab === 'all' || meetingsSubTab === 'upcoming'" class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex items-center gap-3">
-                                <h4 class="text-base font-bold text-gray-900">Weekly Team Sync</h4>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">upcoming</span>
-                            </div>
-                            <button @click="selectedMeetingDetails = { title: 'Weekly Team Sync', owner: 'John Kelly', date: 'February 26, 2026', time: '10:00 AM', duration: '30 mins', location: '--', attendees: 2, status: 'upcoming', description: '--', hasVideo: true, hasAudio: false, hasTranscript: true, hasMinutes: true }" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
-                        </div>
-                        <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-calendar text-gray-400"></i>
-                                February 26, 2026
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="far fa-clock text-gray-400"></i>
-                                10:00 AM
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <i class="fas fa-users text-gray-400"></i>
-                                2 Attendees
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                Video Recording
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="fas fa-file-alt text-gray-400 text-[10px]"></i>
-                                Transcript
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-medium border border-gray-200">
-                                <i class="far fa-file text-gray-400 text-[10px]"></i>
-                                Minutes
-                            </span>
-                        </div>
-                    </div>
-
+                    </template>
                 </div>
             </div>
         </div>
@@ -728,37 +825,37 @@
         <!-- Footer / Pagination Area -->
         <div class="px-6 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'task'">
-                <span class="text-gray-600">Total task 21</span>
+                <span class="text-gray-600">Total task <span x-text="taskCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-blue-600">Open Task 11</span>
+                <span class="text-blue-600">Open Task <span x-text="taskCounts.open"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-green-500">Completed 10</span>
+                <span class="text-green-500">Completed <span x-text="taskCounts.completed"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-red-500">Overdue 1</span>
+                <span class="text-red-500">Overdue <span x-text="taskCounts.overdue"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'events'" style="display: none;">
-                <span class="text-gray-600">Total Event <span class="text-xs">1</span></span>
+                <span class="text-gray-600">Total Event <span class="text-xs" x-text="eventCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Upcoming Events <span class="text-yellow-500">1</span></span>
+                <span class="text-gray-600">Upcoming Events <span class="text-yellow-500" x-text="eventCounts.upcoming"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Closed Events <span class="text-green-500">1</span></span>
+                <span class="text-gray-600">Closed Events <span class="text-green-500" x-text="eventCounts.closed"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'meetings'" style="display: none;">
-                <span class="text-gray-700">Total Meetings <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5">4</span></span>
+                <span class="text-gray-700">Total Meetings <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5" x-text="meetingCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Upcoming <span class="text-emerald-500 font-bold">2</span></span>
+                <span class="text-gray-600">Upcoming <span class="text-emerald-500 font-bold" x-text="meetingCounts.upcoming"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Completed <span class="text-purple-500 font-bold">2</span></span>
+                <span class="text-gray-600">Completed <span class="text-purple-500 font-bold" x-text="meetingCounts.completed"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'call'" style="display: none;">
-                <span class="text-gray-700">Total Calls <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5">1</span></span>
+                <span class="text-gray-700">Total Calls <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5" x-text="callCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Scheduled <span class="text-blue-500 font-bold">0</span></span>
+                <span class="text-gray-600">Scheduled <span class="text-blue-500 font-bold" x-text="callCounts.scheduled"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Overdue <span class="text-red-500 font-bold">0</span></span>
+                <span class="text-gray-600">Overdue <span class="text-red-500 font-bold" x-text="callCounts.overdue"></span></span>
             </div>
             
             <div x-show="activeTab !== 'meetings'" class="flex items-center gap-4 text-[11px] text-blue-600 font-semibold tracking-wide bg-blue-50/50 px-3 py-1.5 rounded-md">
@@ -769,7 +866,7 @@
                     </button>
                 </div>
                 <div class="w-px h-3 bg-blue-200"></div>
-                <span>1 - 21 of 21</span>
+                <span><span x-text="activeList.length > 0 ? '1' : '0'"></span> - <span x-text="activeList.length"></span> of <span x-text="activeList.length"></span></span>
                 <div class="flex items-center gap-2 text-gray-400">
                     <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-left text-[9px]"></i></button>
                     <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-right text-[9px]"></i></button>
@@ -818,24 +915,42 @@
                         <span class="w-32 font-semibold text-base tracking-wide">Task Information</span>
                         <div class="flex items-center justify-end gap-2 flex-1">
                             <span class="text-gray-200 text-xs">Owner</span>
-                            <button class="bg-white text-gray-800 px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 shadow-sm transition hover:bg-gray-100">
-                                <i class="fas fa-user-circle text-gray-500 text-sm"></i>
-                                John Kelly@gmail.com
-                                <i class="fas fa-caret-down text-[10px] ml-0.5"></i>
-                            </button>
+                            <div class="relative" x-data="{ ownerOpen: false }">
+                                <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
+                                    <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
+                                    <span class="text-[10px] font-medium opacity-90 text-white" x-text="newTask.owner"></span>
+                                    <i class="fas fa-chevron-down text-[8px] text-white opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                                </button>
+                                <!-- Owner Dropdown -->
+                                <div x-show="ownerOpen" 
+                                     @click.away="ownerOpen = false" 
+                                     style="display: none;"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
+                                    <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
+                                        <button @click="newTask.owner = owner; ownerOpen = false" 
+                                                class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
+                                                :class="newTask.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
+                                                x-text="owner">
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Fields -->
                     <div class="flex items-center text-white">
                         <label class="w-32 text-gray-200">Task Name</label>
-                        <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                        <input type="text" x-model="newTask.name" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                     </div>
 
                     <div class="flex text-white">
                         <label class="w-32 pt-2 text-gray-200">Due Date</label>
                         <div class="flex-1 space-y-2">
-                            <input type="text" placeholder="MM/DD/YY" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                            <input type="text" x-model="newTask.dueDate" placeholder="MM/DD/YY" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                             <div class="flex flex-col gap-1.5 ml-1">
                                 <label class="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
@@ -851,20 +966,20 @@
 
                     <div class="flex items-center text-white pt-1">
                         <label class="w-32 text-gray-200">Related To</label>
-                        <input type="text" placeholder="Search Contacts/Companies/Products" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
+                        <input type="text" x-model="newTask.relatedTo" placeholder="Search Contacts/Companies/Products" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
                     </div>
 
                     <div class="flex text-white pt-1">
                         <label class="w-32 pt-2 text-gray-200">Description</label>
                         <div class="flex-1 space-y-3">
-                            <textarea rows="3" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
+                            <textarea rows="3" x-model="newTask.description" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
                             <div class="flex flex-col gap-1.5 ml-1 pb-2">
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <input type="checkbox" x-model="newTask.priority" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
                                     <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as High Priority</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
+                                    <input type="checkbox" x-model="newTask.completed" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
                                     <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as Completed</span>
                                 </label>
                             </div>
@@ -878,7 +993,7 @@
                 <button @click="showTaskModal = false" class="px-8 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-sm transition shadow-sm min-w-[100px]">
                     Cancel
                 </button>
-                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
+                <button @click="saveTask()" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
                     Save
                 </button>
             </div>
@@ -923,51 +1038,69 @@
                         <span class="w-36 font-semibold text-base tracking-wide">Meeting Information</span>
                         <div class="flex items-center justify-end gap-2 flex-1">
                             <span class="text-gray-200 text-xs">Owner</span>
-                            <button class="bg-white text-gray-800 px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5 shadow-sm transition hover:bg-gray-100">
-                                <i class="fas fa-user-circle text-gray-500 text-sm"></i>
-                                John Kelly@gmail.com
-                                <i class="fas fa-caret-down text-[10px] ml-0.5"></i>
-                            </button>
+                            <div class="relative" x-data="{ ownerOpen: false }">
+                                <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
+                                    <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
+                                    <span class="text-[10px] font-medium opacity-90 text-white" x-text="newMeeting.owner"></span>
+                                    <i class="fas fa-chevron-down text-[8px] text-white opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                                </button>
+                                <!-- Owner Dropdown -->
+                                <div x-show="ownerOpen" 
+                                     @click.away="ownerOpen = false" 
+                                     style="display: none;"
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
+                                    <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
+                                        <button @click="newMeeting.owner = owner; ownerOpen = false" 
+                                                class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
+                                                :class="newMeeting.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
+                                                x-text="owner">
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Meeting Title -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Meeting Title</label>
-                        <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                        <input type="text" x-model="newMeeting.title" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                     </div>
 
                     <!-- Date & Time -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Date & Time</label>
                         <div class="flex items-center gap-3 flex-1">
-                            <input type="date" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                            <input type="time" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                            <input type="date" x-model="newMeeting.date" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                            <input type="time" x-model="newMeeting.time" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                         </div>
                     </div>
 
                     <!-- Duration -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Duration</label>
-                        <input type="text" placeholder="e.g. 30 mins" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
+                        <input type="text" x-model="newMeeting.duration" placeholder="e.g. 30 mins" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
                     </div>
 
                     <!-- Meeting Link / Location -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Meeting Link / Location</label>
-                        <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                        <input type="text" x-model="newMeeting.location" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                     </div>
 
                     <!-- Attendees -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Attendees</label>
-                        <input type="text" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                        <input type="text" x-model="newMeeting.attendees" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
                     </div>
 
                     <!-- Description / Agenda -->
                     <div class="flex text-white">
                         <label class="w-36 pt-2 text-gray-200">Description / Agenda</label>
-                        <textarea rows="3" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
+                        <textarea rows="3" x-model="newMeeting.description" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
                     </div>
 
                     <!-- Recording & Documentation Option -->
@@ -975,19 +1108,19 @@
                         <h4 class="text-white font-semibold text-sm mb-3">Recording & Documentation Option</h4>
                         <div class="flex flex-col gap-2 ml-1">
                             <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
+                                <input type="checkbox" x-model="newMeeting.hasVideo" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
                                 <span class="text-sm text-gray-200 group-hover:text-white transition">Record Video</span>
                             </label>
                             <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
+                                <input type="checkbox" x-model="newMeeting.hasAudio" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
                                 <span class="text-sm text-gray-200 group-hover:text-white transition">Record Audio</span>
                             </label>
                             <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
+                                <input type="checkbox" x-model="newMeeting.hasTranscript" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
                                 <span class="text-sm text-gray-200 group-hover:text-white transition">Generate transcript automatically</span>
                             </label>
                             <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
+                                <input type="checkbox" x-model="newMeeting.hasMinutes" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
                                 <span class="text-sm text-gray-200 group-hover:text-white transition">Generate meeting minutes automatically</span>
                             </label>
                         </div>
@@ -1000,7 +1133,7 @@
                 <button @click="showMeetingModal = false" class="px-8 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-sm transition shadow-sm min-w-[100px]">
                     Cancel
                 </button>
-                <button @click="showMeetingModal = false" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
+                <button @click="saveMeeting()" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
                     Save
                 </button>
             </div>
@@ -1285,41 +1418,46 @@
                     <h4 class="font-bold text-gray-900 text-sm mt-6 mb-3">Download Options</h4>
                     <div class="space-y-3">
                         <!-- Video -->
-                        <div class="flex items-center" x-show="selectedMeetingDetails?.hasVideo">
+                        <div class="flex items-center" x-show="selectedMeetingDetails?.has_video">
                             <div class="w-24 text-sm text-gray-500">Video</div>
                             <div class="flex items-center gap-2">
-                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm">
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     <i class="fas fa-download text-[10px]"></i>
                                     Download
                                 </button>
-                                <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#8FA8CB] text-white rounded-lg text-xs font-semibold hover:bg-[#7a93b5] transition shadow-sm">
+                                <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#8FA8CB] text-white rounded-lg text-xs font-semibold hover:bg-[#7a93b5] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     Open
                                 </button>
                             </div>
                         </div>
                         
                         <!-- Audio -->
-                        <div class="flex items-center" x-show="selectedMeetingDetails?.hasAudio">
+                        <div class="flex items-center" x-show="selectedMeetingDetails?.has_audio">
                             <div class="w-24 text-sm text-gray-500">Audio</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm">
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
                             </button>
                         </div>
 
                         <!-- Transcript -->
-                        <div class="flex items-center" x-show="selectedMeetingDetails?.hasTranscript">
+                        <div class="flex items-center" x-show="selectedMeetingDetails?.has_transcript">
                             <div class="w-24 text-sm text-gray-500">Transcript</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm">
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
                             </button>
                         </div>
 
                         <!-- Minutes -->
-                        <div class="flex items-center" x-show="selectedMeetingDetails?.hasMinutes">
+                        <div class="flex items-center" x-show="selectedMeetingDetails?.has_minutes">
                             <div class="w-24 text-sm text-gray-500">Minutes</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm">
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
                             </button>
@@ -1413,6 +1551,334 @@
                     <div class="absolute left-0 top-0 h-full w-0 bg-white rounded-full"></div>
                 </div>
                 <span class="text-white text-xs font-medium tracking-wide">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Call Modal -->
+    <div x-show="showCallModal" 
+         style="display: none;" 
+         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+         
+         <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showCallModal = false"></div>
+        
+        <!-- Modal Panel -->
+        <div class="relative bg-white rounded-[24px] shadow-2xl w-full max-w-[580px] transform transition-all overflow-hidden border border-gray-100"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95">
+             
+            <!-- Modal Header -->
+            <div class="px-8 py-5 text-center shrink-0 border-b border-gray-50">
+                <h3 class="text-2xl font-bold text-gray-900 tracking-tight">Create Call</h3>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="px-6 pb-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <!-- Inner Dark Container -->
+                <div class="bg-[#1E293B] rounded-[20px] p-6 text-white shadow-inner mt-4">
+                    
+                    <!-- Call Information Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center justify-between mb-5">
+                            <h4 class="text-base font-semibold tracking-wide">Call Information</h4>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Owner</span>
+                                <div class="relative" x-data="{ ownerOpen: false }">
+                                    <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
+                                        <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
+                                        <span class="text-[10px] font-medium opacity-90" x-text="newCall.owner"></span>
+                                        <i class="fas fa-chevron-down text-[8px] opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <!-- Owner Dropdown -->
+                                    <div x-show="ownerOpen" 
+                                         @click.away="ownerOpen = false" 
+                                         style="display: none;"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
+                                        <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
+                                            <button @click="newCall.owner = owner; ownerOpen = false" 
+                                                    class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
+                                                    :class="newCall.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
+                                                    x-text="owner">
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- To/From -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">To/From</label>
+                                <input type="text" x-model="newCall.contact" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
+                            </div>
+                            <!-- Related to -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Related to</label>
+                                <input type="text" x-model="newCall.relatedTo" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
+                            </div>
+                            <!-- Call Type -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Call Type</label>
+                                <input type="text" x-model="newCall.type" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
+                            </div>
+                            <!-- Outgoing Call Status -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400 leading-tight">Outgoing Call Status</label>
+                                <input type="text" x-model="newCall.status" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
+                            </div>
+                            <!-- Call Start Time -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Call Start Time</label>
+                                <div class="flex-1 flex gap-2">
+                                    <div class="flex-1 relative">
+                                        <input type="date" x-model="newCall.startTime" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
+                                        <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                    </div>
+                                    <div class="w-28 relative">
+                                        <input type="time" x-model="newCall.startHour" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Reminder -->
+                            <div class="flex items-center pl-32 mt-1">
+                                <input type="checkbox" id="call-reminder" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
+                                <label for="call-reminder" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Reminder</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purpose Section -->
+                    <div class="mb-4">
+                        <h4 class="text-base font-semibold tracking-wide mb-5">Purpose of Outgoing Call</h4>
+                        <div class="space-y-4">
+                            <!-- Call Purpose -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Call Purpose</label>
+                                <div class="flex-1 relative" x-data="{ purposeOpen: false, selectedPurpose: '-None-' }">
+                                    <button @click="purposeOpen = !purposeOpen" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 flex items-center justify-between shadow-sm border-none outline-none focus:ring-1 focus:ring-blue-400 transition-all">
+                                        <span :class="selectedPurpose === '-None-' ? 'opacity-50' : 'opacity-100'" x-text="selectedPurpose"></span>
+                                        <i class="fas fa-chevron-down text-[10px] text-[#3b82f6] transition-transform duration-200" :class="purposeOpen ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <!-- Stylized Dropdown Menu -->
+                                    <div x-show="purposeOpen" 
+                                         @click.away="purposeOpen = false" 
+                                         style="display: none;"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="transform opacity-100 scale-100"
+                                         x-transition:leave-end="transform opacity-0 scale-95"
+                                         class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
+                                        <template x-for="p in ['-None-', 'Prospecting', 'Administrative', 'Negotiation', 'Demo', 'Project', 'Desk']" :key="p">
+                                            <button @click="selectedPurpose = p; newCall.purpose = p; purposeOpen = false" 
+                                                    class="w-full text-left px-5 py-2 text-sm transition-colors"
+                                                    :class="selectedPurpose === p ? 'bg-blue-50 text-blue-600 font-bold' : 'hover:bg-gray-100 text-gray-700'"
+                                                    x-text="p">
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Call Agenda -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Call Agenda</label>
+                                <input type="text" x-model="newCall.agenda" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex items-center justify-center gap-4 mt-8">
+                    <button @click="showCallModal = false" class="px-10 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition">Cancel</button>
+                    <button @click="saveCall()" class="px-10 py-2.5 bg-[#1E293B] text-white rounded-full text-sm font-bold hover:bg-slate-700 transition shadow-lg">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Event Modal -->
+    <div x-show="showEventModal" 
+         style="display: none;" 
+         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+         
+         <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showEventModal = false"></div>
+        
+        <!-- Modal Panel -->
+        <div class="relative bg-white rounded-[24px] shadow-2xl w-full max-w-[580px] transform transition-all overflow-hidden border border-gray-100"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95">
+             
+            <!-- Modal Header -->
+            <div class="px-8 py-5 text-center shrink-0 border-b border-gray-50">
+                <h3 class="text-2xl font-bold text-gray-900 tracking-tight">Create Event</h3>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="px-6 pb-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <!-- Inner Dark Container -->
+                <div class="bg-[#1E293B] rounded-[20px] p-6 text-white shadow-inner mt-4">
+                    
+                    <!-- Event Information Section -->
+                    <div class="mb-2">
+                        <div class="flex items-center justify-between mb-5">
+                            <h4 class="text-base font-semibold tracking-wide">Event Information</h4>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Owner</span>
+                                <div class="relative" x-data="{ ownerOpen: false }">
+                                    <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
+                                        <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
+                                        <span class="text-[10px] font-medium opacity-90" x-text="newEvent.host"></span>
+                                        <i class="fas fa-chevron-down text-[8px] opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                                    </button>
+                                    <!-- Owner Dropdown -->
+                                    <div x-show="ownerOpen" 
+                                         @click.away="ownerOpen = false" 
+                                         style="display: none;"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
+                                        <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
+                                            <button @click="newEvent.host = owner; ownerOpen = false" 
+                                                    class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
+                                                    :class="newEvent.host === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
+                                                    x-text="owner">
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Title -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Title</label>
+                                <input type="text" x-model="newEvent.title" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                            </div>
+                            
+                            <!-- Date & Time Range -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Date & Time</label>
+                                <div class="flex-1 space-y-2">
+                                    <!-- From -->
+                                    <div class="flex gap-2">
+                                        <div class="flex-1 relative">
+                                            <input type="date" x-model="newEvent.from" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
+                                            <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                        <div class="w-28 relative">
+                                            <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                                        </div>
+                                    </div>
+                                    <!-- To -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 w-4 text-center">to</span>
+                                        <div class="flex-1 relative">
+                                            <input type="date" x-model="newEvent.to" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
+                                            <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        </div>
+                                        <div class="w-28 relative">
+                                            <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Repeat & Reminder -->
+                            <div class="pl-32 space-y-2 pt-1">
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="event-repeat" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
+                                    <label for="event-repeat" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Repeat</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="event-reminder" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
+                                    <label for="event-reminder" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Reminder</label>
+                                </div>
+                                
+                                <!-- Reminder Time Dropdown -->
+                                <div class="flex items-center pt-1" x-data="{ reminderOpen: false, selectedReminder: '15 mins' }">
+                                    <div class="relative w-28">
+                                        <button @click="reminderOpen = !reminderOpen" class="w-full bg-white rounded-md px-2 py-1 text-[10px] text-gray-900 flex items-center justify-between shadow-sm">
+                                            <span x-text="selectedReminder"></span>
+                                            <i class="fas fa-chevron-down text-[8px] text-gray-400 transition-transform" :class="reminderOpen ? 'rotate-180' : ''"></i>
+                                        </button>
+                                        <div x-show="reminderOpen" @click.away="reminderOpen = false" class="absolute left-0 right-0 top-full mt-1 bg-white rounded-md shadow-lg z-50 py-1 text-gray-800 border border-gray-100 overflow-hidden text-[10px]">
+                                            <template x-for="r in ['5 mins', '10 mins', '15 mins', '30 mins', '1 hour']">
+                                                <button @click="selectedReminder = r; reminderOpen = false" x-text="r" class="w-full text-left px-3 py-1 hover:bg-gray-100"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <span class="ml-2 text-[10px] text-gray-400">before start time</span>
+                                </div>
+                            </div>
+
+                            <!-- Location -->
+                            <div class="flex items-center pt-2">
+                                <label class="w-32 text-xs font-medium text-gray-400">Location</label>
+                                <input type="text" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                            </div>
+
+                            <!-- Online Meeting -->
+                            <div class="flex items-center pl-32">
+                                <input type="checkbox" id="event-online" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
+                                <label for="event-online" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Online Meeting</label>
+                            </div>
+
+                            <!-- Related to -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Related to</label>
+                                <input type="text" x-model="newEvent.relatedTo" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                            </div>
+
+                            <!-- Participants -->
+                            <div class="flex items-center">
+                                <label class="w-32 text-xs font-medium text-gray-400">Participants</label>
+                                <input type="text" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
+                            </div>
+
+                            <!-- Description -->
+                            <div class="flex items-start">
+                                <label class="w-32 text-xs font-medium text-gray-400 mt-1.5">Description</label>
+                                <textarea rows="3" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none resize-none"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex items-center justify-center gap-4 mt-8">
+                    <button @click="showEventModal = false" class="px-10 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition">Cancel</button>
+                    <button @click="saveEvent()" class="px-10 py-2.5 bg-[#1E293B] text-white rounded-full text-sm font-bold hover:bg-slate-700 transition shadow-lg">Save</button>
+                </div>
             </div>
         </div>
     </div>

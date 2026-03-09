@@ -6,6 +6,21 @@ Route::get('/', function () {
     return view('corporate.company-general-information');
 });
 
+use App\Http\Controllers\ActivityController;
+
 Route::get('/activities', function () {
     return view('activities.index');
 })->name('activities');
+
+Route::prefix('api')->group(function () {
+    Route::get('/activities', [ActivityController::class, 'index']);
+    Route::post('/tasks', [ActivityController::class, 'storeTask']);
+    Route::post('/events', [ActivityController::class, 'storeEvent']);
+    Route::post('/calls', [ActivityController::class, 'storeCall']);
+    Route::post('/meetings', [ActivityController::class, 'storeMeeting']);
+    
+    Route::delete('/tasks/{id}', [ActivityController::class, 'destroyTask']);
+    Route::delete('/events/{id}', [ActivityController::class, 'destroyEvent']);
+    Route::delete('/calls/{id}', [ActivityController::class, 'destroyCall']);
+    Route::delete('/meetings/{id}', [ActivityController::class, 'destroyMeeting']);
+});
