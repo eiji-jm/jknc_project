@@ -19,6 +19,11 @@ Route::prefix('api')->group(function () {
     Route::post('/calls', [ActivityController::class, 'storeCall']);
     Route::post('/meetings', [ActivityController::class, 'storeMeeting']);
     
+    Route::put('/tasks/{id}', [ActivityController::class, 'updateTask']);
+    Route::put('/events/{id}', [ActivityController::class, 'updateEvent']);
+    Route::put('/calls/{id}', [ActivityController::class, 'updateCall']);
+    Route::put('/meetings/{id}', [ActivityController::class, 'updateMeeting']);
+
     Route::delete('/tasks/{id}', [ActivityController::class, 'destroyTask']);
     Route::delete('/events/{id}', [ActivityController::class, 'destroyEvent']);
     Route::delete('/calls/{id}', [ActivityController::class, 'destroyCall']);

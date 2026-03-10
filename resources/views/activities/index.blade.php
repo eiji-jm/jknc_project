@@ -31,7 +31,7 @@
         newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '', status: '' },
 
         meetings: [],
-        newMeeting: { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
+        newMeeting: { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
 
         filterDropdownOpen: false,
         selectedTaskDetails: null,
@@ -48,9 +48,17 @@
         showVideoPlayer: false,
         showCallModal: false,
         showEventModal: false,
+        viewMode: 'list',
 
         init() {
+            // Initial fetch
             this.fetchActivities();
+            
+            // Seamlessly run in the background every 60 seconds to pull
+            // down dynamically updated Meeting statuses without page refreshes!
+            setInterval(() => {
+                this.fetchActivities();
+            }, 60000);
         },
 
         async fetchActivities() {
@@ -69,8 +77,12 @@
         async saveTask() {
             if (!this.newTask.name) return;
             try {
-                const response = await fetch('/api/tasks', {
-                    method: 'POST',
+                const isEdit = !!this.newTask.id;
+                const url = isEdit ? '/api/tasks/' + this.newTask.id : '/api/tasks';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
@@ -86,9 +98,14 @@
                     })
                 });
                 const task = await response.json();
-                this.tasks.unshift(task);
+                if (isEdit) {
+                    const index = this.tasks.findIndex(t => t.id === task.id);
+                    if (index !== -1) this.tasks[index] = task;
+                } else {
+                    this.tasks.unshift(task);
+                }
                 this.showTaskModal = false;
-                this.newTask = { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' };
+                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' };
             } catch (error) {
                 console.error('Error saving task:', error);
             }
@@ -97,18 +114,33 @@
         async saveEvent() {
             if (!this.newEvent.title) return;
             try {
-                const response = await fetch('/api/events', {
-                    method: 'POST',
+                const isEdit = !!this.newEvent.id;
+                const url = isEdit ? '/api/events/' + this.newEvent.id : '/api/events';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
                     },
-                    body: JSON.stringify(this.newEvent)
+                    body: JSON.stringify({
+                        title: this.newEvent.title,
+                        from: this.newEvent.from,
+                        to: this.newEvent.to,
+                        related_to: this.newEvent.relatedTo,
+                        host: this.newEvent.host
+                    })
                 });
                 const event = await response.json();
-                this.events.unshift(event);
+                if (isEdit) {
+                    const index = this.events.findIndex(e => e.id === event.id);
+                    if (index !== -1) this.events[index] = event;
+                } else {
+                    this.events.unshift(event);
+                }
                 this.showEventModal = false;
-                this.newEvent = { title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' };
+                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' };
             } catch (error) {
                 console.error('Error saving event:', error);
             }
@@ -117,8 +149,12 @@
         async saveCall() {
             if (!this.newCall.contact) return;
             try {
-                const response = await fetch('/api/calls', {
-                    method: 'POST',
+                const isEdit = !!this.newCall.id;
+                const url = isEdit ? '/api/calls/' + this.newCall.id : '/api/calls';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
@@ -133,13 +169,18 @@
                         owner: this.newCall.owner,
                         purpose: this.newCall.purpose,
                         agenda: this.newCall.agenda,
-                        completed: false
+                        completed: this.newCall.completed || false
                     })
                 });
                 const call = await response.json();
-                this.calls.unshift(call);
+                if (isEdit) {
+                    const index = this.calls.findIndex(c => c.id === call.id);
+                    if (index !== -1) this.calls[index] = call;
+                } else {
+                    this.calls.unshift(call);
+                }
                 this.showCallModal = false;
-                this.newCall = { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '' };
+                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '', completed: false };
             } catch (error) {
                 console.error('Error saving call:', error);
             }
@@ -148,8 +189,20 @@
         async saveMeeting() {
             if (!this.newMeeting.title) return;
             try {
-                const response = await fetch('/api/meetings', {
-                    method: 'POST',
+                // Determine seamless DB-friendly string
+                let computedDuration = '';
+                const h = parseInt(this.newMeeting.durationHour) || 0;
+                const m = parseInt(this.newMeeting.durationMin) || 0;
+                if (h > 0) computedDuration += h + ' hr ';
+                if (m > 0 || h === 0) computedDuration += m + ' mins';
+                this.newMeeting.duration = computedDuration.trim();
+
+                const isEdit = !!this.newMeeting.id;
+                const url = isEdit ? '/api/meetings/' + this.newMeeting.id : '/api/meetings';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
@@ -162,7 +215,7 @@
                         duration: this.newMeeting.duration,
                         location: this.newMeeting.location,
                         attendees: this.newMeeting.attendees,
-                        status: 'upcoming',
+                        status: this.newMeeting.status || 'upcoming',
                         description: this.newMeeting.description,
                         has_video: this.newMeeting.hasVideo,
                         has_audio: this.newMeeting.hasAudio,
@@ -171,12 +224,91 @@
                     })
                 });
                 const meeting = await response.json();
-                this.meetings.unshift(meeting);
+                if (isEdit) {
+                    const index = this.meetings.findIndex(m => m.id === meeting.id);
+                    if (index !== -1) this.meetings[index] = meeting;
+                } else {
+                    this.meetings.unshift(meeting);
+                }
                 this.showMeetingModal = false;
-                this.newMeeting = { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false };
+                this.newMeeting = { id: null, title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
             } catch (error) {
                 console.error('Error saving meeting:', error);
             }
+        },
+
+        editTask(task) {
+            this.newTask = { 
+                id: task.id, 
+                name: task.name, 
+                dueDate: task.due_date, 
+                relatedTo: task.related_to, 
+                description: task.description, 
+                priority: task.priority === 'High', 
+                completed: task.status === 'Completed', 
+                owner: task.owner 
+            };
+            this.showTaskModal = true;
+        },
+
+        editEvent(event) {
+            this.newEvent = { 
+                id: event.id,
+                title: event.title,
+                from: event.from,
+                to: event.to,
+                relatedTo: event.related_to,
+                host: event.host
+            };
+            this.showEventModal = true;
+        },
+
+        editCall(call) {
+            this.newCall = { 
+                id: call.id,
+                contact: call.contact,
+                type: call.type,
+                startTime: call.start_time,
+                startHour: call.start_hour,
+                duration: call.duration,
+                relatedTo: call.related_to,
+                owner: call.owner,
+                agenda: call.agenda,
+                purpose: call.purpose,
+                completed: call.completed
+            };
+            this.showCallModal = true;
+        },
+
+        editMeeting(meeting) {
+            let parsedHr = '0';
+            let parsedMin = '30';
+            if (meeting.duration) {
+                const hrMatch = meeting.duration.match(/(\d+)\s*hr/i);
+                if (hrMatch) parsedHr = hrMatch[1];
+                const minMatch = meeting.duration.match(/(\d+)\s*min/i);
+                if (minMatch) parsedMin = minMatch[1];
+            }
+
+            this.newMeeting = { 
+                id: meeting.id,
+                title: meeting.title,
+                owner: meeting.owner,
+                date: meeting.date,
+                time: meeting.time,
+                duration: meeting.duration,
+                durationHour: parsedHr,
+                durationMin: parsedMin,
+                location: meeting.location,
+                attendees: meeting.attendees,
+                description: meeting.description,
+                hasVideo: meeting.has_video,
+                hasAudio: meeting.has_audio,
+                hasTranscript: meeting.has_transcript,
+                hasMinutes: meeting.has_minutes,
+                status: meeting.status
+            };
+            this.showMeetingModal = true;
         },
 
         get taskCounts() {
@@ -251,10 +383,84 @@
 
         get filteredMeetings() {
             return this.meetings.filter(m => {
-                if (this.meetingsSubTab === 'upcoming') return m.status === 'upcoming';
-                if (this.meetingsSubTab === 'completed') return m.status === 'completed';
+                if (this.meetingsSubTab === 'upcoming' && m.status !== 'upcoming') return false;
+                if (this.meetingsSubTab === 'completed' && m.status !== 'completed') return false;
+                
+                if (this.meetingFilters.videoRecording && !m.has_video) return false;
+                if (this.meetingFilters.audioRecording && !m.has_audio) return false;
+                if (this.meetingFilters.transcription && !m.has_transcript) return false;
+                if (this.meetingFilters.minutes && !m.has_minutes) return false;
+                
                 return true;
             });
+        },
+
+        showExportModal: false,
+        exportFieldSelection: 'view',
+
+        exportData() {
+            let dataToExport = [];
+            let csvContent = '';
+            let filename = 'export.csv';
+            const q = String.fromCharCode(34);
+            
+            if (this.activeTab === 'task') {
+                dataToExport = this.tasks;
+                filename = 'tasks_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner,Description\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner, item.description].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            } else if (this.activeTab === 'events') {
+                dataToExport = this.events;
+                filename = 'events_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Title,From,To,Related To,Host\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                     csvContent += 'Title,From,To,Related To,Host\n';
+                     dataToExport.forEach(item => {
+                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            } else if (this.activeTab === 'call') {
+                dataToExport = this.calls;
+                filename = 'calls_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                     csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner,Purpose,Agenda,Completed\n';
+                     dataToExport.forEach(item => {
+                        const completedStr = item.completed ? 'Yes' : 'No';
+                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner, item.purpose, item.agenda, completedStr].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            this.showExportModal = false;
         }
      }">
 
@@ -476,27 +682,47 @@
 
             <!-- Right Toolbar -->
             <div class="flex items-center gap-3">
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded">
+                <button @click="viewMode = 'grid'" 
+                        :class="viewMode === 'grid' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'"
+                        class="w-8 h-8 flex items-center justify-center rounded transition-colors">
                     <i class="fas fa-th-large text-sm"></i>
                 </button>
                 <div class="h-5 w-px bg-gray-300 mx-1"></div>
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded">
+                <button @click="viewMode = 'list'"
+                        :class="viewMode === 'list' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'"
+                        class="w-8 h-8 flex items-center justify-center rounded transition-colors">
                      <i class="fas fa-list text-sm"></i>
                 </button>
                 
                 <!-- Primary Action Button -->
-                <button @click="activeTab === 'call' ? showCallModal = true : (activeTab === 'events' ? showEventModal = true : (activeTab === 'meetings' ? showMeetingModal = true : showTaskModal = true))" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2">
+                <button @click="activeTab === 'call' ? showCallModal = true : (activeTab === 'events' ? showEventModal = true : (activeTab === 'meetings' ? showMeetingModal = true : showTaskModal = true))" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2 z-10">
                     <i class="fas fa-plus text-xs"></i>
                     <span x-text="activeTab === 'events' ? 'Event' : (activeTab === 'call' ? 'Call' : 'Task')">Task</span>
-                    <i class="fas fa-chevron-down text-[10px] ml-1 opacity-80"></i>
                 </button>
                 
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded ml-2">
-                    <i class="fas fa-cog text-sm"></i>
-                </button>
-                <button class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded">
-                    <i class="fas fa-ellipsis-v text-sm"></i>
-                </button>
+                <!-- 3 Dots Export Menu -->
+                <div class="relative ml-1" x-data="{ exportDropdownOpen: false }" @click.away="exportDropdownOpen = false">
+                    <button @click="exportDropdownOpen = !exportDropdownOpen" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors">
+                        <i class="fas fa-ellipsis-v text-sm"></i>
+                    </button>
+
+                    <div x-show="exportDropdownOpen" 
+                         style="display: none;" 
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
+                        <div class="py-2">
+                            <button @click="showExportModal = true; exportDropdownOpen = false;" class="w-full text-left px-5 py-3 hover:bg-gray-50 flex items-center gap-3 text-sm text-gray-700 font-medium">
+                                <i class="fas fa-download text-gray-500"></i>
+                                Export this View
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -547,7 +773,7 @@
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
                                     <span x-text="task.name"></span>
-                                    <button @click="selectedTaskDetails = task.name" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Task">
+                                    <button @click="selectedTaskDetails = task" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Task">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
@@ -565,9 +791,14 @@
                                 </template>
                             </td>
                             <td class="py-3 px-4 text-right">
-                                <button @click="deleteActivity(task.id, 'tasks')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Task">
-                                    <i class="far fa-trash-alt text-sm"></i>
-                                </button>
+                                <div class="flex items-center justify-end gap-2 transition-opacity">
+                                    <div @click="editTask(task)" class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer" title="Edit Task">
+                                        <i class="fas fa-pencil-alt text-[10px]"></i>
+                                    </div>
+                                    <button @click="deleteActivity(task.id, 'tasks')" class="text-gray-400 hover:text-red-600 transition" title="Delete Task">
+                                        <i class="far fa-trash-alt text-sm"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </template>
@@ -590,14 +821,14 @@
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2 pl-2">
                                     <span x-text="event.title"></span>
-                                    <button @click="selectedTaskDetails = event.title" class="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" title="View Event">
+                                    <button @click="selectedTaskDetails = event" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Event">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="event.from"></td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="event.to"></td>
-                            <td class="py-3 px-4 text-sm text-blue-500 font-medium" x-text="event.related_to"></td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="event.related_to"></td>
                             <td class="py-3 px-4">
                                 <template x-if="event.host">
                                     <div class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-[#D1F1DE] text-[#0A5632] rounded text-xs font-medium border border-[#BCE8CD]">
@@ -607,10 +838,10 @@
                             </td>
                             <td class="py-3 px-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
+                                    <div @click="editEvent(event)" class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer" title="Edit Event">
                                         <i class="fas fa-pencil-alt text-[10px]"></i>
                                     </div>
-                                    <button @click="deleteActivity(event.id, 'events')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Event">
+                                    <button @click="deleteActivity(event.id, 'events')" class="text-gray-400 hover:text-red-600 transition-opacity" title="Delete Event">
                                         <i class="far fa-trash-alt text-sm"></i>
                                     </button>
                                 </div>
@@ -659,7 +890,12 @@
                                 <input type="checkbox" class="rounded border-gray-300 transition-colors">
                             </td>
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
-                                <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.contact"></span>
+                                <div class="flex items-center gap-2">
+                                    <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.contact"></span>
+                                    <button @click="selectedTaskDetails = call" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Call">
+                                        <i class="far fa-eye text-sm"></i>
+                                    </button>
+                                </div>
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.type"></td>
                             <td class="py-3 px-4 text-sm text-gray-600">
@@ -678,10 +914,10 @@
                             </td>
                             <td class="py-3 px-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <div class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer">
+                                    <div @click="editCall(call)" class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer" title="Edit Call">
                                         <i class="fas fa-pencil-alt text-[10px]"></i>
                                     </div>
-                                    <button @click="deleteActivity(call.id, 'calls')" class="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Call">
+                                    <button @click="deleteActivity(call.id, 'calls')" class="text-gray-400 hover:text-red-600 transition-opacity" title="Delete Call">
                                         <i class="far fa-trash-alt text-sm"></i>
                                     </button>
                                 </div>
@@ -825,45 +1061,57 @@
         <!-- Footer / Pagination Area -->
         <div class="px-6 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'task'">
-                <span class="text-gray-600">Total task <span x-text="taskCounts.total"></span></span>
+                <span class="text-gray-600">Total task <span class="text-gray-800" x-text="taskCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-blue-600">Open Task <span x-text="taskCounts.open"></span></span>
+                <span class="text-gray-600">Open Task <span class="text-blue-600" x-text="taskCounts.open"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-green-500">Completed <span x-text="taskCounts.completed"></span></span>
+                <span class="text-gray-600">Completed <span class="text-green-500" x-text="taskCounts.completed"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-red-500">Overdue <span x-text="taskCounts.overdue"></span></span>
+                <span class="text-gray-600">Overdue <span class="text-red-500" x-text="taskCounts.overdue"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'events'" style="display: none;">
-                <span class="text-gray-600">Total Event <span class="text-xs" x-text="eventCounts.total"></span></span>
+                <span class="text-gray-600">Total Event <span class="text-gray-800" x-text="eventCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Upcoming Events <span class="text-yellow-500" x-text="eventCounts.upcoming"></span></span>
+                <span class="text-gray-600">Upcoming Events <span class="text-blue-600" x-text="eventCounts.upcoming"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
                 <span class="text-gray-600">Closed Events <span class="text-green-500" x-text="eventCounts.closed"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'meetings'" style="display: none;">
-                <span class="text-gray-700">Total Meetings <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5" x-text="meetingCounts.total"></span></span>
+                <span class="text-gray-600">Total Meetings <span class="text-gray-800" x-text="meetingCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Upcoming <span class="text-emerald-500 font-bold" x-text="meetingCounts.upcoming"></span></span>
+                <span class="text-gray-600">Upcoming <span class="text-blue-600" x-text="meetingCounts.upcoming"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Completed <span class="text-purple-500 font-bold" x-text="meetingCounts.completed"></span></span>
+                <span class="text-gray-600">Completed <span class="text-green-500" x-text="meetingCounts.completed"></span></span>
             </div>
 
             <div class="flex items-center gap-3 text-xs font-semibold text-gray-500" x-show="activeTab === 'call'" style="display: none;">
-                <span class="text-gray-700">Total Calls <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] font-bold ml-0.5" x-text="callCounts.total"></span></span>
+                <span class="text-gray-600">Total Calls <span class="text-gray-800" x-text="callCounts.total"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Scheduled <span class="text-blue-500 font-bold" x-text="callCounts.scheduled"></span></span>
+                <span class="text-gray-600">Scheduled <span class="text-blue-600" x-text="callCounts.scheduled"></span></span>
                 <div class="w-px h-3 bg-gray-300"></div>
-                <span class="text-gray-600">Overdue <span class="text-red-500 font-bold" x-text="callCounts.overdue"></span></span>
+                <span class="text-gray-600">Overdue <span class="text-red-500" x-text="callCounts.overdue"></span></span>
             </div>
             
             <div x-show="activeTab !== 'meetings'" class="flex items-center gap-4 text-[11px] text-blue-600 font-semibold tracking-wide bg-blue-50/50 px-3 py-1.5 rounded-md">
-                <div class="flex items-center gap-2 text-blue-600 cursor-pointer">
+                <div class="flex items-center gap-2 text-blue-600 relative" x-data="{ perPageOpen: false, perPageOptions: [10, 20, 30, 40, 50, 100], perPage: 50 }" @click.away="perPageOpen = false">
                     Records per page 
-                    <button class="focus:outline-none flex items-center gap-1">
-                        50 <i class="fas fa-chevron-down text-[9px] opacity-80"></i>
+                    <button @click="perPageOpen = !perPageOpen" class="focus:outline-none flex items-center gap-1 hover:text-blue-800 transition">
+                        <span x-text="perPage"></span> <i class="fas fa-chevron-down text-[9px] opacity-80" :class="perPageOpen ? 'rotate-180' : ''"></i>
                     </button>
+                    <!-- Dropdown -->
+                    <div x-show="perPageOpen" 
+                         style="display: none;"
+                         class="absolute bottom-full left-0 mb-1 w-20 bg-white rounded shadow-lg border border-gray-100 py-1 z-50 text-gray-700 text-[11px]">
+                        <template x-for="option in perPageOptions" :key="option">
+                            <button @click="perPage = option; perPageOpen = false" 
+                                    class="w-full text-left px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 transition"
+                                    :class="perPage === option ? 'bg-blue-50 text-blue-600 font-bold' : ''"
+                                    x-text="option">
+                            </button>
+                        </template>
+                    </div>
                 </div>
                 <div class="w-px h-3 bg-blue-200"></div>
                 <span><span x-text="activeList.length > 0 ? '1' : '0'"></span> - <span x-text="activeList.length"></span> of <span x-text="activeList.length"></span></span>
@@ -1082,13 +1330,27 @@
                     <!-- Duration -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Duration</label>
-                        <input type="text" x-model="newMeeting.duration" placeholder="e.g. 30 mins" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
+                        <div class="flex items-center gap-3 flex-1">
+                            <div class="flex-1 flex items-center bg-white rounded-xl shadow-sm px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400">
+                                <input type="number" min="0" x-model="newMeeting.durationHour" class="w-full bg-transparent text-gray-900 outline-none text-sm font-medium placeholder-gray-400" placeholder="0" />
+                                <span class="text-gray-500 text-sm font-medium ml-1">hr</span>
+                            </div>
+                            <div class="flex-1 flex items-center bg-white rounded-xl shadow-sm px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400">
+                                <input type="number" min="0" max="59" x-model="newMeeting.durationMin" class="w-full bg-transparent text-gray-900 outline-none text-sm font-medium placeholder-gray-400" placeholder="30" />
+                                <span class="text-gray-500 text-sm font-medium ml-1">mins</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Meeting Link / Location -->
                     <div class="flex items-center text-white">
                         <label class="w-36 text-gray-200">Meeting Link / Location</label>
-                        <input type="text" x-model="newMeeting.location" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                        <div class="flex gap-2 flex-1 relative">
+                            <input type="text" x-model="newMeeting.location" placeholder="e.g. https://meet.google.com/..." class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm pr-24" />
+                            <button title="Auto-Generate Link" @click="newMeeting.location = 'https://meet.google.com/' + Math.random().toString(36).substring(2,5) + '-' + Math.random().toString(36).substring(2,6) + '-' + Math.random().toString(36).substring(2,5)" class="absolute right-1 top-1 bottom-1 px-3 text-xs bg-blue-50 text-blue-600 font-semibold rounded-lg hover:bg-blue-100 transition shadow-sm">
+                                Generate
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Attendees -->
@@ -1155,12 +1417,12 @@
         <div class="bg-[#1c2941] text-white px-6 py-4 flex items-start justify-between">
             <div>
                 <h3 class="text-lg font-bold flex items-center gap-2 group cursor-pointer w-fit">
-                    <span x-text="selectedTaskDetails"></span>
+                    <span x-text="selectedTaskDetails?.name || selectedTaskDetails?.title || selectedTaskDetails?.contact || 'No Title'"></span>
                     <i class="fas fa-pencil-alt text-xs text-gray-400 opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
                 </h3>
                 <div class="flex items-center gap-2 text-sm text-gray-300 mt-1 group cursor-pointer w-fit">
                     <i class="fas fa-user-circle"></i>
-                    <span>John Kelly</span>
+                    <span x-text="selectedTaskDetails?.owner || selectedTaskDetails?.host || 'John Kelly'"></span>
                     <i class="fas fa-pencil-alt text-[10px] opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
                 </div>
             </div>
@@ -1201,9 +1463,9 @@
                 <div class="space-y-4">
                     <!-- Detail Row -->
                     <div class="flex group">
-                        <div class="w-32 text-sm text-gray-500">Due Date</div>
+                        <div class="w-32 text-sm text-gray-500">Date/Time</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>Yesterday, 04:00 PM to 05:00 PM</span>
+                            <span x-text="selectedTaskDetails?.start_time || selectedTaskDetails?.due_date || selectedTaskDetails?.from || '-'"></span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1211,7 +1473,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Priority</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>15 minutes before start time</span>
+                            <span x-text="selectedTaskDetails?.priority || '-'"></span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1219,7 +1481,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Status</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>Online</span>
+                            <span x-text="selectedTaskDetails?.status || selectedTaskDetails?.type || '-'"></span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1227,7 +1489,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Reminder</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>On due date, 10:00 AM</span>
+                            <span>-</span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1235,7 +1497,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Description</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition min-h-[20px]">
-                            <span></span>
+                            <span x-text="selectedTaskDetails?.description || selectedTaskDetails?.purpose || ''"></span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1243,7 +1505,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Related To</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>Sample Company</span>
+                            <span x-text="selectedTaskDetails?.related_to || '-'"></span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1251,7 +1513,7 @@
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Last Modified</div>
                         <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
-                            <span>John Kelly on Yesterday, 2:51 PM</span>
+                            <span>Just now</span>
                             <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
@@ -1646,8 +1908,7 @@
                                 <label class="w-32 text-xs font-medium text-gray-400">Call Start Time</label>
                                 <div class="flex-1 flex gap-2">
                                     <div class="flex-1 relative">
-                                        <input type="date" x-model="newCall.startTime" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                        <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                        <input type="date" x-model="newCall.startTime" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
                                     </div>
                                     <div class="w-28 relative">
                                         <input type="time" x-model="newCall.startHour" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
@@ -1792,8 +2053,7 @@
                                     <!-- From -->
                                     <div class="flex gap-2">
                                         <div class="flex-1 relative">
-                                            <input type="date" x-model="newEvent.from" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                            <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                            <input type="date" x-model="newEvent.from" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
                                         </div>
                                         <div class="w-28 relative">
                                             <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
@@ -1803,8 +2063,7 @@
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 w-4 text-center">to</span>
                                         <div class="flex-1 relative">
-                                            <input type="date" x-model="newEvent.to" class="w-full bg-white rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                            <i class="far fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                            <input type="date" x-model="newEvent.to" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
                                         </div>
                                         <div class="w-28 relative">
                                             <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
@@ -1878,6 +2137,55 @@
                 <div class="flex items-center justify-center gap-4 mt-8">
                     <button @click="showEventModal = false" class="px-10 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition">Cancel</button>
                     <button @click="saveEvent()" class="px-10 py-2.5 bg-[#1E293B] text-white rounded-full text-sm font-bold hover:bg-slate-700 transition shadow-lg">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Export Modal -->
+    <div x-show="showExportModal" 
+         style="display: none;" 
+         class="fixed inset-0 z-[60] flex items-center justify-center">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="showExportModal = false"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"></div>
+        
+        <!-- Modal Content -->
+        <div class="bg-white rounded-[20px] shadow-2xl z-[60] w-full max-w-[460px] overflow-hidden relative"
+             @click.stop
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4">
+             
+            <div class="p-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-1">Start an Export</h2>
+                <p class="text-[13px] text-gray-600 mb-6 font-medium">Choose fields you would like to export.</p>
+                
+                <div class="bg-[#1E293B] rounded-[16px] p-6 mb-8 flex items-center justify-between gap-4 shadow-inner">
+                    <span class="text-white text-[15px] font-medium ml-1">Fields</span>
+                    <div class="relative w-[240px]">
+                        <select x-model="exportFieldSelection" class="w-full appearance-none bg-white border-0 rounded-[10px] py-2.5 px-4 text-[13px] text-gray-800 outline-none focus:ring-2 focus:ring-blue-500 font-semibold cursor-pointer shadow-sm">
+                            <option value="view">Fields from the chosen view</option>
+                            <option value="all">All fields</option>
+                        </select>
+                        <i class="fas fa-caret-down text-gray-600 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-center gap-4 mt-2">
+                    <button @click="showExportModal = false" class="px-8 py-2.5 text-sm font-bold text-gray-700 bg-transparent hover:bg-gray-50 rounded-full transition-colors w-32">
+                        Cancel
+                    </button>
+                    <button @click="exportData()" class="px-8 py-2.5 text-sm font-bold text-white bg-[#1E293B] rounded-full hover:bg-slate-700 transition-colors w-32 shadow-md">
+                        Save
+                    </button>
                 </div>
             </div>
         </div>
