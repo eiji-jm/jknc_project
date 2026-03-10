@@ -38,7 +38,7 @@ class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-
 
 <div x-data="{ open:false }" class="relative">
 
-<button 
+<button
 @click="open=!open"
 class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition">
 
@@ -46,7 +46,7 @@ class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gr
 
 </button>
 
-<div 
+<div
 x-show="open"
 @click.outside="open=false"
 x-transition
@@ -108,7 +108,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Activities</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="{{ route('contacts') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('contacts') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-users text-base"></i>
 <span>Contacts</span>
 </a>
@@ -143,6 +145,16 @@ Company General Information
 Corporate/Formation
 </a>
 
+                <a href="{{ route('corporate.ubo') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('corporate/ubo') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Ultimate Beneficial Owner
+</a>
+
+<a href="{{ route('stock-transfer-book') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('stock-transfer-book*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Stock and Transfer Book
+</a>
+
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
 BIR & Tax
 </a>
@@ -161,24 +173,6 @@ LGU
 Accounting
 </a>
 
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Priority
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Status
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Tag
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Name
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Owner
 </a>
 
 </div>

@@ -22,4 +22,39 @@ Route::middleware('auth')->group(function () {
         return view('corporate.company-general-information');
     })->name('corporate');
 
+    // Ultimate Beneficial Owner static form
+    Route::get('/corporate/ubo', function () {
+        return view('corporate.ubo-form');
+    })->name('corporate.ubo');
+
+    // Contacts list
+    Route::get('/contacts', function () {
+        return view('corporate.contacts-list');
+    })->name('contacts');
+
+    // Stock and Transfer Book sections
+    Route::get('/stock-transfer-book', function () {
+        return view('corporate.stock-transfer-book.index');
+    })->name('stock-transfer-book');
+
+    Route::get('/stock-transfer-book/ledger', function () {
+        return view('corporate.stock-transfer-book.ledger');
+    })->name('stock-transfer-book.ledger');
+
+    Route::get('/stock-transfer-book/journal', function () {
+        return view('corporate.stock-transfer-book.journal');
+    })->name('stock-transfer-book.journal');
+
+    Route::get('/stock-transfer-book/index', function () {
+        return view('corporate.stock-transfer-book.stb-index');
+    })->name('stock-transfer-book.index');
+
+    Route::get('/stock-transfer-book/installment', function () {
+        return view('corporate.stock-transfer-book.installment');
+    })->name('stock-transfer-book.installment');
+
+    Route::get('/stock-transfer-book/certificates', function () {
+        return view('corporate.stock-transfer-book.certificates');
+    })->name('stock-transfer-book.certificates');
+
 });
