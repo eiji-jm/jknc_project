@@ -1,159 +1,134 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-6 mt-4">
-
-    <div class="bg-white rounded-xl border border-gray-200">
-
+<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
+        
         {{-- TOP BAR --}}
-        <div class="flex items-center justify-between px-4 py-3 border-b">
-
-            {{-- Tabs --}}
-            <div class="flex items-center gap-2 text-sm">
-
-                <button class="px-4 py-2 bg-gray-100 rounded-t-md font-medium">
-                    Mayor's permit
+        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0">
+            <div class="relative">
+                <button id="permitDropdownBtn" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-md font-medium hover:bg-gray-200">
+                    <span id="selectedPermit">Mayor's Permit</span> ▾
                 </button>
-
-                <button class="px-4 py-2 hover:bg-gray-100 rounded-t-md">
-                    Barangay Business Permit
-                </button>
-
-                <button class="px-4 py-2 hover:bg-gray-100 rounded-t-md">
-                    Fire Permit
-                </button>
-
-                <button class="px-4 py-2 hover:bg-gray-100 rounded-t-md">
-                    Sanitary Permit
-                </button>
-
-                <button class="px-4 py-2 hover:bg-gray-100 rounded-t-md">
-                    Obo Permit
-                </button>
-
-            </div>
-
-            {{-- Right Actions --}}
-            <div class="flex items-center gap-3">
-
-                {{-- View Icons --}}
-                <button class="p-2 border rounded-md hover:bg-gray-50">
-                    ☰
-                </button>
-
-                <button class="p-2 border rounded-md hover:bg-gray-50">
-                    ⧉
-                </button>
-
-                {{-- Add Button --}}
-                <div class="flex">
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded-l-md text-sm">
-                        + Add
-                    </button>
-
-                    <button class="bg-blue-600 text-white px-2 rounded-r-md border-l border-blue-500">
-                        ▼
-                    </button>
+                <div id="permitMenu" class="hidden absolute left-0 mt-2 w-56 bg-white border shadow-xl rounded-md z-50 py-1">
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Mayor's Permit</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Barangay Business Permit</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Fire Permit</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Sanitary Permit</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">OBO</div>
                 </div>
-
-                {{-- More --}}
-                <button class="p-2 border rounded-md hover:bg-gray-50">
-                    ⋮
-                </button>
-
             </div>
-
+            <button class="bg-blue-600 text-white px-6 py-2 rounded text-sm">+ Add</button>
         </div>
 
-        {{-- TABLE --}}
-        <div class="p-4">
-
-            <div class="border rounded-md overflow-hidden">
-
-                <table class="w-full text-sm">
-
-                    <thead class="bg-gray-50 text-gray-600">
+        {{-- TABLE WRAPPER --}}
+        <div class="p-4 flex-grow overflow-hidden">
+            <div class="border rounded-md h-full overflow-auto">
+                <table class="w-full text-sm table-fixed border-collapse">
+                    <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
-
-                            <th class="p-3 text-left">Date Uploaded</th>
-                            <th class="p-3 text-left">Uploaded By</th>
-                            <th class="p-3 text-left">Client</th>
-                            <th class="p-3 text-left">TIN</th>
-                            <th class="p-3 text-left">Government Body / Agency</th>
-                            <th class="p-3 text-left">Registration Status</th>
-                            <th class="p-3 text-left">Registration Date</th>
-                            <th class="p-3 text-left">Registration No.</th>
-                            <th class="p-3 text-left">Status</th>
-
+                            <th id="sortDate" class="w-32 p-3 text-left cursor-pointer select-none hover:text-blue-600">Date <span id="dateIcon">↓</span></th>
+                            <th id="sortUploader" class="w-32 p-3 text-left cursor-pointer select-none hover:text-blue-600">Uploader <span id="userIcon">↓</span></th>
+                            <th id="sortClient" class="w-40 p-3 text-left cursor-pointer select-none hover:text-blue-600">Client <span id="clientIcon">↓</span></th>
+                            <th class="w-24 p-3 text-left">TIN</th>
+                            <th class="w-32 p-3 text-left">Reg Status</th>
+                            <th class="w-32 p-3 text-left relative overflow-visible">
+                                <button id="statusFilterBtn" class="flex items-center gap-1 hover:text-blue-600 font-bold">Status ▾</button>
+                                <div id="statusMenu" class="hidden absolute left-0 mt-2 w-36 bg-white border shadow-xl rounded-md z-50 py-1">
+                                    <div data-filter="all" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Show All</div>
+                                    <div data-filter="Active" class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-green-600">Active</div>
+                                    <div data-filter="For Review" class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-yellow-600">For Review</div>
+                                    <div data-filter="Overdue" class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-red-600">Overdue</div>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
-
-                    <tbody class="bg-white">
-                    {{-- Row 1: Active Permit --}}
-                    <tr class="border-t hover:bg-gray-50 transition-colors">
-                        <td class="p-3">Oct 24, 2023</td>
-                        <td class="p-3">Admin_Sarah</td>
-                        <td class="p-3 font-medium text-blue-600">TechFlow Solutions Inc.</td>
-                        <td class="p-3 text-gray-600">009-123-456-000</td>
-                        <td class="p-3">LGU - Quezon City</td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Renewed</span>
-                        </td>
-                        <td class="p-3">Jan 15, 2024</td>
-                        <td class="p-3 font-mono text-gray-500">2024-MP-8821</td>
-                        <td class="p-3">
-                            <span class="flex items-center gap-1.5 text-green-600">
-                                <span class="w-2 h-2 bg-green-500 rounded-full"></span> Active
-                            </span>
-                        </td>
-                    </tr>
-
-                    {{-- Row 2: Pending/In Progress --}}
-                    <tr class="border-t hover:bg-gray-50 transition-colors">
-                        <td class="p-3">Nov 02, 2023</td>
-                        <td class="p-3">User_John</td>
-                        <td class="p-3 font-medium text-blue-600">Green Horizon Café</td>
-                        <td class="p-3 text-gray-600">112-987-654-000</td>
-                        <td class="p-3">LGU - Makati City</td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded-full">Pending</span>
-                        </td>
-                        <td class="p-3 text-gray-400">Processing...</td>
-                        <td class="p-3 text-gray-400">—</td>
-                        <td class="p-3">
-                            <span class="flex items-center gap-1.5 text-yellow-600">
-                                <span class="w-2 h-2 bg-yellow-500 rounded-full"></span> For Review
-                            </span>
-                        </td>
-                    </tr>
-
-                    {{-- Row 3: Expired/Attention Needed --}}
-                    <tr class="border-t hover:bg-gray-50 transition-colors">
-                        <td class="p-3">Jan 12, 2023</td>
-                        <td class="p-3">Admin_Sarah</td>
-                        <td class="p-3 font-medium text-blue-600">Blue Coast Logistics</td>
-                        <td class="p-3 text-gray-600">445-556-778-000</td>
-                        <td class="p-3">LGU - Pasig City</td>
-                        <td class="p-3">
-                            <span class="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full">Expired</span>
-                        </td>
-                        <td class="p-3">Jan 20, 2023</td>
-                        <td class="p-3 font-mono text-gray-500">2023-MP-1102</td>
-                        <td class="p-3">
-                            <span class="flex items-center gap-1.5 text-red-600">
-                                <span class="w-2 h-2 bg-red-500 rounded-full"></span> Overdue
-                            </span>
-                        </td>
-                    </tr>
-                </tbody>
-
+                    <tbody id="tableBody" class="bg-white"></tbody>
                 </table>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
+
+<script>
+    let currentPermit = "Mayor's Permit";
+    const permitData = {
+        "Mayor's Permit": [
+            { date: "2023-10-24", user: "Admin_Sarah", client: "TechFlow Inc.", tin: "009-123", reg: "Renewed", status: "Active" },
+            { date: "2023-11-02", user: "User_John", client: "Green Cafe", tin: "112-987", reg: "Pending", status: "For Review" },
+            { date: "2023-01-12", user: "Admin_Sarah", client: "Blue Logistics", tin: "445-556", reg: "Expired", status: "Overdue" },
+            { date: "2024-02-10", user: "Admin_Mark", client: "Apex Hardware", tin: "999-000", reg: "Active", status: "Active" },
+            { date: "2024-03-01", user: "Admin_Sarah", client: "Quick Bite", tin: "222-333", reg: "Pending", status: "For Review" },
+            { date: "2022-12-15", user: "User_John", client: "Old Mill Co.", tin: "777-888", reg: "Expired", status: "Overdue" },
+            { date: "2025-05-20", user: "Admin_Mark", client: "Zenith Solar", tin: "123-456", reg: "Active", status: "Active" },
+            { date: "2024-08-14", user: "User_Anna", client: "Bright Path", tin: "555-111", reg: "Pending", status: "For Review" },
+            { date: "2023-06-30", user: "Admin_Sarah", client: "Ocean View", tin: "998-776", reg: "Expired", status: "Overdue" }
+        ],
+        "Barangay Business Permit": [], "Fire Permit": [], "Sanitary Permit": [], "OBO": []
+    };
+
+    let sortDirs = { date: true, user: true, client: true };
+
+    function renderTable(permitName, filter = "all") {
+        currentPermit = permitName;
+        const tableBody = document.getElementById("tableBody");
+        tableBody.innerHTML = "";
+        const data = permitData[permitName] || [];
+
+        const filteredData = filter === "all" ? data : data.filter(item => item.status === filter);
+
+        if (filteredData.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
+            return;
+        }
+
+        filteredData.forEach(item => {
+            const statusClass = item.status === 'Active' ? 'text-green-600' : (item.status === 'Overdue' ? 'text-red-600' : 'text-yellow-600');
+            const dotClass = item.status === 'Active' ? 'bg-green-500' : (item.status === 'Overdue' ? 'bg-red-500' : 'bg-yellow-500');
+            tableBody.innerHTML += `
+                <tr class="border-t hover:bg-gray-50">
+                    <td class="p-3">${item.date}</td><td class="p-3">${item.user}</td><td class="p-3 truncate">${item.client}</td>
+                    <td class="p-3">${item.tin}</td><td class="p-3">${item.reg}</td>
+                    <td class="p-3"><span class="status-val flex items-center gap-1.5 ${statusClass}"><span class="w-2 h-2 ${dotClass} rounded-full"></span> ${item.status}</span></td>
+                </tr>`;
+        });
+    }
+
+    // Status Filter Listener
+    document.getElementById("statusFilterBtn").addEventListener("click", (e) => { e.stopPropagation(); document.getElementById("statusMenu").classList.toggle("hidden"); });
+    document.getElementById("statusMenu").addEventListener("click", (e) => {
+        const filter = e.target.getAttribute("data-filter");
+        if (filter) renderTable(currentPermit, filter);
+        document.getElementById("statusMenu").classList.add("hidden");
+    });
+
+    // Sorting Logic
+    function sortTable(key, iconId) {
+        permitData[currentPermit].sort((a, b) => sortDirs[key] ? a[key].localeCompare(b[key]) : b[key].localeCompare(a[key]));
+        sortDirs[key] = !sortDirs[key];
+        document.getElementById(iconId).textContent = sortDirs[key] ? "↓" : "↑";
+        renderTable(currentPermit);
+    }
+
+    document.getElementById("sortDate").addEventListener("click", () => sortTable('date', 'dateIcon'));
+    document.getElementById("sortUploader").addEventListener("click", () => sortTable('user', 'userIcon'));
+    document.getElementById("sortClient").addEventListener("click", () => sortTable('client', 'clientIcon'));
+
+    // Dropdown listeners
+    document.getElementById("permitDropdownBtn").addEventListener("click", (e) => { e.stopPropagation(); document.getElementById("permitMenu").classList.toggle("hidden"); });
+    document.getElementById("permitMenu").addEventListener("click", (e) => {
+        if(e.target.tagName === 'DIV') {
+            document.getElementById("selectedPermit").innerText = e.target.innerText;
+            renderTable(e.target.innerText);
+            document.getElementById("permitMenu").classList.add("hidden");
+        }
+    });
+
+    document.addEventListener("click", () => {
+        document.getElementById("permitMenu").classList.add("hidden");
+        document.getElementById("statusMenu").classList.add("hidden");
+    });
+
+    renderTable("Mayor's Permit");
+</script>
 @endsection
