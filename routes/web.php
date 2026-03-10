@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\GisController;
+use App\Http\Controllers\CorporateFormationController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -52,4 +53,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/gis/stockholders', [GisController::class,'stockholders'])
     ->name('gis.stockholders');
 
+    Route::get('/corporate/formation',[CorporateFormationController::class,'index'])->name('corporate.formation');
+
+    Route::post('/corporate/formation/store',[CorporateFormationController::class,'store'])->name('corporate.formation.store');
+
+    Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])
+    ->name('corporate.formation');
+
+Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])
+    ->name('corporate.formation.store');
+
+Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])
+    ->name('corporate.formation.show');
 });
