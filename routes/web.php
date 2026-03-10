@@ -5,6 +5,9 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\GisController;
 use App\Http\Controllers\CorporateFormationController;
+use App\Http\Controllers\SecAoiController;
+use App\Http\Controllers\BylawController;
+
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -65,4 +68,19 @@ Route::post('/corporate/formation/store', [CorporateFormationController::class, 
 
 Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])
     ->name('corporate.formation.show');
+
+    Route::get('/corporate/sec-aoi', [SecAoiController::class,'index'])
+    ->name('corporate.sec_aoi');
+
+Route::post('/corporate/sec-aoi/store', [SecAoiController::class,'store'])
+    ->name('corporate.sec_aoi.store');
+
+Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class,'show'])
+    ->name('corporate.sec_aoi.show');
+
+    Route::get('/corporate/bylaws',[BylawController::class,'index'])->name('corporate.bylaws');
+
+Route::post('/corporate/bylaws/store',[BylawController::class,'store'])->name('corporate.bylaws.store');
+
+Route::get('/corporate/bylaws/{id}',[BylawController::class,'show'])->name('corporate.bylaws.show');
 });
