@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\TownHallController;
 use App\Http\Controllers\GisController;
 
 Route::get('/', function () {
@@ -18,6 +19,7 @@ Route::post('/register', [RegisterController::class, 'submit'])->name('register.
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
+
 
     /*
     |--------------------------------------------------------------------------
@@ -36,10 +38,8 @@ Route::middleware('auth')->group(function () {
     | TOWN HALL
     |--------------------------------------------------------------------------
     */
-
-    Route::get('/townhall', function () {
-        return view('townhall.townhall');
-    })->name('townhall');
+    Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
+    Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
 
 
     /*
