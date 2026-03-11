@@ -34,6 +34,13 @@
         newMeeting: { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
 
         filterDropdownOpen: false,
+        propertySearchValue: '',
+        selectedProperties: [],
+        filterSelection: {
+            task: 'All Tasks',
+            events: 'All Events',
+            call: 'All Calls'
+        },
         selectedTaskDetails: null,
         meetingsSubTab: 'all',
         meetingFilters: {
@@ -354,11 +361,68 @@
             };
         },
 
+        get filteredTasksList() {
+            let list = this.tasks;
+            if (this.filterSelection.task === 'Open Tasks') list = list.filter(t => t.status === 'Open');
+            if (this.filterSelection.task === 'Closed Tasks') list = list.filter(t => t.status === 'Completed');
+            if (this.filterSelection.task === 'Overdue Tasks') list = list.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < new Date());
+            
+            if (this.propertySearchValue && this.selectedProperties.length > 0) {
+                const search = this.propertySearchValue.toLowerCase();
+                list = list.filter(t => {
+                    let match = false;
+                    if (this.selectedProperties.includes('Task Name') && t.name && t.name.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Description') && t.description && t.description.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Priority') && t.priority && t.priority.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Related To') && t.related_to && t.related_to.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Status') && t.status && t.status.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Task Owner') && t.owner && t.owner.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Due Date') && t.due_date && t.due_date.toLowerCase().includes(search)) match = true;
+                    return match;
+                });
+            }
+            return list;
+        },
+        get filteredEventsList() {
+            let list = this.events;
+            if (this.filterSelection.events === 'Upcoming Events') list = list.filter(e => e.from && new Date(e.from) > new Date());
+            if (this.filterSelection.events === 'Closed Events') list = list.filter(e => e.to && new Date(e.to) < new Date());
+            
+            if (this.propertySearchValue && this.selectedProperties.length > 0) {
+                const search = this.propertySearchValue.toLowerCase();
+                list = list.filter(e => {
+                    let match = false;
+                    if (this.selectedProperties.includes('Task Name') && e.title && e.title.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Related To') && e.related_to && e.related_to.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Task Owner') && e.host && e.host.toLowerCase().includes(search)) match = true;
+                    return match;
+                });
+            }
+            return list;
+        },
+        get filteredCallsList() {
+            let list = this.calls;
+            if (this.filterSelection.call === 'Scheduled Calls') list = list.filter(c => !c.completed);
+            if (this.filterSelection.call === 'Overdue Calls') list = list.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date());
+            
+            if (this.propertySearchValue && this.selectedProperties.length > 0) {
+                const search = this.propertySearchValue.toLowerCase();
+                list = list.filter(c => {
+                    let match = false;
+                    if (this.selectedProperties.includes('Task Name') && c.contact && c.contact.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Related To') && c.related_to && c.related_to.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Task Owner') && c.owner && c.owner.toLowerCase().includes(search)) match = true;
+                    if (this.selectedProperties.includes('Status') && c.type && c.type.toLowerCase().includes(search)) match = true;
+                    return match;
+                });
+            }
+            return list;
+        },
         get activeList() {
-            if (this.activeTab === 'task') return this.tasks;
-            if (this.activeTab === 'events') return this.events;
-            if (this.activeTab === 'call') return this.calls;
-            if (this.activeTab === 'meetings') return this.meetings;
+            if (this.activeTab === 'task') return this.filteredTasksList;
+            if (this.activeTab === 'events') return this.filteredEventsList;
+            if (this.activeTab === 'call') return this.filteredCallsList;
+            if (this.activeTab === 'meetings') return this.filteredMeetings;
             return [];
         },
 
@@ -495,13 +559,13 @@
         <div x-show="activeTab !== 'meetings'" class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <!-- Left Toolbar -->
             <div class="flex items-center gap-3">
-                <div class="relative" x-data="{ taskFilterOpen: false }" @click.away="taskFilterOpen = false">
-                    <button @click="taskFilterOpen = !taskFilterOpen" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors" :class="taskFilterOpen ? 'bg-gray-100' : ''">
+                <div class="relative" @click.away="filterDropdownOpen = false">
+                    <button @click="filterDropdownOpen = !filterDropdownOpen" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors" :class="filterDropdownOpen ? 'bg-gray-100' : ''">
                         <i class="fas fa-filter text-sm"></i>
                     </button>
                     
                     <!-- Filter Task Dropdown -->
-                    <div x-show="taskFilterOpen" 
+                    <div x-show="filterDropdownOpen" 
                          style="display: none;" 
                          x-transition:enter="transition ease-out duration-100"
                          x-transition:enter-start="transform opacity-0 scale-95"
@@ -517,79 +581,77 @@
                             </div>
                             
                             <div class="px-4 py-2">
-                                <button class="w-full flex items-center justify-between text-left text-sm text-gray-700 hover:bg-gray-50 p-1 rounded">
-                                    Choose a Property
-                                    <i class="fas fa-caret-down text-gray-400"></i>
-                                </button>
+                                <input type="text" x-model="propertySearchValue" placeholder="Enter keyword to filter selected properties..." class="w-full text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-400 focus:outline-none py-1.5 px-2 bg-gray-50">
+                                <div class="text-[10px] text-gray-400 mt-1">Check properties below & type to filter</div>
                             </div>
                             
                             <div class="max-h-64 overflow-y-auto" role="menu" aria-orientation="vertical">
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Touched Records" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Touched Records</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Untouched Records" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Untouched Records</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Record Actions" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Record Actions</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Related Record Actions" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Related Record Actions</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Closed Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Closed Time</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Created By" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Created By</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Created Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Created Time</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Description" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Description</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Due Date" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Due Date</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Modified By" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Modified By</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Modified Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Modified Time</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Priority" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Priority</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Related To" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Related To</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Status" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Status</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Tag" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Tag</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Task Name" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Task Name</span>
                                 </label>
                                 <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
+                                    <input type="checkbox" value="Task Owner" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
                                     <span class="text-sm text-gray-700">Task Owner</span>
                                 </label>
                             </div>
@@ -604,7 +666,7 @@
                     @click.away="allTaskDropdownOpen = false">
                     
                     <button @click="allTaskDropdownOpen = !allTaskDropdownOpen" class="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
-                        <span x-text="activeTab === 'events' ? 'All Events' : (activeTab === 'call' ? 'All Calls' : 'All Task')">All Task</span>
+                        <span x-text="filterSelection[activeTab]">All Tasks</span>
                         <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200" :class="allTaskDropdownOpen ? 'rotate-180' : ''"></i>
                     </button>
                     
@@ -620,20 +682,7 @@
                          class="absolute left-0 mt-2 w-64 rounded-xl shadow-xl bg-white ring-1 ring-blue-500 z-50 border border-blue-400 overflow-hidden">
                         
                         <div class="flex flex-col h-full max-h-[400px]">
-                            <!-- Header Tabs -->
-                            <div class="p-2 flex gap-1 bg-white">
-                                <button @click="allTaskTab = 'all_views'" 
-                                        :class="allTaskTab === 'all_views' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                                        class="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-                                    All Views
-                                </button>
-                                <button @click="allTaskTab = 'favorites'" 
-                                        :class="allTaskTab === 'favorites' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                                        class="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-                                    Favorites
-                                </button>
-                            </div>
-                            
+
                             <!-- Search -->
                             <div class="px-3 pb-2 pt-1">
                                 <div class="relative">
@@ -645,35 +694,28 @@
                             <!-- Content Area -->
                             <div class="flex-1 overflow-y-auto pb-2">
                                 <!-- All Views Content -->
-                                <div x-show="allTaskTab === 'all_views'">
+                                <div>
                                     <div class="px-4 py-1.5 text-xs font-bold text-gray-800">Public Views</div>
-                                    <div class="flex flex-col role="menu" aria-orientation="vertical"">
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Closed Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">My Open Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Next 7 Days + Over Due Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Open Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Overdue Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Today + Ovrdue Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Today's Task</a>
-                                        <a href="#" @click.prevent="allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Tomorrow's Task</a>
+                                    
+                                    <div x-show="activeTab === 'task'" class="flex flex-col" role="menu" aria-orientation="vertical">
+                                        <a href="#" @click.prevent="filterSelection.task = 'All Tasks'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Tasks</a>
+                                        <a href="#" @click.prevent="filterSelection.task = 'Open Tasks'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Open Tasks</a>
+                                        <a href="#" @click.prevent="filterSelection.task = 'Closed Tasks'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Closed Tasks</a>
+                                        <a href="#" @click.prevent="filterSelection.task = 'Overdue Tasks'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Overdue Tasks</a>
+                                    </div>
+                                    
+                                    <div x-show="activeTab === 'events'" style="display: none;" class="flex flex-col" role="menu" aria-orientation="vertical">
+                                        <a href="#" @click.prevent="filterSelection.events = 'All Events'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Events</a>
+                                        <a href="#" @click.prevent="filterSelection.events = 'Upcoming Events'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Upcoming Events</a>
+                                        <a href="#" @click.prevent="filterSelection.events = 'Closed Events'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Closed Events</a>
+                                    </div>
+                                    
+                                    <div x-show="activeTab === 'call'" style="display: none;" class="flex flex-col" role="menu" aria-orientation="vertical">
+                                        <a href="#" @click.prevent="filterSelection.call = 'All Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Calls</a>
+                                        <a href="#" @click.prevent="filterSelection.call = 'Scheduled Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Scheduled Calls</a>
+                                        <a href="#" @click.prevent="filterSelection.call = 'Overdue Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Overdue Calls</a>
                                     </div>
                                 </div>
-                                
-                                <!-- Favorites Content -->
-                                <div x-show="allTaskTab === 'favorites'" style="display: none;">
-                                    <div class="py-6 px-4 text-center text-sm text-gray-500">
-                                        No favorite views yet.
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Create Task Footer -->
-                            <div class="p-2 bg-white">
-                                <button class="w-full flex items-center justify-center gap-2 py-2 bg-[#8FA8CB] text-white rounded-lg text-sm font-medium hover:bg-[#7a93b5] transition-colors">
-                                    <i class="fas fa-plus text-xs"></i>
-                                    Create Task
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -732,7 +774,7 @@
                 <thead x-show="activeTab === 'task'">
                     <tr class="border-b border-gray-200 bg-gray-50">
                         <th class="py-3 px-4 text-xs font-semibold text-gray-600 w-10 text-center">
-                            <input type="checkbox" x-model="selectAll" @change="selectedTasks = selectAll ? [...tasks] : []" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
+                            <input type="checkbox" x-model="selectAll" @change="selectedTasks = selectAll ? [...filteredTasksList] : []" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Task Name</th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Due Date</th>
@@ -765,10 +807,10 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'task'">
-                    <template x-for="task in tasks" :key="task.id">
+                    <template x-for="task in filteredTasksList" :key="task.id">
                         <tr class="group transition-colors" :class="selectedTasks.includes(task.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
                             <td class="py-3 px-4 text-center">
-                                <input type="checkbox" :value="task.id" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === tasks.length)" class="rounded text-blue-600 border-gray-300 transition-colors">
+                                <input type="checkbox" :value="task.id" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === filteredTasksList.length && filteredTasksList.length > 0)" class="rounded text-blue-600 border-gray-300 transition-colors">
                             </td>
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
@@ -804,8 +846,8 @@
                     </template>
 
                     <!-- Empty filler rows for consistent height mapping to design -->
-                    <template x-if="tasks.length < 5">
-                        <template x-for="i in Array.from({length: 5 - tasks.length})">
+                    <template x-if="filteredTasksList.length < 5">
+                        <template x-for="i in Array.from({length: 5 - filteredTasksList.length})">
                             <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
                         </template>
                     </template>
@@ -813,7 +855,7 @@
                 
                 <!-- Events Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'events'" style="display: none;">
-                    <template x-for="event in events" :key="event.id">
+                    <template x-for="event in filteredEventsList" :key="event.id">
                         <tr class="group hover:bg-gray-50 transition-colors">
                             <td class="py-3 px-4 text-center">
                                 <input type="checkbox" class="rounded border-gray-300 transition-colors">
@@ -849,8 +891,8 @@
                         </tr>
                     </template>
                     <!-- Empty filler rows -->
-                    <template x-if="events.length < 5">
-                        <template x-for="i in Array.from({length: 5 - events.length})">
+                    <template x-if="filteredEventsList.length < 5">
+                        <template x-for="i in Array.from({length: 5 - filteredEventsList.length})">
                             <tr class="h-[48px] border-b border-gray-50"><td colspan="7"></td></tr>
                         </template>
                     </template>
@@ -884,7 +926,7 @@
 
                 <!-- Call Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'call'" style="display: none;">
-                    <template x-for="call in calls" :key="call.id">
+                    <template x-for="call in filteredCallsList" :key="call.id">
                         <tr class="group hover:bg-gray-50 transition-colors">
                             <td class="py-3 px-4 text-center">
                                 <input type="checkbox" class="rounded border-gray-300 transition-colors">
@@ -925,8 +967,8 @@
                         </tr>
                     </template>
                     <!-- Empty filler rows -->
-                    <template x-if="calls.length < 5">
-                        <template x-for="i in Array.from({length: 5 - calls.length})">
+                    <template x-if="filteredCallsList.length < 5">
+                        <template x-for="i in Array.from({length: 5 - filteredCallsList.length})">
                             <tr class="h-[48px] border-b border-gray-50"><td colspan="8"></td></tr>
                         </template>
                     </template>
