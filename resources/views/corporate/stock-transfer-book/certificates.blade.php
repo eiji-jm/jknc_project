@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedCert: null }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedCert: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -16,7 +16,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -30,6 +30,15 @@
         </div>
 
         <div class="border-t border-gray-100"></div>
+
+        {{-- NAVIGATION TABS --}}
+        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
+            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
+            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
+            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
+            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
+            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Certificates</a>
+        </div>
 
         {{-- TABS --}}
         <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-4">
@@ -56,11 +65,23 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Issued</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">President</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Corporate Secretary</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedCert = {
+                            certificateNo: 'CERT-0001',
+                            journalReference: 'JNL-001',
+                            stockholder: 'John Kelly',
+                            par: '100',
+                            numbers: '1000',
+                            amount: '100,000.00',
+                            amountInWords: 'One Hundred Thousand Pesos',
+                            dateIssued: 'Jan 22, 2026',
+                            president: 'John Kelly',
+                            corpSecetary: 'Maria Santos',
+                            corpName: 'John Kelly & Company',
+                            companyRegNo: '12345-ABC'
+                        }">
                             <td class="px-4 py-3">Jan 20, 2026</td>
                             <td class="px-4 py-3">Admin</td>
                             <td class="px-4 py-3">John Kelly & Company</td>
@@ -74,30 +95,21 @@
                             <td class="px-4 py-3">Jan 22, 2026</td>
                             <td class="px-4 py-3">John Kelly</td>
                             <td class="px-4 py-3">Maria Santos</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button
-                                    @click="showPreview = true; selectedCert = {
-                                        certificateNo: 'CERT-0001',
-                                        journalReference: 'JNL-001',
-                                        stockholder: 'John Kelly',
-                                        par: '100',
-                                        numbers: '1000',
-                                        amount: '100,000.00',
-                                        amountInWords: 'One Hundred Thousand Pesos',
-                                        dateIssued: 'Jan 22, 2026',
-                                        president: 'John Kelly',
-                                        corpSecetary: 'Maria Santos',
-                                        corpName: 'John Kelly & Company',
-                                        companyRegNo: '12345-ABC'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedCert = {
+                            certificateNo: 'CERT-0002',
+                            journalReference: 'JNL-002',
+                            stockholder: 'Carmen Rodriguez',
+                            par: '100',
+                            numbers: '500',
+                            amount: '50,000.00',
+                            amountInWords: 'Fifty Thousand Pesos',
+                            dateIssued: 'Feb 03, 2026',
+                            president: 'John Kelly',
+                            corpSecetary: 'Maria Santos',
+                            corpName: 'John Kelly & Company',
+                            companyRegNo: '12345-ABC'
+                        }">
                             <td class="px-4 py-3">Feb 01, 2026</td>
                             <td class="px-4 py-3">Admin</td>
                             <td class="px-4 py-3">John Kelly & Company</td>
@@ -111,28 +123,6 @@
                             <td class="px-4 py-3">Feb 03, 2026</td>
                             <td class="px-4 py-3">John Kelly</td>
                             <td class="px-4 py-3">Maria Santos</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button
-                                    @click="showPreview = true; selectedCert = {
-                                        certificateNo: 'CERT-0002',
-                                        journalReference: 'JNL-002',
-                                        stockholder: 'Carmen Rodriguez',
-                                        par: '100',
-                                        numbers: '500',
-                                        amount: '50,000.00',
-                                        amountInWords: 'Fifty Thousand Pesos',
-                                        dateIssued: 'Feb 03, 2026',
-                                        president: 'John Kelly',
-                                        corpSecetary: 'Maria Santos',
-                                        corpName: 'John Kelly & Company',
-                                        companyRegNo: '12345-ABC'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -143,7 +133,7 @@
         <div x-show="showPreview" class="p-6">
             <template x-if="selectedCert">
                 <div class="grid grid-cols-3 gap-6 h-[calc(100vh-13rem)]">
-                    
+
                     {{-- PDF VIEWER SIDE --}}
                     <div class="col-span-2 bg-gray-900 rounded-lg overflow-hidden flex flex-col">
                         {{-- PDF VIEWER TOOLBAR --}}
@@ -169,7 +159,7 @@
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
-                        
+
                         {{-- PDF DOCUMENT MOCKUP --}}
                         <div class="flex-1 overflow-auto p-6 flex items-center justify-center">
                             <div class="bg-white w-full max-w-md rounded-sm shadow-2xl" style="aspect-ratio: 8.5/11;">
@@ -179,7 +169,7 @@
                                         <h1 class="text-xl font-bold text-gray-900">STOCK CERTIFICATE</h1>
                                         <p x-text="selectedCert.corpName" class="text-xs text-gray-600 mt-2"></p>
                                     </div>
-                                    
+
                                     {{-- MAIN CONTENT --}}
                                     <div class="flex-1 flex flex-col justify-center space-y-3">
                                         <p class="text-xs text-gray-700">
@@ -193,7 +183,7 @@
                                             Certificate No. <strong x-text="selectedCert.certificateNo"></strong>
                                         </p>
                                     </div>
-                                    
+
                                     {{-- SIGNATURE LINES --}}
                                     <div class="border-t-2 border-gray-800 pt-3 space-y-2">
                                         <div class="grid grid-cols-2 gap-3 text-xs">
@@ -212,10 +202,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- DETAILS SIDE --}}
                     <div class="col-span-1 overflow-y-auto space-y-4">
-                        
+
                         {{-- CERTIFICATE INFORMATION --}}
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <h3 class="text-sm font-semibold text-gray-900 mb-3">Certificate Information</h3>
@@ -302,6 +292,94 @@
             </template>
         </div>
 
+    </div>
+
+    {{-- ADD CERTIFICATE SLIDER --}}
+    <div x-cloak>
+        <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+        <div x-show="showAddPanel"
+            class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+            x-transition:enter="transform transition ease-in-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in-out duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            @click.stop
+        >
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">New Certificate</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Date Uploaded</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Uploaded By</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader name">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Corporation Name</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Corporation name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Company Reg. No.</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="12345-ABC">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Stock Number</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Name of Stockholder</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Stockholder name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">PAR</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Number</label>
+                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Amount (PhP)</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Amount in words</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="One Hundred Thousand Pesos">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date Issued</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">President</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="President name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Corporate Secretary</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Secretary name">
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                    Save Certificate
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>

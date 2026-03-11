@@ -34,7 +34,7 @@ Route::middleware('auth')->group(function () {
 
     // Stock and Transfer Book sections
     Route::get('/stock-transfer-book', function () {
-        return view('corporate.stock-transfer-book.index');
+        return redirect()->route('stock-transfer-book.journal');
     })->name('stock-transfer-book');
 
     Route::get('/stock-transfer-book/ledger', function () {
@@ -58,3 +58,17 @@ Route::middleware('auth')->group(function () {
     })->name('stock-transfer-book.certificates');
 
 });
+
+// Notices of Meeting
+Route::get('/notices', function () {
+    return view('corporate.notices.index');
+})->name('notices');
+
+// Minutes of Meeting
+Route::get('/minutes', function () {
+    return view('corporate.minutes.index');
+})->name('minutes');
+
+Route::get('/minutes/preview', function () {
+    return view('corporate.minutes.preview');
+})->name('minutes.preview');

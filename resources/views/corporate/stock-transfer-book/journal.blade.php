@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedEntry: null }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedEntry: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -16,7 +16,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -31,6 +31,15 @@
 
         <div class="border-t border-gray-100"></div>
 
+        {{-- NAVIGATION TABS --}}
+        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
+            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
+            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Journal</a>
+            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
+            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
+            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
+        </div>
+
         {{-- JOURNAL TABLE VIEW --}}
         <div x-show="!showPreview" class="p-4">
             <div class="overflow-auto">
@@ -43,96 +52,62 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Particulars</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. Shares</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Transaction Type</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
+                            date: 'Jan 15, 2026',
+                            journalNo: 'JNL-001',
+                            ledgerFolio: 'LED-001',
+                            particulars: 'Initial share issuance to John Kelly',
+                            noShares: '1000',
+                            transactionType: 'Issuance',
+                            certificateNo: 'CERT-0001',
+                            shareholder: 'John Kelly',
+                            remarks: 'Original issuance of shares at par value'
+                        }">
                             <td class="px-4 py-3">Jan 15, 2026</td>
                             <td class="px-4 py-3">JNL-001</td>
                             <td class="px-4 py-3">LED-001</td>
                             <td class="px-4 py-3">Initial share issuance to John Kelly</td>
                             <td class="px-4 py-3">1000</td>
-                            <td class="px-4 py-3">Issuance</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button
-                                    @click="showPreview = true; selectedEntry = {
-                                        date: 'Jan 15, 2026',
-                                        journalNo: 'JNL-001',
-                                        ledgerFolio: 'LED-001',
-                                        particulars: 'Initial share issuance to John Kelly',
-                                        noShares: '1000',
-                                        transactionType: 'Issuance',
-                                        certificateNo: 'CERT-0001',
-                                        shareholder: 'John Kelly',
-                                        remarks: 'Original issuance of shares at par value'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    Preview
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">Edit</button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
+                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Issuance</span></td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
+                            date: 'Feb 10, 2026',
+                            journalNo: 'JNL-002',
+                            ledgerFolio: 'LED-002',
+                            particulars: 'Share transfer from Carmen Rodriguez to Miguel Santos',
+                            noShares: '500',
+                            transactionType: 'Transfer',
+                            certificateNo: 'CERT-0002',
+                            shareholder: 'Carmen Rodriguez → Miguel Santos',
+                            remarks: 'Transfer of ownership documented'
+                        }">
                             <td class="px-4 py-3">Feb 10, 2026</td>
                             <td class="px-4 py-3">JNL-002</td>
                             <td class="px-4 py-3">LED-002</td>
                             <td class="px-4 py-3">Share transfer from Carmen Rodriguez to Miguel Santos</td>
                             <td class="px-4 py-3">500</td>
-                            <td class="px-4 py-3">Transfer</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button
-                                    @click="showPreview = true; selectedEntry = {
-                                        date: 'Feb 10, 2026',
-                                        journalNo: 'JNL-002',
-                                        ledgerFolio: 'LED-002',
-                                        particulars: 'Share transfer from Carmen Rodriguez to Miguel Santos',
-                                        noShares: '500',
-                                        transactionType: 'Transfer',
-                                        certificateNo: 'CERT-0002',
-                                        shareholder: 'Carmen Rodriguez → Miguel Santos',
-                                        remarks: 'Transfer of ownership documented'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    Preview
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">Edit</button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
+                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Transfer</span></td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
+                            date: 'Feb 28, 2026',
+                            journalNo: 'JNL-003',
+                            ledgerFolio: 'LED-001',
+                            particulars: 'Share cancellation',
+                            noShares: '100',
+                            transactionType: 'Cancellation',
+                            certificateNo: 'CERT-0001B',
+                            shareholder: 'John Kelly',
+                            remarks: 'Shares cancelled and removed from circulation'
+                        }">
                             <td class="px-4 py-3">Feb 28, 2026</td>
                             <td class="px-4 py-3">JNL-003</td>
                             <td class="px-4 py-3">LED-001</td>
                             <td class="px-4 py-3">Share cancellation</td>
                             <td class="px-4 py-3">100</td>
-                            <td class="px-4 py-3">Cancellation</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button
-                                    @click="showPreview = true; selectedEntry = {
-                                        date: 'Feb 28, 2026',
-                                        journalNo: 'JNL-003',
-                                        ledgerFolio: 'LED-001',
-                                        particulars: 'Share cancellation',
-                                        noShares: '100',
-                                        transactionType: 'Cancellation',
-                                        certificateNo: 'CERT-0001B',
-                                        shareholder: 'John Kelly',
-                                        remarks: 'Shares cancelled and removed from circulation'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    Preview
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">Edit</button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
+                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Cancellation</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -293,6 +268,82 @@
             </template>
         </div>
 
+    </div>
+
+    {{-- ADD TRANSACTION SLIDER --}}
+    <div x-cloak>
+        <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+        <div x-show="showAddPanel"
+            class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+            x-transition:enter="transform transition ease-in-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in-out duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            @click.stop
+        >
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">Add Journal Transaction</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Date</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Journal No.</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="JNL-0001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Ledger Folio</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="LED-0001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">No. Shares</label>
+                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Particulars</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter particulars">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Transaction Type</label>
+                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option>Issuance</option>
+                            <option>Transfer</option>
+                            <option>Cancellation</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Certificate No.</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Shareholder</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Shareholder name">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Remarks</label>
+                        <textarea rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Add remarks"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                    Save Transaction
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>

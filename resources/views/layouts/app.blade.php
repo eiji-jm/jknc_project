@@ -155,6 +155,16 @@ Ultimate Beneficial Owner
 Stock and Transfer Book
 </a>
 
+<a href="{{ route('notices') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('notices') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Notices of Meeting
+</a>
+
+<a href="{{ route('minutes') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('minutes') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Minutes of Meeting
+</a>
+
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
 BIR & Tax
 </a>

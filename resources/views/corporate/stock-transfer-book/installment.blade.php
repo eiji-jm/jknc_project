@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -16,7 +16,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -31,6 +31,15 @@
 
         <div class="border-t border-gray-100"></div>
 
+        {{-- NAVIGATION TABS --}}
+        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
+            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
+            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
+            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
+            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Installment</a>
+            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
+        </div>
+
         {{-- INSTALLMENT TABLE VIEW --}}
         <div x-show="!showPreview" class="p-4">
             <div class="overflow-auto">
@@ -43,108 +52,80 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. Shares</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. of Installments</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Value</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
+                            stockNumber: 'STK-001',
+                            subscriber: 'John Kelly',
+                            date: 'Jan 15, 2026',
+                            noShares: '1000',
+                            noInstallments: '4',
+                            totalValue: '100,000.00',
+                            installmentAmount: '25,000.00',
+                            status: 'Ongoing',
+                            paidInstallments: '1',
+                            remainingInstallments: '3',
+                            installmentDetails: [
+                                { no: '1st', dueDate: 'Jan 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Jan 20, 2026' },
+                                { no: '2nd', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
+                                { no: '3rd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
+                                { no: '4th', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
+                            ]
+                        }">
                             <td class="px-4 py-3">STK-001</td>
                             <td class="px-4 py-3">John Kelly</td>
                             <td class="px-4 py-3">Jan 15, 2026</td>
                             <td class="px-4 py-3">1000</td>
                             <td class="px-4 py-3">4</td>
                             <td class="px-4 py-3">100,000.00</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedInstallment = {
-                                        stockNumber: 'STK-001',
-                                        subscriber: 'John Kelly',
-                                        date: 'Jan 15, 2026',
-                                        noShares: '1000',
-                                        noInstallments: '4',
-                                        totalValue: '100,000.00',
-                                        installmentAmount: '25,000.00',
-                                        status: 'Ongoing',
-                                        paidInstallments: '1',
-                                        remainingInstallments: '3',
-                                        installmentDetails: [
-                                            { no: '1st', dueDate: 'Jan 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Jan 20, 2026' },
-                                            { no: '2nd', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                            { no: '3rd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                            { no: '4th', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                                        ]
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-gray-600 hover:text-gray-700 hover:underline text-xs font-medium">Pay</button>
-                            </td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
+                            stockNumber: 'STK-002',
+                            subscriber: 'Carmen Rodriguez',
+                            date: 'Feb 01, 2026',
+                            noShares: '500',
+                            noInstallments: '2',
+                            totalValue: '50,000.00',
+                            installmentAmount: '25,000.00',
+                            status: 'Ongoing',
+                            paidInstallments: '0',
+                            remainingInstallments: '2',
+                            installmentDetails: [
+                                { no: '1st', dueDate: 'Feb 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
+                                { no: '2nd', dueDate: 'Mar 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
+                            ]
+                        }">
                             <td class="px-4 py-3">STK-002</td>
                             <td class="px-4 py-3">Carmen Rodriguez</td>
                             <td class="px-4 py-3">Feb 01, 2026</td>
                             <td class="px-4 py-3">500</td>
                             <td class="px-4 py-3">2</td>
                             <td class="px-4 py-3">50,000.00</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedInstallment = {
-                                        stockNumber: 'STK-002',
-                                        subscriber: 'Carmen Rodriguez',
-                                        date: 'Feb 01, 2026',
-                                        noShares: '500',
-                                        noInstallments: '2',
-                                        totalValue: '50,000.00',
-                                        installmentAmount: '25,000.00',
-                                        status: 'Ongoing',
-                                        paidInstallments: '0',
-                                        remainingInstallments: '2',
-                                        installmentDetails: [
-                                            { no: '1st', dueDate: 'Feb 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                            { no: '2nd', dueDate: 'Mar 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                                        ]
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-gray-600 hover:text-gray-700 hover:underline text-xs font-medium">Pay</button>
-                            </td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
+                            stockNumber: 'STK-003',
+                            subscriber: 'Miguel Santos',
+                            date: 'Feb 15, 2026',
+                            noShares: '750',
+                            noInstallments: '3',
+                            totalValue: '75,000.00',
+                            installmentAmount: '25,000.00',
+                            status: 'Ongoing',
+                            paidInstallments: '1',
+                            remainingInstallments: '2',
+                            installmentDetails: [
+                                { no: '1st', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Feb 28, 2026' },
+                                { no: '2nd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
+                                { no: '3rd', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
+                            ]
+                        }">
                             <td class="px-4 py-3">STK-003</td>
                             <td class="px-4 py-3">Miguel Santos</td>
                             <td class="px-4 py-3">Feb 15, 2026</td>
                             <td class="px-4 py-3">750</td>
                             <td class="px-4 py-3">3</td>
                             <td class="px-4 py-3">75,000.00</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedInstallment = {
-                                        stockNumber: 'STK-003',
-                                        subscriber: 'Miguel Santos',
-                                        date: 'Feb 15, 2026',
-                                        noShares: '750',
-                                        noInstallments: '3',
-                                        totalValue: '75,000.00',
-                                        installmentAmount: '25,000.00',
-                                        status: 'Ongoing',
-                                        paidInstallments: '1',
-                                        remainingInstallments: '2',
-                                        installmentDetails: [
-                                            { no: '1st', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Feb 28, 2026' },
-                                            { no: '2nd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                            { no: '3rd', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                                        ]
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-gray-600 hover:text-gray-700 hover:underline text-xs font-medium">Pay</button>
-                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -155,7 +136,7 @@
         <div x-show="showPreview" class="p-6">
             <template x-if="selectedInstallment">
                 <div class="grid grid-cols-3 gap-6 h-[calc(100vh-13rem)]">
-                    
+
                     {{-- DOCUMENT SIDE --}}
                     <div class="col-span-2 bg-gray-900 rounded-lg overflow-hidden flex flex-col">
                         {{-- DOCUMENT VIEWER TOOLBAR --}}
@@ -181,7 +162,7 @@
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
-                        
+
                         {{-- DOCUMENT MOCKUP --}}
                         <div class="flex-1 overflow-auto p-6 flex items-center justify-center">
                             <div class="bg-white w-full max-w-md rounded-sm shadow-2xl" style="aspect-ratio: 8.5/11;">
@@ -191,7 +172,7 @@
                                         <h1 class="text-lg font-bold text-gray-900">INSTALLMENT SCHEDULE</h1>
                                         <p class="text-xs text-gray-600 mt-2">John Kelly & Company</p>
                                     </div>
-                                    
+
                                     {{-- CONTENT --}}
                                     <div class="space-y-3 text-xs">
                                         <div class="grid grid-cols-2 gap-2">
@@ -204,7 +185,7 @@
                                                 <p x-text="selectedInstallment.stockNumber" class="text-gray-900"></p>
                                             </div>
                                         </div>
-                                        
+
                                         <div class="border-t border-gray-400 pt-2">
                                             <p class="font-semibold text-gray-700">Total Value: <span x-text="'₱' + selectedInstallment.totalValue" class="text-gray-900 font-bold"></span></p>
                                         </div>
@@ -223,10 +204,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- DETAILS SIDE --}}
                     <div class="col-span-1 overflow-y-auto space-y-4">
-                        
+
                         {{-- SUBSCRIBER INFORMATION --}}
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <h3 class="text-sm font-semibold text-gray-900 mb-3">Subscriber Information</h3>
@@ -323,6 +304,78 @@
             </template>
         </div>
 
+    </div>
+
+    {{-- ADD INSTALLMENT SLIDER --}}
+    <div x-cloak>
+        <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+        <div x-show="showAddPanel"
+            class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+            x-transition:enter="transform transition ease-in-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in-out duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            @click.stop
+        >
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">Add Installment Plan</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Stock Number</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Subscriber</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Subscriber name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">No. Shares</label>
+                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">No. of Installments</label>
+                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Total Value (PhP)</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Per Installment</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="25,000.00">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Status</label>
+                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option>Ongoing</option>
+                            <option>Completed</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                    Save Installment
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedShareholder: null }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedShareholder: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -16,7 +16,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -30,6 +30,15 @@
         </div>
 
         <div class="border-t border-gray-100"></div>
+
+        {{-- NAVIGATION TABS --}}
+        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
+            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
+            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
+            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Ledger</a>
+            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
+            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
+        </div>
 
         {{-- SHAREHOLDER SUMMARY --}}
         <div x-show="!showPreview" class="px-4 py-4 bg-gray-50 border-b border-gray-100">
@@ -74,102 +83,74 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Nationality</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Address</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">TIN</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedShareholder = {
+                            firstName: 'John',
+                            middleName: 'Michael',
+                            familyName: 'Kelly',
+                            fullName: 'John Michael Kelly',
+                            nationality: 'Filipino',
+                            address: '1234 Elm Street, Ayala, Manila',
+                            tin: '123-45-6789',
+                            shares: '1000',
+                            certificateNo: 'CERT-001',
+                            dateRegistered: 'Jan 15, 2026',
+                            status: 'Active',
+                            email: 'john.kelly@jkc.com',
+                            phone: '+63 2 1234 5678'
+                        }">
                             <td class="px-4 py-3">Kelly</td>
                             <td class="px-4 py-3">John</td>
                             <td class="px-4 py-3">Michael</td>
                             <td class="px-4 py-3">Filipino</td>
                             <td class="px-4 py-3">1234 Elm Street, Ayala</td>
                             <td class="px-4 py-3">123-45-6789</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedShareholder = {
-                                        firstName: 'John',
-                                        middleName: 'Michael',
-                                        familyName: 'Kelly',
-                                        fullName: 'John Michael Kelly',
-                                        nationality: 'Filipino',
-                                        address: '1234 Elm Street, Ayala, Manila',
-                                        tin: '123-45-6789',
-                                        shares: '1000',
-                                        certificateNo: 'CERT-001',
-                                        dateRegistered: 'Jan 15, 2026',
-                                        status: 'Active',
-                                        email: 'john.kelly@jkc.com',
-                                        phone: '+63 2 1234 5678'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedShareholder = {
+                            firstName: 'Carmen',
+                            middleName: 'Maria',
+                            familyName: 'Rodriguez',
+                            fullName: 'Carmen Maria Rodriguez',
+                            nationality: 'Filipino',
+                            address: '5678 Oak Avenue, Makati, Manila',
+                            tin: '456-78-9012',
+                            shares: '500',
+                            certificateNo: 'CERT-002',
+                            dateRegistered: 'Feb 01, 2026',
+                            status: 'Active',
+                            email: 'carmen.rodriguez@email.com',
+                            phone: '+63 2 8765 4321'
+                        }">
                             <td class="px-4 py-3">Rodriguez</td>
                             <td class="px-4 py-3">Carmen</td>
                             <td class="px-4 py-3">Maria</td>
                             <td class="px-4 py-3">Filipino</td>
                             <td class="px-4 py-3">5678 Oak Avenue, Makati</td>
                             <td class="px-4 py-3">456-78-9012</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedShareholder = {
-                                        firstName: 'Carmen',
-                                        middleName: 'Maria',
-                                        familyName: 'Rodriguez',
-                                        fullName: 'Carmen Maria Rodriguez',
-                                        nationality: 'Filipino',
-                                        address: '5678 Oak Avenue, Makati, Manila',
-                                        tin: '456-78-9012',
-                                        shares: '500',
-                                        certificateNo: 'CERT-002',
-                                        dateRegistered: 'Feb 01, 2026',
-                                        status: 'Active',
-                                        email: 'carmen.rodriguez@email.com',
-                                        phone: '+63 2 8765 4321'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedShareholder = {
+                            firstName: 'Miguel',
+                            middleName: 'Antonio',
+                            familyName: 'Santos',
+                            fullName: 'Miguel Antonio Santos',
+                            nationality: 'Filipino',
+                            address: '9012 Cedar Road, BGC, Manila',
+                            tin: '234-56-7890',
+                            shares: '750',
+                            certificateNo: 'CERT-003',
+                            dateRegistered: 'Feb 10, 2026',
+                            status: 'Active',
+                            email: 'miguel.santos@email.com',
+                            phone: '+63 2 5432 1098'
+                        }">
                             <td class="px-4 py-3">Santos</td>
                             <td class="px-4 py-3">Miguel</td>
                             <td class="px-4 py-3">Antonio</td>
                             <td class="px-4 py-3">Filipino</td>
                             <td class="px-4 py-3">9012 Cedar Road, BGC</td>
                             <td class="px-4 py-3">234-56-7890</td>
-                            <td class="px-4 py-3 text-center space-x-2 flex justify-center">
-                                <button 
-                                    @click="showPreview = true; selectedShareholder = {
-                                        firstName: 'Miguel',
-                                        middleName: 'Antonio',
-                                        familyName: 'Santos',
-                                        fullName: 'Miguel Antonio Santos',
-                                        nationality: 'Filipino',
-                                        address: '9012 Cedar Road, BGC, Manila',
-                                        tin: '234-56-7890',
-                                        shares: '750',
-                                        certificateNo: 'CERT-003',
-                                        dateRegistered: 'Feb 10, 2026',
-                                        status: 'Active',
-                                        email: 'miguel.santos@email.com',
-                                        phone: '+63 2 5432 1098'
-                                    }"
-                                    class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium">
-                                    View
-                                </button>
-                                <span class="text-gray-300">|</span>
-                                <button class="text-red-600 hover:text-red-700 hover:underline text-xs font-medium">Delete</button>
-                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -180,7 +161,7 @@
         <div x-show="showPreview" class="p-6">
             <template x-if="selectedShareholder">
                 <div class="grid grid-cols-3 gap-6 h-[calc(100vh-13rem)]">
-                    
+
                     {{-- DOCUMENT SIDE --}}
                     <div class="col-span-2 bg-gray-900 rounded-lg overflow-hidden flex flex-col">
                         {{-- DOCUMENT VIEWER TOOLBAR --}}
@@ -206,7 +187,7 @@
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
-                        
+
                         {{-- DOCUMENT MOCKUP --}}
                         <div class="flex-1 overflow-auto p-6 flex items-center justify-center">
                             <div class="bg-white w-full max-w-md rounded-sm shadow-2xl" style="aspect-ratio: 8.5/11;">
@@ -216,7 +197,7 @@
                                         <h1 class="text-lg font-bold text-gray-900">SHAREHOLDER LEDGER</h1>
                                         <p class="text-xs text-gray-600 mt-2">John Kelly & Company</p>
                                     </div>
-                                    
+
                                     {{-- CONTENT --}}
                                     <div class="space-y-4 text-xs">
                                         <div class="grid grid-cols-2 gap-4">
@@ -237,7 +218,7 @@
                                                 <p x-text="selectedShareholder.shares" class="text-gray-900 font-bold"></p>
                                             </div>
                                         </div>
-                                        
+
                                         <div class="border-t border-gray-400 pt-3">
                                             <p class="font-semibold text-gray-700">Address:</p>
                                             <p x-text="selectedShareholder.address" class="text-gray-900 mt-1"></p>
@@ -252,10 +233,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {{-- DETAILS SIDE --}}
                     <div class="col-span-1 overflow-y-auto space-y-4">
-                        
+
                         {{-- PERSONAL INFORMATION --}}
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <h3 class="text-sm font-semibold text-gray-900 mb-3">Personal Information</h3>
@@ -346,6 +327,93 @@
             </template>
         </div>
 
+    </div>
+
+    {{-- ADD SHAREHOLDER SLIDER --}}
+    <div x-cloak>
+        <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+        <div x-show="showAddPanel"
+            class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+            x-transition:enter="transform transition ease-in-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in-out duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            @click.stop
+        >
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">Add Shareholder</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Family Name</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter family name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">First Name</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter first name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Middle Name</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter middle name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Nationality</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter nationality">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Current Residential Address</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter address">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">TIN</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter TIN">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Email</label>
+                        <input type="email" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="name@company.com">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Phone</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="+63 2 1234 5678">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Number of Shares</label>
+                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Certificate No.</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date Registered</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Status</label>
+                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option>Active</option>
+                            <option>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                    Save Shareholder
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>
