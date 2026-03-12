@@ -36,16 +36,44 @@ class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-
 <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
 </button>
 
-<button class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition">
-A
+<div x-data="{ open:false }" class="relative">
+
+<button
+@click="open=!open"
+class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition">
+{{ strtoupper(substr(Auth::user()->name,0,1)) }}
 </button>
+
+<div
+x-show="open"
+@click.outside="open=false"
+x-transition
+class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"
+style="display:none;">
+
+<div class="px-4 py-3 border-b text-sm">
+<p class="font-semibold text-gray-800">{{ Auth::user()->name }}</p>
+<p class="text-gray-400 text-xs">{{ Auth::user()->role }}</p>
+</div>
+
+<form method="POST" action="{{ route('logout') }}">
+@csrf
+<button type="submit"
+class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition">
+<i class="fas fa-sign-out-alt mr-2"></i>
+Logout
+</button>
+</form>
+
+</div>
+
+</div>
 
 </div>
 </div>
 
 </div>
 </header>
-
 
 <div class="flex h-[calc(100vh-4rem)]">
 
@@ -57,9 +85,9 @@ A
 <span>Town Hall</span>
 </a>
 
-<a href="/"
+<a href="{{ route('corporate') }}"
 class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-{{ request()->is('/') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+{{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-building text-base"></i>
 <span>Corporate</span>
 </a>
@@ -92,8 +120,6 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 </a>
 
 </aside>
-
-
 
 <!-- SECOND SIDEBAR -->
 @if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products') || request()->routeIs('company.services.*'))
@@ -145,16 +171,17 @@ KYC
 </div>
 
 <div class="flex-1 overflow-y-auto p-3">
-
 <div class="space-y-1 text-sm">
 
-<a href="/"
+<a href="{{ route('corporate') }}"
 class="block px-3 py-2 rounded-lg transition
-{{ request()->is('/') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+{{ request()->routeIs('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 Company General Information
 </a>
 
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+<a href="{{ route('corporate.formation') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 Corporate/Formation
 </a>
 
@@ -171,31 +198,12 @@ LGU
 </a>
 
 <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Accounting
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Priority
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Status
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Tag
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Name
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Owner
-</a>
-
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Accounting</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Priority</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Status</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Tag</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Task Name</a>
+<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Task Owner</a>
 </div>
 
 </div>
@@ -203,8 +211,6 @@ Task Owner
 
 </aside>
 @endif
-
-
 
 <!-- MAIN CONTENT -->
 <main class="flex-1 overflow-y-auto">

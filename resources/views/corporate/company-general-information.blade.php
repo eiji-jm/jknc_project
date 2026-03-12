@@ -115,7 +115,7 @@
                             <div class="grid grid-cols-12 gap-0">
                                 <div class="col-span-8 gis-cell">
                                     <div class="px-2 pt-1 gis-label">CORPORATE NAME:</div>
-                                    <input class="gis-input" placeholder="Enter corporate name" value="">
+                                    <input class="gis-input" value="{{ $gis->corporation_name ?? '' }}">
                                 </div>
                                 <div class="col-span-4 gis-cell">
                                     <div class="px-2 pt-1 gis-label">DATE REGISTERED:</div>
@@ -139,7 +139,7 @@
                             <div class="grid grid-cols-12 gap-0 -mt-px">
                                 <div class="col-span-8 gis-cell">
                                     <div class="px-2 pt-1 gis-label">SEC REGISTRATION NUMBER:</div>
-                                    <input class="gis-input" placeholder="Enter SEC registration number" value="">
+                                    <input class="gis-input" value="{{ $gis->company_reg_no ?? '' }}">
                                 </div>
                                 <div class="col-span-4 gis-cell">
                                     <div class="px-2 pt-1 gis-label">CORPORATE TAX IDENTIFICATION NUMBER (TIN):</div>
@@ -163,7 +163,7 @@
                             <div class="grid grid-cols-12 gap-0 -mt-px">
                                 <div class="col-span-8 gis-cell">
                                     <div class="px-2 pt-1 gis-label">ACTUAL DATE OF ANNUAL MEETING:</div>
-                                    <input class="gis-input" placeholder="Enter actual meeting date" value="">
+                                    <input class="gis-input" value="{{ $gis->annual_meeting ?? '' }}">
                                 </div>
                                 <div class="col-span-4 gis-cell">
                                     <div class="px-2 pt-1 gis-label">E-MAIL ADDRESS:</div>
