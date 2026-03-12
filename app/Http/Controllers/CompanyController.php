@@ -24,26 +24,14 @@ class CompanyController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'company_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:255'],
-            'website' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'address' => ['nullable', 'string'],
-        ]);
+        $validated = $this->validateCompany($request);
 
         $companies = $request->session()->get('mock_companies', $this->defaultCompanies());
         $nextId = collect($companies)->max('id') + 1;
 
         $companies[] = [
             'id' => $nextId,
-            'company_name' => $validated['company_name'],
-            'email' => $validated['email'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'website' => $validated['website'] ?? null,
-            'description' => $validated['description'] ?? null,
-            'address' => $validated['address'] ?? null,
+            ...$this->makeCompanyPayload($validated),
             'owner_name' => $request->user()?->name ?? 'Owner 1',
             'created_at' => now()->toDateTimeString(),
         ];
@@ -53,6 +41,52 @@ class CompanyController extends Controller
         return redirect()
             ->route('company.index')
             ->with('success', 'Company added successfully.');
+    }
+
+    public function update(Request $request, int $company): RedirectResponse
+    {
+        $validated = $this->validateCompany($request);
+        $companies = collect($request->session()->get('mock_companies', $this->defaultCompanies()));
+        $companyData = $companies->firstWhere('id', $company);
+
+        abort_unless($companyData, 404);
+
+        $updatedCompanies = $companies
+            ->map(function (array $existingCompany) use ($company, $validated) {
+                if ((int) $existingCompany['id'] !== $company) {
+                    return $existingCompany;
+                }
+
+                return [
+                    ...$existingCompany,
+                    ...$this->makeCompanyPayload($validated),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $request->session()->put('mock_companies', $updatedCompanies);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Company updated successfully.');
+    }
+
+    public function destroy(Request $request, int $company): RedirectResponse
+    {
+        $companies = collect($request->session()->get('mock_companies', $this->defaultCompanies()));
+        $companyData = $companies->firstWhere('id', $company);
+
+        abort_unless($companyData, 404);
+
+        $request->session()->put(
+            'mock_companies',
+            $companies->reject(fn (array $existingCompany) => (int) $existingCompany['id'] === $company)->values()->all()
+        );
+
+        return redirect()
+            ->route('company.index')
+            ->with('success', 'Company deleted successfully.');
     }
 
     public function show(Request $request, int $company): View
@@ -598,6 +632,7 @@ class CompanyController extends Controller
             [
                 'id' => 1,
                 'company_name' => 'Company 1',
+                'company_type' => 'Corporation',
                 'email' => 'company1@example.com',
                 'phone' => '09012345678',
                 'website' => 'https://bigin.example',
@@ -609,6 +644,7 @@ class CompanyController extends Controller
             [
                 'id' => 2,
                 'company_name' => 'Company 2',
+                'company_type' => 'Corporation',
                 'email' => 'company2@example.com',
                 'phone' => '09000345678',
                 'website' => 'https://bigin.example',
@@ -620,6 +656,7 @@ class CompanyController extends Controller
             [
                 'id' => 3,
                 'company_name' => 'Company 3',
+                'company_type' => 'Corporation',
                 'email' => 'company3@example.com',
                 'phone' => '09777345678',
                 'website' => 'https://bigin.example',
@@ -639,6 +676,32 @@ class CompanyController extends Controller
         abort_unless($companyData, 404);
 
         return $companyData;
+    }
+
+    private function validateCompany(Request $request): array
+    {
+        return $request->validate([
+            'company_name' => ['required', 'string', 'max:255'],
+            'company_type' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'address' => ['nullable', 'string'],
+        ]);
+    }
+
+    private function makeCompanyPayload(array $validated): array
+    {
+        return [
+            'company_name' => $validated['company_name'],
+            'company_type' => $validated['company_type'] ?? 'Corporation',
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'website' => $validated['website'] ?? null,
+            'description' => $validated['description'] ?? null,
+            'address' => $validated['address'] ?? null,
+        ];
     }
 
     private function contactValidator(Request $request)

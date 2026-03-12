@@ -102,7 +102,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Contacts</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="#"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->routeIs('company.deals') || request()->routeIs('company.deals.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-handshake text-base"></i>
 <span>Deals</span>
 </a>
@@ -114,15 +116,17 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Company</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
-<i class="fas fa-box text-base"></i>
-<span>Product</span>
+<a href="{{ route('services.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->routeIs('services.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-briefcase text-base"></i>
+<span>Services</span>
 </a>
 
 </aside>
 
 <!-- SECOND SIDEBAR -->
-@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products') || request()->routeIs('company.services.*'))
+@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -139,11 +143,11 @@ KYC
 <a href="{{ route('company.history', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.history') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">History</a>
 <a href="{{ route('company.consultation-notes', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.consultation-notes') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Consultation notes</a>
 <a href="{{ route('company.activities', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.activities') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Activities</a>
-<a href="{{ route('company.deals', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.deals') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Deals</a>
+<a href="{{ route('company.deals', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.deals') || request()->routeIs('company.deals.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Deals</a>
 <a href="{{ route('company.contacts', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.contacts') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Contacts</a>
 <a href="{{ route('company.projects', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.projects') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Projects</a>
 <a href="{{ route('company.regular', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.regular') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Regular</a>
-<a href="{{ route('company.products', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.products') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Products</a>
+<a href="{{ route('company.products', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.products') || request()->routeIs('company.products.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Products</a>
 <a href="{{ route('company.services.index', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.services.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Services</a>
 
 <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
@@ -159,6 +163,20 @@ KYC
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Correspondence</a>
 </div>
 
+</div>
+</div>
+
+</aside>
+@elseif (request()->routeIs('services.*'))
+<aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+<div class="px-4 py-3 border-b border-gray-100">
+<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Services</p>
+</div>
+
+<div class="flex-1 overflow-y-auto p-3">
+<div class="space-y-1 text-sm">
+<a href="{{ route('services.index') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('services.index') || request()->routeIs('services.show') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">All Services</a>
 </div>
 </div>
 

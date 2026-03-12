@@ -27,6 +27,20 @@
                     </div>
 
                     <div>
+                        <label for="company_type" class="mb-1 block text-sm font-medium text-gray-700">Company Type</label>
+                        <input
+                            id="company_type"
+                            name="company_type"
+                            type="text"
+                            value="{{ old('company_type', 'Corporation') }}"
+                            class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        >
+                        @error('company_type')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
                         <label for="email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
                         <input
                             id="email"

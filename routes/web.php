@@ -3,6 +3,8 @@
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyCifController;
 use App\Http\Controllers\CompanyServiceController;
+use App\Http\Controllers\CompanyProductController;
+use App\Http\Controllers\CompanyDealController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -29,14 +31,26 @@ Route::post('/logout',[LoginController::class,'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
 
+    Route::get('/services', [CompanyServiceController::class, 'globalIndex'])->name('services.index');
+    Route::post('/services', [CompanyServiceController::class, 'storeGlobal'])->name('services.store');
+    Route::get('/services/{service}', [CompanyServiceController::class, 'showGlobal'])->name('services.show');
+    Route::match(['put', 'patch'], '/services/{service}', [CompanyServiceController::class, 'updateGlobal'])->name('services.update');
+    Route::delete('/services/{service}', [CompanyServiceController::class, 'destroyGlobal'])->name('services.destroy');
+
     Route::get('/company', [CompanyController::class, 'index'])->name('company.index');
     Route::post('/company', [CompanyController::class, 'store'])->name('company.store');
+    Route::match(['put', 'patch'], '/company/{company}', [CompanyController::class, 'update'])->name('company.update');
+    Route::delete('/company/{company}', [CompanyController::class, 'destroy'])->name('company.destroy');
     Route::get('/company/{company}', [CompanyController::class, 'show'])->name('company.show');
     Route::get('/company/{company}/kyc', [CompanyController::class, 'show'])->name('company.kyc');
     Route::get('/company/{company}/history', [CompanyController::class, 'history'])->name('company.history');
     Route::get('/company/{company}/consultation-notes', [CompanyController::class, 'consultationNotes'])->name('company.consultation-notes');
     Route::get('/company/{company}/activities', [CompanyController::class, 'activities'])->name('company.activities');
-    Route::get('/company/{company}/deals', [CompanyController::class, 'deals'])->name('company.deals');
+    Route::get('/company/{company}/deals', [CompanyDealController::class, 'index'])->name('company.deals');
+    Route::post('/company/{company}/deals', [CompanyDealController::class, 'store'])->name('company.deals.store');
+    Route::get('/company/{company}/deals/{deal}', [CompanyDealController::class, 'show'])->name('company.deals.show');
+    Route::match(['put', 'patch'], '/company/{company}/deals/{deal}', [CompanyDealController::class, 'update'])->name('company.deals.update');
+    Route::delete('/company/{company}/deals/{deal}', [CompanyDealController::class, 'destroy'])->name('company.deals.destroy');
     Route::get('/company/{company}/contacts', [CompanyController::class, 'contacts'])->name('company.contacts');
     Route::post('/company/{company}/contacts', [CompanyController::class, 'storeContact'])->name('company.contacts.store');
     Route::post('/company/{company}/contacts/custom-fields', [CompanyController::class, 'storeContactCustomField'])->name('company.contacts.custom-fields.store');
@@ -44,15 +58,22 @@ Route::middleware('auth')->group(function () {
     Route::delete('/company/{company}/contacts/{contact}', [CompanyController::class, 'destroyContact'])->name('company.contacts.destroy');
     Route::get('/company/{company}/projects', [CompanyController::class, 'projects'])->name('company.projects');
     Route::get('/company/{company}/regular', [CompanyController::class, 'regular'])->name('company.regular');
-    Route::get('/company/{company}/products', [CompanyController::class, 'products'])->name('company.products');
+    Route::get('/company/{company}/products', [CompanyProductController::class, 'index'])->name('company.products');
+    Route::post('/company/{company}/products/link', [CompanyProductController::class, 'link'])->name('company.products.link');
+    Route::post('/company/{company}/products', [CompanyProductController::class, 'store'])->name('company.products.store');
+    Route::get('/company/{company}/products/{product}', [CompanyProductController::class, 'show'])->name('company.products.show');
+    Route::match(['put', 'patch'], '/company/{company}/products/{product}', [CompanyProductController::class, 'update'])->name('company.products.update');
+    Route::delete('/company/{company}/products/{product}', [CompanyProductController::class, 'unlink'])->name('company.products.unlink');
     Route::get('/company/{company}/kyc/cif/create', [CompanyCifController::class, 'create'])->name('company.cif.create');
     Route::post('/company/{company}/kyc/cif', [CompanyCifController::class, 'store'])->name('company.cif.store');
     Route::get('/company/{company}/kyc/cif/{cif}', [CompanyCifController::class, 'show'])->name('company.cif.show');
     Route::get('/company/{company}/kyc/cif/{cif}/edit', [CompanyCifController::class, 'edit'])->name('company.cif.edit');
     Route::match(['put', 'patch'], '/company/{company}/kyc/cif/{cif}', [CompanyCifController::class, 'update'])->name('company.cif.update');
-    Route::get('/company/{company}/services', [CompanyServiceController::class, 'index'])->name('company.services.index');
-    Route::post('/company/{company}/services/link', [CompanyServiceController::class, 'link'])->name('company.services.link');
-    Route::get('/company/{company}/services/{service}', [CompanyServiceController::class, 'show'])->name('company.services.show');
+    Route::get('/company/{company}/services', [CompanyServiceController::class, 'companyIndex'])->name('company.services.index');
+    Route::post('/company/{company}/services', [CompanyServiceController::class, 'storeForCompany'])->name('company.services.store');
+    Route::get('/company/{company}/services/{service}', [CompanyServiceController::class, 'showForCompany'])->name('company.services.show');
+    Route::match(['put', 'patch'], '/company/{company}/services/{service}', [CompanyServiceController::class, 'updateForCompany'])->name('company.services.update');
+    Route::delete('/company/{company}/services/{service}', [CompanyServiceController::class, 'destroyForCompany'])->name('company.services.destroy');
 
     // COMPANY GENERAL INFORMATION
     Route::get('/corporate', [GisController::class,'companyInfo'])->name('corporate');
