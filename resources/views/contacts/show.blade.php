@@ -1036,6 +1036,24 @@
             @endif
 
             @if ($tab === 'deals')
+                @php
+                    $dealStageClasses = [
+                        'Inquiry' => 'bg-slate-100 text-slate-700 border border-slate-200',
+                        'Qualification' => 'bg-blue-100 text-blue-700 border border-blue-200',
+                        'Consultation' => 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+                        'Proposal' => 'bg-cyan-100 text-cyan-700 border border-cyan-200',
+                        'Negotiation' => 'bg-amber-100 text-amber-700 border border-amber-200',
+                        'Payment' => 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+                        'Activation' => 'bg-violet-100 text-violet-700 border border-violet-200',
+                        'Closed Lost' => 'bg-red-100 text-red-700 border border-red-200',
+                    ];
+                    $dealStatusClasses = [
+                        'Open' => 'bg-blue-100 text-blue-700 border border-blue-200',
+                        'Won' => 'bg-green-100 text-green-700 border border-green-200',
+                        'Lost' => 'bg-red-100 text-red-700 border border-red-200',
+                        'Pending' => 'bg-amber-100 text-amber-700 border border-amber-200',
+                    ];
+                @endphp
                 <div class="mb-4 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl font-semibold text-gray-900">Related Deals</h2>
@@ -1060,11 +1078,19 @@
                             @foreach ($tabData['deals'] as $deal)
                                 <tr>
                                     <td class="px-3 py-3 font-medium text-gray-900">{{ $deal['name'] }}</td>
-                                    <td class="px-3 py-3"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">{{ $deal['stage'] }}</span></td>
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStageClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">
+                                            {{ $deal['stage'] }}
+                                        </span>
+                                    </td>
                                     <td class="px-3 py-3 font-semibold text-blue-600">{{ $deal['amount'] }}</td>
-                                    <td class="px-3 py-3">{{ $deal['closing_date'] }}</td>
-                                    <td class="px-3 py-3">{{ $deal['owner'] }}</td>
-                                    <td class="px-3 py-3"><span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">{{ $deal['status'] }}</span></td>
+                                    <td class="px-3 py-3 text-gray-700">{{ $deal['closing_date'] }}</td>
+                                    <td class="px-3 py-3 text-gray-700">{{ $deal['owner'] }}</td>
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$deal['status']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">
+                                            {{ $deal['status'] }}
+                                        </span>
+                                    </td>
                                     <td class="px-3 py-3"><a href="#" class="text-blue-600 hover:text-blue-700"><i class="far fa-eye mr-1"></i>View</a></td>
                                 </tr>
                             @endforeach

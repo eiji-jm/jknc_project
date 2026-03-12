@@ -76,9 +76,23 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Contacts</span>
 </a>
 
+<a href="{{ route('deals.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('deals*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-handshake-angle text-base"></i>
+<span>Deals</span>
+</a>
+
 <a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
 <i class="fas fa-city text-base"></i>
 <span>Company</span>
+</a>
+
+<a href="{{ route('products.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('products*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-cube text-base"></i>
+<span>Product</span>
 </a>
 
 </aside>
@@ -86,7 +100,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 
 
 <!-- SECOND SIDEBAR -->
-@unless (request()->routeIs('contacts.*'))
+@unless (request()->routeIs('contacts.*') || request()->routeIs('deals.*') || request()->routeIs('products.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
