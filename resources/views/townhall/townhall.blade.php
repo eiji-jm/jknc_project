@@ -26,94 +26,149 @@
         </div>
     @endif
 
-    {{-- VIEWER MODAL --}}
-    <div x-show="showViewer" x-cloak class="fixed inset-0 z-[60] overflow-hidden">
-        <div class="absolute inset-0 bg-black/40" @click="showViewer = false"></div>
+{{-- VIEWER MODAL --}}
+<div x-show="showViewer" x-cloak class="fixed inset-0 z-[60] overflow-hidden">
+    <div class="absolute inset-0 bg-black/40" @click="showViewer = false"></div>
 
-        <div class="absolute inset-0 flex items-center justify-center p-6">
-            <div
-                x-show="showViewer"
-                x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col"
-            >
-                {{-- HEADER --}}
-                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div class="absolute inset-0 flex items-center justify-center p-6">
+        <div
+            x-show="showViewer"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="w-full max-w-[1280px] h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col"
+        >
+            {{-- HEADER --}}
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800">Communication Details</h2>
+                    <p class="text-sm text-gray-500" x-text="selectedCommunication?.ref_no || ''"></p>
+                </div>
+
+                <button
+                    type="button"
+                    @click="showViewer = false"
+                    class="text-gray-400 hover:text-gray-600 text-lg"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            {{-- CONTENT --}}
+            <div class="flex-1 overflow-hidden grid grid-cols-12">
+                {{-- LEFT PREVIEW PANEL --}}
+                <div class="col-span-8 border-r border-gray-200 bg-gray-50 p-4 flex flex-col">
+                    <div class="flex-1 rounded-xl border border-gray-200 bg-white overflow-hidden flex items-center justify-center">
+                        {{-- IMAGE PREVIEW --}}
+                        <template x-if="selectedCommunication?.attachment_type === 'image'">
+                            <div class="w-full h-full flex items-center justify-center bg-gray-100">
+                                <img
+                                    :src="selectedCommunication.attachment_url"
+                                    alt="Attachment Preview"
+                                    class="max-w-full max-h-full object-contain"
+                                >
+                            </div>
+                        </template>
+
+                        {{-- PDF PREVIEW --}}
+                        <template x-if="selectedCommunication?.attachment_type === 'pdf'">
+                            <iframe
+                                :src="selectedCommunication.attachment_url"
+                                class="w-full h-full"
+                            ></iframe>
+                        </template>
+
+                        {{-- OTHER FILE TYPES --}}
+                        <template x-if="selectedCommunication?.attachment_type === 'file'">
+                            <div class="text-center px-6">
+                                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <i class="fas fa-file text-2xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-700 mb-2">Preview not available for this file type.</p>
+                                <a
+                                    :href="selectedCommunication?.attachment_url"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                                >
+                                    <i class="fas fa-paperclip"></i>
+                                    <span>Open Attachment</span>
+                                </a>
+                            </div>
+                        </template>
+
+                        {{-- NO ATTACHMENT --}}
+                        <template x-if="!selectedCommunication?.attachment_url">
+                            <div class="text-center px-6">
+                                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-2xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-600">No attachment uploaded.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                {{-- RIGHT DETAILS PANEL --}}
+                <div class="col-span-4 bg-white overflow-y-auto p-6 space-y-5">
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-800">Communication Details</h2>
+                        <h3 class="text-xl font-semibold text-gray-800">Communication Details</h3>
                         <p class="text-sm text-gray-500" x-text="selectedCommunication?.ref_no || ''"></p>
                     </div>
 
-                    <button
-                        type="button"
-                        @click="showViewer = false"
-                        class="text-gray-400 hover:text-gray-600 text-lg"
-                    >
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                {{-- BODY --}}
-                <div class="flex-1 overflow-y-auto p-6 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-4">
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Date</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.communication_date || '—'"></p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">From</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">From</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.from_name || '—'"></p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">To / For</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">To / For</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.to_for || '—'"></p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Department / Stakeholder</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Department / Stakeholder</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.department_stakeholder || '—'"></p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Status</p>
-                            <p class="text-sm">
-                                <span
-                                    class="px-2 py-1 text-xs rounded-full font-medium"
-                                    :class="{
-                                        'bg-yellow-50 text-yellow-700': (selectedCommunication?.status ?? 'Open') === 'Open',
-                                        'bg-green-50 text-green-700': selectedCommunication?.status === 'Completed',
-                                        'bg-red-50 text-red-700': selectedCommunication?.status === 'Overdue'
-                                    }"
-                                    x-text="selectedCommunication?.status || '—'"
-                                ></span>
-                            </p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Status</p>
+                            <span
+                                class="inline-flex px-2 py-1 text-xs rounded-full font-medium"
+                                :class="{
+                                    'bg-yellow-50 text-yellow-700': (selectedCommunication?.status ?? 'Open') === 'Open',
+                                    'bg-green-50 text-green-700': selectedCommunication?.status === 'Completed',
+                                    'bg-red-50 text-red-700': selectedCommunication?.status === 'Overdue'
+                                }"
+                                x-text="selectedCommunication?.status || '—'"
+                            ></span>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Subject</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Subject</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.subject || '—'"></p>
                         </div>
-                    </div>
 
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-500 uppercase mb-3">Body</p>
-                        <div class="prose prose-sm max-w-none text-gray-800" x-html="selectedCommunication?.message || '<p>—</p>'"></div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">CC</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Body</p>
+                            <div class="prose prose-sm max-w-none text-gray-800" x-html="selectedCommunication?.message || '<p>—</p>'"></div>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-1">CC</p>
                             <p class="text-sm text-gray-800" x-text="selectedCommunication?.cc || '—'"></p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 p-4">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Attachments</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Attachment</p>
 
                             <template x-if="selectedCommunication?.attachment_url">
                                 <a
@@ -132,20 +187,21 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {{-- FOOTER --}}
-                <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
-                    <button
-                        type="button"
-                        @click="showViewer = false"
-                        class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                    >
-                        Close
-                    </button>
-                </div>
+            {{-- FOOTER --}}
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end bg-white">
+                <button
+                    type="button"
+                    @click="showViewer = false"
+                    class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                >
+                    Close
+                </button>
             </div>
         </div>
     </div>
+</div>
 
     {{-- SLIDE OVER --}}
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
@@ -377,26 +433,42 @@
                         </tr>
                     </thead>
 
-                    <tbody class="bg-white text-gray-700">
+                        <tbody class="bg-white text-gray-700">
                         @forelse($communications as $communication)
-                            @php
-                                $viewerData = [
-                                    'ref_no' => $communication->ref_no,
-                                    'communication_date' => $communication->communication_date,
-                                    'department_stakeholder' => $communication->department_stakeholder,
-                                    'from_name' => $communication->from_name,
-                                    'to_for' => $communication->to_for,
-                                    'status' => $communication->status,
-                                    'subject' => $communication->subject,
-                                    'message' => $communication->message,
-                                    'cc' => $communication->cc,
-                                    'attachment_url' => $communication->attachment ? asset('storage/' . $communication->attachment) : null,
-                                ];
-                            @endphp
+
+                        @php
+                            $attachmentType = null;
+
+                            if ($communication->attachment) {
+                                $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
+
+                                if (in_array($ext, ['jpg','jpeg','png','gif','webp','jfif'])) {
+                                    $attachmentType = 'image';
+                                } elseif ($ext === 'pdf') {
+                                    $attachmentType = 'pdf';
+                                } else {
+                                    $attachmentType = 'file';
+                                }
+                            }
+
+                            $viewerData = [
+                                'ref_no' => $communication->ref_no,
+                                'communication_date' => $communication->communication_date,
+                                'department_stakeholder' => $communication->department_stakeholder,
+                                'from_name' => $communication->from_name,
+                                'to_for' => $communication->to_for,
+                                'status' => $communication->status,
+                                'subject' => $communication->subject,
+                                'message' => $communication->message,
+                                'cc' => $communication->cc,
+                                'attachment_url' => $communication->attachment ? asset('storage/'.$communication->attachment) : null,
+                                'attachment_type' => $attachmentType,
+                            ];
+                        @endphp
 
                             <tr
                                 class="border-t border-gray-200 hover:bg-gray-50 cursor-pointer transition"
-                                @click='selectedCommunication = @json($viewerData); showViewer = true'
+                                onclick="window.location='{{ route('townhall.show', $communication->id) }}'"
                             >
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->communication_date }}</td>
@@ -432,11 +504,13 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-3 text-center text-gray-400">
-                                    <button
-                                        type="button"
-                                        class="hover:text-gray-600"
-                                        @click.stop='selectedCommunication = @json($viewerData); showViewer = true'
-                                    >
+                                <button
+                                    type="button"
+                                    class="hover:text-gray-600"
+                                    onclick="window.location='{{ route('townhall.show', $communication->id) }}'"
+                                >
+                                    …
+                                </button>
                                         …
                                     </button>
                                 </td>

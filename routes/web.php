@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
     */
     Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
     Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
+    Route::get('/townhall/{id}', [TownHallController::class, 'show'])->name('townhall.show');
 
 
     /*

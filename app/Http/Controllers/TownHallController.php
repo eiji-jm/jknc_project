@@ -47,4 +47,25 @@ class TownHallController extends Controller
             ->route('townhall')
             ->with('success', 'Town Hall communication created successfully.');
     }
+
+    public function show($id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        $attachmentType = null;
+
+        if ($communication->attachment) {
+            $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
+
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'jfif'])) {
+                $attachmentType = 'image';
+            } elseif ($ext === 'pdf') {
+                $attachmentType = 'pdf';
+            } else {
+                $attachmentType = 'file';
+            }
+        }
+
+        return view('townhall.show', compact('communication', 'attachmentType'));
+    }
 }
