@@ -3,6 +3,12 @@
 @section('content')
 <div class="w-full h-full px-6 py-5">
 
+    @if(session('success'))
+        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {{ session('success') }}
+        </div>
+    @endif
+
     {{-- PAGE WRAPPER --}}
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
 
@@ -29,7 +35,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-blue-600 uppercase">Pending Approval</p>
-                        <h2 class="text-3xl font-bold text-blue-700 mt-2">18</h2>
+                        <h2 class="text-3xl font-bold text-blue-700 mt-2">{{ $pendingCount }}</h2>
                     </div>
                     <div class="w-11 h-11 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
                         <i class="fas fa-hourglass-half"></i>
@@ -40,8 +46,8 @@
             <div class="bg-green-50 border border-green-100 rounded-xl p-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-semibold text-green-600 uppercase">Approved Today</p>
-                        <h2 class="text-3xl font-bold text-green-700 mt-2">9</h2>
+                        <p class="text-xs font-semibold text-green-600 uppercase">Approved</p>
+                        <h2 class="text-3xl font-bold text-green-700 mt-2">{{ $approvedCount }}</h2>
                     </div>
                     <div class="w-11 h-11 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
                         <i class="fas fa-check-circle"></i>
@@ -53,7 +59,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-red-600 uppercase">Rejected</p>
-                        <h2 class="text-3xl font-bold text-red-700 mt-2">4</h2>
+                        <h2 class="text-3xl font-bold text-red-700 mt-2">{{ $rejectedCount }}</h2>
                     </div>
                     <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
                         <i class="fas fa-times-circle"></i>
@@ -65,7 +71,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-yellow-600 uppercase">Needs Revision</p>
-                        <h2 class="text-3xl font-bold text-yellow-700 mt-2">6</h2>
+                        <h2 class="text-3xl font-bold text-yellow-700 mt-2">{{ $revisionCount }}</h2>
                     </div>
                     <div class="w-11 h-11 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center">
                         <i class="fas fa-rotate-left"></i>
@@ -143,139 +149,108 @@
                     </thead>
 
                     <tbody class="bg-white text-gray-700">
-                        {{-- TOWN HALL FIRST --}}
-                        <tr class="border-t border-gray-200 hover:bg-gray-50">
-                            <td class="px-4 py-3 border-r border-gray-200">0001</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 font-medium">Town Hall</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">CEO Memo Announcement.pdf</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Town Hall</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Jasper Bulac</td>
-                            <td class="px-4 py-3 border-r border-gray-200">04/22/2024</td>
-                            <td class="px-4 py-3 border-r border-gray-200">CEO</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-red-50 text-red-600 font-medium">High</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-yellow-50 text-yellow-700 font-medium">Pending Approval</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">Approve</button>
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">Reject</button>
-                                </div>
-                            </td>
-                        </tr>
+                        @forelse($communications as $communication)
+                            @php
+                                $approval = $communication->approval_status ?? 'Pending';
 
-                        <tr class="border-t border-gray-200 hover:bg-gray-50">
-                            <td class="px-4 py-3 border-r border-gray-200">0002</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 font-medium">Town Hall</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">Board Meeting Memo.docx</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Town Hall</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Maria Santos</td>
-                            <td class="px-4 py-3 border-r border-gray-200">04/23/2024</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Admin</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-yellow-50 text-yellow-700 font-medium">Medium</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 font-medium">Needs Revision</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">Review</button>
-                                </div>
-                            </td>
-                        </tr>
+                                $approvalClasses = match($approval) {
+                                    'Approved' => 'bg-green-50 text-green-700',
+                                    'Rejected' => 'bg-red-50 text-red-700',
+                                    'Needs Revision' => 'bg-blue-50 text-blue-700',
+                                    default => 'bg-yellow-50 text-yellow-700',
+                                };
 
-                        {{-- CORPORATE --}}
-                        <tr class="border-t border-gray-200 hover:bg-gray-50">
-                            <td class="px-4 py-3 border-r border-gray-200">0003</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-medium">Corporate</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">SEC Amendment Letter.pdf</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Corporate</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Jasper Bulac</td>
-                            <td class="px-4 py-3 border-r border-gray-200">04/22/2024</td>
-                            <td class="px-4 py-3 border-r border-gray-200">CEO</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-red-50 text-red-600 font-medium">High</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-yellow-50 text-yellow-700 font-medium">Pending Approval</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">Approve</button>
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">Reject</button>
-                                </div>
-                            </td>
-                        </tr>
+                                $moduleLabel = 'Town Hall';
+                                $moduleClasses = 'bg-blue-50 text-blue-700';
 
-                        <tr class="border-t border-gray-200 hover:bg-gray-50">
-                            <td class="px-4 py-3 border-r border-gray-200">0004</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-medium">Corporate</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">GIS Draft 2024.docx</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Corporate</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Maria Santos</td>
-                            <td class="px-4 py-3 border-r border-gray-200">04/23/2024</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Admin</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-yellow-50 text-yellow-700 font-medium">Medium</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 font-medium">Needs Revision</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">Review</button>
-                                </div>
-                            </td>
-                        </tr>
+                                $priority = 'Medium';
+                                $priorityClasses = 'bg-yellow-50 text-yellow-700';
+                            @endphp
 
-                        <tr class="border-t border-gray-200 hover:bg-gray-50">
-                            <td class="px-4 py-3 border-r border-gray-200">0005</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 font-medium">Accounting</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">Tax Clearance Request.pdf</td>
-                            <td class="px-4 py-3 border-r border-gray-200">Accounting</td>
-                            <td class="px-4 py-3 border-r border-gray-200">John Dela Cruz</td>
-                            <td class="px-4 py-3 border-r border-gray-200">04/24/2024</td>
-                            <td class="px-4 py-3 border-r border-gray-200">CEO</td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-green-50 text-green-700 font-medium">Low</span>
-                            </td>
-                            <td class="px-4 py-3 border-r border-gray-200">
-                                <span class="px-2 py-1 text-xs rounded-full bg-green-50 text-green-700 font-medium">Approved</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition">View</button>
-                                </div>
-                            </td>
-                        </tr>
+                            <tr class="border-t border-gray-200 hover:bg-gray-50">
+                                <td class="px-4 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
 
-                        @for ($i = 0; $i < 6; $i++)
-                            <tr class="border-t border-gray-200 h-14">
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td class="border-r border-gray-200"></td>
-                                <td></td>
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <span class="px-2 py-1 text-xs rounded-full {{ $moduleClasses }} font-medium">
+                                        {{ $moduleLabel }}
+                                    </span>
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    {{ $communication->subject ?: 'No Subject' }}
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    {{ $communication->department_stakeholder ?: 'Town Hall' }}
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    {{ $communication->from_name ?: '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    {{ $communication->communication_date ?: '—' }}
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    @if($communication->approved_by)
+                                        Admin
+                                    @else
+                                        Admin
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <span class="px-2 py-1 text-xs rounded-full {{ $priorityClasses }} font-medium">
+                                        {{ $priority }}
+                                    </span>
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <span class="px-2 py-1 text-xs rounded-full {{ $approvalClasses }} font-medium">
+                                        {{ $approval }}
+                                    </span>
+                                </td>
+
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <form action="{{ route('townhall.approve', $communication->id) }}" method="POST">
+                                            @csrf
+                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
+                                                Approve
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route('townhall.reject', $communication->id) }}" method="POST">
+                                            @csrf
+                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
+                                                Reject
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route('townhall.revise', $communication->id) }}" method="POST">
+                                            @csrf
+                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">
+                                                Revise
+                                            </button>
+                                        </form>
+
+                                        <a
+                                            href="{{ route('townhall.show', $communication->id) }}"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                                        >
+                                            View
+                                        </a>
+                                    </div>
+                                </td>
                             </tr>
-                        @endfor
+                        @empty
+                            <tr>
+                                <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                                    No files found.
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -283,10 +258,10 @@
             {{-- FOOTER --}}
             <div class="mt-3 flex items-center justify-between text-[11px] text-gray-500 px-1">
                 <div class="flex items-center gap-6">
-                    <span>Total Files <span class="text-gray-800 font-semibold">18</span></span>
-                    <span>Pending <span class="text-yellow-600 font-semibold">18</span></span>
-                    <span>Approved <span class="text-green-600 font-semibold">9</span></span>
-                    <span>Rejected <span class="text-red-600 font-semibold">4</span></span>
+                    <span>Total Files <span class="text-gray-800 font-semibold">{{ $communications->total() }}</span></span>
+                    <span>Pending <span class="text-yellow-600 font-semibold">{{ $pendingCount }}</span></span>
+                    <span>Approved <span class="text-green-600 font-semibold">{{ $approvedCount }}</span></span>
+                    <span>Rejected <span class="text-red-600 font-semibold">{{ $rejectedCount }}</span></span>
                 </div>
 
                 <div class="flex items-center gap-4">
@@ -298,9 +273,15 @@
                             <option>50</option>
                         </select>
                     </span>
-                    <span>1 to 10</span>
+                    <span>{{ $communications->firstItem() ?? 0 }} to {{ $communications->lastItem() ?? 0 }}</span>
                 </div>
             </div>
+
+            @if(method_exists($communications, 'links'))
+                <div class="mt-4">
+                    {{ $communications->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </div>

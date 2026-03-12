@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\TownHallCommunication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
-
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class TownHallController extends Controller
 {
@@ -33,10 +33,19 @@ class TownHallController extends Controller
         ]);
 
         if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('townhall_attachments', 'public');
+            $file = $request->file('attachment');
+
+            if (!$file->isValid()) {
+                return back()
+                    ->withErrors(['attachment' => 'The attachment failed to upload.'])
+                    ->withInput();
+            }
+
+            $validated['attachment'] = $file->store('townhall_attachments', 'public');
         }
 
         $validated['created_by'] = Auth::id();
+        $validated['approval_status'] = 'Pending';
 
         $communication = TownHallCommunication::create($validated);
 
@@ -67,5 +76,62 @@ class TownHallController extends Controller
         }
 
         return view('townhall.show', compact('communication', 'attachmentType'));
+    }
+
+    public function approve(Request $request, $id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        $communication->update([
+            'approval_status' => 'Approved',
+            'approved_by' => Auth::id(),
+            'approved_at' => Carbon::now(),
+            'approval_notes' => $request->input('approval_notes'),
+        ]);
+
+        return redirect()->back()->with('success', 'Communication approved successfully.');
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        $communication->update([
+            'approval_status' => 'Rejected',
+            'approved_by' => Auth::id(),
+            'approved_at' => Carbon::now(),
+            'approval_notes' => $request->input('approval_notes'),
+        ]);
+
+        return redirect()->back()->with('success', 'Communication rejected successfully.');
+    }
+
+    public function revise(Request $request, $id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        $communication->update([
+            'approval_status' => 'Needs Revision',
+            'approved_by' => Auth::id(),
+            'approved_at' => Carbon::now(),
+            'approval_notes' => $request->input('approval_notes'),
+        ]);
+
+        return redirect()->back()->with('success', 'Communication marked for revision.');
+    }
+
+    public function destroy($id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->attachment && Storage::disk('public')->exists($communication->attachment)) {
+            Storage::disk('public')->delete($communication->attachment);
+        }
+
+        $communication->delete();
+
+        return redirect()
+            ->route('townhall')
+            ->with('success', 'Communication deleted successfully.');
     }
 }
