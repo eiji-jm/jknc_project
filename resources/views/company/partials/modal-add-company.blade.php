@@ -18,7 +18,7 @@
                             name="company_name"
                             type="text"
                             value="{{ old('company_name') }}"
-                            class="h-9 w-full rounded-full border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                             required
                         >
                         @error('company_name')
@@ -33,7 +33,7 @@
                             name="email"
                             type="email"
                             value="{{ old('email') }}"
-                            class="h-9 w-full rounded-full border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         >
                         @error('email')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -47,7 +47,7 @@
                             name="phone"
                             type="text"
                             value="{{ old('phone') }}"
-                            class="h-9 w-full rounded-full border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         >
                         @error('phone')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -61,7 +61,7 @@
                             name="website"
                             type="text"
                             value="{{ old('website') }}"
-                            class="h-9 w-full rounded-full border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         >
                         @error('website')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -74,7 +74,7 @@
                             id="description"
                             name="description"
                             rows="3"
-                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                         >{{ old('description') }}</textarea>
                         @error('description')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
@@ -91,7 +91,7 @@
                         id="address"
                         name="address"
                         rows="3"
-                        class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                     >{{ old('address') }}</textarea>
                     @error('address')
                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>

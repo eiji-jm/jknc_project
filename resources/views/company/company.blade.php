@@ -2,13 +2,13 @@
 
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4 pb-8">
-    <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
+    <div class="bg-white border border-gray-100 rounded-md overflow-hidden">
         <div class="px-4 py-4 border-b border-gray-100">
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">COMPANY</h1>
             <p class="mt-1 text-sm text-gray-500">Manage companies and deal relationships</p>
 
             @if (session('success'))
-                <div class="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                <div class="mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
                     {{ session('success') }}
                 </div>
             @endif
@@ -19,13 +19,13 @@
                     <input
                         type="text"
                         placeholder="Search Company..."
-                        class="w-full h-9 rounded-full border border-gray-200 bg-white pl-11 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                        class="w-full h-9 rounded border border-gray-200 bg-white pl-11 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                     >
                 </div>
 
                 <button
                     type="button"
-                    class="h-9 min-w-[100px] px-4 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium flex items-center justify-center gap-2"
+                    class="h-9 min-w-[100px] px-4 rounded border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium flex items-center justify-center gap-2"
                 >
                     <i class="fas fa-filter text-xs"></i>
                     <span>All</span>
@@ -43,7 +43,7 @@
         </div>
 
         <div class="p-4 bg-gray-50">
-            <div class="border border-gray-200 rounded-lg bg-white overflow-hidden">
+            <div class="border border-gray-200 rounded-md bg-white overflow-hidden">
                 <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50 text-gray-600 border-b border-gray-200">
