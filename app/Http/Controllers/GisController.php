@@ -62,4 +62,21 @@ class GisController extends Controller
         return view('corporate.gis-stockholders');
     }
 
+    public function show($id)
+{
+
+$gis = GisRecord::with([
+
+'authorizedCapital',
+'subscribedCapital',
+'paidUpCapital',
+'directors',
+'stockholders'
+
+])->findOrFail($id);
+
+return view('corporate.gis-show', compact('gis'));
+
+}
+
 }

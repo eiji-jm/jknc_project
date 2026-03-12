@@ -82,7 +82,7 @@ Capital Structure
 @click="tab='directors'"
 :class="tab=='directors' ? 'border-b-2 border-blue-600 text-black' : ''"
 class="pb-2">
-Board Of Directors/Officers
+Board Of Directors / Officers
 </button>
 
 <button
@@ -125,7 +125,10 @@ Stockholders
 
 @foreach($gis ?? [] as $row)
 
-<tr class="border-b hover:bg-gray-50">
+<tr
+data-url="{{ route('gis.show',$row->id) }}"
+onclick="window.location.href=this.dataset.url"
+class="border-b hover:bg-gray-50 cursor-pointer">
 
 <td class="px-3 py-2">{{ $row->created_at->format('M d, Y') }}</td>
 <td class="px-3 py-2 font-medium">{{ $row->uploaded_by }}</td>
@@ -150,206 +153,35 @@ Stockholders
 </div>
 
 
-<!-- CAPITAL STRUCTURE -->
+<!-- CAPITAL STRUCTURE PLACEHOLDER -->
 <div x-show="tab=='capital'">
 
-<h2 class="text-sm font-semibold mb-3 mt-4">AUTHORIZED CAPITAL STOCK</h2>
-
-<div class="overflow-x-auto bg-white border border-gray-200 rounded mb-6">
-
-<table class="min-w-full text-[11px]">
-
-<thead class="bg-gray-50 border-b">
-<tr>
-<th class="px-3 py-2 text-left">Type Of Shares</th>
-<th class="px-3 py-2 text-left">Number Of Shares</th>
-<th class="px-3 py-2 text-left">PAR/STATED VALUE</th>
-<th class="px-3 py-2 text-left">AMOUNT (Php)</th>
-</tr>
-</thead>
-
-<tbody>
-<tr class="border-b">
-<td class="px-3 py-2">Common</td>
-<td class="px-3 py-2">1000</td>
-<td class="px-3 py-2">100</td>
-<td class="px-3 py-2">100000</td>
-</tr>
-</tbody>
-
-</table>
-
-</div>
-
-
-<h2 class="text-sm font-semibold mb-3">SUBSCRIBED CAPITAL</h2>
-
-<div class="overflow-x-auto bg-white border border-gray-200 rounded mb-6">
-
-<table class="min-w-full text-[11px]">
-
-<thead class="bg-gray-50 border-b">
-<tr>
-<th class="px-3 py-2 text-left">Nationality</th>
-<th class="px-3 py-2 text-left">No. of Stockholders</th>
-<th class="px-3 py-2 text-left">Type Of Shares</th>
-<th class="px-3 py-2 text-left">Number Of Shares</th>
-<th class="px-3 py-2 text-left">PAR/STATED VALUE</th>
-<th class="px-3 py-2 text-left">AMOUNT</th>
-<th class="px-3 py-2 text-left">% Ownership</th>
-</tr>
-</thead>
-
-<tbody>
-<tr class="border-b">
-<td class="px-3 py-2">Filipino</td>
-<td class="px-3 py-2">2</td>
-<td class="px-3 py-2">Common</td>
-<td class="px-3 py-2">500</td>
-<td class="px-3 py-2">100</td>
-<td class="px-3 py-2">50000</td>
-<td class="px-3 py-2">50%</td>
-</tr>
-</tbody>
-
-</table>
-
-</div>
-
-
-<h2 class="text-sm font-semibold mb-3">PAID-UP CAPITAL</h2>
-
-<div class="overflow-x-auto bg-white border border-gray-200 rounded">
-
-<table class="min-w-full text-[11px]">
-
-<thead class="bg-gray-50 border-b">
-<tr>
-<th class="px-3 py-2 text-left">Nationality</th>
-<th class="px-3 py-2 text-left">No. of Stockholders</th>
-<th class="px-3 py-2 text-left">Type Of Shares</th>
-<th class="px-3 py-2 text-left">Number Of Shares</th>
-<th class="px-3 py-2 text-left">PAR/STATED VALUE</th>
-<th class="px-3 py-2 text-left">AMOUNT</th>
-<th class="px-3 py-2 text-left">% Ownership</th>
-</tr>
-</thead>
-
-<tbody>
-<tr class="border-b">
-<td class="px-3 py-2">Filipino</td>
-<td class="px-3 py-2">2</td>
-<td class="px-3 py-2">Common</td>
-<td class="px-3 py-2">500</td>
-<td class="px-3 py-2">100</td>
-<td class="px-3 py-2">50000</td>
-<td class="px-3 py-2">50%</td>
-</tr>
-</tbody>
-
-</table>
-
+<div class="text-sm text-gray-600 mt-4">
+Select a GIS record first to view Capital Structure.
 </div>
 
 </div>
 
 
-<!-- DIRECTORS -->
+<!-- DIRECTORS PLACEHOLDER -->
 <div x-show="tab=='directors'">
 
-<div class="overflow-x-auto bg-white border border-gray-200 rounded">
-
-<table class="min-w-full text-[11px]">
-
-<thead class="bg-gray-50 border-b">
-
-<tr>
-<th class="px-3 py-2 text-left">Officers Name</th>
-<th class="px-3 py-2 text-left">Address</th>
-<th class="px-3 py-2 text-left">Gender</th>
-<th class="px-3 py-2 text-left">Nationality</th>
-<th class="px-3 py-2 text-left">INCR</th>
-<th class="px-3 py-2 text-left">Stockholder</th>
-<th class="px-3 py-2 text-left">Board</th>
-<th class="px-3 py-2 text-left">Type Of Officer</th>
-<th class="px-3 py-2 text-left">Committees</th>
-<th class="px-3 py-2 text-left">TIN</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-<tr class="border-b">
-<td class="px-3 py-2">Juan Dela Cruz</td>
-<td class="px-3 py-2">Cebu City</td>
-<td class="px-3 py-2">Male</td>
-<td class="px-3 py-2">Filipino</td>
-<td class="px-3 py-2">Yes</td>
-<td class="px-3 py-2">Yes</td>
-<td class="px-3 py-2">Director</td>
-<td class="px-3 py-2">President</td>
-<td class="px-3 py-2">Audit</td>
-<td class="px-3 py-2">123456789</td>
-</tr>
-
-</tbody>
-
-</table>
-
+<div class="text-sm text-gray-600 mt-4">
+Select a GIS record first to view Board of Directors / Officers.
 </div>
 
 </div>
 
 
-<!-- STOCKHOLDERS -->
+<!-- STOCKHOLDERS PLACEHOLDER -->
 <div x-show="tab=='stockholders'">
 
-<div class="overflow-x-auto bg-white border border-gray-200 rounded">
-
-<table class="min-w-full text-[11px]">
-
-<thead class="bg-gray-50 border-b">
-
-<tr>
-<th class="px-3 py-2 text-left">Stockholders Name</th>
-<th class="px-3 py-2 text-left">Address</th>
-<th class="px-3 py-2 text-left">Gender</th>
-<th class="px-3 py-2 text-left">Nationality</th>
-<th class="px-3 py-2 text-left">INCR</th>
-<th class="px-3 py-2 text-left">Type</th>
-<th class="px-3 py-2 text-left">Number</th>
-<th class="px-3 py-2 text-left">Amount (Php)</th>
-<th class="px-3 py-2 text-left">% Ownership</th>
-<th class="px-3 py-2 text-left">Amount Paid</th>
-<th class="px-3 py-2 text-left">TIN</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-<tr class="border-b">
-<td class="px-3 py-2">Juan Dela Cruz</td>
-<td class="px-3 py-2">Cebu City</td>
-<td class="px-3 py-2">Male</td>
-<td class="px-3 py-2">Filipino</td>
-<td class="px-3 py-2">Yes</td>
-<td class="px-3 py-2">Common</td>
-<td class="px-3 py-2">100</td>
-<td class="px-3 py-2">10000</td>
-<td class="px-3 py-2">10%</td>
-<td class="px-3 py-2">10000</td>
-<td class="px-3 py-2">123456789</td>
-</tr>
-
-</tbody>
-
-</table>
-
+<div class="text-sm text-gray-600 mt-4">
+Select a GIS record first to view Stockholders.
 </div>
 
 </div>
+
 
 </div>
 </div>

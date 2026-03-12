@@ -7,6 +7,9 @@ use App\Http\Controllers\GisController;
 use App\Http\Controllers\CorporateFormationController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\BylawController;
+use App\Http\Controllers\CapitalStructureController;
+use App\Http\Controllers\DirectorOfficerController;
+use App\Http\Controllers\StockholderController;
 
 
 Route::get('/', function () {
@@ -83,4 +86,17 @@ Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class,'show'])
 Route::post('/corporate/bylaws/store',[BylawController::class,'store'])->name('corporate.bylaws.store');
 
 Route::get('/corporate/bylaws/{id}',[BylawController::class,'show'])->name('corporate.bylaws.show');
+
+Route::get('/corporate/gis/{id}/show',[GisController::class,'show'])
+->name('gis.show');
+
+Route::post('/gis/authorized/store',[CapitalStructureController::class,'storeAuthorized'])->name('authorized.store');
+
+Route::post('/gis/subscribed/store',[CapitalStructureController::class,'storeSubscribed'])->name('subscribed.store');
+
+Route::post('/gis/paidup/store',[CapitalStructureController::class,'storePaidup'])->name('paidup.store');
+
+Route::post('/gis/director/store',[DirectorOfficerController::class,'store'])->name('director.store');
+
+Route::post('/gis/stockholder/store',[StockholderController::class,'store'])->name('stockholder.store');
 });
