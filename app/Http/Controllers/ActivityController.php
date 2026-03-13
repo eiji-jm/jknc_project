@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\Event;
 use App\Models\Call;
 use App\Models\Meeting;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -60,6 +61,7 @@ class ActivityController extends Controller
             'events' => Event::latest()->get(),
             'calls' => Call::latest()->get(),
             'meetings' => Meeting::latest()->get(),
+            'users' => User::pluck('email'),
         ]);
     }
 

@@ -16,26 +16,24 @@
         background: #cbd5e1;
     }
 </style>
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ 
+<div class="flex w-full" x-data="{ 
         showTaskModal: false,
         activeTab: 'task',
         selectAll: false,
         selectedTasks: [],
         tasks: [],
-        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' },
+        systemUsers: [],
+        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: '' },
         
         events: [],
-        newEvent: { title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' },
+        newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
 
         calls: [],
-        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '', status: '' },
+        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: '', agenda: '', purpose: '', status: '' },
 
         meetings: [],
-        newMeeting: { title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
+        newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
 
-        filterDropdownOpen: false,
-        propertySearchValue: '',
-        selectedProperties: [],
         filterSelection: {
             task: 'All Tasks',
             events: 'All Events',
@@ -55,7 +53,7 @@
         showVideoPlayer: false,
         showCallModal: false,
         showEventModal: false,
-        viewMode: 'list',
+
 
         init() {
             // Initial fetch
@@ -76,6 +74,14 @@
                 this.events = data.events;
                 this.calls = data.calls;
                 this.meetings = data.meetings;
+                if (data.users) {
+                    this.systemUsers = data.users;
+                    const defaultUser = this.systemUsers[0] || '';
+                    if (!this.newTask.owner) this.newTask.owner = defaultUser;
+                    if (!this.newEvent.host) this.newEvent.host = defaultUser;
+                    if (!this.newCall.owner) this.newCall.owner = defaultUser;
+                    if (!this.newMeeting.owner) this.newMeeting.owner = defaultUser;
+                }
             } catch (error) {
                 console.error('Error fetching activities:', error);
             }
@@ -112,7 +118,7 @@
                     this.tasks.unshift(task);
                 }
                 this.showTaskModal = false;
-                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: 'jhonkelly@gmail...' };
+                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: (this.systemUsers[0] || '') };
             } catch (error) {
                 console.error('Error saving task:', error);
             }
@@ -147,7 +153,7 @@
                     this.events.unshift(event);
                 }
                 this.showEventModal = false;
-                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: 'jhonkelly@gmail...' };
+                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: (this.systemUsers[0] || '') };
             } catch (error) {
                 console.error('Error saving event:', error);
             }
@@ -187,7 +193,7 @@
                     this.calls.unshift(call);
                 }
                 this.showCallModal = false;
-                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: 'jhonkelly@gmail...', agenda: '', purpose: '', completed: false };
+                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: (this.systemUsers[0] || ''), agenda: '', purpose: '', completed: false };
             } catch (error) {
                 console.error('Error saving call:', error);
             }
@@ -238,7 +244,7 @@
                     this.meetings.unshift(meeting);
                 }
                 this.showMeetingModal = false;
-                this.newMeeting = { id: null, title: '', owner: 'jhonkelly@gmail...', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
+                this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
             } catch (error) {
                 console.error('Error saving meeting:', error);
             }
@@ -366,56 +372,18 @@
             if (this.filterSelection.task === 'Open Tasks') list = list.filter(t => t.status === 'Open');
             if (this.filterSelection.task === 'Closed Tasks') list = list.filter(t => t.status === 'Completed');
             if (this.filterSelection.task === 'Overdue Tasks') list = list.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < new Date());
-            
-            if (this.propertySearchValue && this.selectedProperties.length > 0) {
-                const search = this.propertySearchValue.toLowerCase();
-                list = list.filter(t => {
-                    let match = false;
-                    if (this.selectedProperties.includes('Task Name') && t.name && t.name.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Description') && t.description && t.description.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Priority') && t.priority && t.priority.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Related To') && t.related_to && t.related_to.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Status') && t.status && t.status.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Task Owner') && t.owner && t.owner.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Due Date') && t.due_date && t.due_date.toLowerCase().includes(search)) match = true;
-                    return match;
-                });
-            }
             return list;
         },
         get filteredEventsList() {
             let list = this.events;
             if (this.filterSelection.events === 'Upcoming Events') list = list.filter(e => e.from && new Date(e.from) > new Date());
             if (this.filterSelection.events === 'Closed Events') list = list.filter(e => e.to && new Date(e.to) < new Date());
-            
-            if (this.propertySearchValue && this.selectedProperties.length > 0) {
-                const search = this.propertySearchValue.toLowerCase();
-                list = list.filter(e => {
-                    let match = false;
-                    if (this.selectedProperties.includes('Task Name') && e.title && e.title.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Related To') && e.related_to && e.related_to.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Task Owner') && e.host && e.host.toLowerCase().includes(search)) match = true;
-                    return match;
-                });
-            }
             return list;
         },
         get filteredCallsList() {
             let list = this.calls;
             if (this.filterSelection.call === 'Scheduled Calls') list = list.filter(c => !c.completed);
             if (this.filterSelection.call === 'Overdue Calls') list = list.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date());
-            
-            if (this.propertySearchValue && this.selectedProperties.length > 0) {
-                const search = this.propertySearchValue.toLowerCase();
-                list = list.filter(c => {
-                    let match = false;
-                    if (this.selectedProperties.includes('Task Name') && c.contact && c.contact.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Related To') && c.related_to && c.related_to.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Task Owner') && c.owner && c.owner.toLowerCase().includes(search)) match = true;
-                    if (this.selectedProperties.includes('Status') && c.type && c.type.toLowerCase().includes(search)) match = true;
-                    return match;
-                });
-            }
             return list;
         },
         get activeList() {
@@ -528,29 +496,38 @@
         }
      }">
 
-    <!-- Header Tabs -->
-    <div class="flex items-center justify-center gap-12 py-3 mb-4">
-        <button @click="activeTab = 'task'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
-                :class="activeTab === 'task' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
-            Task
-        </button>
-        <button @click="activeTab = 'events'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
-                :class="activeTab === 'events' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
-            Events
-        </button>
-        <button @click="activeTab = 'call'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
-                :class="activeTab === 'call' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
-            Call
-        </button>
-        <button @click="activeTab = 'meetings'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false" 
-                :class="activeTab === 'meetings' ? 'bg-[#8FA8CB] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
-                class="px-8 py-1.5 rounded-full font-semibold text-sm transition-colors">
-            Meetings
-        </button>
-    </div>
+
+    <!-- Left Sidebar -->
+    <aside class="w-52 shrink-0 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)] flex flex-col pt-4">
+        <div class="px-3 pb-2">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-2 mb-1">Activities</p>
+        </div>
+        <nav class="flex flex-col gap-0.5 px-2">
+            <button @click="activeTab = 'task'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+                    :class="activeTab === 'task' ? 'bg-blue-50 text-[#1d54e2] font-semibold border border-blue-100' : 'text-gray-700 hover:bg-gray-100'"
+                    class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors">
+                Task
+            </button>
+            <button @click="activeTab = 'events'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+                    :class="activeTab === 'events' ? 'bg-blue-50 text-[#1d54e2] font-semibold border border-blue-100' : 'text-gray-700 hover:bg-gray-100'"
+                    class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors">
+                Events
+            </button>
+            <button @click="activeTab = 'call'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+                    :class="activeTab === 'call' ? 'bg-blue-50 text-[#1d54e2] font-semibold border border-blue-100' : 'text-gray-700 hover:bg-gray-100'"
+                    class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors">
+                Call
+            </button>
+            <button @click="activeTab = 'meetings'; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+                    :class="activeTab === 'meetings' ? 'bg-blue-50 text-[#1d54e2] font-semibold border border-blue-100' : 'text-gray-700 hover:bg-gray-100'"
+                    class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors">
+                Meetings
+            </button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
 
     <!-- Main Card Container -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-6">
@@ -559,105 +536,7 @@
         <div x-show="activeTab !== 'meetings'" class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <!-- Left Toolbar -->
             <div class="flex items-center gap-3">
-                <div class="relative" @click.away="filterDropdownOpen = false">
-                    <button @click="filterDropdownOpen = !filterDropdownOpen" class="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded transition-colors" :class="filterDropdownOpen ? 'bg-gray-100' : ''">
-                        <i class="fas fa-filter text-sm"></i>
-                    </button>
-                    
-                    <!-- Filter Task Dropdown -->
-                    <div x-show="filterDropdownOpen" 
-                         style="display: none;" 
-                         x-transition:enter="transition ease-out duration-100"
-                         x-transition:enter-start="transform opacity-0 scale-95"
-                         x-transition:enter-end="transform opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-75"
-                         x-transition:leave-start="transform opacity-100 scale-100"
-                         x-transition:leave-end="transform opacity-0 scale-95"
-                         class="absolute left-0 top-full mt-2 w-64 rounded-xl shadow-lg bg-white ring-1 ring-blue-400 z-50 border border-blue-100">
-                        <div class="py-2">
-                            <div class="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
-                                <i class="fas fa-bars text-gray-500"></i>
-                                <span class="text-sm font-semibold text-gray-800">Filter Task</span>
-                            </div>
-                            
-                            <div class="px-4 py-2">
-                                <input type="text" x-model="propertySearchValue" placeholder="Enter keyword to filter selected properties..." class="w-full text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-400 focus:outline-none py-1.5 px-2 bg-gray-50">
-                                <div class="text-[10px] text-gray-400 mt-1">Check properties below & type to filter</div>
-                            </div>
-                            
-                            <div class="max-h-64 overflow-y-auto" role="menu" aria-orientation="vertical">
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Touched Records" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Touched Records</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Untouched Records" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Untouched Records</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Record Actions" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Record Actions</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Related Record Actions" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Related Record Actions</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Closed Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Closed Time</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Created By" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Created By</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Created Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Created Time</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Description" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Description</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Due Date" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Due Date</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Modified By" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Modified By</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Modified Time" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Modified Time</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Priority" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Priority</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Related To" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Related To</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Status" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Status</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Tag" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Tag</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Task Name" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Task Name</span>
-                                </label>
-                                <label class="flex items-center px-4 py-1.5 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="Task Owner" x-model="selectedProperties" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3">
-                                    <span class="text-sm text-gray-700">Task Owner</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
                 
                 <div class="relative" x-data="{ 
                         allTaskDropdownOpen: false, 
@@ -682,20 +561,11 @@
                          class="absolute left-0 mt-2 w-64 rounded-xl shadow-xl bg-white ring-1 ring-blue-500 z-50 border border-blue-400 overflow-hidden">
                         
                         <div class="flex flex-col h-full max-h-[400px]">
-
-                            <!-- Search -->
-                            <div class="px-3 pb-2 pt-1">
-                                <div class="relative">
-                                    <input type="text" placeholder="Search" class="w-full pl-3 pr-8 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
-                                    <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                                </div>
-                            </div>
                             
                             <!-- Content Area -->
-                            <div class="flex-1 overflow-y-auto pb-2">
+                            <div class="flex-1 overflow-y-auto py-2">
                                 <!-- All Views Content -->
                                 <div>
-                                    <div class="px-4 py-1.5 text-xs font-bold text-gray-800">Public Views</div>
                                     
                                     <div x-show="activeTab === 'task'" class="flex flex-col" role="menu" aria-orientation="vertical">
                                         <a href="#" @click.prevent="filterSelection.task = 'All Tasks'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Tasks</a>
@@ -724,20 +594,8 @@
 
             <!-- Right Toolbar -->
             <div class="flex items-center gap-3">
-                <button @click="viewMode = 'grid'" 
-                        :class="viewMode === 'grid' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'"
-                        class="w-8 h-8 flex items-center justify-center rounded transition-colors">
-                    <i class="fas fa-th-large text-sm"></i>
-                </button>
-                <div class="h-5 w-px bg-gray-300 mx-1"></div>
-                <button @click="viewMode = 'list'"
-                        :class="viewMode === 'list' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'"
-                        class="w-8 h-8 flex items-center justify-center rounded transition-colors">
-                     <i class="fas fa-list text-sm"></i>
-                </button>
-                
                 <!-- Primary Action Button -->
-                <button @click="activeTab === 'call' ? showCallModal = true : (activeTab === 'events' ? showEventModal = true : (activeTab === 'meetings' ? showMeetingModal = true : showTaskModal = true))" class="flex items-center gap-2 px-4 py-1.5 bg-[#1E293B] text-white rounded-full text-sm font-medium hover:bg-slate-700 transition shadow-sm ml-2 z-10">
+                <button @click="activeTab === 'call' ? showCallModal = true : (activeTab === 'events' ? showEventModal = true : (activeTab === 'meetings' ? showMeetingModal = true : showTaskModal = true))" class="flex items-center gap-2 px-4 py-1.5 bg-[#1d54e2] text-white rounded-full text-sm font-medium hover:bg-[#1541b0] transition shadow-sm ml-2 z-10">
                     <i class="fas fa-plus text-xs"></i>
                     <span x-text="activeTab === 'events' ? 'Event' : (activeTab === 'call' ? 'Call' : 'Task')">Task</span>
                 </button>
@@ -983,22 +841,22 @@
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                 <div class="flex items-center gap-1 bg-gray-100 rounded-full p-1">
                     <button @click="meetingsSubTab = 'all'" 
-                            :class="meetingsSubTab === 'all' ? 'bg-[#1E293B] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
+                            :class="meetingsSubTab === 'all' ? 'bg-[#1d54e2] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
                             class="px-5 py-1.5 rounded-full text-sm font-semibold transition-colors">
                         All Meetings
                     </button>
                     <button @click="meetingsSubTab = 'upcoming'" 
-                            :class="meetingsSubTab === 'upcoming' ? 'bg-[#1E293B] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
+                            :class="meetingsSubTab === 'upcoming' ? 'bg-[#1d54e2] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
                             class="px-5 py-1.5 rounded-full text-sm font-semibold transition-colors">
                         Upcoming
                     </button>
                     <button @click="meetingsSubTab = 'completed'" 
-                            :class="meetingsSubTab === 'completed' ? 'bg-[#1E293B] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
+                            :class="meetingsSubTab === 'completed' ? 'bg-[#1d54e2] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'"
                             class="px-5 py-1.5 rounded-full text-sm font-semibold transition-colors">
                         Completed
                     </button>
                 </div>
-                <button @click="showMeetingModal = true" class="flex items-center gap-2 px-5 py-2 bg-[#1E293B] text-white rounded-full text-sm font-semibold hover:bg-slate-700 transition shadow-sm">
+                <button @click="showMeetingModal = true" class="flex items-center gap-2 px-5 py-2 bg-[#1d54e2] text-white rounded-full text-sm font-semibold hover:bg-[#1541b0] transition shadow-sm">
                     <i class="fas fa-plus text-xs"></i>
                     Schedule a Meeting
                 </button>
@@ -1051,7 +909,7 @@
                                     <button @click="deleteActivity(meeting.id, 'meetings')" class="text-gray-400 hover:text-red-600 transition-colors mr-2" title="Delete Meeting">
                                         <i class="far fa-trash-alt text-sm"></i>
                                     </button>
-                                    <button @click="selectedMeetingDetails = meeting" class="px-4 py-1.5 bg-[#1E293B] text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition">View Details</button>
+                                    <button @click="selectedMeetingDetails = meeting" class="px-4 py-1.5 bg-[#1d54e2] text-white rounded-lg text-sm font-medium hover:bg-[#1541b0] transition">View Details</button>
                                 </div>
                             </div>
                             <div class="flex items-center gap-5 text-sm text-gray-500 mb-3">
@@ -1166,278 +1024,223 @@
 
     </div>
 
-    <!-- Create Task Modal -->
-    <div x-show="showTaskModal" 
-         style="display: none;" 
-         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
-         x-transition:enter="ease-out duration-300"
+    <!-- Modal Backdrop -->
+    <div x-show="showTaskModal || showMeetingModal || showCallModal || showEventModal || showExportModal || selectedTaskDetails || selectedMeetingDetails || showVideoPlayer"
+         x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         x-transition:leave="ease-in duration-200"
+         x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
-         
-         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showTaskModal = false"></div>
+         x-transition:leave-end="opacity-0"
+         @click="showTaskModal = false; showMeetingModal = false; showCallModal = false; showEventModal = false; showExportModal = false; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+         class="fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] z-[90]"
+         style="display: none;">
+    </div>
+
+    <div x-show="showTaskModal" 
+         style="display: none;" 
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
         
         <!-- Modal Panel -->
-        <!-- Modal Panel -->
-        <div class="relative bg-[#f0f2f5] rounded-[20px] shadow-2xl w-full max-w-[678px] transform transition-all border-4 border-white/50 flex flex-col"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
              
             <!-- Header -->
-            <div class="px-6 py-4 flex items-center justify-center relative shrink-0 border-b border-gray-200/50">
-                <h3 class="text-xl font-black text-gray-900 tracking-tight">Create Task</h3>
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Create Task</h3>
+                <button @click="showTaskModal = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
             
             <!-- Body -->
-            <div class="bg-[#1c2941] rounded-[20px] mx-5 mt-4 mb-5 flex flex-col shadow-inner overflow-hidden">
-                
-                <div class="px-8 py-5 space-y-4 text-xs/5">
-                    
-                    <!-- Extra Task Info Banner -->
-                    <div class="flex items-center text-white pb-1">
-                        <span class="w-32 font-semibold text-base tracking-wide">Task Information</span>
-                        <div class="flex items-center justify-end gap-2 flex-1">
-                            <span class="text-gray-200 text-xs">Owner</span>
-                            <div class="relative" x-data="{ ownerOpen: false }">
-                                <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
-                                    <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
-                                    <span class="text-[10px] font-medium opacity-90 text-white" x-text="newTask.owner"></span>
-                                    <i class="fas fa-chevron-down text-[8px] text-white opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
-                                </button>
-                                <!-- Owner Dropdown -->
-                                <div x-show="ownerOpen" 
-                                     @click.away="ownerOpen = false" 
-                                     style="display: none;"
-                                     x-transition:enter="transition ease-out duration-100"
-                                     x-transition:enter-start="transform opacity-0 scale-95"
-                                     x-transition:enter-end="transform opacity-100 scale-100"
-                                     class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
-                                    <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
-                                        <button @click="newTask.owner = owner; ownerOpen = false" 
-                                                class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                                                :class="newTask.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
-                                                x-text="owner">
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
 
-                    <!-- Fields -->
-                    <div class="flex items-center text-white">
-                        <label class="w-32 text-gray-200">Task Name</label>
-                        <input type="text" x-model="newTask.name" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                    </div>
+                <!-- Task Name -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Task Name <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newTask.name" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
 
-                    <div class="flex text-white">
-                        <label class="w-32 pt-2 text-gray-200">Due Date</label>
-                        <div class="flex-1 space-y-2">
-                            <input type="text" x-model="newTask.dueDate" placeholder="MM/DD/YY" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                            <div class="flex flex-col gap-1.5 ml-1">
-                                <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
-                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Repeat</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
-                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Reminder</span>
-                                </label>
-                            </div>
-                        </div>
+                <!-- Owner -->
+                <div class="relative" x-data="{ ownerOpen: false }">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Owner</label>
+                    <button @click="ownerOpen = !ownerOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="newTask.owner || 'Select owner'"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="ownerOpen" @click.away="ownerOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="owner in systemUsers" :key="owner">
+                            <button @click="newTask.owner = owner; ownerOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="newTask.owner === owner ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="owner"></button>
+                        </template>
                     </div>
+                </div>
 
-                    <div class="flex items-center text-white pt-1">
-                        <label class="w-32 text-gray-200">Related To</label>
-                        <input type="text" x-model="newTask.relatedTo" placeholder="Search Contacts/Companies/Products" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm placeholder-gray-400" />
-                    </div>
+                <!-- Due Date -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Due Date</label>
+                    <input type="date" x-model="newTask.dueDate" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
 
-                    <div class="flex text-white pt-1">
-                        <label class="w-32 pt-2 text-gray-200">Description</label>
-                        <div class="flex-1 space-y-3">
-                            <textarea rows="3" x-model="newTask.description" class="w-full bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
-                            <div class="flex flex-col gap-1.5 ml-1 pb-2">
-                                <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" x-model="newTask.priority" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
-                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as High Priority</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="checkbox" x-model="newTask.completed" class="rounded-sm w-3.5 h-3.5 border-gray-400 text-[#1c2941] focus:ring-0 checked:bg-white checked:border-white transition-colors cursor-pointer">
-                                    <span class="text-xs text-gray-200 group-hover:text-white transition">Mark as Completed</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Related To -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
+                    <input type="text" x-model="newTask.relatedTo" placeholder="Search Contacts/Companies..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition placeholder-gray-400" />
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                    <textarea rows="3" x-model="newTask.description" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition resize-none"></textarea>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                        <input type="checkbox" x-model="newTask.priority" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]">
+                        Mark as High Priority
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                        <input type="checkbox" x-model="newTask.completed" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]">
+                        Mark as Completed
+                    </label>
                 </div>
             </div>
             
             <!-- Footer -->
-            <div class="px-8 pb-5 flex items-center justify-center gap-3 shrink-0">
-                <button @click="showTaskModal = false" class="px-8 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-sm transition shadow-sm min-w-[100px]">
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button @click="showTaskModal = false" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
                     Cancel
                 </button>
-                <button @click="saveTask()" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
+                <button @click="saveTask()" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
                     Save
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Schedule New Meeting Modal -->
     <div x-show="showMeetingModal" 
          style="display: none;" 
-         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
          x-transition:enter="ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
          x-transition:leave="ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showMeetingModal = false"></div>
-        
         <!-- Modal Panel -->
-        <div class="relative bg-[#f0f2f5] rounded-[20px] shadow-2xl w-full max-w-[678px] transform transition-all border-4 border-white/50 flex flex-col"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
-             
-            <!-- Header -->
-            <div class="px-6 py-4 flex items-center justify-center relative shrink-0 border-b border-gray-200/50">
-                <h3 class="text-xl font-black text-gray-900 tracking-tight">Schedule New Meeting</h3>
-            </div>
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
             
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Schedule New Meeting</h3>
+                <button @click="showMeetingModal = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
+            </div>
+
             <!-- Body -->
-            <div class="bg-[#1c2941] rounded-[20px] mx-5 mt-4 mb-5 flex flex-col shadow-inner overflow-hidden">
+            <div class="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                 
-                <div class="px-8 py-5 space-y-4 text-xs/5">
-                    
-                    <!-- Meeting Info Banner -->
-                    <div class="flex items-center text-white pb-1">
-                        <span class="w-36 font-semibold text-base tracking-wide">Meeting Information</span>
-                        <div class="flex items-center justify-end gap-2 flex-1">
-                            <span class="text-gray-200 text-xs">Owner</span>
-                            <div class="relative" x-data="{ ownerOpen: false }">
-                                <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
-                                    <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
-                                    <span class="text-[10px] font-medium opacity-90 text-white" x-text="newMeeting.owner"></span>
-                                    <i class="fas fa-chevron-down text-[8px] text-white opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
-                                </button>
-                                <!-- Owner Dropdown -->
-                                <div x-show="ownerOpen" 
-                                     @click.away="ownerOpen = false" 
-                                     style="display: none;"
-                                     x-transition:enter="transition ease-out duration-100"
-                                     x-transition:enter-start="transform opacity-0 scale-95"
-                                     x-transition:enter-end="transform opacity-100 scale-100"
-                                     class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
-                                    <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
-                                        <button @click="newMeeting.owner = owner; ownerOpen = false" 
-                                                class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                                                :class="newMeeting.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
-                                                x-text="owner">
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
+                <!-- Meeting Title -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Meeting Title <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newMeeting.title" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Owner -->
+                <div class="relative" x-data="{ ownerOpen: false }">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Owner</label>
+                    <button @click="ownerOpen = !ownerOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="newMeeting.owner || 'Select owner'"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="ownerOpen" @click.away="ownerOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="owner in systemUsers" :key="owner">
+                            <button @click="newMeeting.owner = owner; ownerOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="newMeeting.owner === owner ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="owner"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Date & Time -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Date & Time</label>
+                    <div class="flex gap-2">
+                        <input type="date" x-model="newMeeting.date" class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                        <input type="time" x-model="newMeeting.time" class="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    </div>
+                </div>
+
+                <!-- Duration -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Duration</label>
+                    <div class="flex gap-2">
+                        <div class="flex-1 flex items-center border border-gray-300 rounded-md px-3 py-2 focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition">
+                            <input type="number" min="0" x-model="newMeeting.durationHour" class="w-full bg-transparent text-sm text-gray-800 outline-none" placeholder="0" />
+                            <span class="text-gray-400 text-sm ml-1">hr</span>
+                        </div>
+                        <div class="flex-1 flex items-center border border-gray-300 rounded-md px-3 py-2 focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition">
+                            <input type="number" min="0" max="59" x-model="newMeeting.durationMin" class="w-full bg-transparent text-sm text-gray-800 outline-none" placeholder="30" />
+                            <span class="text-gray-400 text-sm ml-1">mins</span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Meeting Title -->
-                    <div class="flex items-center text-white">
-                        <label class="w-36 text-gray-200">Meeting Title</label>
-                        <input type="text" x-model="newMeeting.title" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
+                <!-- Meeting Link / Location -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Meeting Link / Location</label>
+                    <div class="relative">
+                        <input type="text" x-model="newMeeting.location" placeholder="e.g. https://meet.google.com/..." class="w-full border border-gray-300 rounded-md px-3 py-2 pr-24 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition placeholder-gray-400" />
+                        <button @click="newMeeting.location = 'https://meet.google.com/' + Math.random().toString(36).substring(2,5) + '-' + Math.random().toString(36).substring(2,6) + '-' + Math.random().toString(36).substring(2,5)" class="absolute right-1 top-1 bottom-1 px-3 text-xs bg-blue-50 text-[#1d54e2] font-semibold rounded hover:bg-blue-100 transition">Generate</button>
                     </div>
+                </div>
 
-                    <!-- Date & Time -->
-                    <div class="flex items-center text-white">
-                        <label class="w-36 text-gray-200">Date & Time</label>
-                        <div class="flex items-center gap-3 flex-1">
-                            <input type="date" x-model="newMeeting.date" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                            <input type="time" x-model="newMeeting.time" class="bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                        </div>
-                    </div>
+                <!-- Attendees -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Attendees</label>
+                    <input type="number" x-model="newMeeting.attendees" min="0" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
 
-                    <!-- Duration -->
-                    <div class="flex items-center text-white">
-                        <label class="w-36 text-gray-200">Duration</label>
-                        <div class="flex items-center gap-3 flex-1">
-                            <div class="flex-1 flex items-center bg-white rounded-xl shadow-sm px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400">
-                                <input type="number" min="0" x-model="newMeeting.durationHour" class="w-full bg-transparent text-gray-900 outline-none text-sm font-medium placeholder-gray-400" placeholder="0" />
-                                <span class="text-gray-500 text-sm font-medium ml-1">hr</span>
-                            </div>
-                            <div class="flex-1 flex items-center bg-white rounded-xl shadow-sm px-3 py-2 focus-within:ring-2 focus-within:ring-blue-400">
-                                <input type="number" min="0" max="59" x-model="newMeeting.durationMin" class="w-full bg-transparent text-gray-900 outline-none text-sm font-medium placeholder-gray-400" placeholder="30" />
-                                <span class="text-gray-500 text-sm font-medium ml-1">mins</span>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Description / Agenda</label>
+                    <textarea rows="3" x-model="newMeeting.description" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition resize-none"></textarea>
+                </div>
 
-                    <!-- Meeting Link / Location -->
-                    <div class="flex items-center text-white">
-                        <label class="w-36 text-gray-200">Meeting Link / Location</label>
-                        <div class="flex gap-2 flex-1 relative">
-                            <input type="text" x-model="newMeeting.location" placeholder="e.g. https://meet.google.com/..." class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm pr-24" />
-                            <button title="Auto-Generate Link" @click="newMeeting.location = 'https://meet.google.com/' + Math.random().toString(36).substring(2,5) + '-' + Math.random().toString(36).substring(2,6) + '-' + Math.random().toString(36).substring(2,5)" class="absolute right-1 top-1 bottom-1 px-3 text-xs bg-blue-50 text-blue-600 font-semibold rounded-lg hover:bg-blue-100 transition shadow-sm">
-                                Generate
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Attendees -->
-                    <div class="flex items-center text-white">
-                        <label class="w-36 text-gray-200">Attendees</label>
-                        <input type="text" x-model="newMeeting.attendees" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm text-sm" />
-                    </div>
-
-                    <!-- Description / Agenda -->
-                    <div class="flex text-white">
-                        <label class="w-36 pt-2 text-gray-200">Description / Agenda</label>
-                        <textarea rows="3" x-model="newMeeting.description" class="flex-1 bg-white text-gray-900 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-blue-400 shadow-sm resize-none text-sm"></textarea>
-                    </div>
-
-                    <!-- Recording & Documentation Option -->
-                    <div class="pt-2">
-                        <h4 class="text-white font-semibold text-sm mb-3">Recording & Documentation Option</h4>
-                        <div class="flex flex-col gap-2 ml-1">
-                            <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" x-model="newMeeting.hasVideo" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
-                                <span class="text-sm text-gray-200 group-hover:text-white transition">Record Video</span>
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" x-model="newMeeting.hasAudio" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
-                                <span class="text-sm text-gray-200 group-hover:text-white transition">Record Audio</span>
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" x-model="newMeeting.hasTranscript" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
-                                <span class="text-sm text-gray-200 group-hover:text-white transition">Generate transcript automatically</span>
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer group">
-                                <input type="checkbox" x-model="newMeeting.hasMinutes" class="rounded-sm w-4 h-4 border-gray-400 text-blue-500 focus:ring-0 bg-transparent transition-colors cursor-pointer">
-                                <span class="text-sm text-gray-200 group-hover:text-white transition">Generate meeting minutes automatically</span>
-                            </label>
-                        </div>
+                <!-- Recording & Documentation -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-2">Recording & Documentation</label>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasVideo" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Record Video</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasAudio" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Record Audio</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasTranscript" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Generate transcript automatically</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasMinutes" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Generate meeting minutes automatically</label>
                     </div>
                 </div>
             </div>
             
             <!-- Footer -->
-            <div class="px-8 pb-5 flex items-center justify-center gap-3 shrink-0">
-                <button @click="showMeetingModal = false" class="px-8 py-2 rounded-full border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-bold text-sm transition shadow-sm min-w-[100px]">
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button @click="showMeetingModal = false" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
                     Cancel
                 </button>
-                <button @click="saveMeeting()" class="px-8 py-2 rounded-full bg-[#1c2941] text-white hover:bg-[#151f33] font-bold text-sm transition shadow-md min-w-[100px]">
+                <button @click="saveMeeting()" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
                     Save
                 </button>
             </div>
@@ -1448,35 +1251,24 @@
     <div x-show="selectedTaskDetails"
          x-data="{ taskDetailsTab: 'information' }"
          style="display: none;"
-         class="fixed bottom-6 right-6 z-50 w-full max-w-[400px] bg-white rounded-xl shadow-2xl border border-blue-400 overflow-hidden flex flex-col transform transition-all"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 translate-y-8"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 translate-y-0"
-         x-transition:leave-end="opacity-0 translate-y-8">
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-        <div class="bg-[#1c2941] text-white px-6 py-4 flex items-start justify-between">
-            <div>
-                <h3 class="text-lg font-bold flex items-center gap-2 group cursor-pointer w-fit">
-                    <span x-text="selectedTaskDetails?.name || selectedTaskDetails?.title || selectedTaskDetails?.contact || 'No Title'"></span>
-                    <i class="fas fa-pencil-alt text-xs text-gray-400 opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
-                </h3>
-                <div class="flex items-center gap-2 text-sm text-gray-300 mt-1 group cursor-pointer w-fit">
-                    <i class="fas fa-user-circle"></i>
-                    <span x-text="selectedTaskDetails?.owner || selectedTaskDetails?.host || 'John Kelly'"></span>
-                    <i class="fas fa-pencil-alt text-[10px] opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
-                </div>
-            </div>
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
             
-            <div class="flex items-center gap-3 text-gray-300">
-                <button class="hover:text-white transition"><i class="fas fa-external-link-alt"></i></button>
-                <button class="hover:text-white transition"><i class="fas fa-ellipsis-v"></i></button>
-                <button @click="selectedTaskDetails = null" class="hover:text-white ml-2 transition">
-                    <i class="far fa-times-circle text-lg"></i>
-                </button>
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800">Task Details</h3>
+                    <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5" x-text="selectedTaskDetails?.owner || selectedTaskDetails?.host || 'John Kelly'"></div>
+                </div>
+                <button @click="selectedTaskDetails = null" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
-        </div>
 
         <!-- Panel Body -->
         <div class="flex flex-col flex-1 bg-white">
@@ -1575,7 +1367,7 @@
                     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
                         <textarea class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
                         <div class="flex justify-end mt-2">
-                            <button class="px-4 py-1.5 bg-[#1c2941] text-white text-xs font-semibold rounded-lg hover:bg-[#151f33] transition">Save Note</button>
+                            <button class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition">Save Note</button>
                         </div>
                     </div>
                     
@@ -1606,39 +1398,29 @@
         </div>
     </div>
 
+    </div>
+
     <!-- Meeting Details Slide-over Panel -->
     <div x-show="selectedMeetingDetails"
          style="display: none;"
-         class="fixed bottom-6 right-6 z-50 w-full max-w-[420px] bg-white rounded-xl shadow-2xl border border-blue-400 overflow-hidden flex flex-col transform transition-all"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 translate-y-8"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 translate-y-0"
-         x-transition:leave-end="opacity-0 translate-y-8">
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-        <!-- Header -->
-        <div class="bg-[#1c2941] text-white px-6 py-4 flex items-start justify-between">
-            <div>
-                <h3 class="text-lg font-bold flex items-center gap-2 group cursor-pointer w-fit">
-                    <span x-text="selectedMeetingDetails?.title"></span>
-                    <i class="fas fa-pencil-alt text-xs text-gray-400 opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
-                </h3>
-                <div class="flex items-center gap-2 text-sm text-gray-300 mt-1 group cursor-pointer w-fit">
-                    <i class="fas fa-user-circle"></i>
-                    <span x-text="selectedMeetingDetails?.owner"></span>
-                    <i class="fas fa-pencil-alt text-[10px] opacity-0 group-hover:opacity-100 hover:text-white transition"></i>
-                </div>
-            </div>
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
             
-            <div class="flex items-center gap-3 text-gray-300">
-                <button class="hover:text-white transition"><i class="fas fa-external-link-alt"></i></button>
-                <button class="hover:text-white transition"><i class="fas fa-ellipsis-v"></i></button>
-                <button @click="selectedMeetingDetails = null" class="hover:text-white ml-2 transition">
-                    <i class="far fa-times-circle text-lg"></i>
-                </button>
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800">Meeting Details</h3>
+                    <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5" x-text="selectedMeetingDetails?.owner"></div>
+                </div>
+                <button @click="selectedMeetingDetails = null" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
-        </div>
 
         <!-- Panel Body -->
         <div class="flex flex-col flex-1 bg-white">
@@ -1725,7 +1507,7 @@
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_video">
                             <div class="w-24 text-sm text-gray-500">Video</div>
                             <div class="flex items-center gap-2">
-                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                         :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     <i class="fas fa-download text-[10px]"></i>
                                     Download
@@ -1740,7 +1522,7 @@
                         <!-- Audio -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_audio">
                             <div class="w-24 text-sm text-gray-500">Audio</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                     :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
@@ -1750,7 +1532,7 @@
                         <!-- Transcript -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_transcript">
                             <div class="w-24 text-sm text-gray-500">Transcript</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                     :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
@@ -1760,7 +1542,7 @@
                         <!-- Minutes -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_minutes">
                             <div class="w-24 text-sm text-gray-500">Minutes</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1c2941] text-white rounded-lg text-xs font-semibold hover:bg-[#151f33] transition shadow-sm"
+                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                     :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                 <i class="fas fa-download text-[10px]"></i>
                                 Download
@@ -1774,7 +1556,7 @@
                     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
                         <textarea class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
                         <div class="flex justify-end mt-2">
-                            <button class="px-4 py-1.5 bg-[#1c2941] text-white text-xs font-semibold rounded-lg hover:bg-[#151f33] transition">Save Note</button>
+                            <button class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition">Save Note</button>
                         </div>
                     </div>
                     
@@ -1804,434 +1586,365 @@
         </div>
     </div>
 
-    <!-- Video Player Modal -->
+    </div>
+
+    <!-- Video Player Slide-over -->
     <div x-show="showVideoPlayer" 
          style="display: none;" 
-         class="fixed inset-0 z-[110] flex items-center justify-center transition-opacity"
+         class="fixed top-0 bottom-0 right-0 z-[110] w-full max-w-[500px] transition-all"
          x-transition:enter="ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
          x-transition:leave="ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-        <!-- Backdrop -->
-        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showVideoPlayer = false"></div>
-        
-        <!-- Modal Panel -->
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-[520px] transform transition-all overflow-hidden"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95">
-             
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
+            
             <!-- Header -->
-            <div class="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                <h3 class="text-lg font-black text-gray-900 tracking-tight">VIDEO RECORDED</h3>
-                <div class="flex items-center gap-3 text-gray-500">
-                    <button class="hover:text-gray-800 transition"><i class="fas fa-download"></i></button>
-                    <button class="hover:text-gray-800 transition"><i class="fas fa-external-link-alt"></i></button>
-                    <button @click="showVideoPlayer = false" class="hover:text-gray-800 transition">
-                        <i class="fas fa-times-circle text-lg"></i>
-                    </button>
-                </div>
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Meeting Recording</h3>
+                <button @click="showVideoPlayer = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
             
             <!-- Video Area -->
-            <div class="bg-gray-50 mx-5 mt-4 mb-4 rounded-xl flex items-center justify-center" style="height: 280px;">
-                <div class="text-center text-gray-300">
-                    <i class="far fa-file-video text-8xl"></i>
+            <div class="flex-1 bg-gray-50 flex flex-col p-6">
+                <div class="bg-black rounded-xl flex items-center justify-center overflow-hidden aspect-video shadow-lg mb-6">
+                    <div class="text-center text-gray-600">
+                        <i class="far fa-file-video text-7xl"></i>
+                        <p class="text-xs mt-4 font-medium uppercase tracking-widest">Video Stream Ready</p>
+                    </div>
+                </div>
+
+                <!-- Playback Controls (Standardized) -->
+                <div class="bg-[#1d54e2] rounded-xl px-6 py-4 flex flex-col shadow-md">
+                    <div class="flex items-center gap-4 mb-3">
+                        <button class="text-white hover:text-gray-200 transition">
+                            <i class="fas fa-play text-base"></i>
+                        </button>
+                        <div class="flex-1 h-1.5 bg-blue-400/30 rounded-full relative">
+                            <div class="absolute left-0 top-0 h-full w-1/3 bg-white rounded-full"></div>
+                        </div>
+                        <span class="text-white text-xs font-bold font-mono">12:45 / 45:00</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <button class="text-blue-100 hover:text-white transition"><i class="fas fa-undo text-sm"></i></button>
+                            <button class="text-blue-100 hover:text-white transition"><i class="fas fa-redo text-sm"></i></button>
+                        </div>
+                        <button class="text-blue-100 hover:text-white transition"><i class="fas fa-volume-up text-sm"></i></button>
+                    </div>
+                </div>
+
+                <div class="mt-8 space-y-4">
+                    <h4 class="text-sm font-bold text-gray-900 border-l-4 border-[#1d54e2] pl-3">Recording Details</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                            <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Duration</p>
+                            <p class="text-sm font-bold text-gray-700">45 Minutes</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                            <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Quality</p>
+                            <p class="text-sm font-bold text-gray-700">HD 1080p</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Playback Controls -->
-            <div class="mx-5 mb-5 bg-[#1c2941] rounded-full px-4 py-2.5 flex items-center gap-3">
-                <button class="text-white hover:text-gray-300 transition">
-                    <i class="fas fa-play text-sm"></i>
+            <!-- Footer -->
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
+                    Download
                 </button>
-                <div class="flex-1 h-1 bg-gray-600 rounded-full relative">
-                    <div class="absolute left-0 top-0 h-full w-0 bg-white rounded-full"></div>
-                </div>
-                <span class="text-white text-xs font-medium tracking-wide">00:00</span>
+                <button @click="showVideoPlayer = false" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
+                    Close
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Create Call Modal -->
     <div x-show="showCallModal" 
          style="display: none;" 
-         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
          x-transition:enter="ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
          x-transition:leave="ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showCallModal = false"></div>
-        
         <!-- Modal Panel -->
-        <div class="relative bg-white rounded-[24px] shadow-2xl w-full max-w-[580px] transform transition-all overflow-hidden border border-gray-100"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95">
-             
-            <!-- Modal Header -->
-            <div class="px-8 py-5 text-center shrink-0 border-b border-gray-50">
-                <h3 class="text-2xl font-bold text-gray-900 tracking-tight">Create Call</h3>
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
+            
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Create Call</h3>
+                <button @click="showCallModal = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
 
-            <!-- Scrollable Content Area -->
-            <div class="px-6 pb-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                <!-- Inner Dark Container -->
-                <div class="bg-[#1E293B] rounded-[20px] p-6 text-white shadow-inner mt-4">
+            <!-- Body -->
+            <div class="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                     
-                    <!-- Call Information Section -->
-                    <div class="mb-8">
-                        <div class="flex items-center justify-between mb-5">
-                            <h4 class="text-base font-semibold tracking-wide">Call Information</h4>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Owner</span>
-                                <div class="relative" x-data="{ ownerOpen: false }">
-                                    <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
-                                        <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
-                                        <span class="text-[10px] font-medium opacity-90" x-text="newCall.owner"></span>
-                                        <i class="fas fa-chevron-down text-[8px] opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
-                                    </button>
-                                    <!-- Owner Dropdown -->
-                                    <div x-show="ownerOpen" 
-                                         @click.away="ownerOpen = false" 
-                                         style="display: none;"
-                                         x-transition:enter="transition ease-out duration-100"
-                                         x-transition:enter-start="transform opacity-0 scale-95"
-                                         x-transition:enter-end="transform opacity-100 scale-100"
-                                         class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
-                                        <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
-                                            <button @click="newCall.owner = owner; ownerOpen = false" 
-                                                    class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                                                    :class="newCall.owner === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
-                                                    x-text="owner">
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- To/From -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">To / From <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newCall.contact" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
 
-                        <div class="space-y-4">
-                            <!-- To/From -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">To/From</label>
-                                <input type="text" x-model="newCall.contact" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
-                            </div>
-                            <!-- Related to -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Related to</label>
-                                <input type="text" x-model="newCall.relatedTo" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
-                            </div>
-                            <!-- Call Type -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Call Type</label>
-                                <input type="text" x-model="newCall.type" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
-                            </div>
-                            <!-- Outgoing Call Status -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400 leading-tight">Outgoing Call Status</label>
-                                <input type="text" x-model="newCall.status" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400 transition shadow-sm border-none">
-                            </div>
-                            <!-- Call Start Time -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Call Start Time</label>
-                                <div class="flex-1 flex gap-2">
-                                    <div class="flex-1 relative">
-                                        <input type="date" x-model="newCall.startTime" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                    </div>
-                                    <div class="w-28 relative">
-                                        <input type="time" x-model="newCall.startHour" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Reminder -->
-                            <div class="flex items-center pl-32 mt-1">
-                                <input type="checkbox" id="call-reminder" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
-                                <label for="call-reminder" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Reminder</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Purpose Section -->
-                    <div class="mb-4">
-                        <h4 class="text-base font-semibold tracking-wide mb-5">Purpose of Outgoing Call</h4>
-                        <div class="space-y-4">
-                            <!-- Call Purpose -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Call Purpose</label>
-                                <div class="flex-1 relative" x-data="{ purposeOpen: false, selectedPurpose: '-None-' }">
-                                    <button @click="purposeOpen = !purposeOpen" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 flex items-center justify-between shadow-sm border-none outline-none focus:ring-1 focus:ring-blue-400 transition-all">
-                                        <span :class="selectedPurpose === '-None-' ? 'opacity-50' : 'opacity-100'" x-text="selectedPurpose"></span>
-                                        <i class="fas fa-chevron-down text-[10px] text-[#3b82f6] transition-transform duration-200" :class="purposeOpen ? 'rotate-180' : ''"></i>
-                                    </button>
-                                    <!-- Stylized Dropdown Menu -->
-                                    <div x-show="purposeOpen" 
-                                         @click.away="purposeOpen = false" 
-                                         style="display: none;"
-                                         x-transition:enter="transition ease-out duration-100"
-                                         x-transition:enter-start="transform opacity-0 scale-95"
-                                         x-transition:enter-end="transform opacity-100 scale-100"
-                                         x-transition:leave="transition ease-in duration-75"
-                                         x-transition:leave-start="transform opacity-100 scale-100"
-                                         x-transition:leave-end="transform opacity-0 scale-95"
-                                         class="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
-                                        <template x-for="p in ['-None-', 'Prospecting', 'Administrative', 'Negotiation', 'Demo', 'Project', 'Desk']" :key="p">
-                                            <button @click="selectedPurpose = p; newCall.purpose = p; purposeOpen = false" 
-                                                    class="w-full text-left px-5 py-2 text-sm transition-colors"
-                                                    :class="selectedPurpose === p ? 'bg-blue-50 text-blue-600 font-bold' : 'hover:bg-gray-100 text-gray-700'"
-                                                    x-text="p">
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Call Agenda -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Call Agenda</label>
-                                <input type="text" x-model="newCall.agenda" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                            </div>
-                        </div>
+                <!-- Owner -->
+                <div class="relative" x-data="{ ownerOpen: false }">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Owner</label>
+                    <button @click="ownerOpen = !ownerOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="newCall.owner || 'Select owner'"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="ownerOpen" @click.away="ownerOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="owner in systemUsers" :key="owner">
+                            <button @click="newCall.owner = owner; ownerOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="newCall.owner === owner ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="owner"></button>
+                        </template>
                     </div>
                 </div>
 
-                <!-- Footer Actions -->
-                <div class="flex items-center justify-center gap-4 mt-8">
-                    <button @click="showCallModal = false" class="px-10 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition">Cancel</button>
-                    <button @click="saveCall()" class="px-10 py-2.5 bg-[#1E293B] text-white rounded-full text-sm font-bold hover:bg-slate-700 transition shadow-lg">Save</button>
+                <!-- Related To -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
+                    <input type="text" x-model="newCall.relatedTo" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
                 </div>
+
+                <!-- Call Type -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Call Type</label>
+                    <input type="text" x-model="newCall.type" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Call Start Time -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Call Start Time</label>
+                    <div class="flex gap-2">
+                        <input type="date" x-model="newCall.startTime" class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                        <input type="time" x-model="newCall.startHour" class="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    </div>
+                </div>
+
+                <!-- Call Purpose -->
+                <div class="relative" x-data="{ purposeOpen: false, selectedPurpose: '-None-' }">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Call Purpose</label>
+                    <button @click="purposeOpen = !purposeOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="selectedPurpose"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="purposeOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="purposeOpen" @click.away="purposeOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="p in ['-None-', 'Prospecting', 'Administrative', 'Negotiation', 'Demo', 'Project', 'Desk']" :key="p">
+                            <button @click="selectedPurpose = p; newCall.purpose = p; purposeOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="selectedPurpose === p ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="p"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Call Agenda -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Call Agenda</label>
+                    <input type="text" x-model="newCall.agenda" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Reminder -->
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                        <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Reminder
+                    </label>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button @click="showCallModal = false" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">Cancel</button>
+                <button @click="saveCall()" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Create Event Modal -->
     <div x-show="showEventModal" 
          style="display: none;" 
-         class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity"
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
          x-transition:enter="ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
          x-transition:leave="ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
          
-         <!-- Backdrop -->
-        <div class="fixed inset-0 bg-gray-900/60 transition-opacity" @click="showEventModal = false"></div>
-        
         <!-- Modal Panel -->
-        <div class="relative bg-white rounded-[24px] shadow-2xl w-full max-w-[580px] transform transition-all overflow-hidden border border-gray-100"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95">
-             
-            <!-- Modal Header -->
-            <div class="px-8 py-5 text-center shrink-0 border-b border-gray-50">
-                <h3 class="text-2xl font-bold text-gray-900 tracking-tight">Create Event</h3>
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
+
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Create Event</h3>
+                <button @click="showEventModal = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
 
-            <!-- Scrollable Content Area -->
-            <div class="px-6 pb-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                <!-- Inner Dark Container -->
-                <div class="bg-[#1E293B] rounded-[20px] p-6 text-white shadow-inner mt-4">
-                    
-                    <!-- Event Information Section -->
-                    <div class="mb-2">
-                        <div class="flex items-center justify-between mb-5">
-                            <h4 class="text-base font-semibold tracking-wide">Event Information</h4>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] text-gray-400 uppercase font-bold tracking-wider">Owner</span>
-                                <div class="relative" x-data="{ ownerOpen: false }">
-                                    <button @click="ownerOpen = !ownerOpen" class="flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors">
-                                        <div class="w-4 h-4 rounded-full bg-blue-400 flex items-center justify-center text-[10px] font-bold">JK</div>
-                                        <span class="text-[10px] font-medium opacity-90" x-text="newEvent.host"></span>
-                                        <i class="fas fa-chevron-down text-[8px] opacity-60 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
-                                    </button>
-                                    <!-- Owner Dropdown -->
-                                    <div x-show="ownerOpen" 
-                                         @click.away="ownerOpen = false" 
-                                         style="display: none;"
-                                         x-transition:enter="transition ease-out duration-100"
-                                         x-transition:enter-start="transform opacity-0 scale-95"
-                                         x-transition:enter-end="transform opacity-100 scale-100"
-                                         class="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-2xl z-[110] py-2 text-gray-800 border border-gray-100 overflow-hidden">
-                                        <template x-for="owner in ['jhonkelly@gmail...', 'admin@company.com', 'support@company.com']">
-                                            <button @click="newEvent.host = owner; ownerOpen = false" 
-                                                    class="w-full text-left px-4 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                                                    :class="newEvent.host === owner ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-700'"
-                                                    x-text="owner">
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Body -->
+            <div class="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
 
-                        <div class="space-y-4">
-                            <!-- Title -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Title</label>
-                                <input type="text" x-model="newEvent.title" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                            </div>
-                            
-                            <!-- Date & Time Range -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Date & Time</label>
-                                <div class="flex-1 space-y-2">
-                                    <!-- From -->
-                                    <div class="flex gap-2">
-                                        <div class="flex-1 relative">
-                                            <input type="date" x-model="newEvent.from" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                        </div>
-                                        <div class="w-28 relative">
-                                            <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                                        </div>
-                                    </div>
-                                    <!-- To -->
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-500 w-4 text-center">to</span>
-                                        <div class="flex-1 relative">
-                                            <input type="date" x-model="newEvent.to" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none cursor-pointer">
-                                        </div>
-                                        <div class="w-28 relative">
-                                            <input type="time" class="w-full bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Title -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Title <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newEvent.title" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
 
-                            <!-- Repeat & Reminder -->
-                            <div class="pl-32 space-y-2 pt-1">
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="event-repeat" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
-                                    <label for="event-repeat" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Repeat</label>
-                                </div>
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="event-reminder" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
-                                    <label for="event-reminder" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Reminder</label>
-                                </div>
-                                
-                                <!-- Reminder Time Dropdown -->
-                                <div class="flex items-center pt-1" x-data="{ reminderOpen: false, selectedReminder: '15 mins' }">
-                                    <div class="relative w-28">
-                                        <button @click="reminderOpen = !reminderOpen" class="w-full bg-white rounded-md px-2 py-1 text-[10px] text-gray-900 flex items-center justify-between shadow-sm">
-                                            <span x-text="selectedReminder"></span>
-                                            <i class="fas fa-chevron-down text-[8px] text-gray-400 transition-transform" :class="reminderOpen ? 'rotate-180' : ''"></i>
-                                        </button>
-                                        <div x-show="reminderOpen" @click.away="reminderOpen = false" class="absolute left-0 right-0 top-full mt-1 bg-white rounded-md shadow-lg z-50 py-1 text-gray-800 border border-gray-100 overflow-hidden text-[10px]">
-                                            <template x-for="r in ['5 mins', '10 mins', '15 mins', '30 mins', '1 hour']">
-                                                <button @click="selectedReminder = r; reminderOpen = false" x-text="r" class="w-full text-left px-3 py-1 hover:bg-gray-100"></button>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <span class="ml-2 text-[10px] text-gray-400">before start time</span>
-                                </div>
-                            </div>
-
-                            <!-- Location -->
-                            <div class="flex items-center pt-2">
-                                <label class="w-32 text-xs font-medium text-gray-400">Location</label>
-                                <input type="text" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                            </div>
-
-                            <!-- Online Meeting -->
-                            <div class="flex items-center pl-32">
-                                <input type="checkbox" id="event-online" class="w-3.5 h-3.5 rounded border-none bg-white text-blue-500 focus:ring-0 focus:ring-offset-0 transition cursor-pointer">
-                                <label for="event-online" class="ml-2 text-[10px] text-gray-400 font-medium cursor-pointer">Online Meeting</label>
-                            </div>
-
-                            <!-- Related to -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Related to</label>
-                                <input type="text" x-model="newEvent.relatedTo" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                            </div>
-
-                            <!-- Participants -->
-                            <div class="flex items-center">
-                                <label class="w-32 text-xs font-medium text-gray-400">Participants</label>
-                                <input type="text" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none">
-                            </div>
-
-                            <!-- Description -->
-                            <div class="flex items-start">
-                                <label class="w-32 text-xs font-medium text-gray-400 mt-1.5">Description</label>
-                                <textarea rows="3" class="flex-1 bg-white rounded-md px-3 py-1.5 text-sm text-gray-900 focus:outline-none shadow-sm border-none resize-none"></textarea>
-                            </div>
-                        </div>
+                <!-- Host / Owner -->
+                <div class="relative" x-data="{ ownerOpen: false }">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Host</label>
+                    <button @click="ownerOpen = !ownerOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="newEvent.host || 'Select host'"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="ownerOpen" @click.away="ownerOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="owner in systemUsers" :key="owner">
+                            <button @click="newEvent.host = owner; ownerOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="newEvent.host === owner ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="owner"></button>
+                        </template>
                     </div>
                 </div>
 
-                <!-- Footer Actions -->
-                <div class="flex items-center justify-center gap-4 mt-8">
-                    <button @click="showEventModal = false" class="px-10 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition">Cancel</button>
-                    <button @click="saveEvent()" class="px-10 py-2.5 bg-[#1E293B] text-white rounded-full text-sm font-bold hover:bg-slate-700 transition shadow-lg">Save</button>
+                <!-- Date & Time From -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+                    <div class="flex gap-2">
+                        <input type="date" x-model="newEvent.from" class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                        <input type="time" class="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    </div>
                 </div>
+
+                <!-- Date & Time To -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">To</label>
+                    <div class="flex gap-2">
+                        <input type="date" x-model="newEvent.to" class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                        <input type="time" class="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    </div>
+                </div>
+
+                <!-- Location -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Location</label>
+                    <input type="text" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Related To -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
+                    <input type="text" x-model="newEvent.relatedTo" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Participants -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Participants</label>
+                    <input type="text" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                    <textarea rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition resize-none"></textarea>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Repeat</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Reminder</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Online Meeting</label>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button @click="showEventModal = false" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">Cancel</button>
+                <button @click="saveEvent()" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">Save</button>
             </div>
         </div>
     </div>
-    <!-- Export Modal -->
+    <!-- Export Slide-over -->
     <div x-show="showExportModal" 
          style="display: none;" 
-         class="fixed inset-0 z-[60] flex items-center justify-center">
-        <!-- Backdrop -->
-        <div class="fixed inset-0 bg-black/30 backdrop-blur-sm" @click="showExportModal = false"
-             x-transition:enter="ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"></div>
-        
-        <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] shadow-2xl z-[60] w-full max-w-[460px] overflow-hidden relative"
-             @click.stop
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
-             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-             x-transition:leave-end="opacity-0 scale-95 translate-y-4">
-             
-            <div class="p-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-1">Start an Export</h2>
-                <p class="text-[13px] text-gray-600 mb-6 font-medium">Choose fields you would like to export.</p>
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-x-8"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 translate-x-8">
+         
+        <div class="bg-white shadow-2xl w-full h-full flex flex-col overflow-hidden border-l border-gray-200">
+            
+            <!-- Header -->
+            <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
+                <h3 class="text-base font-semibold text-gray-800">Export Data</h3>
+                <button @click="showExportModal = false" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
+            </div>
+            
+            <!-- Body -->
+            <div class="px-5 py-4 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                <div class="space-y-1">
+                    <p class="text-sm font-bold text-gray-900">Start an Export</p>
+                    <p class="text-xs text-gray-500">Choose the fields you would like to include in your export file.</p>
+                </div>
                 
-                <div class="bg-[#1E293B] rounded-[16px] p-6 mb-8 flex items-center justify-between gap-4 shadow-inner">
-                    <span class="text-white text-[15px] font-medium ml-1">Fields</span>
-                    <div class="relative w-[240px]">
-                        <select x-model="exportFieldSelection" class="w-full appearance-none bg-white border-0 rounded-[10px] py-2.5 px-4 text-[13px] text-gray-800 outline-none focus:ring-2 focus:ring-blue-500 font-semibold cursor-pointer shadow-sm">
-                            <option value="view">Fields from the chosen view</option>
-                            <option value="all">All fields</option>
+                <div class="bg-blue-50 rounded-xl p-5 border border-blue-100">
+                    <label class="block text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-2">Select Fields</label>
+                    <div class="relative">
+                        <select x-model="exportFieldSelection" class="w-full appearance-none bg-white border border-blue-200 rounded-lg py-2.5 px-4 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-500 font-semibold cursor-pointer shadow-sm">
+                            <option value="view">Fields from the current view</option>
+                            <option value="all">All available fields</option>
                         </select>
-                        <i class="fas fa-caret-down text-gray-600 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
+                        <i class="fas fa-caret-down text-blue-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-center gap-4 mt-2">
-                    <button @click="showExportModal = false" class="px-8 py-2.5 text-sm font-bold text-gray-700 bg-transparent hover:bg-gray-50 rounded-full transition-colors w-32">
-                        Cancel
-                    </button>
-                    <button @click="exportData()" class="px-8 py-2.5 text-sm font-bold text-white bg-[#1E293B] rounded-full hover:bg-slate-700 transition-colors w-32 shadow-md">
-                        Save
-                    </button>
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-3">Export Format</p>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 p-3 bg-white border-2 border-blue-500 rounded-lg flex items-center gap-3">
+                            <i class="fas fa-file-csv text-blue-500 text-xl"></i>
+                            <div>
+                                <p class="text-xs font-bold text-gray-800">CSV File</p>
+                                <p class="text-[10px] text-gray-400">Comma separated values</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-</div>
+            <!-- Footer -->
+            <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
+                <button @click="showExportModal = false" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
+                    Cancel
+                </button>
+                <button @click="exportData()" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
+                    Export Now
+                </button>
+            </div>
+        </div>
+        </div>
+    </div><!-- end main content -->
+
+</div><!-- end root -->
 @endsection
