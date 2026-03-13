@@ -49,4 +49,21 @@ class SecAoiController extends Controller
         return view('corporate.sec-aoi-preview', compact('record'));
     }
 
+    public function uploadFile(Request $request, $id)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+    ]);
+
+    $record = \App\Models\SecAoi::findOrFail($id);
+
+    $filePath = $request->file('file')->store('sec_aoi_files', 'public');
+
+    $record->update([
+        'file_path' => $filePath,
+    ]);
+
+    return back()->with('success', 'File attached successfully.');
+}
+
 }

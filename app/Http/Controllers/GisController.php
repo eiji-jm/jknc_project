@@ -7,17 +7,14 @@ use App\Models\GisRecord;
 
 class GisController extends Controller
 {
-
     public function index()
     {
         $gis = GisRecord::latest()->get();
-
         return view('corporate.gis', compact('gis'));
     }
 
     public function store(Request $request)
     {
-
         $filePath = null;
 
         if ($request->hasFile('file')) {
@@ -25,15 +22,15 @@ class GisController extends Controller
         }
 
         GisRecord::create([
-            'uploaded_by' => $request->uploaded_by,
+            'uploaded_by'       => $request->uploaded_by,
             'submission_status' => $request->submission_status,
-            'receive_on' => $request->receive_on,
-            'period_date' => $request->period_date,
-            'company_reg_no' => $request->company_reg_no,
-            'corporation_name' => $request->corporation_name,
-            'annual_meeting' => $request->annual_meeting,
-            'meeting_type' => $request->meeting_type,
-            'file' => $filePath
+            'receive_on'        => $request->receive_on,
+            'period_date'       => $request->period_date,
+            'company_reg_no'    => $request->company_reg_no,
+            'corporation_name'  => $request->corporation_name,
+            'annual_meeting'    => $request->annual_meeting,
+            'meeting_type'      => $request->meeting_type,
+            'file'              => $filePath,
         ]);
 
         return redirect()->route('corporate.gis');
@@ -41,10 +38,73 @@ class GisController extends Controller
 
     public function companyInfo()
     {
-        // GET LATEST GIS RECORD
         $gis = GisRecord::latest()->first();
 
+        if (!$gis) {
+            $gis = new GisRecord();
+        }
+
         return view('corporate.company-general-information', compact('gis'));
+    }
+
+    public function companyInfoById($id)
+    {
+        $gis = GisRecord::findOrFail($id);
+        return view('corporate.company-general-information', compact('gis'));
+    }
+
+    public function updateCompanyInfo(Request $request, $id)
+    {
+        $request->validate([
+            'date_registered'         => 'nullable|date',
+            'trade_name'              => 'nullable|string|max:255',
+            'fiscal_year_end'         => 'nullable|string|max:255',
+            'tin'                     => 'nullable|string|max:255',
+            'website'                 => 'nullable|string|max:255',
+            'email'                   => 'nullable|email|max:255',
+            'principal_address'       => 'nullable|string',
+            'business_address'        => 'nullable|string',
+            'official_mobile'         => 'nullable|string|max:255',
+            'alternate_mobile'        => 'nullable|string|max:255',
+            'auditor'                 => 'nullable|string|max:255',
+            'industry'                => 'nullable|string|max:255',
+            'geo_code'                => 'nullable|string|max:255',
+
+            'parent_company_name'     => 'nullable|string|max:255',
+            'parent_company_sec_no'   => 'nullable|string|max:255',
+            'parent_company_address'  => 'nullable|string|max:255',
+            'subsidiary_name'         => 'nullable|string|max:255',
+            'subsidiary_sec_no'       => 'nullable|string|max:255',
+            'subsidiary_address'      => 'nullable|string|max:255',
+        ]);
+
+        $gis = GisRecord::findOrFail($id);
+
+        $gis->update([
+            'date_registered'         => $request->date_registered,
+            'trade_name'              => $request->trade_name,
+            'fiscal_year_end'         => $request->fiscal_year_end,
+            'tin'                     => $request->tin,
+            'website'                 => $request->website,
+            'email'                   => $request->email,
+            'principal_address'       => $request->principal_address,
+            'business_address'        => $request->business_address,
+            'official_mobile'         => $request->official_mobile,
+            'alternate_mobile'        => $request->alternate_mobile,
+            'auditor'                 => $request->auditor,
+            'industry'                => $request->industry,
+            'geo_code'                => $request->geo_code,
+
+            'parent_company_name'     => $request->parent_company_name,
+            'parent_company_sec_no'   => $request->parent_company_sec_no,
+            'parent_company_address'  => $request->parent_company_address,
+            'subsidiary_name'         => $request->subsidiary_name,
+            'subsidiary_sec_no'       => $request->subsidiary_sec_no,
+            'subsidiary_address'      => $request->subsidiary_address,
+        ]);
+
+        return redirect()->route('gis.show', $gis->id)
+            ->with('success', 'GIS Company Information completed successfully.');
     }
 
     public function capitalStructure()
@@ -63,20 +123,15 @@ class GisController extends Controller
     }
 
     public function show($id)
-{
+    {
+        $gis = GisRecord::with([
+            'authorizedCapital',
+            'subscribedCapital',
+            'paidUpCapital',
+            'directors',
+            'stockholders'
+        ])->findOrFail($id);
 
-$gis = GisRecord::with([
-
-'authorizedCapital',
-'subscribedCapital',
-'paidUpCapital',
-'directors',
-'stockholders'
-
-])->findOrFail($id);
-
-return view('corporate.gis-show', compact('gis'));
-
-}
-
+        return view('corporate.gis-show', compact('gis'));
+    }
 }

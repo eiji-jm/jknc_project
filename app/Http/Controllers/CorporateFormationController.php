@@ -62,4 +62,21 @@ class CorporateFormationController extends Controller
     return view('corporate.sec-coi-preview', compact('record'));
 }
 
+public function uploadFile(Request $request, $id)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+    ]);
+
+    $record = \App\Models\SecCoi::findOrFail($id);
+
+    $filePath = $request->file('file')->store('formation_files', 'public');
+
+    $record->update([
+        'file_path' => $filePath,
+    ]);
+
+    return back()->with('success', 'File attached successfully.');
+}
+
 }
