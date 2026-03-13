@@ -7,6 +7,7 @@
 
         {{-- TOP BAR --}}
         <div class="flex items-center justify-between px-4 py-3 border-b">
+            <div class="text-sm font-medium text-gray-700">Banking</div>
             
             {{-- Search/Tabs Placeholder --}}
             <div class="flex items-center gap-2 text-sm">
