@@ -64,6 +64,10 @@ Route::get('/notices', function () {
     return view('corporate.notices.index');
 })->name('notices');
 
+Route::get('/notices/preview', function () {
+    return view('corporate.notices.preview');
+})->name('notices.preview');
+
 // Minutes of Meeting
 Route::get('/minutes', function () {
     return view('corporate.minutes.index');
@@ -72,3 +76,39 @@ Route::get('/minutes', function () {
 Route::get('/minutes/preview', function () {
     return view('corporate.minutes.preview');
 })->name('minutes.preview');
+
+// Resolutions
+Route::get('/resolutions', function () {
+    return view('corporate.resolutions.index');
+})->name('resolutions');
+
+Route::get('/resolutions/preview', function () {
+    return view('corporate.resolutions.preview');
+})->name('resolutions.preview');
+
+// Secretary Certificates
+Route::get('/secretary-certificates', function () {
+    return view('corporate.secretary-certificates.index');
+})->name('secretary-certificates');
+
+Route::get('/secretary-certificates/preview', function () {
+    return view('corporate.secretary-certificates.preview');
+})->name('secretary-certificates.preview');
+
+// BIR & Tax
+Route::get('/bir-tax', function () {
+    return view('corporate.bir-tax.index');
+})->name('bir-tax');
+
+Route::get('/bir-tax/preview', function () {
+    return view('corporate.bir-tax.preview');
+})->name('bir-tax.preview');
+
+// NatGov
+Route::get('/natgov', function () {
+    return view('corporate.natgov.index');
+})->name('natgov');
+
+Route::get('/natgov/preview', function () {
+    return view('corporate.natgov.preview');
+})->name('natgov.preview');

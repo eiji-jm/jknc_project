@@ -165,11 +165,23 @@ Notices of Meeting
 Minutes of Meeting
 </a>
 
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+<a href="{{ route('resolutions') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('resolutions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Resolutions
+</a>
+
+<a href="{{ route('secretary-certificates') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('secretary-certificates') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Secretary Certificates
+</a>
+
+<a href="{{ route('bir-tax') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('bir-tax') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 BIR & Tax
 </a>
 
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+<a href="{{ route('natgov') }}" class="block px-3 py-2 rounded-lg transition
+{{ request()->is('natgov') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 NatGov
 </a>
 
