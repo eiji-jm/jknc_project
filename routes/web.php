@@ -28,4 +28,8 @@ Route::prefix('api')->group(function () {
     Route::delete('/events/{id}', [ActivityController::class, 'destroyEvent']);
     Route::delete('/calls/{id}', [ActivityController::class, 'destroyCall']);
     Route::delete('/meetings/{id}', [ActivityController::class, 'destroyMeeting']);
+
+    Route::post('/notes', [ActivityController::class, 'storeNote']);
+    Route::put('/notes/{id}', [ActivityController::class, 'updateNote']);
+    Route::delete('/notes/{id}', [ActivityController::class, 'destroyNote']);
 });

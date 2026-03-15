@@ -40,6 +40,7 @@
             call: 'All Calls'
         },
         selectedTaskDetails: null,
+        selectedTaskType: null,
         meetingsSubTab: 'all',
         meetingFilters: {
             videoRecording: false,
@@ -53,6 +54,8 @@
         showVideoPlayer: false,
         showCallModal: false,
         showEventModal: false,
+        newNoteContent: '',
+        editingNote: null,
 
 
         init() {
@@ -493,6 +496,67 @@
                 document.body.removeChild(link);
             }
             this.showExportModal = false;
+        },
+
+        async saveNote(noteable, type) {
+            if (!this.newNoteContent) return;
+            try {
+                const isEdit = !!this.editingNote;
+                const url = isEdit ? '/api/notes/' + this.editingNote.id : '/api/notes';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const body = isEdit ? { content: this.newNoteContent } : {
+                    content: this.newNoteContent,
+                    owner: (this.systemUsers[0] || 'John Kelly'),
+                    noteable_id: noteable.id,
+                    noteable_type: type
+                };
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify(body)
+                });
+                const note = await response.json();
+                
+                if (isEdit) {
+                    const index = noteable.notes.findIndex(n => n.id === note.id);
+                    if (index !== -1) noteable.notes[index] = note;
+                } else {
+                    if (!noteable.notes) noteable.notes = [];
+                    noteable.notes.unshift(note);
+                }
+
+                this.newNoteContent = '';
+                this.editingNote = null;
+            } catch (error) {
+                console.error('Error saving note:', error);
+            }
+        },
+
+        editNote(note) {
+            this.editingNote = note;
+            this.newNoteContent = note.content;
+        },
+
+        async deleteNote(noteId, noteable) {
+            if (!confirm('Are you sure you want to delete this note?')) return;
+            try {
+                const response = await fetch('/api/notes/' + noteId, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                if (response.ok) {
+                    noteable.notes = noteable.notes.filter(n => n.id !== noteId);
+                }
+            } catch (error) {
+                console.error('Error deleting note:', error);
+            }
         }
      }">
 
@@ -673,7 +737,7 @@
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
                                     <span x-text="task.name"></span>
-                                    <button @click="selectedTaskDetails = task" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Task">
+                                    <button @click="selectedTaskDetails = task; selectedTaskType = 'task'" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Task">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
@@ -721,7 +785,7 @@
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2 pl-2">
                                     <span x-text="event.title"></span>
-                                    <button @click="selectedTaskDetails = event" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Event">
+                                    <button @click="selectedTaskDetails = event; selectedTaskType = 'event'" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Event">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
@@ -792,7 +856,7 @@
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
                                     <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.contact"></span>
-                                    <button @click="selectedTaskDetails = call" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Call">
+                                    <button @click="selectedTaskDetails = call; selectedTaskType = 'call'" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Call">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
@@ -1032,7 +1096,7 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         @click="showTaskModal = false; showMeetingModal = false; showCallModal = false; showEventModal = false; showExportModal = false; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false"
+         @click="showTaskModal = false; showMeetingModal = false; showCallModal = false; showEventModal = false; showExportModal = false; selectedTaskDetails = null; selectedMeetingDetails = null; showVideoPlayer = false; newNoteContent = ''; editingNote = null;"
          class="fixed inset-0 bg-gray-900/40 backdrop-blur-[2px] z-[90]"
          style="display: none;">
     </div>
@@ -1267,7 +1331,7 @@
                     <h3 class="text-base font-semibold text-gray-800">Task Details</h3>
                     <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5" x-text="selectedTaskDetails?.owner || selectedTaskDetails?.host || 'John Kelly'"></div>
                 </div>
-                <button @click="selectedTaskDetails = null" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
+                <button @click="selectedTaskDetails = null; newNoteContent = ''; editingNote = null;" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
 
         <!-- Panel Body -->
@@ -1365,32 +1429,32 @@
                 <!-- Notes Tab Content -->
                 <div x-show="taskDetailsTab === 'notes'" style="display: none;">
                     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
-                        <textarea class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
+                        <textarea x-model="newNoteContent" class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
                         <div class="flex justify-end mt-2">
-                            <button class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition">Save Note</button>
+                            <button @click="saveNote(selectedTaskDetails, selectedTaskType)" class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition" x-text="editingNote ? 'Update Note' : 'Save Note'"></button>
                         </div>
                     </div>
                     
-                    <!-- Example Note -->
                     <div class="space-y-4">
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0">
-                                JK
-                            </div>
-                            <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="font-semibold text-gray-900">John Kelly</span>
-                                    <div class="flex items-center gap-2">
-                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 hover:text-blue-600 cursor-pointer"></i>
-                                            <i class="far fa-trash-alt text-[10px] text-gray-400 hover:text-red-500 cursor-pointer"></i>
-                                        </div>
-                                        <span class="text-xs text-gray-500">Just now</span>
-                                    </div>
+                        <template x-for="note in selectedTaskDetails?.notes || []" :key="note.id">
+                            <div class="flex gap-3">
+                                <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
                                 </div>
-                                <p class="text-gray-700">Follow up on the proposal details and confirm the meeting time for next week.</p>
+                                <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="font-semibold text-gray-900" x-text="note.owner"></span>
+                                        <div class="flex items-center gap-2">
+                                            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                                <i @click="editNote(note)" class="fas fa-pencil-alt text-[10px] text-gray-400 hover:text-blue-600 cursor-pointer"></i>
+                                                <i @click="deleteNote(note.id, selectedTaskDetails)" class="far fa-trash-alt text-[10px] text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                            </div>
+                                            <span class="text-xs text-gray-500" x-text="new Date(note.created_at).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : new Date(note.created_at).toLocaleDateString()"></span>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-700 whitespace-pre-line" x-text="note.content"></p>
+                                </div>
                             </div>
-                        </div>
+                        </template>
                     </div>
                 </div>
                 
@@ -1419,7 +1483,7 @@
                     <h3 class="text-base font-semibold text-gray-800">Meeting Details</h3>
                     <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5" x-text="selectedMeetingDetails?.owner"></div>
                 </div>
-                <button @click="selectedMeetingDetails = null" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
+                <button @click="selectedMeetingDetails = null; newNoteContent = ''; editingNote = null;" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
             </div>
 
         <!-- Panel Body -->
@@ -1554,31 +1618,32 @@
                 <!-- Notes Tab -->
                 <div x-show="meetingDetailsTab === 'notes'" style="display: none;">
                     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
-                        <textarea class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
+                        <textarea x-model="newNoteContent" class="w-full bg-transparent resize-none outline-none text-sm text-gray-900 placeholder-gray-400" rows="3" placeholder="Add a note..."></textarea>
                         <div class="flex justify-end mt-2">
-                            <button class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition">Save Note</button>
+                            <button @click="saveNote(selectedMeetingDetails, 'meeting')" class="px-4 py-1.5 bg-[#1d54e2] text-white text-xs font-semibold rounded-lg hover:bg-[#1541b0] transition" x-text="editingNote ? 'Update Note' : 'Save Note'"></button>
                         </div>
                     </div>
                     
                     <div class="space-y-4">
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0">
-                                JK
-                            </div>
-                            <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="font-semibold text-gray-900">John Kelly</span>
-                                    <div class="flex items-center gap-2">
-                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 hover:text-blue-600 cursor-pointer"></i>
-                                            <i class="far fa-trash-alt text-[10px] text-gray-400 hover:text-red-500 cursor-pointer"></i>
-                                        </div>
-                                        <span class="text-xs text-gray-500">Just now</span>
-                                    </div>
+                        <template x-for="note in selectedMeetingDetails?.notes || []" :key="note.id">
+                            <div class="flex gap-3">
+                                <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
                                 </div>
-                                <p class="text-gray-700">Meeting notes will appear here.</p>
+                                <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="font-semibold text-gray-900" x-text="note.owner"></span>
+                                        <div class="flex items-center gap-2">
+                                            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                                <i @click="editNote(note)" class="fas fa-pencil-alt text-[10px] text-gray-400 hover:text-blue-600 cursor-pointer"></i>
+                                                <i @click="deleteNote(note.id, selectedMeetingDetails)" class="far fa-trash-alt text-[10px] text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                            </div>
+                                            <span class="text-xs text-gray-500" x-text="new Date(note.created_at).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : new Date(note.created_at).toLocaleDateString()"></span>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-700 whitespace-pre-line" x-text="note.content"></p>
+                                </div>
                             </div>
-                        </div>
+                        </template>
                     </div>
                 </div>
                 

@@ -10,5 +10,8 @@ class Task extends Model
         'name', 'due_date', 'status', 'priority', 'related_to', 'owner', 'description'
     ];
 
-    //
+    public function notes()
+    {
+        return $this->morphMany(Note::class, 'noteable');
+    }
 }

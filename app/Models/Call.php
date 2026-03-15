@@ -9,5 +9,8 @@ class Call extends Model
     protected $fillable = [
         'contact', 'type', 'start_time', 'start_hour', 'duration', 'related_to', 'owner', 'completed', 'purpose', 'agenda'
     ];
-    //
+    public function notes()
+    {
+        return $this->morphMany(Note::class, 'noteable');
+    }
 }

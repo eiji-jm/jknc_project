@@ -10,6 +10,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
+use App\Models\Note;
+
 class ActivityController extends Controller
 {
     public function index()
@@ -57,12 +59,47 @@ class ActivityController extends Controller
         }
 
         return response()->json([
-            'tasks' => Task::latest()->get(),
-            'events' => Event::latest()->get(),
-            'calls' => Call::latest()->get(),
-            'meetings' => Meeting::latest()->get(),
+            'tasks' => Task::with('notes')->latest()->get(),
+            'events' => Event::with('notes')->latest()->get(),
+            'calls' => Call::with('notes')->latest()->get(),
+            'meetings' => Meeting::with('notes')->latest()->get(),
             'users' => User::pluck('email'),
         ]);
+    }
+
+    public function storeNote(Request $request)
+    {
+        $validated = $request->validate([
+            'content' => 'required|string',
+            'owner' => 'nullable|string',
+            'noteable_id' => 'required|integer',
+            'noteable_type' => 'required|string',
+        ]);
+
+        // Standardize noteable_type to full namespace
+        if (!str_contains($validated['noteable_type'], 'App\\Models\\')) {
+            $validated['noteable_type'] = 'App\\Models\\' . ucfirst($validated['noteable_type']);
+        }
+
+        $note = Note::create($validated);
+        return response()->json($note);
+    }
+
+    public function updateNote(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'content' => 'required|string',
+        ]);
+
+        $note = Note::findOrFail($id);
+        $note->update($validated);
+        return response()->json($note);
+    }
+
+    public function destroyNote($id)
+    {
+        Note::findOrFail($id)->delete();
+        return response()->json(null, 204);
     }
 
     public function storeTask(Request $request)
