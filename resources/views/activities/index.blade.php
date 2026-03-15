@@ -1328,7 +1328,7 @@
             <!-- Header -->
             <div class="px-5 py-4 flex items-center justify-between shrink-0 border-b border-gray-100">
                 <div>
-                    <h3 class="text-base font-semibold text-gray-800">Task Details</h3>
+                    <h3 class="text-base font-semibold text-gray-800" x-text="(selectedTaskType ? selectedTaskType.charAt(0).toUpperCase() + selectedTaskType.slice(1) : 'Task') + ' Details'">Task Details</h3>
                     <div class="flex items-center gap-2 text-xs text-gray-400 mt-0.5" x-text="selectedTaskDetails?.owner || selectedTaskDetails?.host || 'John Kelly'"></div>
                 </div>
                 <button @click="selectedTaskDetails = null; newNoteContent = ''; editingNote = null;" class="text-gray-400 hover:text-gray-600 transition text-lg leading-none">&times;</button>
@@ -1340,12 +1340,12 @@
             <!-- Tabs -->
             <div class="flex px-6 pt-2 border-b border-gray-100">
                 <button @click="taskDetailsTab = 'information'" 
-                        :class="taskDetailsTab === 'information' ? 'bg-[#8FA8CB] text-white' : 'text-gray-500 hover:bg-gray-50'"
+                        :class="taskDetailsTab === 'information' ? 'bg-[#1d54e2] text-white' : 'text-gray-500 hover:bg-gray-50'"
                         class="px-6 py-2 rounded-t-lg text-sm font-semibold transition">
                     Information
                 </button>
                 <button @click="taskDetailsTab = 'notes'" 
-                        :class="taskDetailsTab === 'notes' ? 'bg-[#8FA8CB] text-white font-semibold' : 'text-gray-500 hover:bg-gray-50 font-medium'"
+                        :class="taskDetailsTab === 'notes' ? 'bg-[#1d54e2] text-white font-semibold' : 'text-gray-500 hover:bg-gray-50 font-medium'"
                         class="px-6 py-2 rounded-t-lg text-sm transition">
                     Notes
                 </button>
@@ -1356,70 +1356,63 @@
                 
                 <!-- Information Tab Content -->
                 <div x-show="taskDetailsTab === 'information'">
-                    <h4 class="font-bold text-gray-900 text-sm mb-4">Task Details</h4>
+                    <h4 class="font-bold text-gray-900 text-sm mb-4" x-text="(selectedTaskType ? selectedTaskType.charAt(0).toUpperCase() + selectedTaskType.slice(1) : 'Task') + ' Details'">Task Details</h4>
                 
                 <div class="space-y-4">
                     <!-- Detail Row -->
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Date/Time</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span x-text="selectedTaskDetails?.start_time || selectedTaskDetails?.due_date || selectedTaskDetails?.from || '-'"></span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
                     
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Priority</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span x-text="selectedTaskDetails?.priority || '-'"></span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
 
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Status</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span x-text="selectedTaskDetails?.status || selectedTaskDetails?.type || '-'"></span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
 
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Reminder</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span>-</span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
 
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Description</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition min-h-[20px]">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition min-h-[20px]">
                             <span x-text="selectedTaskDetails?.description || selectedTaskDetails?.purpose || ''"></span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
 
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Related To</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span x-text="selectedTaskDetails?.related_to || '-'"></span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
 
                     <div class="flex group">
                         <div class="w-32 text-sm text-gray-500">Last Modified</div>
-                        <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                        <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                             <span>Just now</span>
-                            <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-6">
                     <h4 class="font-bold text-gray-900 text-sm mb-3">Tags</h4>
-                    <span class="inline-flex items-center justify-center bg-[#8FA8CB] text-white rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
+                    <span class="inline-flex items-center justify-center bg-[#1d54e2] text-white rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
                         <i class="fas fa-plus mr-1"></i>
                         Tag
                     </span>
@@ -1438,7 +1431,7 @@
                     <div class="space-y-4">
                         <template x-for="note in selectedTaskDetails?.notes || []" :key="note.id">
                             <div class="flex gap-3">
-                                <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
+                                <div class="w-8 h-8 rounded-full bg-[#1d54e2] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
                                 </div>
                                 <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
                                     <div class="flex justify-between items-start mb-1">
@@ -1492,12 +1485,12 @@
             <!-- Tabs -->
             <div class="flex px-6 pt-2 border-b border-gray-100">
                 <button @click="meetingDetailsTab = 'information'" 
-                        :class="meetingDetailsTab === 'information' ? 'bg-[#8FA8CB] text-white' : 'text-gray-500 hover:bg-gray-50'"
+                        :class="meetingDetailsTab === 'information' ? 'bg-[#1d54e2] text-white' : 'text-gray-500 hover:bg-gray-50'"
                         class="px-6 py-2 rounded-t-lg text-sm font-semibold transition">
                     Information
                 </button>
                 <button @click="meetingDetailsTab = 'notes'" 
-                        :class="meetingDetailsTab === 'notes' ? 'bg-[#8FA8CB] text-white font-semibold' : 'text-gray-500 hover:bg-gray-50 font-medium'"
+                        :class="meetingDetailsTab === 'notes' ? 'bg-[#1d54e2] text-white font-semibold' : 'text-gray-500 hover:bg-gray-50 font-medium'"
                         class="px-6 py-2 rounded-t-lg text-sm transition">
                     Notes
                 </button>
@@ -1514,48 +1507,43 @@
                         <!-- Date & Time -->
                         <div class="flex group">
                             <div class="w-36 text-sm text-gray-500">Date & Time</div>
-                            <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span>
                                     <span x-text="selectedMeetingDetails?.date"></span>
                                     <span class="ml-2" x-text="selectedMeetingDetails?.time"></span>
                                 </span>
-                                <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                             </div>
                         </div>
                         
                         <!-- Duration -->
                         <div class="flex group">
                             <div class="w-36 text-sm text-gray-500">Duration</div>
-                            <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.duration"></span>
-                                <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                             </div>
                         </div>
 
                         <!-- Meeting Link / Location -->
                         <div class="flex group">
                             <div class="w-36 text-sm text-gray-500">Meeting Link / Location</div>
-                            <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.location"></span>
-                                <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                             </div>
                         </div>
 
                         <!-- Attendees -->
                         <div class="flex group">
                             <div class="w-36 text-sm text-gray-500">Attendees</div>
-                            <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.attendees"></span>
-                                <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                             </div>
                         </div>
 
                         <!-- Status -->
                         <div class="flex group">
                             <div class="w-36 text-sm text-gray-500">Status</div>
-                            <div class="flex-1 text-sm text-gray-900 flex justify-between items-center group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
+                            <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.status"></span>
-                                <i class="fas fa-pencil-alt text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 cursor-pointer"></i>
                             </div>
                         </div>
                     </div>
@@ -1576,7 +1564,7 @@
                                     <i class="fas fa-download text-[10px]"></i>
                                     Download
                                 </button>
-                                <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#8FA8CB] text-white rounded-lg text-xs font-semibold hover:bg-[#7a93b5] transition shadow-sm"
+                                <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                         :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     Open
                                 </button>
@@ -1627,7 +1615,7 @@
                     <div class="space-y-4">
                         <template x-for="note in selectedMeetingDetails?.notes || []" :key="note.id">
                             <div class="flex gap-3">
-                                <div class="w-8 h-8 rounded-full bg-[#8FA8CB] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
+                                <div class="w-8 h-8 rounded-full bg-[#1d54e2] text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="(note.owner || 'JK').split(' ').map(n => n[0]).join('').toUpperCase()">
                                 </div>
                                 <div class="flex-1 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm relative group">
                                     <div class="flex justify-between items-start mb-1">
