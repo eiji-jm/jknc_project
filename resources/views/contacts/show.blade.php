@@ -118,14 +118,16 @@
                         </div>
                     </div>
 
-                    <div id="kycEditModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-16 w-full max-w-xl rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <div id="kycEditModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[560px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                                 <h3 class="text-xl font-semibold text-gray-900">Edit KYC Information</h3>
                                 <button id="closeKycEditModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
                             </div>
-                            <form id="kycEditForm" class="space-y-4 p-6">
+                            <form id="kycEditForm" class="flex min-h-0 flex-1 flex-col">
+                                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-6 sm:px-8">
                                 <div>
                                     <label for="kycEditCif" class="mb-1 block text-sm font-medium text-gray-700">CIF</label>
                                     <input id="kycEditCif" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
@@ -156,22 +158,26 @@
                                     <input id="kycEditVerifiedBy" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                     <p id="kycErrorVerifiedBy" class="mt-1 hidden text-xs text-red-600">Verified By is required for Approved status.</p>
                                 </div>
-                                <div class="flex justify-end gap-3 pt-2">
+                                </div>
+                                <div class="flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
                                     <button id="cancelKycEdit" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
                                     <button type="submit" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save Changes</button>
                                 </div>
                             </form>
                         </div>
+                        </div>
                     </div>
 
-                    <div id="documentModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-8 w-full max-w-6xl rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <div id="documentModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[960px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                                 <h3 id="documentModalTitle" class="text-xl font-semibold text-gray-900">Upload CIF Document</h3>
                                 <button id="closeDocumentModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
                             </div>
-                            <form id="documentForm" class="grid max-h-[82vh] grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
+                            <form id="documentForm" class="flex min-h-0 flex-1 flex-col">
+                                <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
                                 <div class="border-b border-gray-100 p-5 lg:border-b-0 lg:border-r">
                                     <div id="documentPreviewPanel" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-sm text-gray-500">
                                         <i class="far fa-file-pdf text-6xl text-gray-400"></i>
@@ -193,29 +199,35 @@
                                         <p id="docErrorFile" class="mt-1 hidden text-xs text-red-600">Please upload a CIF document file.</p>
                                     </div>
                                     <div><label for="docRemarks" class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea id="docRemarks" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
-                                    <div class="flex justify-end gap-3 pt-2"><button id="cancelDocumentModal" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button type="submit" id="saveDocumentBtn" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save</button></div>
                                 </div>
+                                </div>
+                                <div class="flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8"><button id="cancelDocumentModal" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button type="submit" id="saveDocumentBtn" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save</button></div>
                             </form>
                         </div>
-                    </div>
-
-                    <div id="documentViewModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-10 w-full max-w-5xl rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4"><h3 id="documentViewTitle" class="text-xl font-semibold text-gray-900">Document Details</h3><button id="closeDocumentViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button></div>
-                            <div class="grid grid-cols-1 gap-0 lg:grid-cols-[1.1fr_0.9fr]"><div id="documentViewPreview" class="m-4 flex min-h-[430px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500"></div><div class="space-y-3 border-l border-gray-100 p-5 text-sm"><div><p class="text-gray-500">Document Type</p><p id="viewDocType" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Title</p><p id="viewDocTitle" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">CIF No.</p><p id="viewDocCertificateNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Company Reg No.</p><p id="viewDocCompanyRegNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Upload</p><p id="viewDocUploadDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Created</p><p id="viewDocCreatedDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued On</p><p id="viewDocIssuedOn" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued By</p><p id="viewDocIssuedBy" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Remarks</p><p id="viewDocRemarks" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">File Name</p><p id="viewDocFileName" class="font-medium text-gray-900"></p></div></div></div>
-                            <div class="flex justify-end border-t border-gray-100 px-6 py-4"><button id="closeDocumentViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button></div>
                         </div>
                     </div>
 
-                    <div id="rejectKycModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-24 w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="border-b border-gray-100 px-6 py-4"><h3 class="text-xl font-semibold text-gray-900">Reject KYC</h3></div>
-                            <div class="space-y-3 p-6">
+                    <div id="documentViewModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[900px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8"><h3 id="documentViewTitle" class="text-xl font-semibold text-gray-900">Document Details</h3><button id="closeDocumentViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button></div>
+                            <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]"><div id="documentViewPreview" class="m-4 flex min-h-[430px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500"></div><div class="space-y-3 border-l border-gray-100 p-5 text-sm"><div><p class="text-gray-500">Document Type</p><p id="viewDocType" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Title</p><p id="viewDocTitle" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">CIF No.</p><p id="viewDocCertificateNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Company Reg No.</p><p id="viewDocCompanyRegNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Upload</p><p id="viewDocUploadDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Created</p><p id="viewDocCreatedDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued On</p><p id="viewDocIssuedOn" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued By</p><p id="viewDocIssuedBy" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Remarks</p><p id="viewDocRemarks" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">File Name</p><p id="viewDocFileName" class="font-medium text-gray-900"></p></div></div></div>
+                            <div class="flex justify-end border-t border-gray-100 px-6 py-4"><button id="closeDocumentViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button></div>
+                        </div>
+                        </div>
+                    </div>
+
+                    <div id="rejectKycModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[520px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="border-b border-gray-100 px-6 py-5 sm:px-8"><h3 class="text-xl font-semibold text-gray-900">Reject KYC</h3></div>
+                            <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-6 sm:px-8">
                                 <p class="text-sm text-gray-600">Are you sure you want to reject this KYC submission?</p>
                                 <div><label for="rejectReasonInput" class="mb-1 block text-sm font-medium text-gray-700">Rejection Reason (optional)</label><textarea id="rejectReasonInput" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
-                                <div class="flex justify-end gap-3"><button id="cancelRejectKyc" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirmRejectKyc" type="button" class="h-10 rounded-lg bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700">Reject</button></div>
+                            </div>
+                            <div class="flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8"><button id="cancelRejectKyc" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button id="confirmRejectKyc" type="button" class="h-10 rounded-lg bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700">Reject</button></div>
                             </div>
                         </div>
                     </div>
@@ -243,8 +255,28 @@
 
                             const fmtDate = (s) => { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? s : new Intl.DateTimeFormat('en-US',{month:'short',day:'2-digit',year:'numeric'}).format(d); };
                             const fmtBytes = (n) => !n ? '-' : (n < 1024 ? `${n} B` : (n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`));
-                            const open = (m) => { m.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); };
-                            const close = (m) => { m.classList.add('hidden'); if ([q('kycEditModal'),q('documentModal'),q('documentViewModal'),q('rejectKycModal')].every((x) => x.classList.contains('hidden'))) document.body.classList.remove('overflow-hidden'); };
+                            const open = (m) => {
+                                const panel = m.querySelector('[data-slideover-panel]');
+                                const overlay = m.querySelector('[data-slideover-overlay]');
+                                m.classList.remove('hidden');
+                                m.setAttribute('aria-hidden', 'false');
+                                document.body.classList.add('overflow-hidden');
+                                requestAnimationFrame(() => {
+                                    overlay?.classList.remove('opacity-0');
+                                    panel?.classList.remove('translate-x-full');
+                                });
+                            };
+                            const close = (m) => {
+                                const panel = m.querySelector('[data-slideover-panel]');
+                                const overlay = m.querySelector('[data-slideover-overlay]');
+                                overlay?.classList.add('opacity-0');
+                                panel?.classList.add('translate-x-full');
+                                window.setTimeout(() => {
+                                    m.classList.add('hidden');
+                                    m.setAttribute('aria-hidden', 'true');
+                                    if ([q('kycEditModal'),q('documentModal'),q('documentViewModal'),q('rejectKycModal')].every((x) => x.classList.contains('hidden'))) document.body.classList.remove('overflow-hidden');
+                                }, 300);
+                            };
                             const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
                             const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
                             const docDef = (key) => requiredDocs.find((d) => d.key === key);
@@ -428,7 +460,15 @@
                                 open(q('rejectKycModal'));
                             });
                             q('confirmRejectKyc').addEventListener('click', () => { kyc.status = 'Rejected'; kyc.dateVerified = ''; kyc.rejectionReason = q('rejectReasonInput').value.trim(); q('rejectReasonInput').value = ''; addLog(`Rejected KYC by ${mockUser}`); render(); close(q('rejectKycModal')); });
-                            [q('kycEditModal'), q('documentModal'), q('documentViewModal'), q('rejectKycModal')].forEach((m) => m.addEventListener('click', (e) => { if (e.target === m || e.target.classList.contains('bg-black/25')) close(m); }));
+                            [q('kycEditModal'), q('documentModal'), q('documentViewModal'), q('rejectKycModal')].forEach((m) => {
+                                m.querySelector('[data-slideover-overlay]')?.addEventListener('click', () => close(m));
+                            });
+                            document.addEventListener('keydown', (event) => {
+                                if (event.key !== 'Escape') return;
+                                [q('kycEditModal'), q('documentModal'), q('documentViewModal'), q('rejectKycModal')].forEach((m) => {
+                                    if (!m.classList.contains('hidden')) close(m);
+                                });
+                            });
                             render();
                         });
                     </script>
@@ -581,14 +621,16 @@
 
                     <div id="consultationNotesList" class="space-y-3"></div>
 
-                    <div id="consultationFormModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-10 w-full max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <div id="consultationFormModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[720px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                                 <h3 id="consultationFormTitle" class="text-xl font-semibold text-gray-900">Add Consultation Note</h3>
                                 <button id="closeConsultationFormModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
                             </div>
-                            <form id="consultationForm" class="max-h-[75vh] overflow-y-auto p-6">
+                            <form id="consultationForm" class="flex min-h-0 flex-1 flex-col">
+                                <div class="min-h-0 flex-1 overflow-y-auto p-6 sm:px-8">
                                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div class="md:col-span-2">
                                         <label for="noteTitle" class="mb-1 block text-sm font-medium text-gray-700">Note Title</label>
@@ -626,22 +668,25 @@
                                         <div id="selectedAttachments" class="mt-2 space-y-2"></div>
                                     </div>
                                 </div>
-                                <div class="mt-6 flex justify-end gap-3">
+                                </div>
+                                <div class="flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
                                     <button id="cancelConsultationForm" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
                                     <button id="saveConsultationNote" type="submit" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save Consultation Note</button>
                                 </div>
                             </form>
                         </div>
+                        </div>
                     </div>
 
-                    <div id="consultationViewModal" class="fixed inset-0 z-[70] hidden">
-                        <div class="absolute inset-0 bg-black/25"></div>
-                        <div class="relative mx-auto mt-14 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-xl">
-                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <div id="consultationViewModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+                        <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+                        <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+                        <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[620px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                                 <h3 class="text-xl font-semibold text-gray-900">Consultation Note Details</h3>
                                 <button id="closeConsultationViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
                             </div>
-                            <div class="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5 text-sm">
+                            <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5 text-sm sm:px-8">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Note Title</p>
                                     <p id="viewNoteTitle" class="mt-1 text-base font-semibold text-gray-900"></p>
@@ -669,10 +714,11 @@
                                     <div id="viewConsultationAttachments" class="mt-2 space-y-2"></div>
                                 </div>
                             </div>
-                            <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                            <div class="flex justify-end gap-3 border-t border-gray-100 px-6 py-4 sm:px-8">
                                 <button id="editFromView" type="button" class="h-10 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm text-blue-700 hover:bg-blue-100">Edit</button>
                                 <button id="closeConsultationViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -805,15 +851,29 @@
                         };
 
                         const showModal = (modal) => {
+                            const panel = modal.querySelector('[data-slideover-panel]');
+                            const overlay = modal.querySelector('[data-slideover-overlay]');
                             modal.classList.remove('hidden');
+                            modal.setAttribute('aria-hidden', 'false');
                             document.body.classList.add('overflow-hidden');
+                            requestAnimationFrame(() => {
+                                overlay?.classList.remove('opacity-0');
+                                panel?.classList.remove('translate-x-full');
+                            });
                         };
 
                         const hideModal = (modal) => {
-                            modal.classList.add('hidden');
-                            if (formModal.classList.contains('hidden') && viewModal.classList.contains('hidden')) {
-                                document.body.classList.remove('overflow-hidden');
-                            }
+                            const panel = modal.querySelector('[data-slideover-panel]');
+                            const overlay = modal.querySelector('[data-slideover-overlay]');
+                            overlay?.classList.add('opacity-0');
+                            panel?.classList.add('translate-x-full');
+                            window.setTimeout(() => {
+                                modal.classList.add('hidden');
+                                modal.setAttribute('aria-hidden', 'true');
+                                if (formModal.classList.contains('hidden') && viewModal.classList.contains('hidden')) {
+                                    document.body.classList.remove('overflow-hidden');
+                                }
+                            }, 300);
                         };
 
                         const resetValidation = () => {
@@ -922,10 +982,12 @@
                         });
 
                         [formModal, viewModal].forEach((modal) => {
-                            modal.addEventListener('click', function (event) {
-                                if (event.target === modal || event.target.classList.contains('bg-black/25')) {
-                                    hideModal(modal);
-                                }
+                            modal.querySelector('[data-slideover-overlay]')?.addEventListener('click', () => hideModal(modal));
+                        });
+                        document.addEventListener('keydown', function (event) {
+                            if (event.key !== 'Escape') return;
+                            [formModal, viewModal].forEach((modal) => {
+                                if (!modal.classList.contains('hidden')) hideModal(modal);
                             });
                         });
 

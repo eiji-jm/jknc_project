@@ -222,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusSelects = Array.from(document.querySelectorAll('.product-row select'));
 
     const changeOwnerModal = document.getElementById('changeOwnerModal');
+    const changeOwnerPanel = document.getElementById('changeOwnerPanel');
+    const changeOwnerModalOverlay = document.getElementById('changeOwnerModalOverlay');
     const cancelChangeOwnerModal = document.getElementById('cancelChangeOwnerModal');
     const closeChangeOwnerModalX = document.getElementById('closeChangeOwnerModalX');
     const changeOwnerForm = document.getElementById('changeOwnerForm');
@@ -237,6 +239,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const createFieldDropdownMenu = document.getElementById('createFieldDropdownMenu');
     const fieldTypeButtons = Array.from(document.querySelectorAll('.create-field-type-option'));
     const createFieldModal = document.getElementById('createFieldModal');
+    const createFieldPanel = document.getElementById('createFieldPanel');
+    const createFieldModalOverlay = document.getElementById('createFieldModalOverlay');
     const closeCreateFieldModal = document.getElementById('closeCreateFieldModal');
     const cancelCreateFieldModal = document.getElementById('cancelCreateFieldModal');
     const createFieldTypeInput = document.getElementById('createFieldTypeInput');
@@ -259,9 +263,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const columnSortState = {};
     const columnFilters = {};
 
+    const createProductPanel = document.getElementById('createProductPanel');
+    const createProductModalOverlay = document.getElementById('createProductModalOverlay');
+
     const openCreateModal = () => {
+        if (!createProductModal || !createProductPanel) {
+            return;
+        }
+
         createProductModal.classList.remove('hidden');
+        createProductModal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
+
+        requestAnimationFrame(() => {
+            createProductModalOverlay?.classList.remove('opacity-0');
+            createProductPanel.classList.remove('translate-x-full');
+        });
     };
 
     const closeProductOwnerDropdown = () => {
@@ -269,9 +286,19 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const closeCreateModal = () => {
-        createProductModal.classList.add('hidden');
+        if (!createProductModal || !createProductPanel) {
+            return;
+        }
+
         closeProductOwnerDropdown();
+        createProductModalOverlay?.classList.add('opacity-0');
+        createProductPanel.classList.add('translate-x-full');
         document.body.classList.remove('overflow-hidden');
+
+        window.setTimeout(() => {
+            createProductModal.classList.add('hidden');
+            createProductModal.setAttribute('aria-hidden', 'true');
+        }, 300);
     };
 
     const openChangeOwnerModal = () => {
@@ -294,13 +321,23 @@ document.addEventListener('DOMContentLoaded', function () {
         ownerOptions.forEach((option) => option.classList.remove('hidden', 'bg-blue-50'));
         ownerDropdownMenu.classList.add('hidden');
         changeOwnerModal.classList.remove('hidden');
+        changeOwnerModal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
+        requestAnimationFrame(() => {
+            changeOwnerModalOverlay?.classList.remove('opacity-0');
+            changeOwnerPanel?.classList.remove('translate-x-full');
+        });
     };
 
     const closeChangeOwnerModalFn = () => {
-        changeOwnerModal.classList.add('hidden');
+        changeOwnerModalOverlay?.classList.add('opacity-0');
+        changeOwnerPanel?.classList.add('translate-x-full');
         ownerDropdownMenu.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
+        window.setTimeout(() => {
+            changeOwnerModal.classList.add('hidden');
+            changeOwnerModal.setAttribute('aria-hidden', 'true');
+        }, 300);
     };
 
     const buildPicklistOptionRow = (value = '') => {
@@ -357,12 +394,22 @@ document.addEventListener('DOMContentLoaded', function () {
         createFieldDropdownMenu?.classList.add('hidden');
         createFieldDropdownOpen = false;
         createFieldModal?.classList.remove('hidden');
+        createFieldModal?.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
+        requestAnimationFrame(() => {
+            createFieldModalOverlay?.classList.remove('opacity-0');
+            createFieldPanel?.classList.remove('translate-x-full');
+        });
     };
 
     const closeCreateFieldModalFn = () => {
-        createFieldModal?.classList.add('hidden');
+        createFieldModalOverlay?.classList.add('opacity-0');
+        createFieldPanel?.classList.add('translate-x-full');
         document.body.classList.remove('overflow-hidden');
+        window.setTimeout(() => {
+            createFieldModal?.classList.add('hidden');
+            createFieldModal?.setAttribute('aria-hidden', 'true');
+        }, 300);
     };
 
     const positionCreateFieldDropdown = () => {
@@ -647,11 +694,7 @@ document.addEventListener('DOMContentLoaded', function () {
     closeCreateModalButton?.addEventListener('click', closeCreateModal);
     cancelCreateModalButton?.addEventListener('click', closeCreateModal);
 
-    createProductModal?.addEventListener('click', function (event) {
-        if (event.target === createProductModal || event.target.classList.contains('bg-black/25')) {
-            closeCreateModal();
-        }
-    });
+    createProductModalOverlay?.addEventListener('click', closeCreateModal);
 
     productOwnerDropdownTrigger?.addEventListener('click', function () {
         productOwnerDropdownMenu?.classList.toggle('hidden');
@@ -685,11 +728,7 @@ document.addEventListener('DOMContentLoaded', function () {
     cancelChangeOwnerModal?.addEventListener('click', closeChangeOwnerModalFn);
     closeChangeOwnerModalX?.addEventListener('click', closeChangeOwnerModalFn);
 
-    changeOwnerModal?.addEventListener('click', function (event) {
-        if (event.target === changeOwnerModal || event.target.classList.contains('bg-black/30')) {
-            closeChangeOwnerModalFn();
-        }
-    });
+    changeOwnerModalOverlay?.addEventListener('click', closeChangeOwnerModalFn);
 
     toggleOwnerDropdown?.addEventListener('click', function () {
         ownerDropdownMenu.classList.toggle('hidden');
@@ -865,11 +904,7 @@ document.addEventListener('DOMContentLoaded', function () {
     closeCreateFieldModal?.addEventListener('click', closeCreateFieldModalFn);
     cancelCreateFieldModal?.addEventListener('click', closeCreateFieldModalFn);
 
-    createFieldModal?.addEventListener('click', function (event) {
-        if (event.target === createFieldModal || event.target.classList.contains('bg-black/25')) {
-            closeCreateFieldModalFn();
-        }
-    });
+    createFieldModalOverlay?.addEventListener('click', closeCreateFieldModalFn);
 
     window.addEventListener('resize', function () {
         if (createFieldDropdownOpen) {
@@ -893,6 +928,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
+            closeCreateModal();
+            closeChangeOwnerModalFn();
+            closeCreateFieldModalFn();
             closeProductOwnerDropdown();
             closeCreateFieldDropdownFn();
             closeFieldActionsMenu();
