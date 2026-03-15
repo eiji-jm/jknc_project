@@ -102,6 +102,34 @@ class ActivityController extends Controller
         return response()->json(null, 204);
     }
 
+    public function processMeeting($id)
+    {
+        $meeting = Meeting::findOrFail($id);
+        
+        // Mark as having transcript and minutes
+        $meeting->has_transcript = true;
+        $meeting->has_minutes = true;
+        $meeting->save();
+
+        // Simulate producing a transcript note
+        Note::create([
+            'content' => "AI TRANSCRIPT SUMMARY:\n\nParticipants discussed the Q3 project timeline. John mentioned that the backend is 80% complete. Sarah raised concerns about the UI polish. Action items were assigned to the design team.",
+            'owner' => 'AI Assistant',
+            'noteable_id' => $meeting->id,
+            'noteable_type' => Meeting::class
+        ]);
+
+        // Simulate producing a minutes note
+        Note::create([
+            'content' => "MEETING MINUTES:\n\n1. Project Status: Backend on track for next week.\n2. UI/UX: Design team to review user feedback by Wednesday.\n3. Next Steps: Schedule a follow-up for Friday 2 PM.",
+            'owner' => 'AI Assistant',
+            'noteable_id' => $meeting->id,
+            'noteable_type' => Meeting::class
+        ]);
+
+        return response()->json($meeting->load('notes'));
+    }
+
     public function storeTask(Request $request)
     {
         $validated = $request->validate([

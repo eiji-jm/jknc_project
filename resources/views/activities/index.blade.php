@@ -56,6 +56,7 @@
         showEventModal: false,
         newNoteContent: '',
         editingNote: null,
+        activeDownloadMenu: null,
 
 
         init() {
@@ -556,6 +557,48 @@
                 }
             } catch (error) {
                 console.error('Error deleting note:', error);
+            }
+        },
+
+        async generateMeetingAI(meetingId) {
+            try {
+                const response = await fetch(`/api/meetings/${meetingId}/process`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                const updatedMeeting = await response.json();
+                
+                // Update the meeting in the list
+                const idx = this.meetings.findIndex(m => m.id === meetingId);
+                if (idx !== -1) this.meetings[idx] = updatedMeeting;
+                
+                // Update the selected details view
+                this.selectedMeetingDetails = updatedMeeting;
+            } catch (error) {
+                console.error('Error generating AI content:', error);
+            }
+        },
+
+        downloadFile(type, format) {
+            this.activeDownloadMenu = null;
+            const content = this.selectedMeetingDetails.notes.find(n => n.content.toLowerCase().includes(type.toLowerCase()))?.content || 'No content found.';
+            const filename = `${type}_${this.selectedMeetingDetails.title.replace(/\s+/g, '_')}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+
+            if (format === 'pdf') {
+                // Simulate PDF by opening a new window with content for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write('<ht' + 'ml><he' + 'ad><ti' + 'tle>' + filename + '</ti' + 'tle><sty' + 'le>body{font-family:sans-serif;padding:40px;line-height:1.6;}</sty' + 'le></he' + 'ad><bo' + 'dy><h1' + '>' + type.toUpperCase() + '</h1' + '><pre style=\'white-space: pre-wrap;\'>' + content + '</pre></bo' + 'dy></ht' + 'ml>');
+                printWindow.document.close();
+                printWindow.print();
+            } else {
+                // Generate a simple Word-compatible blob
+                const blob = new Blob([content], { type: 'application/msword' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
             }
         }
      }">
@@ -1315,7 +1358,7 @@
     <div x-show="selectedTaskDetails"
          x-data="{ taskDetailsTab: 'information' }"
          style="display: none;"
-         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[480px] transition-all"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 translate-x-8"
          x-transition:enter-end="opacity-100 translate-x-0"
@@ -1352,7 +1395,7 @@
             </div>
 
             <!-- Content Area -->
-            <div class="p-6 overflow-y-auto max-h-[60vh]">
+            <div class="p-6 overflow-y-auto flex-1">
                 
                 <!-- Information Tab Content -->
                 <div x-show="taskDetailsTab === 'information'">
@@ -1460,7 +1503,7 @@
     <!-- Meeting Details Slide-over Panel -->
     <div x-show="selectedMeetingDetails"
          style="display: none;"
-         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[420px] transition-all"
+         class="fixed top-0 bottom-0 right-0 z-[100] w-full max-w-[480px] transition-all"
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0 translate-x-8"
          x-transition:enter-end="opacity-100 translate-x-0"
@@ -1497,7 +1540,7 @@
             </div>
 
             <!-- Content Area -->
-            <div class="p-6 overflow-y-auto max-h-[60vh]">
+            <div class="p-6 overflow-y-auto flex-1">
                 
                 <!-- Information Tab -->
                 <div x-show="meetingDetailsTab === 'information'">
@@ -1506,7 +1549,7 @@
                     <div class="space-y-4">
                         <!-- Date & Time -->
                         <div class="flex group">
-                            <div class="w-36 text-sm text-gray-500">Date & Time</div>
+                            <div class="w-32 text-sm text-gray-500">Date & Time</div>
                             <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span>
                                     <span x-text="selectedMeetingDetails?.date"></span>
@@ -1517,7 +1560,7 @@
                         
                         <!-- Duration -->
                         <div class="flex group">
-                            <div class="w-36 text-sm text-gray-500">Duration</div>
+                            <div class="w-32 text-sm text-gray-500">Duration</div>
                             <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.duration"></span>
                             </div>
@@ -1525,7 +1568,7 @@
 
                         <!-- Meeting Link / Location -->
                         <div class="flex group">
-                            <div class="w-36 text-sm text-gray-500">Meeting Link / Location</div>
+                            <div class="w-32 text-sm text-gray-500">Meeting Link / Location</div>
                             <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.location"></span>
                             </div>
@@ -1533,7 +1576,7 @@
 
                         <!-- Attendees -->
                         <div class="flex group">
-                            <div class="w-36 text-sm text-gray-500">Attendees</div>
+                            <div class="w-32 text-sm text-gray-500">Attendees</div>
                             <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.attendees"></span>
                             </div>
@@ -1541,7 +1584,7 @@
 
                         <!-- Status -->
                         <div class="flex group">
-                            <div class="w-36 text-sm text-gray-500">Status</div>
+                            <div class="w-32 text-sm text-gray-500">Status</div>
                             <div class="flex-1 text-sm text-gray-900 group-hover:bg-gray-50 rounded px-1 -mx-1 transition">
                                 <span x-text="selectedMeetingDetails?.status"></span>
                             </div>
@@ -1559,11 +1602,27 @@
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_video">
                             <div class="w-24 text-sm text-gray-500">Video</div>
                             <div class="flex items-center gap-2">
-                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
-                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
-                                    <i class="fas fa-download text-[10px]"></i>
-                                    Download
-                                </button>
+                                <div class="relative">
+                                    <button @click="activeDownloadMenu = activeDownloadMenu === 'video' ? null : 'video'" 
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
+                                            :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
+                                        <i class="fas fa-download text-[10px]"></i>
+                                        Download
+                                    </button>
+
+                                    <!-- Dropdown -->
+                                    <div x-show="activeDownloadMenu === 'video'" 
+                                         @click.away="activeDownloadMenu = null"
+                                         class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
+                                         style="display: none;">
+                                        <button @click="downloadFile('video', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                            <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                        </button>
+                                        <button @click="downloadFile('video', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                            <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                        </button>
+                                    </div>
+                                </div>
                                 <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                         :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     Open
@@ -1574,31 +1633,88 @@
                         <!-- Audio -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_audio">
                             <div class="w-24 text-sm text-gray-500">Audio</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
-                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
-                                <i class="fas fa-download text-[10px]"></i>
-                                Download
-                            </button>
+                            <div class="relative">
+                                <button @click="activeDownloadMenu = activeDownloadMenu === 'audio' ? null : 'audio'" 
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
+                                    <i class="fas fa-download text-[10px]"></i>
+                                    Download
+                                </button>
+
+                                <!-- Dropdown -->
+                                <div x-show="activeDownloadMenu === 'audio'" 
+                                     @click.away="activeDownloadMenu = null"
+                                     class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
+                                     style="display: none;">
+                                    <button @click="downloadFile('audio', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                        <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                    </button>
+                                    <button @click="downloadFile('audio', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                        <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Transcript -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_transcript">
                             <div class="w-24 text-sm text-gray-500">Transcript</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
-                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
-                                <i class="fas fa-download text-[10px]"></i>
-                                Download
-                            </button>
+                            <div class="relative">
+                                <button @click="activeDownloadMenu = activeDownloadMenu === 'transcript' ? null : 'transcript'" 
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
+                                    <i class="fas fa-download text-[10px]"></i>
+                                    Download
+                                </button>
+                                
+                                <!-- Dropdown -->
+                                <div x-show="activeDownloadMenu === 'transcript'" 
+                                     @click.away="activeDownloadMenu = null"
+                                     class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
+                                     style="display: none;">
+                                    <button @click="downloadFile('transcript', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                        <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                    </button>
+                                    <button @click="downloadFile('transcript', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                        <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Minutes -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_minutes">
                             <div class="w-24 text-sm text-gray-500">Minutes</div>
-                            <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
-                                    :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
-                                <i class="fas fa-download text-[10px]"></i>
-                                Download
+                            <div class="relative">
+                                <button @click="activeDownloadMenu = activeDownloadMenu === 'minutes' ? null : 'minutes'" 
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
+                                    <i class="fas fa-download text-[10px]"></i>
+                                    Download
+                                </button>
+
+                                <!-- Dropdown -->
+                                <div x-show="activeDownloadMenu === 'minutes'" 
+                                     @click.away="activeDownloadMenu = null"
+                                     class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
+                                     style="display: none;">
+                                    <button @click="downloadFile('minutes', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                        <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                    </button>
+                                    <button @click="downloadFile('minutes', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                        <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Generation Button -->
+                        <div class="pt-4 border-t border-gray-100" x-show="selectedMeetingDetails?.status === 'completed' && (!selectedMeetingDetails?.has_transcript || !selectedMeetingDetails?.has_minutes)">
+                            <button @click="generateMeetingAI(selectedMeetingDetails.id)" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md group">
+                                <i class="fas fa-robot animate-pulse group-hover:scale-110 transition-transform"></i>
+                                Generate AI Transcript & Minutes
                             </button>
+                            <p class="text-[10px] text-gray-400 text-center mt-2 italic">Powered by CRM-AI Engine</p>
                         </div>
                     </div>
                 </div>
