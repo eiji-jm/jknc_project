@@ -106,15 +106,8 @@
         const openButton = document.getElementById('openAddCompanyModal');
         const closeButtons = document.querySelectorAll('[data-close-company-modal]');
 
-        const openModal = () => {
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        };
-
-        const closeModal = () => {
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        };
+        const openModal = () => window.jkncSlideOver.open(modal);
+        const closeModal = () => window.jkncSlideOver.close(modal);
 
         openButton.addEventListener('click', openModal);
 
@@ -123,7 +116,7 @@
         });
 
         modal.addEventListener('click', function (event) {
-            if (event.target === modal) {
+            if (event.target === modal || event.target.hasAttribute('data-drawer-overlay')) {
                 closeModal();
             }
         });

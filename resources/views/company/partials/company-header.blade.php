@@ -78,83 +78,85 @@
     </div>
 </div>
 
-<div id="editCompanyModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-6 w-full max-w-3xl rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Edit Company</h2>
-                    <p class="mt-1 text-sm text-gray-500">Update the company profile shown across all Company pages.</p>
-                </div>
-                <button type="button" data-close-edit-company-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    <i class="fas fa-times text-sm"></i>
-                </button>
+<x-slide-over id="editCompanyModal" width="sm:max-w-[640px] lg:max-w-[760px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Edit Company</h2>
+                <p class="mt-1 text-sm text-gray-500">Update the company profile shown across all Company pages.</p>
+            </div>
+            <button type="button" data-close-edit-company-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <form id="editCompanyForm" method="POST" action="{{ route('company.update', $company->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+        @method('PUT')
+
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="md:col-span-2">
+                        <label for="edit_company_name" class="mb-1 block text-sm font-medium text-gray-700">Company Name <span class="text-red-500">*</span></label>
+                        <input id="edit_company_name" name="company_name" type="text" value="{{ old('company_name', $company->company_name) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
+                        @error('company_name')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="edit_company_type" class="mb-1 block text-sm font-medium text-gray-700">Company Type</label>
+                        <input id="edit_company_type" name="company_type" type="text" value="{{ old('company_type', $company->company_type ?: 'Corporation') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('company_type')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="edit_company_email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                        <input id="edit_company_email" name="email" type="email" value="{{ old('email', $company->email) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('email')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="edit_company_phone" class="mb-1 block text-sm font-medium text-gray-700">Phone</label>
+                        <input id="edit_company_phone" name="phone" type="text" value="{{ old('phone', $company->phone) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('phone')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="edit_company_website" class="mb-1 block text-sm font-medium text-gray-700">Website</label>
+                        <input id="edit_company_website" name="website" type="text" value="{{ old('website', $company->website) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('website')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label for="edit_company_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label>
+                        <textarea id="edit_company_address" name="address" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('address', $company->address) }}</textarea>
+                        @error('address')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label for="edit_company_description" class="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="edit_company_description" name="description" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('description', $company->description) }}</textarea>
+                        @error('description')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
             </div>
         </div>
 
-        <form id="editCompanyForm" method="POST" action="{{ route('company.update', $company->id) }}" class="max-h-[75vh] overflow-y-auto px-4 py-4">
-            @csrf
-            @method('PUT')
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="md:col-span-2">
-                    <label for="edit_company_name" class="mb-1 block text-sm font-medium text-gray-700">Company Name <span class="text-red-500">*</span></label>
-                    <input id="edit_company_name" name="company_name" type="text" value="{{ old('company_name', $company->company_name) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
-                    @error('company_name')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="edit_company_type" class="mb-1 block text-sm font-medium text-gray-700">Company Type</label>
-                    <input id="edit_company_type" name="company_type" type="text" value="{{ old('company_type', $company->company_type ?: 'Corporation') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('company_type')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="edit_company_email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
-                    <input id="edit_company_email" name="email" type="email" value="{{ old('email', $company->email) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('email')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="edit_company_phone" class="mb-1 block text-sm font-medium text-gray-700">Phone</label>
-                    <input id="edit_company_phone" name="phone" type="text" value="{{ old('phone', $company->phone) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('phone')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="edit_company_website" class="mb-1 block text-sm font-medium text-gray-700">Website</label>
-                    <input id="edit_company_website" name="website" type="text" value="{{ old('website', $company->website) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('website')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="md:col-span-2">
-                    <label for="edit_company_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label>
-                    <textarea id="edit_company_address" name="address" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('address', $company->address) }}</textarea>
-                    @error('address')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="md:col-span-2">
-                    <label for="edit_company_description" class="mb-1 block text-sm font-medium text-gray-700">Description</label>
-                    <textarea id="edit_company_description" name="description" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('description', $company->description) }}</textarea>
-                    @error('description')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-            </div>
-
-            <div class="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
                 <button type="button" data-close-edit-company-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </button>
@@ -162,9 +164,9 @@
                     Save
                 </button>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
+</x-slide-over>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -175,15 +177,8 @@
         const menu = document.getElementById('companyHeaderMenu');
         const shouldOpenEditModal = @json($errors->has('company_name') || $errors->has('company_type') || $errors->has('email') || $errors->has('phone') || $errors->has('website') || $errors->has('address') || $errors->has('description'));
 
-        const openModal = () => {
-            editCompanyModal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        };
-
-        const closeModal = () => {
-            editCompanyModal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        };
+        const openModal = () => window.jkncSlideOver.open(editCompanyModal);
+        const closeModal = () => window.jkncSlideOver.close(editCompanyModal);
 
         const closeMenu = () => {
             menu.classList.add('hidden');
@@ -196,7 +191,7 @@
         });
 
         editCompanyModal?.addEventListener('click', function (event) {
-            if (event.target === editCompanyModal) {
+            if (event.target === editCompanyModal || event.target.hasAttribute('data-drawer-overlay')) {
                 closeModal();
             }
         });

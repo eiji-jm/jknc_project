@@ -1,13 +1,24 @@
-<div id="addCompanyModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-6 w-full max-w-3xl rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <h2 class="text-lg font-semibold text-gray-900">Add a Company</h2>
-            <p class="mt-1 text-sm text-gray-500">Fill out the details below to create a company record.</p>
+<x-slide-over id="addCompanyModal" width="sm:max-w-[640px] lg:max-w-[760px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Add a Company</h2>
+                <p class="mt-1 text-sm text-gray-500">Fill out the details below to create a company record.</p>
+            </div>
+            <button
+                type="button"
+                data-close-company-modal
+                class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50"
+            >
+                <i class="fas fa-times text-sm"></i>
+            </button>
         </div>
+    </div>
 
-        <form method="POST" action="{{ route('company.store') }}" class="max-h-[75vh] overflow-y-auto px-4 py-4">
-            @csrf
+    <form method="POST" action="{{ route('company.store') }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
 
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div>
                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Company Information</h3>
                 <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -113,7 +124,10 @@
                 </div>
             </div>
 
-            <div class="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        </div>
+
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
                 <button
                     type="button"
                     data-close-company-modal
@@ -128,6 +142,6 @@
                     Save
                 </button>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
+</x-slide-over>

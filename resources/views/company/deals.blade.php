@@ -169,99 +169,101 @@
     </div>
 </div>
 
-<div id="dealModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-6 w-full max-w-3xl rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 id="dealModalTitle" class="text-lg font-semibold text-gray-900">Add Deal</h2>
-                    <p class="mt-1 text-sm text-gray-500">This deal will be linked automatically to {{ $company->company_name }}.</p>
-                </div>
-                <button type="button" data-close-deal-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    <i class="fas fa-times text-sm"></i>
-                </button>
+<x-slide-over id="dealModal" width="sm:max-w-[640px] lg:max-w-[760px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 id="dealModalTitle" class="text-lg font-semibold text-gray-900">Add Deal</h2>
+                <p class="mt-1 text-sm text-gray-500">This deal will be linked automatically to {{ $company->company_name }}.</p>
+            </div>
+            <button type="button" data-close-deal-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <form id="dealForm" method="POST" action="{{ route('company.deals.store', $company->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+        <input type="hidden" id="dealFormMethod" name="_method" value="POST">
+
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="md:col-span-2">
+                        <label for="deal_name" class="mb-1 block text-sm font-medium text-gray-700">Deal Name <span class="text-red-500">*</span></label>
+                        <input id="deal_name" name="name" type="text" value="{{ old('name') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
+                        @error('name')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_stage" class="mb-1 block text-sm font-medium text-gray-700">Stage</label>
+                        <select id="deal_stage" name="stage" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                            @foreach ($stages as $dealStage)
+                                <option value="{{ $dealStage }}" @selected(old('stage', 'Qualification') === $dealStage)>{{ $dealStage }}</option>
+                            @endforeach
+                        </select>
+                        @error('stage')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_amount" class="mb-1 block text-sm font-medium text-gray-700">Amount <span class="text-red-500">*</span></label>
+                        <input id="deal_amount" name="amount" type="number" step="0.01" min="0" value="{{ old('amount') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
+                        @error('amount')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_expected_close_date" class="mb-1 block text-sm font-medium text-gray-700">Expected Close Date</label>
+                        <input id="deal_expected_close_date" name="expected_close_date" type="date" value="{{ old('expected_close_date') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('expected_close_date')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_owner" class="mb-1 block text-sm font-medium text-gray-700">Owner <span class="text-red-500">*</span></label>
+                        <input id="deal_owner" name="owner" type="text" value="{{ old('owner', $company->owner_name ?? '') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
+                        @error('owner')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_source" class="mb-1 block text-sm font-medium text-gray-700">Deal Source</label>
+                        <input id="deal_source" name="deal_source" type="text" value="{{ old('deal_source') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        @error('deal_source')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="deal_priority" class="mb-1 block text-sm font-medium text-gray-700">Priority</label>
+                        <select id="deal_priority" name="priority" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                            @foreach (['Low', 'Normal', 'High', 'Critical'] as $priority)
+                                <option value="{{ $priority }}" @selected(old('priority', 'Normal') === $priority)>{{ $priority }}</option>
+                            @endforeach
+                        </select>
+                        @error('priority')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label for="deal_notes" class="mb-1 block text-sm font-medium text-gray-700">Notes / Description</label>
+                        <textarea id="deal_notes" name="notes" rows="4" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('notes') }}</textarea>
+                        @error('notes')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
             </div>
         </div>
 
-        <form id="dealForm" method="POST" action="{{ route('company.deals.store', $company->id) }}" class="max-h-[75vh] overflow-y-auto px-4 py-4">
-            @csrf
-            <input type="hidden" id="dealFormMethod" name="_method" value="POST">
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div class="md:col-span-2">
-                    <label for="deal_name" class="mb-1 block text-sm font-medium text-gray-700">Deal Name <span class="text-red-500">*</span></label>
-                    <input id="deal_name" name="name" type="text" value="{{ old('name') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
-                    @error('name')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_stage" class="mb-1 block text-sm font-medium text-gray-700">Stage</label>
-                    <select id="deal_stage" name="stage" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                        @foreach ($stages as $dealStage)
-                            <option value="{{ $dealStage }}" @selected(old('stage', 'Qualification') === $dealStage)>{{ $dealStage }}</option>
-                        @endforeach
-                    </select>
-                    @error('stage')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_amount" class="mb-1 block text-sm font-medium text-gray-700">Amount <span class="text-red-500">*</span></label>
-                    <input id="deal_amount" name="amount" type="number" step="0.01" min="0" value="{{ old('amount') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
-                    @error('amount')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_expected_close_date" class="mb-1 block text-sm font-medium text-gray-700">Expected Close Date</label>
-                    <input id="deal_expected_close_date" name="expected_close_date" type="date" value="{{ old('expected_close_date') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('expected_close_date')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_owner" class="mb-1 block text-sm font-medium text-gray-700">Owner <span class="text-red-500">*</span></label>
-                    <input id="deal_owner" name="owner" type="text" value="{{ old('owner', $company->owner_name ?? '') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
-                    @error('owner')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_source" class="mb-1 block text-sm font-medium text-gray-700">Deal Source</label>
-                    <input id="deal_source" name="deal_source" type="text" value="{{ old('deal_source') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                    @error('deal_source')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="deal_priority" class="mb-1 block text-sm font-medium text-gray-700">Priority</label>
-                    <select id="deal_priority" name="priority" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
-                        @foreach (['Low', 'Normal', 'High', 'Critical'] as $priority)
-                            <option value="{{ $priority }}" @selected(old('priority', 'Normal') === $priority)>{{ $priority }}</option>
-                        @endforeach
-                    </select>
-                    @error('priority')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="md:col-span-2">
-                    <label for="deal_notes" class="mb-1 block text-sm font-medium text-gray-700">Notes / Description</label>
-                    <textarea id="deal_notes" name="notes" rows="4" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('notes') }}</textarea>
-                    @error('notes')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-            </div>
-
-            <div class="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
                 <button type="button" data-close-deal-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </button>
@@ -269,9 +271,9 @@
                     Save
                 </button>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
+</x-slide-over>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -285,15 +287,8 @@
         const dealFormSubmit = document.getElementById('dealFormSubmit');
         const updateUrlTemplate = @json(route('company.deals.update', [$company->id, '__DEAL__']));
 
-        const openModal = () => {
-            dealModal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        };
-
-        const closeModal = () => {
-            dealModal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        };
+        const openModal = () => window.jkncSlideOver.open(dealModal);
+        const closeModal = () => window.jkncSlideOver.close(dealModal);
 
         const resetForm = () => {
             dealForm.reset();
@@ -342,7 +337,7 @@
         });
 
         dealModal.addEventListener('click', function (event) {
-            if (event.target === dealModal) {
+            if (event.target === dealModal || event.target.hasAttribute('data-drawer-overlay')) {
                 closeModal();
             }
         });

@@ -166,24 +166,24 @@
     </div>
 </div>
 
-<div id="contactModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-6 w-full max-w-3xl rounded-xl border border-gray-200 bg-white overflow-hidden" id="contact-form">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 id="contactModalTitle" class="text-lg font-semibold text-gray-900">Add Contact</h2>
-                    <p class="mt-1 text-sm text-gray-500">This contact will be saved under {{ $company->company_name }}.</p>
-                </div>
-                <button type="button" data-close-contact-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    <i class="fas fa-times text-sm"></i>
-                </button>
+<x-slide-over id="contactModal" width="sm:max-w-[640px] lg:max-w-[760px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 id="contactModalTitle" class="text-lg font-semibold text-gray-900">Add Contact</h2>
+                <p class="mt-1 text-sm text-gray-500">This contact will be saved under {{ $company->company_name }}.</p>
             </div>
+            <button type="button" data-close-contact-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
         </div>
+    </div>
 
-        <form id="contactForm" method="POST" action="{{ route('company.contacts.store', $company->id) }}" class="max-h-[75vh] overflow-y-auto px-4 py-4">
-            @csrf
-            <input type="hidden" id="contactFormMethod" name="_method" value="POST">
+    <form id="contactForm" method="POST" action="{{ route('company.contacts.store', $company->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+        <input type="hidden" id="contactFormMethod" name="_method" value="POST">
 
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label for="first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
@@ -257,8 +257,10 @@
                     </div>
                 @endforeach
             </div>
+        </div>
 
-            <div class="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
                 <button type="button" data-close-contact-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </button>
@@ -266,25 +268,25 @@
                     Save
                 </button>
             </div>
-        </form>
-    </div>
-</div>
-
-<div id="contactViewModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-10 w-full max-w-2xl rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Contact Details</h2>
-                    <p class="mt-1 text-sm text-gray-500">Contact information linked to {{ $company->company_name }}.</p>
-                </div>
-                <button type="button" data-close-view-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    <i class="fas fa-times text-sm"></i>
-                </button>
-            </div>
         </div>
+    </form>
+</x-slide-over>
 
-        <div class="px-4 py-4">
+<x-slide-over id="contactViewModal" width="sm:max-w-[560px] lg:max-w-[640px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Contact Details</h2>
+                <p class="mt-1 text-sm text-gray-500">Contact information linked to {{ $company->company_name }}.</p>
+            </div>
+            <button type="button" data-close-view-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex min-h-0 flex-1 flex-col">
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                 <div><span class="font-medium text-gray-700">Contact Name:</span> <span id="view_full_name" class="text-gray-600">-</span></div>
                 <div><span class="font-medium text-gray-700">Contact Owner:</span> <span id="view_owner_name" class="text-gray-600">-</span></div>
@@ -295,32 +297,35 @@
                     <div><span class="font-medium text-gray-700">{{ $field['label'] }}:</span> <span id="view_custom_{{ $field['key'] }}" class="text-gray-600">-</span></div>
                 @endforeach
             </div>
+        </div>
 
-            <div class="mt-6 flex justify-end border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex justify-end">
                 <button type="button" data-close-view-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Close
                 </button>
             </div>
         </div>
     </div>
-</div>
+</x-slide-over>
 
-<div id="customFieldModal" class="fixed inset-0 z-[60] hidden bg-black/35 p-4 sm:p-6">
-    <div class="mx-auto mt-16 w-full max-w-lg rounded-xl border border-gray-200 bg-white overflow-hidden" id="custom-field-form">
-        <div class="border-b border-gray-100 px-4 py-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Add Custom Field</h2>
-                    <p class="mt-1 text-sm text-gray-500">This column will be available for all contacts under {{ $company->company_name }}.</p>
-                </div>
-                <button type="button" data-close-custom-field-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    <i class="fas fa-times text-sm"></i>
-                </button>
+<x-slide-over id="customFieldModal" width="sm:max-w-[520px] lg:max-w-[560px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Add Custom Field</h2>
+                <p class="mt-1 text-sm text-gray-500">This column will be available for all contacts under {{ $company->company_name }}.</p>
             </div>
+            <button type="button" data-close-custom-field-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
         </div>
+    </div>
 
-        <form method="POST" action="{{ route('company.contacts.custom-fields.store', $company->id) }}" class="px-4 py-4">
-            @csrf
+    <form method="POST" action="{{ route('company.contacts.custom-fields.store', $company->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+
+        <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div>
                 <label for="label" class="mb-1 block text-sm font-medium text-gray-700">Column Name</label>
                 <input id="label" name="label" type="text" value="{{ old('label') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
@@ -328,8 +333,10 @@
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                 @enderror
             </div>
+        </div>
 
-            <div class="mt-6 flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
                 <button type="button" data-close-custom-field-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </button>
@@ -337,9 +344,9 @@
                     Add Column
                 </button>
             </div>
-        </form>
-    </div>
-</div>
+        </div>
+    </form>
+</x-slide-over>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -375,21 +382,8 @@
         };
         const oldCustomFieldValues = @json(old('custom_fields', []));
 
-        const setBodyLocked = (locked) => {
-            document.body.classList.toggle('overflow-hidden', locked);
-        };
-
-        const openModal = (modal) => {
-            modal.classList.remove('hidden');
-            setBodyLocked(true);
-        };
-
-        const closeModal = (modal) => {
-            modal.classList.add('hidden');
-            if (contactModal.classList.contains('hidden') && contactViewModal.classList.contains('hidden') && customFieldModal.classList.contains('hidden')) {
-                setBodyLocked(false);
-            }
-        };
+        const openModal = (modal) => window.jkncSlideOver.open(modal);
+        const closeModal = (modal) => window.jkncSlideOver.close(modal);
 
         const resetContactForm = () => {
             contactForm.reset();
@@ -497,7 +491,7 @@
 
         [contactModal, contactViewModal, customFieldModal].forEach((modal) => {
             modal.addEventListener('click', function (event) {
-                if (event.target === modal) {
+                if (event.target === modal || event.target.hasAttribute('data-drawer-overlay')) {
                     closeModal(modal);
                 }
             });

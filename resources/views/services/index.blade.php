@@ -202,15 +202,8 @@
         const submit = document.getElementById('globalServiceFormSubmit');
         const updateUrlTemplate = @json(route('services.update', '__SERVICE__'));
 
-        const openModal = () => {
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
-        };
-
-        const closeModal = () => {
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        };
+        const openModal = () => window.jkncSlideOver.open(modal);
+        const closeModal = () => window.jkncSlideOver.close(modal);
 
         const resetForm = () => {
             form.reset();
@@ -259,7 +252,7 @@
         });
 
         modal.addEventListener('click', function (event) {
-            if (event.target === modal) {
+            if (event.target === modal || event.target.hasAttribute('data-drawer-overlay')) {
                 closeModal();
             }
         });
