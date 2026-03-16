@@ -8,6 +8,7 @@ use App\Http\Controllers\GisController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\AdminUserPermissionController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -32,6 +33,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
     Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
     Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
+    Route::get('/admin/user-permissions', [AdminUserPermissionController::class, 'index'])->name('admin.user-permissions');
+    Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
+    Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
 
 
     /*

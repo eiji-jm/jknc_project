@@ -227,6 +227,14 @@
                         Role Permissions
                     </a>
 
+                    @if(Auth::user()->hasPermission('manage_users'))
+                        <a href="{{ route('admin.user-permissions') }}"
+                        class="block px-3 py-2 rounded-lg transition
+                        {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Permissions
+                        </a>
+                    @endif
+
                     {{-- TOWN HALL (APPROVAL DASHBOARD) --}}
                 <a href="{{ route('admin.dashboard') }}"
                 class="block px-3 py-2 rounded-lg transition

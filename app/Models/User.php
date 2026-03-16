@@ -10,8 +10,19 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
 
+    public function userPermission()
+    {
+        return $this->hasOne(\App\Models\UserPermission::class);
+    }
+
     public function hasPermission(string $permission): bool
     {
+        $userPermission = $this->userPermission;
+
+        if ($userPermission && isset($userPermission->{$permission})) {
+            return (bool) $userPermission->{$permission};
+        }
+
         $rolePermission = \App\Models\RolePermission::where('role', $this->role)->first();
 
         return $rolePermission ? (bool) $rolePermission->{$permission} : false;
