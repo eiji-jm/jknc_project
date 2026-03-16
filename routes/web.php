@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\TownHallController;
 use App\Http\Controllers\GisController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminUserController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -29,6 +30,8 @@ Route::middleware('auth')->group(function () {
     */
 
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
+    Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
 
     /*
     |--------------------------------------------------------------------------
