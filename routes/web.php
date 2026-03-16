@@ -11,6 +11,7 @@ Route::get('/', function () {
 
 Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
 Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+Route::post('/contacts/assign-owner', [ContactsController::class, 'assignOwner'])->name('contacts.assign-owner');
 Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
 Route::get('/contacts/{contact}', [ContactsController::class, 'show'])->name('contacts.show');
 

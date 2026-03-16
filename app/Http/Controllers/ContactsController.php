@@ -132,6 +132,28 @@ class ContactsController extends Controller
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
     }
 
+    public function assignOwner(Request $request): RedirectResponse
+    {
+        $owners = collect($this->ownerOptions())->keyBy('id');
+
+        $validated = $request->validate([
+            'selected_contacts' => ['required', 'array', 'min:1'],
+            'selected_contacts.*' => ['required', 'integer'],
+            'assign_owner_id' => ['required', 'integer'],
+        ]);
+
+        $owner = $owners->get((int) $validated['assign_owner_id']);
+        if (! $owner) {
+            return back()->withErrors(['assign_owner_id' => 'Please select a valid owner.'])->withInput();
+        }
+
+        Contact::query()
+            ->whereIn('id', $validated['selected_contacts'])
+            ->update(['owner_name' => $owner['name']]);
+
+        return redirect()->route('contacts.index')->with('success', 'Owner assigned to selected contacts.');
+    }
+
     public function storeCustomField(Request $request): RedirectResponse
     {
         $allowedTypes = collect($this->fieldTypes())->pluck('value')->all();
@@ -226,10 +248,14 @@ class ContactsController extends Controller
     private function ownerOptions(): array
     {
         $users = User::query()
-            ->select(['id', 'name'])
+            ->select(['id', 'name', 'email'])
             ->orderBy('name')
             ->get()
-            ->map(fn (User $user) => ['id' => (int) $user->id, 'name' => $user->name])
+            ->map(fn (User $user) => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'email' => $user->email ?: strtolower(str_replace(' ', '.', $user->name)).'@example.com',
+            ])
             ->all();
 
         if (! empty($users)) {
@@ -237,9 +263,9 @@ class ContactsController extends Controller
         }
 
         return [
-            ['id' => 1001, 'name' => 'John Admin'],
-            ['id' => 1002, 'name' => 'AdminUser'],
-            ['id' => 1003, 'name' => 'Shine Florence Padillo'],
+            ['id' => 1001, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
+            ['id' => 1002, 'name' => 'AdminUser', 'email' => 'admin.user@example.com'],
+            ['id' => 1003, 'name' => 'Shine Florence Padillo', 'email' => 'shinepadi@gmail.com'],
         ];
     }
 
