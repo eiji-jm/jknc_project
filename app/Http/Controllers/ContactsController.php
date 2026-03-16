@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 
@@ -64,6 +65,9 @@ class ContactsController extends Controller
             ->orderBy('last_name')
             ->paginate($perPage)
             ->withQueryString();
+        $customFields = collect($request->session()->get('contacts.custom_fields', []))
+            ->values()
+            ->all();
 
         $owners = $this->ownerOptions();
         $defaultOwner = $request->user();
@@ -83,6 +87,9 @@ class ContactsController extends Controller
             'kycStatuses' => self::KYC_STATUSES,
             'owners' => $owners,
             'defaultOwnerId' => (int) $defaultOwnerId,
+            'customFields' => $customFields,
+            'fieldTypes' => collect($this->fieldTypes()),
+            'lookupModules' => $this->lookupModules(),
         ]);
     }
 
@@ -125,6 +132,82 @@ class ContactsController extends Controller
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
     }
 
+    public function storeCustomField(Request $request): RedirectResponse
+    {
+        $allowedTypes = collect($this->fieldTypes())->pluck('value')->all();
+
+        $validated = $request->validate([
+            'field_type' => ['required', 'string', 'in:'.implode(',', $allowedTypes)],
+            'field_name' => ['required', 'string', 'max:80'],
+            'default_value' => ['nullable', 'string', 'max:255'],
+            'required' => ['nullable', 'boolean'],
+            'lookup_module' => ['nullable', 'string', 'in:'.implode(',', array_column($this->lookupModules(), 'value'))],
+            'options' => ['nullable', 'array'],
+            'options.*' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $fieldName = trim((string) $validated['field_name']);
+        $fieldType = (string) $validated['field_type'];
+        $customFields = collect($request->session()->get('contacts.custom_fields', []))->values();
+
+        $nameExists = $customFields->contains(function (array $field) use ($fieldName): bool {
+            return Str::lower((string) ($field['name'] ?? '')) === Str::lower($fieldName);
+        });
+        if ($nameExists) {
+            return back()->withErrors(['field_name' => 'Field name already exists for Contacts.'])->withInput();
+        }
+
+        $keyBase = Str::slug($fieldName, '_');
+        if ($keyBase === '') {
+            $keyBase = 'custom_field';
+        }
+
+        $key = 'custom_'.$keyBase;
+        $suffix = 1;
+        $usedKeys = $customFields->pluck('key')->all();
+        while (in_array($key, $usedKeys, true)) {
+            $suffix++;
+            $key = 'custom_'.$keyBase.'_'.$suffix;
+        }
+
+        $options = collect($validated['options'] ?? [])
+            ->map(fn ($option) => trim((string) $option))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($fieldType === 'picklist' && count($options) === 0) {
+            return back()->withErrors(['options' => 'Picklist fields need at least one option.'])->withInput();
+        }
+
+        if ($fieldType !== 'lookup') {
+            $validated['lookup_module'] = null;
+        }
+
+        $defaultValue = trim((string) ($validated['default_value'] ?? ''));
+        if ($fieldType === 'checkbox') {
+            $defaultValue = in_array(Str::lower($defaultValue), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
+        }
+        if ($fieldType === 'picklist' && $defaultValue !== '' && ! in_array($defaultValue, $options, true)) {
+            return back()->withErrors(['default_value' => 'Default value must match one of the options.'])->withInput();
+        }
+
+        $customFields->push([
+            'id' => 'fld-'.now()->format('YmdHisv').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+            'type' => $fieldType,
+            'name' => $fieldName,
+            'key' => $key,
+            'required' => (bool) ($validated['required'] ?? false),
+            'options' => $fieldType === 'picklist' ? $options : [],
+            'lookup_module' => $fieldType === 'lookup' ? (string) ($validated['lookup_module'] ?? '') : null,
+            'default_value' => $this->normalizedDefaultValue($fieldType, $defaultValue),
+        ]);
+
+        $request->session()->put('contacts.custom_fields', $customFields->values()->all());
+
+        return redirect()->route('contacts.index')->with('success', 'Contact custom field created successfully.');
+    }
+
     public function show(Request $request, Contact $contact): View
     {
         $tab = strtolower((string) $request->query('tab', 'kyc'));
@@ -158,6 +241,43 @@ class ContactsController extends Controller
             ['id' => 1002, 'name' => 'AdminUser'],
             ['id' => 1003, 'name' => 'Shine Florence Padillo'],
         ];
+    }
+
+    private function fieldTypes(): array
+    {
+        return [
+            ['value' => 'picklist', 'label' => 'Picklist', 'icon' => 'fa-list'],
+            ['value' => 'text', 'label' => 'Text', 'icon' => 'fa-font'],
+            ['value' => 'numerical', 'label' => 'Numerical', 'icon' => 'fa-hashtag'],
+            ['value' => 'lookup', 'label' => 'Lookup', 'icon' => 'fa-link'],
+            ['value' => 'date', 'label' => 'Date', 'icon' => 'fa-calendar-days'],
+            ['value' => 'checkbox', 'label' => 'Checkbox', 'icon' => 'fa-square-check'],
+            ['value' => 'email', 'label' => 'Email', 'icon' => 'fa-envelope'],
+            ['value' => 'phone', 'label' => 'Phone', 'icon' => 'fa-phone'],
+            ['value' => 'url', 'label' => 'URL', 'icon' => 'fa-globe'],
+            ['value' => 'user', 'label' => 'User', 'icon' => 'fa-user'],
+            ['value' => 'currency', 'label' => 'Currency', 'icon' => 'fa-peso-sign'],
+        ];
+    }
+
+    private function lookupModules(): array
+    {
+        return [
+            ['value' => 'deals', 'label' => 'Deals'],
+            ['value' => 'company', 'label' => 'Company'],
+            ['value' => 'products', 'label' => 'Products'],
+        ];
+    }
+
+    private function normalizedDefaultValue(string $fieldType, ?string $defaultValue): string
+    {
+        $value = trim((string) ($defaultValue ?? ''));
+
+        if ($fieldType === 'checkbox') {
+            return in_array(Str::lower($value), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
+        }
+
+        return $value;
     }
 
     private function tabData(Contact $contact): array

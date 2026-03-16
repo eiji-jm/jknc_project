@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanyActivity;
+use App\Models\CompanyConsultationNote;
 use App\Models\CompanyCif;
+use App\Models\CompanyHistoryEntry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -113,81 +116,21 @@ class CompanyController extends Controller
 
     public function history(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
-
-        $historyGroups = [
-            [
-                'label' => 'TODAY',
-                'items' => [
-                    [
-                        'actor' => 'John Admin',
-                        'time' => '10:30 AM',
-                        'message' => 'updated the ABC Corporation Ave, Suite 202, San Francisco, CA 94103 to a newer address.',
-                        'date' => 'April 24, 2024',
-                    ],
-                    [
-                        'actor' => 'Maria Santos',
-                        'time' => null,
-                        'message' => 'added a note: Monthly meeting scheduled for the 3rd Friday of each month.',
-                        'date' => 'April 23, 2024',
-                    ],
-                ],
-            ],
-            [
-                'label' => 'APRIL 22, 2024',
-                'items' => [
-                    [
-                        'actor' => 'John Admin',
-                        'time' => '06:15 PM',
-                        'message' => 'updated the company website field from http://oldsiteabc.com to https://abc.com',
-                        'date' => 'April 22, 2024',
-                    ],
-                    [
-                        'actor' => 'Maria Admin',
-                        'time' => null,
-                        'message' => 'assigned as new contact owner of ABC Corporation.',
-                        'date' => null,
-                    ],
-                ],
-            ],
-        ];
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         return view('company.history', [
             'company' => (object) $companyData,
-            'historyGroups' => $historyGroups,
+            'historyItems' => $this->companyHistoryItems($companyData),
         ]);
     }
 
     public function consultationNotes(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
-
-        $consultationNotes = [
-            [
-                'title' => 'Initial Consultation - Software Requirements',
-                'summary' => 'Discussed enterprise software licensing options, support packages, and implementation timeline.',
-                'date' => 'Mar 02, 2026',
-                'author' => 'Maria Santos',
-                'attachments' => 2,
-            ],
-            [
-                'title' => 'Follow-up Meeting - Budget Planning',
-                'summary' => 'Reviewed budget allocation for Q2 software implementation and training requirements.',
-                'date' => 'Feb 26, 2026',
-                'author' => 'John Admin',
-                'attachments' => 1,
-            ],
-        ];
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         return view('company.consultation-notes', [
             'company' => (object) $companyData,
-            'consultationNotes' => $consultationNotes,
+            'consultationNotes' => $this->companyConsultationNotes($companyData),
         ]);
     }
 
@@ -433,52 +376,11 @@ class CompanyController extends Controller
 
     public function activities(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
-
-        $activities = [
-            [
-                'task_name' => 'Prepare a presentation for demo',
-                'due_date' => 'Feb 28, 2026',
-                'status' => 'Not Started',
-                'owner' => 'John Boe',
-                'owner_initials' => 'JB',
-            ],
-            [
-                'task_name' => 'Prepare a presentation for demo',
-                'due_date' => 'Feb 28, 2026',
-                'status' => 'In Progress',
-                'owner' => 'John Boe',
-                'owner_initials' => 'JB',
-            ],
-            [
-                'task_name' => 'Prepare a presentation for demo',
-                'due_date' => 'Feb 28, 2026',
-                'status' => 'Completed',
-                'owner' => 'John Boe',
-                'owner_initials' => 'JB',
-            ],
-            [
-                'task_name' => 'Prepare a presentation for demo',
-                'due_date' => 'Feb 28, 2026',
-                'status' => 'Not Started',
-                'owner' => 'John Boe',
-                'owner_initials' => 'JB',
-            ],
-            [
-                'task_name' => 'Prepare a presentation for demo',
-                'due_date' => 'Feb 28, 2026',
-                'status' => 'In Progress',
-                'owner' => 'John Boe',
-                'owner_initials' => 'JB',
-            ],
-        ];
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         return view('company.activities', [
             'company' => (object) $companyData,
-            'activities' => $activities,
+            'activities' => $this->companyActivities($companyData),
         ]);
     }
 
@@ -664,6 +566,206 @@ class CompanyController extends Controller
                 'address' => 'Pasig City',
                 'owner_name' => 'Owner 3',
                 'created_at' => '2026-03-03 10:00:00',
+            ],
+        ];
+    }
+
+    private function companyHistoryItems(array $companyData): array
+    {
+        $companyId = (int) $companyData['id'];
+
+        if (Schema::hasTable('company_history_entries')) {
+            return CompanyHistoryEntry::query()
+                ->where('company_id', $companyId)
+                ->latest('occurred_at')
+                ->get()
+                ->map(fn (CompanyHistoryEntry $entry) => [
+                    'id' => $entry->id,
+                    'type' => $entry->type,
+                    'title' => $entry->title,
+                    'description' => $entry->description,
+                    'extraLabel' => $entry->extra_label,
+                    'extraValue' => $entry->extra_value,
+                    'user' => $entry->user_name,
+                    'initials' => $entry->user_initials,
+                    'datetime' => optional($entry->occurred_at)->format('M j, Y, h:i A'),
+                ])
+                ->all();
+        }
+
+        return [
+            [
+                'id' => 1,
+                'type' => 'deals',
+                'title' => 'Deal linked to company',
+                'description' => "Deal 'Cloud Migration Services' linked to company",
+                'extraLabel' => 'Deal',
+                'extraValue' => 'Cloud Migration Services',
+                'user' => 'John Admin',
+                'initials' => 'JA',
+                'datetime' => 'Mar 10, 2026, 02:30 PM',
+            ],
+            [
+                'id' => 2,
+                'type' => 'notes',
+                'title' => 'Note added to company',
+                'description' => 'Added consultation note regarding implementation scope',
+                'extraLabel' => 'Note',
+                'extraValue' => 'Implementation Scope Review',
+                'user' => 'Maria Santos',
+                'initials' => 'MS',
+                'datetime' => 'Mar 08, 2026, 11:15 AM',
+            ],
+            [
+                'id' => 3,
+                'type' => 'profile',
+                'title' => 'Company profile updated',
+                'description' => 'Registered address updated on company profile',
+                'extraLabel' => 'Address',
+                'extraValue' => $companyData['address'] ?? 'Makati City',
+                'user' => 'John Admin',
+                'initials' => 'JA',
+                'datetime' => 'Mar 05, 2026, 04:20 PM',
+            ],
+            [
+                'id' => 4,
+                'type' => 'files',
+                'title' => 'File uploaded',
+                'description' => 'Uploaded signed corporate requirements checklist',
+                'extraLabel' => 'File',
+                'extraValue' => 'Corporate_Requirements.pdf',
+                'user' => 'Maria Santos',
+                'initials' => 'MS',
+                'datetime' => 'Mar 03, 2026, 09:00 AM',
+            ],
+        ];
+    }
+
+    private function companyConsultationNotes(array $companyData): array
+    {
+        $companyId = (int) $companyData['id'];
+
+        if (Schema::hasTable('company_consultation_notes')) {
+            return CompanyConsultationNote::query()
+                ->where('company_id', $companyId)
+                ->latest('consultation_date')
+                ->get()
+                ->map(fn (CompanyConsultationNote $note) => [
+                    'id' => $note->id,
+                    'title' => $note->title,
+                    'consultationDate' => optional($note->consultation_date)->format('Y-m-d'),
+                    'author' => $note->author,
+                    'summary' => $note->summary,
+                    'details' => $note->details,
+                    'category' => $note->category,
+                    'linkedDeal' => $note->linked_deal,
+                    'linkedActivity' => $note->linked_activity,
+                    'attachments' => $note->attachments ?? [],
+                    'createdAt' => optional($note->created_at)->toIso8601String(),
+                    'updatedAt' => optional($note->updated_at)->toIso8601String(),
+                ])
+                ->all();
+        }
+
+        return [
+            [
+                'id' => 1,
+                'title' => 'Initial Consultation - Software Requirements',
+                'consultationDate' => '2026-03-02',
+                'author' => 'Maria Santos',
+                'summary' => 'Discussed enterprise software licensing options, support packages, and implementation timeline.',
+                'details' => 'Client requested a phased rollout, training bundle, and SLA-based support package.',
+                'category' => 'Software Consultation',
+                'linkedDeal' => 'Cloud Migration Services',
+                'linkedActivity' => 'Follow-up call',
+                'attachments' => [
+                    ['id' => 101, 'name' => 'Requirements_Checklist.pdf', 'type' => 'PDF', 'size' => 182344, 'url' => '#'],
+                ],
+                'createdAt' => '2026-03-02T10:20:00',
+                'updatedAt' => '2026-03-02T10:20:00',
+            ],
+            [
+                'id' => 2,
+                'title' => 'Follow-up Meeting - Budget Planning',
+                'consultationDate' => '2026-02-26',
+                'author' => 'John Admin',
+                'summary' => 'Reviewed budget allocation for Q2 software implementation and training requirements.',
+                'details' => 'Budget approved for initial deployment and milestone-based invoicing.',
+                'category' => 'Budget Review',
+                'linkedDeal' => 'Security Audit Package',
+                'linkedActivity' => 'Quarterly review meeting',
+                'attachments' => [
+                    ['id' => 201, 'name' => 'Budget_Allocation_Q2.xlsx', 'type' => 'XLSX', 'size' => 120304, 'url' => '#'],
+                ],
+                'createdAt' => '2026-02-26T14:30:00',
+                'updatedAt' => '2026-02-26T14:30:00',
+            ],
+        ];
+    }
+
+    private function companyActivities(array $companyData): array
+    {
+        $companyId = (int) $companyData['id'];
+
+        if (Schema::hasTable('company_activities')) {
+            return CompanyActivity::query()
+                ->where('company_id', $companyId)
+                ->latest('due_at')
+                ->get()
+                ->map(fn (CompanyActivity $activity) => [
+                    'id' => $activity->id,
+                    'type' => $activity->type,
+                    'icon' => match (strtolower($activity->type)) {
+                        'call' => 'fa-phone',
+                        'meeting' => 'fa-video',
+                        'email' => 'fa-envelope',
+                        default => 'fa-square-check',
+                    },
+                    'description' => $activity->description,
+                    'when' => optional($activity->due_at)->format('M d, Y h:i A') ?: '-',
+                    'owner' => $activity->assigned_user,
+                    'status' => $activity->status,
+                    'notes' => $activity->notes,
+                    'dueAt' => optional($activity->due_at)->format('Y-m-d\TH:i'),
+                ])
+                ->all();
+        }
+
+        $owner = $companyData['owner_name'] ?? 'John Admin';
+
+        return [
+            [
+                'id' => 1,
+                'type' => 'Call',
+                'icon' => 'fa-phone',
+                'description' => 'Follow-up call regarding implementation timeline',
+                'when' => 'Mar 03, 2026 02:30 PM',
+                'owner' => $owner,
+                'status' => 'Completed',
+                'notes' => 'Discussed deployment dependencies.',
+                'dueAt' => '2026-03-03T14:30',
+            ],
+            [
+                'id' => 2,
+                'type' => 'Meeting',
+                'icon' => 'fa-video',
+                'description' => 'Quarterly review meeting with stakeholders',
+                'when' => 'Mar 01, 2026 10:00 AM',
+                'owner' => 'Maria Santos',
+                'status' => 'Completed',
+                'notes' => 'Budget and rollout approved.',
+                'dueAt' => '2026-03-01T10:00',
+            ],
+            [
+                'id' => 3,
+                'type' => 'Task',
+                'icon' => 'fa-square-check',
+                'description' => 'Prepare contract documents for review',
+                'when' => 'Feb 27, 2026 11:00 AM',
+                'owner' => $owner,
+                'status' => 'Pending',
+                'notes' => 'Waiting on legal feedback.',
+                'dueAt' => '2026-02-27T11:00',
             ],
         ];
     }

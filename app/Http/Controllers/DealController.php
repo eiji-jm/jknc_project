@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Throwable;
@@ -24,6 +25,9 @@ class DealController extends Controller
         ];
 
         $deals = $this->mockDeals();
+        $owners = $this->ownerOptions();
+        $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
+        $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
         $companyOptions = [
             'ABC Company',
             'XYZ Company',
@@ -87,7 +91,9 @@ class DealController extends Controller
                 'Corporate Software License',
                 'Security Audit Toolkit',
             ],
-            'ownerLabel' => 'Shine Florence Padillo',
+            'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
+            'owners' => $owners,
+            'defaultOwnerId' => $defaultOwnerId,
         ]);
     }
 
@@ -273,6 +279,32 @@ class DealController extends Controller
                 'owner_name' => 'John Adams',
                 'stage' => 'Inquiry',
             ],
+        ];
+    }
+
+    private function ownerOptions(): array
+    {
+        $users = User::query()
+            ->select(['id', 'name', 'email'])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'email' => $user->email ?: strtolower(str_replace(' ', '.', $user->name)).'@example.com',
+            ])
+            ->values()
+            ->all();
+
+        if (! empty($users)) {
+            return $users;
+        }
+
+        return [
+            ['id' => 1001, 'name' => 'Shine Florence Padillo', 'email' => 'shinepadi@gmail.com'],
+            ['id' => 1002, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
+            ['id' => 1003, 'name' => 'Maria Santos', 'email' => 'maria.santos@example.com'],
+            ['id' => 1004, 'name' => 'Juan Dela Cruz', 'email' => 'juan.delacruz@example.com'],
         ];
     }
 }
