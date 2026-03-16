@@ -87,7 +87,7 @@ Logout
 
 <a href="{{ route('corporate') }}"
 class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-{{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+{{ request()->routeIs('corporate') || request()->routeIs('corporate.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-building text-base"></i>
 <span>Corporate</span>
 </a>
@@ -135,7 +135,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 </aside>
 
 <!-- SECOND SIDEBAR -->
-@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*'))
+@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*') || request()->routeIs('company.corporate-formation*') || request()->routeIs('company.lgu*') || request()->routeIs('company.accounting*') || request()->routeIs('company.banking*') || request()->routeIs('company.operations*') || request()->routeIs('company.correspondence*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -160,16 +160,16 @@ KYC
 <a href="{{ route('company.services.index', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.services.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Services</a>
 
 <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-<p class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Corporate/Formation</p>
+<a href="{{ route('company.corporate-formation', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.corporate-formation*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Corporate/Formation</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">BIR & Tax</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">National</a>
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">LGU</a>
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Accounting</a>
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Banking</a>
+<a href="{{ route('company.lgu', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.lgu*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">LGU</a>
+<a href="{{ route('company.accounting', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.accounting*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Accounting</a>
+<a href="{{ route('company.banking', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.banking*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Banking</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Legal</a>
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Operations</a>
+<a href="{{ route('company.operations', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.operations*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Operations</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">201 Files</a>
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Correspondence</a>
+<a href="{{ route('company.correspondence', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.correspondence*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Correspondence</a>
 </div>
 
 </div>
@@ -220,12 +220,25 @@ BIR & Tax
 NatGov
 </a>
 
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+<a href="{{ route('corporate.lgu') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 LGU
 </a>
 
 <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Accounting</a>
+<a href="{{ route('corporate.accounting') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.accounting') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Accounting</a>
+<a href="{{ route('corporate.banking') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.banking') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Banking</a>
+<a href="{{ route('corporate.operations') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Operations</a>
+<a href="{{ route('corporate.correspondence') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->routeIs('corporate.correspondence') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Correspondence</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Priority</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Status</a>
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Tag</a>

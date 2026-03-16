@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class SecAoi extends Model
 {
     protected $fillable = [
+        'company_id',
         'corporation_name',
         'company_reg_no',
         'principal_address',

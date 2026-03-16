@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class GisRecord extends Model
 {
     protected $fillable = [
+        'company_id',
 
         'uploaded_by',
         'submission_status',

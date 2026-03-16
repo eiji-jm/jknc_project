@@ -9,6 +9,7 @@ class Bylaw extends Model
 
 protected $fillable = [
 
+'company_id',
 'corporation_name',
 'company_reg_no',
 'type_of_formation',

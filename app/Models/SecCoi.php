@@ -9,6 +9,7 @@ class SecCoi extends Model
     protected $table = 'sec_coi';
 
     protected $fillable = [
+        'company_id',
         'corporate_name',
         'company_reg_no',
         'issued_by',
