@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\GisRecord;
 
 class GisController extends Controller
 {
     public function index()
     {
-        $gis = GisRecord::latest()->get();
+        $gis = GisRecord::where('approval_status', 'Approved')->latest()->get();
         return view('corporate.gis', compact('gis'));
     }
 
@@ -21,6 +22,8 @@ class GisController extends Controller
             $filePath = $request->file('file')->store('gis_files', 'public');
         }
 
+        $isApprover = in_array(Auth::user()->role, ['admin', 'super_admin']);
+
         GisRecord::create([
             'uploaded_by'       => $request->uploaded_by,
             'submission_status' => $request->submission_status,
@@ -31,14 +34,19 @@ class GisController extends Controller
             'annual_meeting'    => $request->annual_meeting,
             'meeting_type'      => $request->meeting_type,
             'file'              => $filePath,
+            'approval_status'   => $isApprover ? 'Approved' : 'Pending',
+            'submitted_by'      => Auth::id(),
+            'approved_by'       => $isApprover ? Auth::id() : null,
+            'approved_at'       => $isApprover ? now() : null,
         ]);
 
-        return redirect()->route('corporate.gis');
+        return redirect()->route('corporate.gis')
+            ->with('success', $isApprover ? 'GIS saved successfully.' : 'GIS submitted for approval.');
     }
 
     public function companyInfo()
     {
-        $gis = GisRecord::latest()->first();
+        $gis = GisRecord::where('approval_status', 'Approved')->latest()->first();
 
         if (!$gis) {
             $gis = new GisRecord();
@@ -50,6 +58,11 @@ class GisController extends Controller
     public function companyInfoById($id)
     {
         $gis = GisRecord::findOrFail($id);
+
+        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'This record is still pending approval.');
+        }
+
         return view('corporate.company-general-information', compact('gis'));
     }
 
@@ -69,7 +82,6 @@ class GisController extends Controller
             'auditor'                 => 'nullable|string|max:255',
             'industry'                => 'nullable|string|max:255',
             'geo_code'                => 'nullable|string|max:255',
-
             'parent_company_name'     => 'nullable|string|max:255',
             'parent_company_sec_no'   => 'nullable|string|max:255',
             'parent_company_address'  => 'nullable|string|max:255',
@@ -79,6 +91,10 @@ class GisController extends Controller
         ]);
 
         $gis = GisRecord::findOrFail($id);
+
+        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'This record is still pending approval.');
+        }
 
         $gis->update([
             'date_registered'         => $request->date_registered,
@@ -94,7 +110,6 @@ class GisController extends Controller
             'auditor'                 => $request->auditor,
             'industry'                => $request->industry,
             'geo_code'                => $request->geo_code,
-
             'parent_company_name'     => $request->parent_company_name,
             'parent_company_sec_no'   => $request->parent_company_sec_no,
             'parent_company_address'  => $request->parent_company_address,
@@ -131,6 +146,10 @@ class GisController extends Controller
             'directors',
             'stockholders'
         ])->findOrFail($id);
+
+        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'This record is still pending approval.');
+        }
 
         return view('corporate.gis-show', compact('gis'));
     }

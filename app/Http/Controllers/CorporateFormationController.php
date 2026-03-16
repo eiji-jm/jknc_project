@@ -3,21 +3,19 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\SecCoi;
 
 class CorporateFormationController extends Controller
 {
-
     public function index()
     {
-        $records = SecCoi::latest()->get();
+        $records = SecCoi::where('approval_status', 'Approved')->latest()->get();
         return view('corporate.corporate-formation', compact('records'));
     }
 
-
     public function store(Request $request)
     {
-
         $request->validate([
             'corporate_name' => 'required',
             'company_reg_no' => 'required',
@@ -27,56 +25,59 @@ class CorporateFormationController extends Controller
             'file_upload' => 'nullable|file'
         ]);
 
-
         $filePath = null;
 
         if ($request->hasFile('file_upload')) {
-
             $file = $request->file('file_upload');
-
-            $fileName = time().'_'.$file->getClientOriginalName();
-
+            $fileName = time() . '_' . $file->getClientOriginalName();
             $file->move(public_path('uploads/sec-coi'), $fileName);
-
-            $filePath = 'uploads/sec-coi/'.$fileName;
+            $filePath = 'uploads/sec-coi/' . $fileName;
         }
 
+        $isApprover = in_array(Auth::user()->role, ['admin', 'super_admin']);
 
         SecCoi::create([
-            'corporate_name' => $request->corporate_name,
-            'company_reg_no' => $request->company_reg_no,
-            'issued_by' => $request->issued_by,
-            'issued_on' => $request->issued_on,
-            'date_upload' => $request->date_upload,
-            'file_path' => $filePath
+            'corporate_name'   => $request->corporate_name,
+            'company_reg_no'   => $request->company_reg_no,
+            'issued_by'        => $request->issued_by,
+            'issued_on'        => $request->issued_on,
+            'date_upload'      => $request->date_upload,
+            'file_path'        => $filePath,
+            'approval_status'  => $isApprover ? 'Approved' : 'Pending',
+            'submitted_by'     => Auth::id(),
+            'approved_by'      => $isApprover ? Auth::id() : null,
+            'approved_at'      => $isApprover ? now() : null,
         ]);
 
-
-        return redirect()->route('corporate.formation');
+        return redirect()->route('corporate.formation')
+            ->with('success', $isApprover ? 'SEC-COI saved successfully.' : 'SEC-COI submitted for approval.');
     }
 
     public function show($id)
-{
-    $record = SecCoi::findOrFail($id);
+    {
+        $record = SecCoi::findOrFail($id);
 
-    return view('corporate.sec-coi-preview', compact('record'));
-}
+        if ($record->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+            abort(403, 'This record is still pending approval.');
+        }
 
-public function uploadFile(Request $request, $id)
-{
-    $request->validate([
-        'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-    ]);
+        return view('corporate.sec-coi-preview', compact('record'));
+    }
 
-    $record = \App\Models\SecCoi::findOrFail($id);
+    public function uploadFile(Request $request, $id)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
 
-    $filePath = $request->file('file')->store('formation_files', 'public');
+        $record = SecCoi::findOrFail($id);
 
-    $record->update([
-        'file_path' => $filePath,
-    ]);
+        $filePath = $request->file('file')->store('formation_files', 'public');
 
-    return back()->with('success', 'File attached successfully.');
-}
+        $record->update([
+            'file_path' => $filePath,
+        ]);
 
+        return back()->with('success', 'File attached successfully.');
+    }
 }

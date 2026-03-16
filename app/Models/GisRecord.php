@@ -37,6 +37,12 @@ class GisRecord extends Model
         'subsidiary_name',
         'subsidiary_sec_no',
         'subsidiary_address',
+
+        'approval_status',
+        'submitted_by',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
 
     public function authorizedCapital()

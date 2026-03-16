@@ -14,6 +14,11 @@ class SecCoi extends Model
         'issued_by',
         'issued_on',
         'date_upload',
-        'file_path'
+        'file_path',
+        'approval_status',
+        'submitted_by',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
 }
