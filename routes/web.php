@@ -5,6 +5,8 @@ use App\Http\Controllers\CompanyCifController;
 use App\Http\Controllers\CompanyServiceController;
 use App\Http\Controllers\CompanyProductController;
 use App\Http\Controllers\CompanyDealController;
+use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\DealController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
 use App\Http\Controllers\DirectorOfficerController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\StockholderController;
 
 
@@ -30,6 +33,18 @@ Route::post('/register',[RegisterController::class,'submit'])->name('register.po
 Route::post('/logout',[LoginController::class,'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
+    Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+    Route::get('/contacts/{contact}', [ContactsController::class, 'show'])->name('contacts.show');
+
+    Route::get('/deals', [DealController::class, 'index'])->name('deals.index');
+    Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
+
+    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+    Route::post('/products/change-owner', [ProductController::class, 'changeOwner'])->name('products.change-owner');
+    Route::post('/products/custom-fields', [ProductController::class, 'storeCustomField'])->name('products.custom-fields.store');
+    Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
 
     Route::get('/services', [CompanyServiceController::class, 'globalIndex'])->name('services.index');
     Route::post('/services', [CompanyServiceController::class, 'storeGlobal'])->name('services.store');

@@ -97,15 +97,17 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Activities</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="{{ route('contacts.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('contacts*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-users text-base"></i>
 <span>Contacts</span>
 </a>
 
-<a href="#"
+<a href="{{ route('deals.index') }}"
 class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-{{ request()->routeIs('company.deals') || request()->routeIs('company.deals.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-<i class="fas fa-handshake text-base"></i>
+{{ request()->is('deals*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-handshake-angle text-base"></i>
 <span>Deals</span>
 </a>
 
@@ -121,6 +123,13 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 {{ request()->routeIs('services.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-briefcase text-base"></i>
 <span>Services</span>
+</a>
+
+<a href="{{ route('products.index') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->is('products*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-cube text-base"></i>
+<span>Product</span>
 </a>
 
 </aside>
@@ -181,7 +190,7 @@ KYC
 </div>
 
 </aside>
-@elseif (!request()->routeIs('company.*'))
+@elseif (!request()->routeIs('company.*') && !request()->routeIs('contacts.*') && !request()->routeIs('deals.*') && !request()->routeIs('products.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
