@@ -2,6 +2,26 @@
 
 @section('content')
 
+@php
+    $authorizedTotalShares = $gis->authorizedCapital->sum('number_of_shares');
+    $authorizedTotalAmount = $gis->authorizedCapital->sum('amount');
+
+    $subscribedTotalStockholders = $gis->subscribedCapital->sum('no_of_stockholders');
+    $subscribedTotalShares = $gis->subscribedCapital->sum('number_of_shares');
+    $subscribedTotalAmount = $gis->subscribedCapital->sum('amount');
+    $subscribedTotalOwnership = $gis->subscribedCapital->sum('ownership_percentage');
+
+    $paidupTotalStockholders = $gis->paidUpCapital->sum('no_of_stockholders');
+    $paidupTotalShares = $gis->paidUpCapital->sum('number_of_shares');
+    $paidupTotalAmount = $gis->paidUpCapital->sum('amount');
+    $paidupTotalOwnership = $gis->paidUpCapital->sum('ownership_percentage');
+
+    $stockholderTotalShares = $gis->stockholders->sum('shares');
+    $stockholderTotalAmount = $gis->stockholders->sum('amount');
+    $stockholderTotalOwnership = $gis->stockholders->sum('ownership_percentage');
+    $stockholderTotalPaid = $gis->stockholders->sum('amount_paid');
+@endphp
+
 <div class="w-full px-6 py-6" x-data="{ tab:null, panel:null }">
 
     <h1 class="text-2xl font-semibold mb-6">
@@ -41,6 +61,7 @@
     <!-- CAPITAL STRUCTURE -->
     <div x-show="tab=='capital'" class="space-y-8 mb-10">
 
+        <!-- AUTHORIZED -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -69,9 +90,9 @@
                         @forelse($gis->authorizedCapital as $row)
                             <tr class="hover:bg-blue-50">
                                 <td class="border px-4 py-3">{{ $row->share_type }}</td>
-                                <td class="border px-4 py-3">{{ $row->number_of_shares }}</td>
-                                <td class="border px-4 py-3">{{ $row->par_value }}</td>
-                                <td class="border px-4 py-3">{{ $row->amount }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->number_of_shares, 0) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->par_value, 2) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->amount, 2) }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -79,10 +100,20 @@
                             </tr>
                         @endforelse
                     </tbody>
+
+                    <tfoot class="bg-gray-50 font-semibold">
+                        <tr>
+                            <td class="border px-4 py-3 text-right">TOTAL</td>
+                            <td class="border px-4 py-3">{{ number_format($authorizedTotalShares, 0) }}</td>
+                            <td class="border px-4 py-3">—</td>
+                            <td class="border px-4 py-3">{{ number_format($authorizedTotalAmount, 2) }}</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
 
+        <!-- SUBSCRIBED -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -114,12 +145,12 @@
                         @forelse($gis->subscribedCapital as $row)
                             <tr class="hover:bg-blue-50">
                                 <td class="border px-4 py-3">{{ $row->nationality }}</td>
-                                <td class="border px-4 py-3">{{ $row->no_of_stockholders }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->no_of_stockholders, 0) }}</td>
                                 <td class="border px-4 py-3">{{ $row->share_type }}</td>
-                                <td class="border px-4 py-3">{{ $row->number_of_shares }}</td>
-                                <td class="border px-4 py-3">{{ $row->par_value }}</td>
-                                <td class="border px-4 py-3">{{ $row->amount }}</td>
-                                <td class="border px-4 py-3">{{ $row->ownership_percentage }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->number_of_shares, 0) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->par_value, 2) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->amount, 2) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->ownership_percentage, 2) }}%</td>
                             </tr>
                         @empty
                             <tr>
@@ -127,10 +158,23 @@
                             </tr>
                         @endforelse
                     </tbody>
+
+                    <tfoot class="bg-gray-50 font-semibold">
+                        <tr>
+                            <td class="border px-4 py-3 text-right">TOTAL</td>
+                            <td class="border px-4 py-3">{{ number_format($subscribedTotalStockholders, 0) }}</td>
+                            <td class="border px-4 py-3">—</td>
+                            <td class="border px-4 py-3">{{ number_format($subscribedTotalShares, 0) }}</td>
+                            <td class="border px-4 py-3">—</td>
+                            <td class="border px-4 py-3">{{ number_format($subscribedTotalAmount, 2) }}</td>
+                            <td class="border px-4 py-3">{{ number_format($subscribedTotalOwnership, 2) }}%</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
 
+        <!-- PAID-UP -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -162,12 +206,12 @@
                         @forelse($gis->paidUpCapital as $row)
                             <tr class="hover:bg-blue-50">
                                 <td class="border px-4 py-3">{{ $row->nationality }}</td>
-                                <td class="border px-4 py-3">{{ $row->no_of_stockholders }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->no_of_stockholders, 0) }}</td>
                                 <td class="border px-4 py-3">{{ $row->share_type }}</td>
-                                <td class="border px-4 py-3">{{ $row->number_of_shares }}</td>
-                                <td class="border px-4 py-3">{{ $row->par_value }}</td>
-                                <td class="border px-4 py-3">{{ $row->amount }}</td>
-                                <td class="border px-4 py-3">{{ $row->ownership_percentage }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->number_of_shares, 0) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->par_value, 2) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->amount, 2) }}</td>
+                                <td class="border px-4 py-3">{{ number_format($row->ownership_percentage, 2) }}%</td>
                             </tr>
                         @empty
                             <tr>
@@ -175,6 +219,18 @@
                             </tr>
                         @endforelse
                     </tbody>
+
+                    <tfoot class="bg-gray-50 font-semibold">
+                        <tr>
+                            <td class="border px-4 py-3 text-right">TOTAL</td>
+                            <td class="border px-4 py-3">{{ number_format($paidupTotalStockholders, 0) }}</td>
+                            <td class="border px-4 py-3">—</td>
+                            <td class="border px-4 py-3">{{ number_format($paidupTotalShares, 0) }}</td>
+                            <td class="border px-4 py-3">—</td>
+                            <td class="border px-4 py-3">{{ number_format($paidupTotalAmount, 2) }}</td>
+                            <td class="border px-4 py-3">{{ number_format($paidupTotalOwnership, 2) }}%</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -200,13 +256,13 @@
                     <tr>
                         <th class="border px-4 py-3">Officer Name</th>
                         <th class="border px-4 py-3">Address</th>
-                        <th class="border px-4 py-3">Gender</th>
                         <th class="border px-4 py-3">Nationality</th>
                         <th class="border px-4 py-3">INCR</th>
-                        <th class="border px-4 py-3">Stockholder</th>
                         <th class="border px-4 py-3">Board</th>
-                        <th class="border px-4 py-3">Type of Officer</th>
-                        <th class="border px-4 py-3">Committee</th>
+                        <th class="border px-4 py-3">Gender</th>
+                        <th class="border px-4 py-3">Stockholder</th>
+                        <th class="border px-4 py-3">Officer</th>
+                        <th class="border px-4 py-3">Exec. Comm.</th>
                         <th class="border px-4 py-3">TIN</th>
                     </tr>
                 </thead>
@@ -216,11 +272,11 @@
                         <tr class="hover:bg-blue-50">
                             <td class="border px-4 py-3">{{ $row->officer_name }}</td>
                             <td class="border px-4 py-3">{{ $row->address }}</td>
-                            <td class="border px-4 py-3">{{ $row->gender }}</td>
                             <td class="border px-4 py-3">{{ $row->nationality }}</td>
-                            <td class="border px-4 py-3">{{ $row->incr }}</td>
-                            <td class="border px-4 py-3">{{ $row->stockholder }}</td>
+                            <td class="border px-4 py-3">{{ $row->incr ? 'Y' : 'N' }}</td>
                             <td class="border px-4 py-3">{{ $row->board }}</td>
+                            <td class="border px-4 py-3">{{ $row->gender }}</td>
+                            <td class="border px-4 py-3">{{ $row->stockholder ? 'Y' : 'N' }}</td>
                             <td class="border px-4 py-3">{{ $row->officer_type }}</td>
                             <td class="border px-4 py-3">{{ $row->committee }}</td>
                             <td class="border px-4 py-3">{{ $row->tin }}</td>
@@ -274,12 +330,12 @@
                             <td class="border px-4 py-3">{{ $row->address }}</td>
                             <td class="border px-4 py-3">{{ $row->gender }}</td>
                             <td class="border px-4 py-3">{{ $row->nationality }}</td>
-                            <td class="border px-4 py-3">{{ $row->incr }}</td>
+                            <td class="border px-4 py-3">{{ $row->incr ? 'Y' : 'N' }}</td>
                             <td class="border px-4 py-3">{{ $row->share_type }}</td>
-                            <td class="border px-4 py-3">{{ $row->shares }}</td>
-                            <td class="border px-4 py-3">{{ $row->amount }}</td>
-                            <td class="border px-4 py-3">{{ $row->ownership_percentage }}</td>
-                            <td class="border px-4 py-3">{{ $row->amount_paid }}</td>
+                            <td class="border px-4 py-3">{{ number_format($row->shares, 0) }}</td>
+                            <td class="border px-4 py-3">{{ number_format($row->amount, 2) }}</td>
+                            <td class="border px-4 py-3">{{ number_format($row->ownership_percentage, 2) }}%</td>
+                            <td class="border px-4 py-3">{{ number_format($row->amount_paid, 2) }}</td>
                             <td class="border px-4 py-3">{{ $row->tin }}</td>
                         </tr>
                     @empty
@@ -288,6 +344,17 @@
                         </tr>
                     @endforelse
                 </tbody>
+
+                <tfoot class="bg-gray-50 font-semibold">
+                    <tr>
+                        <td colspan="6" class="border px-4 py-3 text-right">TOTAL</td>
+                        <td class="border px-4 py-3">{{ number_format($stockholderTotalShares, 0) }}</td>
+                        <td class="border px-4 py-3">{{ number_format($stockholderTotalAmount, 2) }}</td>
+                        <td class="border px-4 py-3">{{ number_format($stockholderTotalOwnership, 2) }}%</td>
+                        <td class="border px-4 py-3">{{ number_format($stockholderTotalPaid, 2) }}</td>
+                        <td class="border px-4 py-3">—</td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
@@ -302,81 +369,172 @@
                 Add Record
             </h2>
 
+            <!-- AUTHORIZED -->
             <form x-show="panel=='authorized'" action="{{ route('authorized.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
-                <input name="share_type" placeholder="Share Type" class="border w-full p-2 rounded">
-                <input name="number_of_shares" placeholder="Shares" class="border w-full p-2 rounded">
-                <input name="par_value" placeholder="Par Value" class="border w-full p-2 rounded">
-                <input name="amount" placeholder="Amount" class="border w-full p-2 rounded">
+
+                <select name="share_type" class="border w-full p-2 rounded" required>
+                    <option value="">Type of Shares</option>
+                    <option value="Common Stock">Common Stock</option>
+                    <option value="Preferred Stock">Preferred Stock</option>
+                </select>
+
+                <input name="number_of_shares" type="number" min="1" step="1" placeholder="Number of Shares" class="border w-full p-2 rounded" required>
+                <input name="par_value" type="number" min="0" step="0.01" placeholder="Par / Stated Value" class="border w-full p-2 rounded" required>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" class="border w-full p-2 rounded" required>
+
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
+            <!-- SUBSCRIBED -->
             <form x-show="panel=='subscribed'" action="{{ route('subscribed.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
-                <input name="nationality" placeholder="Nationality" class="border w-full p-2 rounded">
-                <input name="stockholders" placeholder="No. of Stockholders" class="border w-full p-2 rounded">
-                <input name="share_type" placeholder="Share Type" class="border w-full p-2 rounded">
-                <input name="shares" placeholder="Shares" class="border w-full p-2 rounded">
-                <input name="par_value" placeholder="Par Value" class="border w-full p-2 rounded">
-                <input name="amount" placeholder="Amount" class="border w-full p-2 rounded">
-                <input name="ownership" placeholder="% Ownership" class="border w-full p-2 rounded">
+
+                <select name="nationality" class="border w-full p-2 rounded" required>
+                    <option value="">Nationality</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Foreign">Foreign</option>
+                    <option value="N.A.">N.A.</option>
+                </select>
+
+                <input name="stockholders" type="number" min="0" step="1" placeholder="No. of Stockholders" class="border w-full p-2 rounded" required>
+
+                <select name="share_type" class="border w-full p-2 rounded" required>
+                    <option value="">Type of Shares</option>
+                    <option value="Common Stock">Common Stock</option>
+                    <option value="Preferred Stock">Preferred Stock</option>
+                </select>
+
+                <input name="shares" type="number" min="0" step="1" placeholder="Number of Shares" class="border w-full p-2 rounded" required>
+                <input name="par_value" type="number" min="0" step="0.01" placeholder="Par Value" class="border w-full p-2 rounded" required>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" class="border w-full p-2 rounded" required>
+                <input name="ownership" type="number" min="0" step="0.01" placeholder="% Ownership" class="border w-full p-2 rounded" required>
+
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
+            <!-- PAID-UP -->
             <form x-show="panel=='paidup'" action="{{ route('paidup.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
-                <input name="nationality" placeholder="Nationality" class="border w-full p-2 rounded">
-                <input name="stockholders" placeholder="No. of Stockholders" class="border w-full p-2 rounded">
-                <input name="share_type" placeholder="Share Type" class="border w-full p-2 rounded">
-                <input name="shares" placeholder="Shares" class="border w-full p-2 rounded">
-                <input name="par_value" placeholder="Par Value" class="border w-full p-2 rounded">
-                <input name="amount" placeholder="Amount" class="border w-full p-2 rounded">
-                <input name="ownership" placeholder="% Ownership" class="border w-full p-2 rounded">
+
+                <select name="nationality" class="border w-full p-2 rounded" required>
+                    <option value="">Nationality</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Foreign">Foreign</option>
+                    <option value="N.A.">N.A.</option>
+                </select>
+
+                <input name="stockholders" type="number" min="0" step="1" placeholder="No. of Stockholders" class="border w-full p-2 rounded" required>
+
+                <select name="share_type" class="border w-full p-2 rounded" required>
+                    <option value="">Type of Shares</option>
+                    <option value="Common Stock">Common Stock</option>
+                    <option value="Preferred Stock">Preferred Stock</option>
+                </select>
+
+                <input name="shares" type="number" min="0" step="1" placeholder="Number of Shares" class="border w-full p-2 rounded" required>
+                <input name="par_value" type="number" min="0" step="0.01" placeholder="Par Value" class="border w-full p-2 rounded" required>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" class="border w-full p-2 rounded" required>
+                <input name="ownership" type="number" min="0" step="0.01" placeholder="% Ownership" class="border w-full p-2 rounded" required>
+
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
+            <!-- DIRECTOR -->
             <form x-show="panel=='director'" action="{{ route('director.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
-                <input name="officer_name" placeholder="Officer Name" class="border w-full p-2 rounded">
-                <input name="address" placeholder="Address" class="border w-full p-2 rounded">
-                <input name="gender" placeholder="Gender" class="border w-full p-2 rounded">
-                <input name="nationality" placeholder="Nationality" class="border w-full p-2 rounded">
-                <input name="incr" placeholder="INCR (1 or 0)" class="border w-full p-2 rounded">
-                <input name="stockholder" placeholder="Stockholder (1 or 0)" class="border w-full p-2 rounded">
-                <input name="board" placeholder="Board Role" class="border w-full p-2 rounded">
-                <input name="officer_type" placeholder="Officer Type" class="border w-full p-2 rounded">
-                <input name="committee" placeholder="Committee" class="border w-full p-2 rounded">
-                <input name="tin" placeholder="TIN" class="border w-full p-2 rounded">
+
+                <input name="officer_name" placeholder="Officer Name" class="border w-full p-2 rounded" required>
+                <input name="address" placeholder="Address" class="border w-full p-2 rounded" required>
+
+                <select name="nationality" class="border w-full p-2 rounded" required>
+                    <option value="">Nationality</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Foreign">Foreign</option>
+                </select>
+
+                <select name="incr" class="border w-full p-2 rounded" required>
+                    <option value="">INCR</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
+                </select>
+
+                <select name="board" class="border w-full p-2 rounded" required>
+                    <option value="">Board</option>
+                    <option value="C">C</option>
+                    <option value="M">M</option>
+                </select>
+
+                <select name="gender" class="border w-full p-2 rounded" required>
+                    <option value="">Gender</option>
+                    <option value="M">M</option>
+                    <option value="F">F</option>
+                </select>
+
+                <select name="stockholder" class="border w-full p-2 rounded" required>
+                    <option value="">Stockholder</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
+                </select>
+
+                <input name="officer_type" placeholder="Officer / Position" class="border w-full p-2 rounded" required>
+                <input name="committee" placeholder="Exec. Comm. / Committee" class="border w-full p-2 rounded" required>
+                <input name="tin" placeholder="TIN" class="border w-full p-2 rounded" required>
+
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
+            <!-- STOCKHOLDER -->
             <form x-show="panel=='stockholder'" action="{{ route('stockholder.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
-                <input name="stockholder_name" placeholder="Stockholder Name" class="border w-full p-2 rounded">
-                <input name="address" placeholder="Address" class="border w-full p-2 rounded">
-                <input name="gender" placeholder="Gender" class="border w-full p-2 rounded">
-                <input name="nationality" placeholder="Nationality" class="border w-full p-2 rounded">
-                <input name="incr" placeholder="INCR (1 or 0)" class="border w-full p-2 rounded">
-                <input name="share_type" placeholder="Share Type" class="border w-full p-2 rounded">
-                <input name="shares" placeholder="Shares" class="border w-full p-2 rounded">
-                <input name="amount" placeholder="Amount" class="border w-full p-2 rounded">
-                <input name="ownership_percentage" placeholder="% Ownership" class="border w-full p-2 rounded">
-                <input name="amount_paid" placeholder="Amount Paid" class="border w-full p-2 rounded">
-                <input name="tin" placeholder="TIN" class="border w-full p-2 rounded">
+
+                <input name="stockholder_name" placeholder="Stockholder Name" class="border w-full p-2 rounded" required>
+                <input name="address" placeholder="Address" class="border w-full p-2 rounded" required>
+
+                <select name="gender" class="border w-full p-2 rounded" required>
+                    <option value="">Gender</option>
+                    <option value="M">M</option>
+                    <option value="F">F</option>
+                </select>
+
+                <select name="nationality" class="border w-full p-2 rounded" required>
+                    <option value="">Nationality</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Foreign">Foreign</option>
+                </select>
+
+                <select name="incr" class="border w-full p-2 rounded" required>
+                    <option value="">INCR</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
+                </select>
+
+                <select name="share_type" class="border w-full p-2 rounded" required>
+                    <option value="">Type of Shares</option>
+                    <option value="Common Stock">Common Stock</option>
+                    <option value="Preferred Stock">Preferred Stock</option>
+                </select>
+
+                <input name="shares" type="number" min="0" step="1" placeholder="Shares" class="border w-full p-2 rounded" required>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" class="border w-full p-2 rounded" required>
+                <input name="ownership_percentage" type="number" min="0" step="0.01" placeholder="% Ownership" class="border w-full p-2 rounded" required>
+                <input name="amount_paid" type="number" min="0" step="0.01" placeholder="Amount Paid" class="border w-full p-2 rounded" required>
+                <input name="tin" placeholder="TIN" class="border w-full p-2 rounded" required>
+
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- COMPLETE GIS INFORMATION -->
+            <!-- COMPLETE / EDIT GIS INFORMATION -->
             <form x-show="panel=='completegis'" action="{{ route('gis.company.update', $gis->id) }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
-                <h3 class="text-sm font-semibold text-gray-700 uppercase">Complete GIS Information</h3>
+                <h3 class="text-sm font-semibold text-gray-700 uppercase">Complete / Edit GIS Information</h3>
 
                 <input type="date" name="date_registered" class="border w-full p-2 rounded" value="{{ $gis->date_registered }}">
                 <input name="trade_name" placeholder="Trade Name" class="border w-full p-2 rounded" value="{{ $gis->trade_name }}">
@@ -582,9 +740,15 @@
                     Complete GIS Information
                 </button>
             @else
-                <div class="w-full bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm text-center">
+                <div class="w-full bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm text-center mb-3">
                     GIS Information already completed
                 </div>
+
+                <button
+                    @click="panel='completegis'"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full">
+                    Edit GIS Information
+                </button>
             @endif
         </div>
     </div>
