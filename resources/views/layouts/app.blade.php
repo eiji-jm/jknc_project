@@ -220,6 +220,13 @@
                         Users
                     </a>
 
+                    {{-- ROLE PERMISSIONS --}}
+                    <a href="{{ route('admin.role-permissions') }}"
+                    class="block px-3 py-2 rounded-lg transition
+                    {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                        Role Permissions
+                    </a>
+
                     {{-- TOWN HALL (APPROVAL DASHBOARD) --}}
                 <a href="{{ route('admin.dashboard') }}"
                 class="block px-3 py-2 rounded-lg transition

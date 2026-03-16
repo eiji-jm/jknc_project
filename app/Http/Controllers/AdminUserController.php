@@ -26,6 +26,10 @@ class AdminUserController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        if (!Auth::user()->hasPermission('manage_users')) {
+            abort(403, 'Unauthorized');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],

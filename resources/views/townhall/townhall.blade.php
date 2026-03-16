@@ -19,6 +19,7 @@
         </div>
     @endif
 
+    @if(Auth::user()->hasPermission('create_townhall'))
     {{-- SLIDE OVER --}}
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
         <div class="absolute inset-0 overflow-hidden">
@@ -202,6 +203,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- MAIN CARD --}}
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
@@ -217,12 +219,14 @@
                     <i class="far fa-rectangle-list text-xs"></i>
                 </button>
 
-                <button
-                    @click="showSlideOver = true"
-                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-full transition"
-                >
-                    <i class="fas fa-plus mr-1"></i> Add Communication
-                </button>
+                @if(Auth::user()->hasPermission('create_townhall'))
+                    <button
+                        @click="showSlideOver = true"
+                        class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-full transition"
+                    >
+                        <i class="fas fa-plus mr-1"></i> Add Communication
+                    </button>
+                @endif
 
                 <button class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center">
                     <i class="fas fa-ellipsis-v text-xs"></i>

@@ -12,13 +12,27 @@ class TownHallController extends Controller
 {
     public function index()
     {
-        $communications = TownHallCommunication::latest()->paginate(10);
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $query = TownHallCommunication::latest();
+
+        if (!Auth::user()->hasPermission('approve_townhall')) {
+            $query->where('approval_status', 'Approved');
+        }
+
+        $communications = $query->paginate(10);
 
         return view('townhall.townhall', compact('communications'));
     }
 
     public function store(Request $request)
     {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
             'from_name' => ['nullable', 'string', 'max:255'],
@@ -59,7 +73,18 @@ class TownHallController extends Controller
 
     public function show($id)
     {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $communication = TownHallCommunication::findOrFail($id);
+
+        if (
+            !Auth::user()->hasPermission('approve_townhall') &&
+            $communication->approval_status !== 'Approved'
+        ) {
+            abort(403, 'Unauthorized');
+        }
 
         $attachmentType = null;
 
@@ -80,6 +105,10 @@ class TownHallController extends Controller
 
     public function approve(Request $request, $id)
     {
+        if (!Auth::user()->hasPermission('approve_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $communication = TownHallCommunication::findOrFail($id);
 
         $communication->update([
@@ -94,6 +123,10 @@ class TownHallController extends Controller
 
     public function reject(Request $request, $id)
     {
+        if (!Auth::user()->hasPermission('approve_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $communication = TownHallCommunication::findOrFail($id);
 
         $communication->update([
@@ -108,6 +141,10 @@ class TownHallController extends Controller
 
     public function revise(Request $request, $id)
     {
+        if (!Auth::user()->hasPermission('approve_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $communication = TownHallCommunication::findOrFail($id);
 
         $communication->update([
@@ -122,6 +159,10 @@ class TownHallController extends Controller
 
     public function destroy($id)
     {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
         $communication = TownHallCommunication::findOrFail($id);
 
         if ($communication->attachment && Storage::disk('public')->exists($communication->attachment)) {

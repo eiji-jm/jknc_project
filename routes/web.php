@@ -7,6 +7,7 @@ use App\Http\Controllers\TownHallController;
 use App\Http\Controllers\GisController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\RolePermissionController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -14,12 +15,9 @@ Route::get('/', function () {
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->name('login.post');
-
 Route::get('/register', [RegisterController::class, 'show'])->name('register');
 Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
-
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
 Route::middleware('auth')->group(function () {
 
 
@@ -32,6 +30,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
     Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
+    Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
+
 
     /*
     |--------------------------------------------------------------------------

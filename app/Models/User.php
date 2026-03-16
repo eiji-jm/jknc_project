@@ -9,6 +9,13 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+
+    public function hasPermission(string $permission): bool
+    {
+        $rolePermission = \App\Models\RolePermission::where('role', $this->role)->first();
+
+        return $rolePermission ? (bool) $rolePermission->{$permission} : false;
+    }
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
