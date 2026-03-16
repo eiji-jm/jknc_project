@@ -15,7 +15,9 @@ class AdminUserPermissionController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $users = User::orderBy('name')->paginate(10);
+        $users = User::where('role', '!=', 'SuperAdmin')
+            ->orderBy('name')
+            ->paginate(10);
 
         return view('admin.user-permissions', compact('users'));
     }
@@ -27,6 +29,10 @@ class AdminUserPermissionController extends Controller
         }
 
         $user = User::findOrFail($id);
+
+        if ($user->role === 'SuperAdmin') {
+            abort(403, 'SuperAdmin permissions cannot be modified.');
+        }
 
         $permission = UserPermission::firstOrCreate(
             ['user_id' => $user->id],
@@ -53,6 +59,10 @@ class AdminUserPermissionController extends Controller
         }
 
         $user = User::findOrFail($id);
+
+        if ($user->role === 'SuperAdmin') {
+            abort(403, 'SuperAdmin permissions cannot be modified.');
+        }
 
         $permission = UserPermission::firstOrCreate(['user_id' => $user->id]);
 

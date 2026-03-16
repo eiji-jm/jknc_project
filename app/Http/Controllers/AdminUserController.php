@@ -11,22 +11,32 @@ class AdminUserController extends Controller
 {
     public function index()
     {
-        if (Auth::user()->role !== 'Admin') {
+        $authUser = Auth::user();
+
+        if (!in_array($authUser->role, ['SuperAdmin', 'Admin'])) {
             abort(403, 'Unauthorized');
         }
 
-        $users = User::latest()->paginate(10);
+        if (!$authUser->hasPermission('manage_users')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $users = User::where('role', '!=', 'SuperAdmin')
+            ->latest()
+            ->paginate(10);
 
         return view('admin.users', compact('users'));
     }
 
     public function store(Request $request)
     {
-        if (Auth::user()->role !== 'Admin') {
+        $authUser = Auth::user();
+
+        if (!in_array($authUser->role, ['SuperAdmin', 'Admin'])) {
             abort(403, 'Unauthorized');
         }
 
-        if (!Auth::user()->hasPermission('manage_users')) {
+        if (!$authUser->hasPermission('manage_users')) {
             abort(403, 'Unauthorized');
         }
 
@@ -44,6 +54,8 @@ class AdminUserController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        return redirect()->route('admin.users')->with('success', 'User created successfully.');
+        return redirect()
+            ->route('admin.users')
+            ->with('success', 'User created successfully.');
     }
 }
