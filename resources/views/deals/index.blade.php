@@ -129,6 +129,8 @@
     'contactRecords' => $contactRecords,
     'productOptions' => $productOptions,
     'ownerLabel' => $ownerLabel,
+    'owners' => $owners,
+    'defaultOwnerId' => $defaultOwnerId,
 ])
 
 <script>

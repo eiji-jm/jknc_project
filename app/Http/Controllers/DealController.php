@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+<<<<<<< HEAD
 use App\Models\Deal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+=======
+use App\Models\User;
+>>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Throwable;
@@ -29,9 +33,29 @@ class DealController extends Controller
         ];
 
         $deals = $this->mockDeals();
+<<<<<<< HEAD
         $contactRecords = [$this->mockContactRecord()];
         $companyOptions = ['Consulting Group'];
         $contactOptions = ['David Lee'];
+=======
+        $owners = $this->ownerOptions();
+        $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
+        $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
+        $companyOptions = [
+            'ABC Company',
+            'XYZ Company',
+            'Global Enterprises',
+            'Consulting Group',
+            'Innovate Co',
+            'Startup Hub',
+        ];
+        $contactOptions = [
+            'David Lee',
+            'Robert Johnson',
+            'Sarah Williams',
+            'Michael Brown',
+        ];
+>>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
 
         try {
             if (Schema::hasTable('contacts')) {
@@ -174,7 +198,9 @@ class DealController extends Controller
                 'Corporate Software License',
                 'Security Audit Toolkit',
             ],
-            'ownerLabel' => 'Shine Florence Padillo',
+            'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
+            'owners' => $owners,
+            'defaultOwnerId' => $defaultOwnerId,
         ]);
     }
 
@@ -590,6 +616,7 @@ class DealController extends Controller
         ];
     }
 
+<<<<<<< HEAD
     private function validateDealPayload(Request $request): array
     {
         return $request->validate([
@@ -780,6 +807,31 @@ class DealController extends Controller
                 : 'Jun 10, 2026',
             'owner_name' => $validated['assigned_consultant'] ?? 'John Admin',
             'stage' => $validated['stage'] ?? 'Inquiry',
+=======
+    private function ownerOptions(): array
+    {
+        $users = User::query()
+            ->select(['id', 'name', 'email'])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'email' => $user->email ?: strtolower(str_replace(' ', '.', $user->name)).'@example.com',
+            ])
+            ->values()
+            ->all();
+
+        if (! empty($users)) {
+            return $users;
+        }
+
+        return [
+            ['id' => 1001, 'name' => 'Shine Florence Padillo', 'email' => 'shinepadi@gmail.com'],
+            ['id' => 1002, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
+            ['id' => 1003, 'name' => 'Maria Santos', 'email' => 'maria.santos@example.com'],
+            ['id' => 1004, 'name' => 'Juan Dela Cruz', 'email' => 'juan.delacruz@example.com'],
+>>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
         ];
     }
 }
