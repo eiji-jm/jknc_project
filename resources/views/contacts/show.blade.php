@@ -34,11 +34,14 @@
                 <div class="flex flex-wrap items-center gap-4 text-sm text-gray-700">
                     <span>Email: {{ $contact->email ?: 'juan@gmail.com' }}</span>
                     <span>Phone number: {{ $contact->phone ?: '09345234' }}</span>
+                    <span>Customer Type: {{ $contact->customer_type ?: 'Corporation' }}</span>
+                    <span>Position: {{ $contact->position ?: 'CEO' }}</span>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <span id="contactKycHeaderBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusPillClasses[$status] ?? $statusPillClasses['Not Submitted'] }}">{{ $status }}</span>
                     <span class="text-sm text-gray-700">Contact Owner: {{ $contact->owner_name ?: 'John Admin' }}</span>
                 </div>
+                <p class="text-sm text-gray-600">Address: {{ $contact->contact_address ?: 'Cebu City, Philippines' }}</p>
             </div>
         </div>
     </div>
@@ -58,8 +61,141 @@
         </aside>
 
         <section class="flex-1 bg-white p-6">
+            @if (session('success'))
+                <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    {{ session('success') }}
+                </div>
+            @endif
+
             @if ($tab === 'kyc')
                 <div id="kycTabApp">
+                    <div class="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                                <div>
+                                    <h2 class="text-base font-semibold text-gray-900">Client Information Form (CIF)</h2>
+                                    <p class="mt-1 text-xs text-gray-500">Manual CIF data is the source of truth for this contact record.</p>
+                                </div>
+                                @if ($cifEditMode)
+                                    <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="text-sm text-gray-600 hover:text-gray-900">Cancel</a>
+                                @else
+                                    <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc', 'edit_cif' => 1]) }}" class="text-sm text-blue-600 hover:text-blue-700">Edit</a>
+                                @endif
+                            </div>
+                            <div class="p-4">
+                                @if ($cifEditMode)
+                                    <form method="POST" action="{{ route('contacts.cif.save', $contact->id) }}" class="space-y-4">
+                                        @csrf
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input name="cif_no" value="{{ old('cif_no', $cifData['cif_no'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">TIN</label><input name="tin" value="{{ old('tin', $cifData['tin'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Customer Type</label><input name="customer_type" value="{{ old('customer_type', $cifData['customer_type'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Salutation</label><input name="salutation" value="{{ old('salutation', $cifData['salutation'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">First Name</label><input name="first_name" value="{{ old('first_name', $cifData['first_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label><input name="middle_name" value="{{ old('middle_name', $cifData['middle_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Last Name</label><input name="last_name" value="{{ old('last_name', $cifData['last_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Email</label><input name="email" value="{{ old('email', $cifData['email'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Mobile</label><input name="mobile" value="{{ old('mobile', $cifData['mobile'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Position / Designation</label><input name="position" value="{{ old('position', $cifData['position'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Company</label><input name="company_name" value="{{ old('company_name', $cifData['company_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Company Address</label><input name="company_address" value="{{ old('company_address', $cifData['company_address'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Owner Name</label><input name="owner_name" value="{{ old('owner_name', $cifData['owner_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">KYC Status</label><input name="kyc_status" value="{{ old('kyc_status', $cifData['kyc_status'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Date Verified</label><input type="date" name="date_verified" value="{{ old('date_verified', $cifData['date_verified'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Verified By</label><input name="verified_by" value="{{ old('verified_by', $cifData['verified_by'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                            <div class="md:col-span-2"><label class="mb-1 block text-sm font-medium text-gray-700">Address</label><textarea name="address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('address', $cifData['address'] ?? '') }}</textarea></div>
+                                            <div class="md:col-span-2"><label class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea name="remarks" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('remarks', $cifData['remarks'] ?? '') }}</textarea></div>
+                                        </div>
+                                        <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+                                            <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</a>
+                                            <button type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">Save CIF</button>
+                                        </div>
+                                    </form>
+                                @else
+                                    <div class="grid gap-4 text-sm md:grid-cols-2">
+                                        <div><p class="text-xs text-gray-500">CIF No.</p><p class="font-medium text-gray-900">{{ $cifData['cif_no'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">TIN</p><p class="font-medium text-gray-900">{{ $cifData['tin'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Customer Type</p><p class="font-medium text-gray-900">{{ $cifData['customer_type'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Salutation</p><p class="font-medium text-gray-900">{{ $cifData['salutation'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">First Name</p><p class="font-medium text-gray-900">{{ $cifData['first_name'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Middle Name</p><p class="font-medium text-gray-900">{{ $cifData['middle_name'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Last Name</p><p class="font-medium text-gray-900">{{ $cifData['last_name'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Email</p><p class="font-medium text-gray-900">{{ $cifData['email'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Mobile</p><p class="font-medium text-gray-900">{{ $cifData['mobile'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Position</p><p class="font-medium text-gray-900">{{ $cifData['position'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Address</p><p class="font-medium text-gray-900">{{ $cifData['address'] ?: '-' }}</p></div>
+                                        <div><p class="text-xs text-gray-500">Company</p><p class="font-medium text-gray-900">{{ $cifData['company_name'] ?: '-' }}</p></div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                                <div class="border-b border-gray-100 px-4 py-3">
+                                    <h3 class="text-base font-semibold text-gray-900">Preview / PDF</h3>
+                                </div>
+                                <div class="space-y-3 px-4 py-4">
+                                    <a href="{{ route('contacts.cif.preview', $contact->id) }}" class="flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Preview PDF</a>
+                                    <a href="{{ route('contacts.cif.download', $contact->id) }}" target="_blank" class="flex h-10 items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Download PDF</a>
+                                    <p class="text-xs text-gray-500">Download opens a print-friendly PDF-style view so the browser can export it as PDF.</p>
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                                <div class="border-b border-gray-100 px-4 py-3">
+                                    <h3 class="text-base font-semibold text-gray-900">Supporting Documents</h3>
+                                </div>
+                                <div class="space-y-4 px-4 py-4">
+                                    <form method="POST" action="{{ route('contacts.cif.documents.upload', $contact->id) }}" enctype="multipart/form-data" class="space-y-3">
+                                        @csrf
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">Document Type</label>
+                                            <select name="document_type" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                                <option value="cif_document">CIF Document</option>
+                                                <option value="valid_id">Valid ID</option>
+                                                <option value="tin_document">TIN Document</option>
+                                                <option value="registration_document">Supporting Registration Document</option>
+                                                <option value="other">Other Related File</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">File</label>
+                                            <input type="file" name="document_file" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">Notes</label>
+                                            <textarea name="document_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
+                                        </div>
+                                        <button type="submit" class="h-10 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 hover:bg-blue-100">Upload Supporting Document</button>
+                                    </form>
+
+                                    <div class="space-y-3 border-t border-gray-100 pt-4">
+                                        @forelse ($cifDocuments as $document)
+                                            <article class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">{{ $document['label'] ?? 'Attachment' }}</p>
+                                                        <p class="text-xs text-gray-500">{{ $document['file_name'] ?? '-' }}</p>
+                                                        <p class="mt-1 text-xs text-gray-500">Uploaded: {{ $document['uploaded_at'] ?? '-' }}</p>
+                                                        @if (!empty($document['notes']))
+                                                            <p class="mt-1 text-xs text-gray-600">{{ $document['notes'] }}</p>
+                                                        @endif
+                                                    </div>
+                                                    @if (!empty($document['url']))
+                                                        <a href="{{ $document['url'] }}" target="_blank" class="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">Open</a>
+                                                    @endif
+                                                </div>
+                                            </article>
+                                        @empty
+                                            <p class="text-sm text-gray-500">No supporting documents uploaded yet.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
                         <div class="space-y-4">
                             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
