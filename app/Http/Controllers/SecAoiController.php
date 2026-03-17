@@ -4,10 +4,19 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use App\Models\SecAoi;
 
 class SecAoiController extends Controller
 {
+    private function canApproveCorporate(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->hasPermission('approve_corporate');
+    }
+
     public function index()
     {
         $records = SecAoi::where('approval_status', 'Approved')->latest()->get();
@@ -22,7 +31,7 @@ class SecAoiController extends Controller
             $path = $request->file('file_upload')->store('sec_aoi', 'public');
         }
 
-        $isApprover = in_array(Auth::user()->role, ['admin', 'super_admin']);
+        $isApprover = $this->canApproveCorporate();
 
         SecAoi::create([
             'corporation_name'         => $request->corporation_name,
@@ -51,7 +60,7 @@ class SecAoiController extends Controller
     {
         $record = SecAoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
             abort(403, 'This record is still pending approval.');
         }
 
@@ -65,6 +74,10 @@ class SecAoiController extends Controller
         ]);
 
         $record = SecAoi::findOrFail($id);
+
+        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
+            abort(403, 'This record is still pending approval.');
+        }
 
         $filePath = $request->file('file')->store('sec_aoi_files', 'public');
 

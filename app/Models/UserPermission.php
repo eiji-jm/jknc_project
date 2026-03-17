@@ -4,14 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class RolePermission extends Model
+class UserPermission extends Model
 {
     protected $fillable = [
-        'role',
+        'user_id',
         'manage_users',
         'access_admin_dashboard',
-        'create_townhall',
         'approve_townhall',
+        'create_townhall',
         'create_corporate',
         'approve_corporate',
         'access_townhall',

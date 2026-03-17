@@ -4,10 +4,19 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use App\Models\GisRecord;
 
 class GisController extends Controller
 {
+    private function canApproveCorporate(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user && $user->hasPermission('approve_corporate');
+    }
+
     public function index()
     {
         $gis = GisRecord::where('approval_status', 'Approved')->latest()->get();
@@ -22,7 +31,7 @@ class GisController extends Controller
             $filePath = $request->file('file')->store('gis_files', 'public');
         }
 
-        $isApprover = in_array(Auth::user()->role, ['admin', 'super_admin']);
+        $isApprover = $this->canApproveCorporate();
 
         GisRecord::create([
             'uploaded_by'       => $request->uploaded_by,
@@ -59,7 +68,7 @@ class GisController extends Controller
     {
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
             abort(403, 'This record is still pending approval.');
         }
 
@@ -92,7 +101,7 @@ class GisController extends Controller
 
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
             abort(403, 'This record is still pending approval.');
         }
 
@@ -147,7 +156,7 @@ class GisController extends Controller
             'stockholders'
         ])->findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
             abort(403, 'This record is still pending approval.');
         }
 

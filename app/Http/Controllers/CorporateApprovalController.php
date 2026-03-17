@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
 use App\Models\Bylaw;
@@ -13,7 +14,10 @@ class CorporateApprovalController extends Controller
 {
     private function authorizeApprover()
     {
-        if (!in_array(Auth::user()->role, ['admin', 'super_admin'])) {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$user->hasPermission('approve_corporate')) {
             abort(403, 'Unauthorized');
         }
     }

@@ -32,11 +32,11 @@ class LoginController extends Controller
             $request->session()->regenerate();
 
             // ROLE REDIRECT
-            if(Auth::user()->role === 'Admin'){
-                return redirect()->route('corporate');
+            if(Auth::user()->role === 'Admin' || Auth::user()->role === 'SuperAdmin'){
+                return redirect()->route('admin.users');
             }
 
-            return redirect()->route('corporate');
+            return redirect()->route('townhall');
 
         }
 
