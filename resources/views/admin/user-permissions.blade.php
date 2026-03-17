@@ -11,8 +11,8 @@
 
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
         <div class="px-5 py-4 border-b border-gray-200">
-            <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Employee Permissions</h1>
-            <p class="text-sm text-gray-500 mt-1">Assign specific permissions per employee</p>
+            <h1 class="text-[30px] font-semibold text-gray-800 leading-none">User Permissions</h1>
+            <p class="text-sm text-gray-500 mt-1">Assign specific permissions per user</p>
         </div>
 
         <div class="px-5 py-5 flex-1 flex flex-col">

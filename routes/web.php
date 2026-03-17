@@ -50,6 +50,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/townhall/{id}/approve', [TownHallController::class, 'approve'])->name('townhall.approve');
     Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');
     Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
+    Route::post('/townhall/{id}/acknowledge', [TownHallController::class, 'acknowledge'])
+        ->name('townhall.acknowledge');
 
 
     /*

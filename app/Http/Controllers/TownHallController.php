@@ -6,7 +6,10 @@ use App\Models\TownHallCommunication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
+use App\Models\User;
+
 
 class TownHallController extends Controller
 {
@@ -38,7 +41,7 @@ class TownHallController extends Controller
             'from_name' => ['nullable', 'string', 'max:255'],
             'department_stakeholder' => ['nullable', 'string', 'max:255'],
             'to_for' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', 'max:50'],
+            'priority' => ['nullable', 'in:High,Low'],
             'subject' => ['nullable', 'string', 'max:255'],
             'message' => ['nullable', 'string'],
             'cc' => ['nullable', 'string', 'max:255'],
@@ -86,8 +89,8 @@ class TownHallController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        // attachment type (your existing)
         $attachmentType = null;
-
         if ($communication->attachment) {
             $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
 
@@ -100,7 +103,41 @@ class TownHallController extends Controller
             }
         }
 
-        return view('townhall.show', compact('communication', 'attachmentType'));
+        // ✅ ACKNOWLEDGEMENT DATA
+        $employees = User::where('role', 'Employee')->get();
+
+        $acknowledgedUserIds = TownHallAcknowledgement::where('townhall_communication_id', $id)
+            ->pluck('user_id')
+            ->toArray();
+
+        $acknowledgedUsers = $employees->whereIn('id', $acknowledgedUserIds);
+        $notAcknowledgedUsers = $employees->whereNotIn('id', $acknowledgedUserIds);
+
+        $totalEmployees = $employees->count();
+        $ackCount = count($acknowledgedUserIds);
+
+        $progress = $totalEmployees > 0
+            ? round(($ackCount / $totalEmployees) * 100)
+            : 0;
+
+        // existing flags
+        $hasAcknowledged = $communication->hasBeenAcknowledgedBy(Auth::id());
+        $requiresAcknowledgement = Auth::user()->role === 'Employee'
+            && $communication->approval_status === 'Approved';
+
+        return view('townhall.show', compact(
+            'communication',
+            'attachmentType',
+            'hasAcknowledged',
+            'requiresAcknowledgement',
+
+            // NEW
+            'acknowledgedUsers',
+            'notAcknowledgedUsers',
+            'progress',
+            'totalEmployees',
+            'ackCount'
+        ));
     }
 
     public function approve(Request $request, $id)
@@ -174,5 +211,36 @@ class TownHallController extends Controller
         return redirect()
             ->route('townhall')
             ->with('success', 'Communication deleted successfully.');
+    }
+
+    public function acknowledge($id)
+    {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        // Only approved communications can be acknowledged
+        if ($communication->approval_status !== 'Approved') {
+            abort(403, 'This communication is not available for acknowledgment.');
+        }
+
+        // Only employees need acknowledgment
+        if (Auth::user()->role !== 'Employee') {
+            return redirect()->back()->with('success', 'Acknowledgment is not required for your role.');
+        }
+
+        TownHallAcknowledgement::updateOrCreate(
+            [
+                'townhall_communication_id' => $communication->id,
+                'user_id' => Auth::id(),
+            ],
+            [
+                'acknowledged_at' => now(),
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Communication acknowledged successfully.');
     }
 }

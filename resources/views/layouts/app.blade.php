@@ -105,44 +105,56 @@
         <!-- MINI SIDEBAR -->
         <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
 
-            <a href="{{ route('admin.dashboard') }}"
-               class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-               {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-                <i class="fas fa-user-shield text-base"></i>
-                <span>Admin</span>
-            </a>
+            @if(Auth::user()->hasPermission('access_admin_dashboard'))
+                <a href="{{ route('admin.dashboard') }}"
+                class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                {{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-user-shield text-base"></i>
+                    <span>Admin</span>
+                </a>
+            @endif
 
+            @if(Auth::user()->hasPermission('access_townhall'))
             <a href="{{ route('townhall') }}"
             class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
             {{ request()->routeIs('townhall') || request()->routeIs('townhall.show') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                 <i class="fas fa-bullhorn text-base"></i>
                 <span>Town Hall</span>
             </a>
+            @endif
 
+            @if(Auth::user()->hasPermission('access_corporate'))
             <a href="{{ route('corporate') }}"
                class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                 <i class="fas fa-building text-base"></i>
                 <span>Corporate</span>
             </a>
+            @endif
 
+            @if(Auth::user()->hasPermission('access_activities'))
             <a href="#"
                class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
                 <i class="fas fa-list-check text-base"></i>
                 <span>Activities</span>
             </a>
+            @endif
 
+            @if(Auth::user()->hasPermission('access_contacts'))
             <a href="#"
                class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
                 <i class="fas fa-users text-base"></i>
                 <span>Contacts</span>
             </a>
+            @endif
 
+            @if(Auth::user()->hasPermission('access_company'))
             <a href="#"
                class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
                 <i class="fas fa-city text-base"></i>
                 <span>Company</span>
             </a>
+            @endif
 
         </aside>
 
@@ -231,7 +243,7 @@
                         <a href="{{ route('admin.user-permissions') }}"
                         class="block px-3 py-2 rounded-lg transition
                         {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Employee Permissions
+                            User Permissions
                         </a>
                     @endif
 

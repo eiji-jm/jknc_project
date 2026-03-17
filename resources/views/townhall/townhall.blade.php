@@ -116,14 +116,10 @@
 
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Status</label>
-                                <select
-                                    name="status"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
-                                    <option value="">Select status</option>
-                                    <option value="Open" {{ old('status') == 'Open' ? 'selected' : '' }}>Open</option>
-                                    <option value="Completed" {{ old('status') == 'Completed' ? 'selected' : '' }}>Completed</option>
-                                    <option value="Overdue" {{ old('status') == 'Overdue' ? 'selected' : '' }}>Overdue</option>
+                                <select name="priority" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Select Priority</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
                                 </select>
                             </div>
                         </div>
@@ -245,7 +241,7 @@
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">From</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Subject</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">For/To</th>
-                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Status</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Priority</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Approval</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Attachment</th>
                             <th class="px-3 py-3 font-semibold w-10"></th>
@@ -265,17 +261,16 @@
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->to_for }}</td>
 
-                                <td class="px-3 py-3 border-r border-gray-200">
+                                <td>
                                     @php
-                                        $status = $communication->status ?? 'Open';
-                                        $statusClasses = match($status) {
-                                            'Completed' => 'bg-green-50 text-green-700',
-                                            'Overdue' => 'bg-red-50 text-red-700',
-                                            default => 'bg-yellow-50 text-yellow-700',
-                                        };
+                                        $priority = $communication->priority ?? 'Low';
+                                        $classes = $priority === 'High'
+                                            ? 'bg-red-50 text-red-700'
+                                            : 'bg-green-50 text-green-700';
                                     @endphp
-                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $statusClasses }}">
-                                        {{ $status }}
+
+                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $classes }}">
+                                        {{ $priority }}
                                     </span>
                                 </td>
 

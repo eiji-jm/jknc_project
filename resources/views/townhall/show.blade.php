@@ -7,8 +7,10 @@
 
             {{-- LEFT PREVIEW --}}
             <div class="col-span-8 border-r border-gray-200 bg-gray-50 p-4">
-                <div class="w-full h-full rounded-xl border border-gray-200 bg-white overflow-hidden flex items-center justify-center">
-
+                <div
+                    id="ack-scroll-area"
+                    class="w-full h-full rounded-xl border border-gray-200 bg-white overflow-auto flex items-center justify-center"
+                >
                     @if($communication->attachment)
                         @if($attachmentType === 'image')
                             <div class="w-full h-full flex items-center justify-center bg-gray-100">
@@ -69,7 +71,6 @@
                             </div>
                         </div>
                     @endif
-
                 </div>
             </div>
 
@@ -114,15 +115,18 @@
                     <div class="rounded-xl border border-gray-200 p-4">
                         <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Status</p>
                         @php
-                            $status = $communication->status ?? 'Open';
-                            $statusClasses = match($status) {
-                                'Completed' => 'bg-green-50 text-green-700',
-                                'Overdue' => 'bg-red-50 text-red-700',
-                                default => 'bg-yellow-50 text-yellow-700',
+                            $priority = $communication->priority ?? 'Low';
+
+                            $priorityClasses = match($priority) {
+                                'High' => 'bg-red-50 text-red-700',
+                                'Low' => 'bg-green-50 text-green-700',
+                                default => 'bg-gray-50 text-gray-700',
                             };
                         @endphp
-                        <span class="inline-flex px-2 py-1 text-xs rounded-full font-medium {{ $statusClasses }}">
-                            {{ $status }}
+                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Priority</p>
+
+                        <span class="inline-flex px-2 py-1 text-xs rounded-full font-medium {{ $priorityClasses }}">
+                            {{ $priority }}
                         </span>
                     </div>
 
@@ -158,6 +162,138 @@
                             <p class="text-sm text-gray-800">—</p>
                         @endif
                     </div>
+
+                    {{-- EMPLOYEE ACKNOWLEDGEMENT --}}
+                    @if($requiresAcknowledgement)
+                        @php
+                            $requiresScroll = !$communication->attachment;
+                        @endphp
+
+                        <div
+                            class="rounded-xl border border-gray-200 p-4"
+                            x-data="{
+                                canAcknowledge: false,
+                                secondsLeft: 10,
+                                timerDone: false,
+                                scrolledDone: {{ $requiresScroll ? 'false' : 'true' }}
+                            }"
+                            x-init="
+                                let timer = setInterval(() => {
+                                    if (secondsLeft > 0) {
+                                        secondsLeft--;
+                                    } else {
+                                        timerDone = true;
+                                        if (scrolledDone) canAcknowledge = true;
+                                        clearInterval(timer);
+                                    }
+                                }, 1000);
+
+                                @if($requiresScroll)
+                                    setTimeout(() => {
+                                        let el = document.getElementById('ack-scroll-area');
+                                        if (el) {
+                                            el.addEventListener('scroll', () => {
+                                                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 10) {
+                                                    scrolledDone = true;
+                                                    if (timerDone) canAcknowledge = true;
+                                                }
+                                            });
+                                        }
+                                    }, 400);
+                                @endif
+                            "
+                        >
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Acknowledgment Required</p>
+
+                            @if($hasAcknowledged)
+                                <button
+                                    type="button"
+                                    disabled
+                                    class="w-full px-4 py-2 text-sm font-medium rounded-lg bg-green-100 text-green-700 cursor-not-allowed"
+                                >
+                                    Acknowledged
+                                </button>
+                            @else
+                                <div class="text-xs text-gray-500 mb-3 space-y-1">
+                                    <p>
+                                        Timer:
+                                        <span x-show="!timerDone">Wait <span x-text="secondsLeft"></span>s</span>
+                                        <span x-show="timerDone" class="text-green-600">✔ Done</span>
+                                    </p>
+
+                                    @if($requiresScroll)
+                                        <p>
+                                            Scroll:
+                                            <span x-show="!scrolledDone">Scroll to bottom</span>
+                                            <span x-show="scrolledDone" class="text-green-600">✔ Done</span>
+                                        </p>
+                                    @else
+                                        <p class="text-green-600">✔ Attachment preview opened; timer required only</p>
+                                    @endif
+                                </div>
+
+                                <form method="POST" action="{{ route('townhall.acknowledge', $communication->id) }}">
+                                    @csrf
+                                    <button
+                                        type="submit"
+                                        :disabled="!canAcknowledge"
+                                        :class="canAcknowledge
+                                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                        class="w-full px-4 py-2 text-sm font-medium rounded-lg transition"
+                                    >
+                                        Acknowledge
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+
+                    {{-- ADMIN ACKNOWLEDGEMENT TRACKER --}}
+                    @if(Auth::user()->hasPermission('approve_townhall'))
+                        <div class="rounded-xl border border-gray-200 p-4">
+                            <p class="text-xs font-semibold text-gray-400 uppercase mb-2">
+                                Acknowledgement Progress
+                            </p>
+
+                            <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                                <div
+                                    class="bg-green-500 h-3 rounded-full transition-all"
+                                    style="width: {{ $progress }}%"
+                                ></div>
+                            </div>
+
+                            <div class="text-xs text-gray-600 mb-3">
+                                {{ $ackCount }} / {{ $totalEmployees }} acknowledged ({{ $progress }}%)
+                            </div>
+
+                            <div class="mb-3">
+                                <p class="text-xs font-semibold text-green-600 mb-1">✔ Acknowledged</p>
+                                <div class="max-h-28 overflow-y-auto text-sm space-y-1">
+                                    @forelse($acknowledgedUsers as $user)
+                                        <div class="px-2 py-1 bg-green-50 rounded">
+                                            {{ $user->name }}
+                                        </div>
+                                    @empty
+                                        <p class="text-gray-400 text-xs">None</p>
+                                    @endforelse
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold text-red-500 mb-1">✖ Not Yet</p>
+                                <div class="max-h-28 overflow-y-auto text-sm space-y-1">
+                                    @forelse($notAcknowledgedUsers as $user)
+                                        <div class="px-2 py-1 bg-red-50 rounded">
+                                            {{ $user->name }}
+                                        </div>
+                                    @empty
+                                        <p class="text-gray-400 text-xs">All acknowledged 🎉</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 

@@ -26,4 +26,14 @@ class TownHallCommunication extends Model
         'attachment',
         'created_by',
     ];
+
+    public function acknowledgements()
+    {
+        return $this->hasMany(\App\Models\TownHallAcknowledgement::class, 'townhall_communication_id');
+    }
+
+    public function hasBeenAcknowledgedBy($userId): bool
+    {
+        return $this->acknowledgements()->where('user_id', $userId)->exists();
+    }
 }

@@ -14,7 +14,59 @@ class RolePermissionController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $permissions = RolePermission::orderBy('role')->get();
+        RolePermission::firstOrCreate(
+            ['role' => 'SuperAdmin'],
+            [
+                'manage_users' => true,
+                'access_admin_dashboard' => true,
+                'approve_townhall' => true,
+                'create_townhall' => true,
+                'access_townhall' => true,
+                'access_corporate' => true,
+                'access_activities' => true,
+                'access_contacts' => true,
+                'access_company' => true,
+            ]
+        );
+
+        RolePermission::firstOrCreate(
+            ['role' => 'Admin'],
+            [
+                'manage_users' => true,
+                'access_admin_dashboard' => true,
+                'approve_townhall' => true,
+                'create_townhall' => true,
+                'access_townhall' => true,
+                'access_corporate' => true,
+                'access_activities' => true,
+                'access_contacts' => true,
+                'access_company' => true,
+            ]
+        );
+
+        RolePermission::firstOrCreate(
+            ['role' => 'Employee'],
+            [
+                'manage_users' => false,
+                'access_admin_dashboard' => false,
+                'approve_townhall' => false,
+                'create_townhall' => false,
+                'access_townhall' => true,
+                'access_corporate' => true,
+                'access_activities' => false,
+                'access_contacts' => false,
+                'access_company' => false,
+            ]
+        );
+
+        $permissions = RolePermission::orderByRaw("
+            CASE role
+                WHEN 'SuperAdmin' THEN 1
+                WHEN 'Admin' THEN 2
+                WHEN 'Employee' THEN 3
+                ELSE 4
+            END
+        ")->get();
 
         return view('admin.role-permissions', compact('permissions'));
     }
@@ -26,6 +78,10 @@ class RolePermissionController extends Controller
         }
 
         $permission = RolePermission::findOrFail($id);
+
+        if ($permission->role === 'SuperAdmin') {
+            abort(403, 'SuperAdmin role permissions cannot be modified.');
+        }
 
         $permission->update([
             'manage_users' => $request->has('manage_users'),
@@ -39,6 +95,8 @@ class RolePermissionController extends Controller
             'access_company' => $request->has('access_company'),
         ]);
 
-        return redirect()->route('admin.role-permissions')->with('success', 'Role permissions updated successfully.');
+        return redirect()
+            ->route('admin.role-permissions')
+            ->with('success', 'Role permissions updated successfully.');
     }
 }
