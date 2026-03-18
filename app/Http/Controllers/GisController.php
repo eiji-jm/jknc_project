@@ -25,10 +25,34 @@ class GisController extends Controller
 
     public function store(Request $request)
     {
-        $filePath = null;
+        $request->validate([
+            'uploaded_by'         => 'nullable|string|max:255',
+            'submission_status'   => 'nullable|string|max:255',
+            'receive_on'          => 'nullable|date',
+            'period_date'         => 'nullable|string|max:255',
+            'company_reg_no'      => 'nullable|string|max:255',
+            'corporation_name'    => 'nullable|string|max:255',
+            'annual_meeting'      => 'nullable|date',
+            'meeting_type'        => 'nullable|string|max:255',
+            'draft_file_upload'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'notary_file_upload'  => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
 
-        if ($request->hasFile('file')) {
-            $filePath = $request->file('file')->store('gis_files', 'public');
+        $draftPath = null;
+        $notaryPath = null;
+
+        if ($request->hasFile('draft_file_upload')) {
+            $file = $request->file('draft_file_upload');
+            $fileName = time() . '_draft_' . $file->getClientOriginalName();
+            $file->storeAs('gis_files', $fileName, 'public');
+            $draftPath = 'gis_files/' . $fileName;
+        }
+
+        if ($request->hasFile('notary_file_upload')) {
+            $file = $request->file('notary_file_upload');
+            $fileName = time() . '_notary_' . $file->getClientOriginalName();
+            $file->storeAs('gis_files', $fileName, 'public');
+            $notaryPath = 'gis_files/' . $fileName;
         }
 
         $isApprover = $this->canApproveCorporate();
@@ -42,7 +66,8 @@ class GisController extends Controller
             'corporation_name'  => $request->corporation_name,
             'annual_meeting'    => $request->annual_meeting,
             'meeting_type'      => $request->meeting_type,
-            'file'              => $filePath,
+            'file'              => $draftPath,
+            'notary_file_path'  => $notaryPath,
             'approval_status'   => $isApprover ? 'Approved' : 'Pending',
             'submitted_by'      => Auth::id(),
             'approved_by'       => $isApprover ? Auth::id() : null,
@@ -161,5 +186,53 @@ class GisController extends Controller
         }
 
         return view('corporate.gis-show', compact('gis'));
+    }
+
+    public function uploadDraftFile(Request $request, $id)
+    {
+        $request->validate([
+            'draft_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
+
+        $gis = GisRecord::findOrFail($id);
+
+        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
+            abort(403, 'This record is still pending approval.');
+        }
+
+        $file = $request->file('draft_file');
+        $fileName = time() . '_draft_' . $file->getClientOriginalName();
+        $file->storeAs('gis_files', $fileName, 'public');
+        $filePath = 'gis_files/' . $fileName;
+
+        $gis->update([
+            'file' => $filePath,
+        ]);
+
+        return back()->with('success', 'Draft file attached successfully.');
+    }
+
+    public function uploadNotaryFile(Request $request, $id)
+    {
+        $request->validate([
+            'notary_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
+
+        $gis = GisRecord::findOrFail($id);
+
+        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
+            abort(403, 'This record is still pending approval.');
+        }
+
+        $file = $request->file('notary_file');
+        $fileName = time() . '_notary_' . $file->getClientOriginalName();
+        $file->storeAs('gis_files', $fileName, 'public');
+        $filePath = 'gis_files/' . $fileName;
+
+        $gis->update([
+            'notary_file_path' => $filePath,
+        ]);
+
+        return back()->with('success', 'Notary file attached successfully.');
     }
 }

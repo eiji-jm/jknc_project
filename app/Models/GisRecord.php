@@ -16,6 +16,7 @@ class GisRecord extends Model
         'annual_meeting',
         'meeting_type',
         'file',
+        'notary_file_path',
 
         'date_registered',
         'trade_name',

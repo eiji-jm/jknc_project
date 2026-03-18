@@ -97,6 +97,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/gis/director/store', [DirectorOfficerController::class, 'store'])->name('director.store');
     Route::post('/gis/stockholder/store', [StockholderController::class, 'store'])->name('stockholder.store');
 
+    Route::post('/corporate/gis/{id}/upload-draft-file', [GisController::class, 'uploadDraftFile'])
+    ->name('corporate.gis.upload.draft');
+
+    Route::post('/corporate/gis/{id}/upload-notary-file', [GisController::class, 'uploadNotaryFile'])
+    ->name('corporate.gis.upload.notary');
     /*
     |--------------------------------------------------------------------------
     | CORPORATE DOCUMENTS
@@ -105,20 +110,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])->name('corporate.formation');
     Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])->name('corporate.formation.store');
     Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])->name('corporate.formation.show');
-    Route::post('/corporate/formation/{id}/upload-file', [CorporateFormationController::class, 'uploadFile'])
-        ->name('corporate.formation.upload');
+    Route::post('/corporate/formation/{id}/upload-draft-file', [CorporateFormationController::class, 'uploadDraftFile'])
+    ->name('corporate.formation.upload.draft');
+
+    Route::post('/corporate/formation/{id}/upload-notary-file', [CorporateFormationController::class, 'uploadNotaryFile'])
+    ->name('corporate.formation.upload.notary');
 
     Route::get('/corporate/sec-aoi', [SecAoiController::class, 'index'])->name('corporate.sec_aoi');
     Route::post('/corporate/sec-aoi/store', [SecAoiController::class, 'store'])->name('corporate.sec_aoi.store');
     Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class, 'show'])->name('corporate.sec_aoi.show');
-    Route::post('/corporate/sec-aoi/{id}/upload-file', [SecAoiController::class, 'uploadFile'])
-        ->name('corporate.sec_aoi.upload');
+    Route::post('/corporate/sec-aoi/{id}/upload-draft-file', [SecAoiController::class, 'uploadDraftFile'])
+    ->name('corporate.sec_aoi.upload.draft');
+    Route::post('/corporate/sec-aoi/{id}/upload-notary-file', [SecAoiController::class, 'uploadNotaryFile'])
+    ->name('corporate.sec_aoi.upload.notary');
 
     Route::get('/corporate/bylaws', [BylawController::class, 'index'])->name('corporate.bylaws');
     Route::post('/corporate/bylaws/store', [BylawController::class, 'store'])->name('corporate.bylaws.store');
     Route::get('/corporate/bylaws/{id}', [BylawController::class, 'show'])->name('corporate.bylaws.show');
-    Route::post('/corporate/bylaws/{id}/upload-file', [BylawController::class, 'uploadFile'])
-        ->name('corporate.bylaws.upload');
+    Route::post('/corporate/bylaws/{id}/upload-draft-file', [BylawController::class, 'uploadDraftFile'])
+    ->name('corporate.bylaws.upload.draft');
+
+    Route::post('/corporate/bylaws/{id}/upload-notary-file', [BylawController::class, 'uploadNotaryFile'])
+    ->name('corporate.bylaws.upload.notary');
 
     /*
     |--------------------------------------------------------------------------

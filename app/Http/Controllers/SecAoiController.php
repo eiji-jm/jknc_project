@@ -25,10 +25,37 @@ class SecAoiController extends Controller
 
     public function store(Request $request)
     {
-        $path = null;
+        $request->validate([
+            'corporation_name'         => 'required',
+            'company_reg_no'           => 'required',
+            'principal_address'        => 'required',
+            'par_value'                => 'nullable|string',
+            'authorized_capital_stock' => 'nullable|string',
+            'directors'                => 'nullable|integer',
+            'type_of_formation'        => 'nullable|string',
+            'aoi_version'              => 'nullable|string',
+            'aoi_type'                 => 'nullable|string',
+            'uploaded_by'              => 'nullable|string',
+            'date_upload'              => 'nullable|date',
+            'draft_file_upload'        => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'notary_file_upload'       => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
 
-        if ($request->hasFile('file_upload')) {
-            $path = $request->file('file_upload')->store('sec_aoi', 'public');
+        $draftPath = null;
+        $notaryPath = null;
+
+        if ($request->hasFile('draft_file_upload')) {
+            $file = $request->file('draft_file_upload');
+            $fileName = time() . '_draft_' . $file->getClientOriginalName();
+            $file->storeAs('sec_aoi', $fileName, 'public');
+            $draftPath = 'sec_aoi/' . $fileName;
+        }
+
+        if ($request->hasFile('notary_file_upload')) {
+            $file = $request->file('notary_file_upload');
+            $fileName = time() . '_notary_' . $file->getClientOriginalName();
+            $file->storeAs('sec_aoi', $fileName, 'public');
+            $notaryPath = 'sec_aoi/' . $fileName;
         }
 
         $isApprover = $this->canApproveCorporate();
@@ -45,7 +72,8 @@ class SecAoiController extends Controller
             'aoi_type'                 => $request->aoi_type,
             'uploaded_by'              => $request->uploaded_by,
             'date_upload'              => $request->date_upload,
-            'file_path'                => $path,
+            'file_path'                => $draftPath,
+            'notary_file_path'         => $notaryPath,
             'approval_status'          => $isApprover ? 'Approved' : 'Pending',
             'submitted_by'             => Auth::id(),
             'approved_by'              => $isApprover ? Auth::id() : null,
@@ -67,10 +95,10 @@ class SecAoiController extends Controller
         return view('corporate.sec-aoi-preview', compact('record'));
     }
 
-    public function uploadFile(Request $request, $id)
+    public function uploadDraftFile(Request $request, $id)
     {
         $request->validate([
-            'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'draft_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
         $record = SecAoi::findOrFail($id);
@@ -79,12 +107,39 @@ class SecAoiController extends Controller
             abort(403, 'This record is still pending approval.');
         }
 
-        $filePath = $request->file('file')->store('sec_aoi_files', 'public');
+        $file = $request->file('draft_file');
+        $fileName = time() . '_draft_' . $file->getClientOriginalName();
+        $file->storeAs('sec_aoi_files', $fileName, 'public');
+        $filePath = 'sec_aoi_files/' . $fileName;
 
         $record->update([
             'file_path' => $filePath,
         ]);
 
-        return back()->with('success', 'File attached successfully.');
+        return back()->with('success', 'Draft file attached successfully.');
+    }
+
+    public function uploadNotaryFile(Request $request, $id)
+    {
+        $request->validate([
+            'notary_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
+
+        $record = SecAoi::findOrFail($id);
+
+        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
+            abort(403, 'This record is still pending approval.');
+        }
+
+        $file = $request->file('notary_file');
+        $fileName = time() . '_notary_' . $file->getClientOriginalName();
+        $file->storeAs('sec_aoi_files', $fileName, 'public');
+        $filePath = 'sec_aoi_files/' . $fileName;
+
+        $record->update([
+            'notary_file_path' => $filePath,
+        ]);
+
+        return back()->with('success', 'Notary file attached successfully.');
     }
 }

@@ -15,6 +15,7 @@ class SecCoi extends Model
         'issued_on',
         'date_upload',
         'file_path',
+        'notary_file_path',
         'approval_status',
         'submitted_by',
         'approved_by',
