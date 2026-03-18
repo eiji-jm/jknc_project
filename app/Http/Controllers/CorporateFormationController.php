@@ -17,9 +17,24 @@ class CorporateFormationController extends Controller
         return $user && $user->hasPermission('approve_corporate');
     }
 
+    private function canEditRecord(SecCoi $record): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $record->submitted_by === (int) Auth::id()
+            && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
+    }
+
     public function index()
     {
-        $records = SecCoi::where('approval_status', 'Approved')->latest()->get();
+        if ($this->canApproveCorporate()) {
+            $records = SecCoi::latest()->get();
+        } else {
+            $records = SecCoi::where('submitted_by', Auth::id())->latest()->get();
+        }
+
         return view('corporate.corporate-formation', compact('records'));
     }
 
@@ -60,27 +75,55 @@ class CorporateFormationController extends Controller
             'issued_by'         => $request->issued_by,
             'issued_on'         => $request->issued_on,
             'date_upload'       => $request->date_upload,
-            'file_path'         => $draftPath, // Draft
-            'notary_file_path'  => $notaryPath, // Notary
+            'file_path'         => $draftPath,
+            'notary_file_path'  => $notaryPath,
             'approval_status'   => $isApprover ? 'Approved' : 'Pending',
+            'workflow_status'   => $isApprover ? 'Accepted' : 'Uploaded',
             'submitted_by'      => Auth::id(),
             'approved_by'       => $isApprover ? Auth::id() : null,
             'approved_at'       => $isApprover ? now() : null,
         ]);
 
         return redirect()->route('corporate.formation')
-            ->with('success', $isApprover ? 'SEC-COI saved successfully.' : 'SEC-COI submitted for approval.');
+            ->with('success', $isApprover ? 'SEC-COI saved successfully.' : 'SEC-COI saved as uploaded record.');
     }
 
     public function show($id)
     {
         $record = SecCoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canApproveCorporate() && (int) $record->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
         }
 
         return view('corporate.sec-coi-preview', compact('record'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $record = SecCoi::findOrFail($id);
+
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
+        }
+
+        $request->validate([
+            'corporate_name' => 'required|string|max:255',
+            'company_reg_no' => 'required|string|max:255',
+            'issued_by'      => 'required|string|max:255',
+            'issued_on'      => 'required|date',
+            'date_upload'    => 'required|date',
+        ]);
+
+        $record->update([
+            'corporate_name' => $request->corporate_name,
+            'company_reg_no' => $request->company_reg_no,
+            'issued_by'      => $request->issued_by,
+            'issued_on'      => $request->issued_on,
+            'date_upload'    => $request->date_upload,
+        ]);
+
+        return back()->with('success', 'SEC-COI details updated successfully.');
     }
 
     public function uploadDraftFile(Request $request, $id)
@@ -91,8 +134,8 @@ class CorporateFormationController extends Controller
 
         $record = SecCoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('draft_file');
@@ -115,8 +158,8 @@ class CorporateFormationController extends Controller
 
         $record = SecCoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('notary_file');
@@ -129,5 +172,22 @@ class CorporateFormationController extends Controller
         ]);
 
         return back()->with('success', 'Notary file attached successfully.');
+    }
+
+    public function submit($id)
+    {
+        $record = SecCoi::findOrFail($id);
+
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record cannot be submitted.');
+        }
+
+        $record->update([
+            'workflow_status' => 'Submitted',
+            'approval_status' => 'Pending',
+            'review_note' => null,
+        ]);
+
+        return back()->with('success', 'SEC-COI submitted for approval.');
     }
 }

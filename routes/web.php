@@ -115,6 +115,13 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/corporate/formation/{id}/upload-notary-file', [CorporateFormationController::class, 'uploadNotaryFile'])
     ->name('corporate.formation.upload.notary');
+    Route::post('/corporate/formation/{id}/submit', [CorporateFormationController::class, 'submit'])
+    ->name('corporate.formation.submit');
+    Route::put('/corporate/formation/{id}/update', [CorporateFormationController::class, 'update'])
+    ->name('corporate.formation.update');
+
+    Route::post('/admin/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])
+    ->name('corporate.approvals.archive');
 
     Route::get('/corporate/sec-aoi', [SecAoiController::class, 'index'])->name('corporate.sec_aoi');
     Route::post('/corporate/sec-aoi/store', [SecAoiController::class, 'store'])->name('corporate.sec_aoi.store');

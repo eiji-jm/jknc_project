@@ -4,12 +4,11 @@
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
      x-data="{
         openPanel: false,
-        statusTab: 'uploaded'
+        statusTab: null
      }">
 
 <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
 
-    <!-- TOP BAR -->
     <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
 
         <div class="flex items-center gap-0 overflow-x-auto">
@@ -68,7 +67,6 @@
         </div>
     </div>
 
-    <!-- WORKFLOW STATUS TABS -->
     <div class="px-4 pt-4 bg-white border-b border-gray-100">
         <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
 
@@ -109,33 +107,22 @@
         </div>
     </div>
 
-    <!-- INFO MESSAGE -->
     <div class="bg-gray-50 min-h-[680px]">
 
         <div class="px-4 pt-4">
             <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
-                 x-show="statusTab === 'uploaded'">
-                Uploading is disabled due to any of the following reasons:
-                (a) You have an active filer;
-                (b) Your account is still under review;
-                (c) You are on the wrong form list.
+                 x-show="statusTab === null || statusTab === 'accepted'">
+                These records were already accepted and approved.
             </div>
 
-            <div class="text-[15px] text-gray-700 mt-4"
+            <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
                  x-show="statusTab === 'uploaded'">
-                <span class="text-red-600 font-bold">***</span>
-                All documents under this status are <span class="text-green-700 font-semibold italic">NOT</span> yet submitted.
-                Please edit and submit your document in order for it to be reviewed.
+                These records are uploaded drafts and not yet submitted for approval.
             </div>
 
             <div class="border border-blue-200 bg-blue-50 text-blue-800 text-[14px] px-4 py-3 rounded-md"
                  x-show="statusTab === 'submitted'">
                 These records have already been submitted and are waiting for review.
-            </div>
-
-            <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
-                 x-show="statusTab === 'accepted'">
-                These records were already accepted and approved.
             </div>
 
             <div class="border border-yellow-200 bg-yellow-50 text-yellow-800 text-[14px] px-4 py-3 rounded-md"
@@ -145,11 +132,10 @@
 
             <div class="border border-gray-200 bg-gray-50 text-gray-700 text-[14px] px-4 py-3 rounded-md"
                  x-show="statusTab === 'archived'">
-                These records are already archived for reference.
+                These records are archived for reference.
             </div>
         </div>
 
-        <!-- TABLE -->
         <div class="p-3">
             <div class="overflow-x-auto border border-gray-200 rounded-md bg-white">
 
@@ -162,7 +148,7 @@
                             <th class="px-3 py-2 font-semibold">Corporation Name</th>
                             <th class="px-3 py-2 font-semibold">Issued On</th>
                             <th class="px-3 py-2 font-semibold">Issued By</th>
-                            <th class="px-3 py-2 font-semibold">Approval Status</th>
+                            <th class="px-3 py-2 font-semibold">Workflow Status</th>
                             <th class="px-3 py-2 font-semibold">Files</th>
                         </tr>
                     </thead>
@@ -170,13 +156,13 @@
                     <tbody>
                         @foreach($records as $row)
                             @php
-                                $status = $row->approval_status ?? 'Pending';
+                                $workflow = $row->workflow_status ?? 'Accepted';
 
-                                $showInUploaded = in_array($status, ['Pending', 'Needs Revision']);
-                                $showInSubmitted = $status === 'Pending';
-                                $showInAccepted = $status === 'Approved';
-                                $showInReverted = $status === 'Needs Revision';
-                                $showInArchived = $status === 'Archived';
+                                $showInUploaded = $workflow === 'Uploaded';
+                                $showInSubmitted = $workflow === 'Submitted';
+                                $showInAccepted = $workflow === 'Accepted';
+                                $showInReverted = $workflow === 'Reverted';
+                                $showInArchived = $workflow === 'Archived';
 
                                 $fileLabel = match(true) {
                                     !empty($row->file_path) && !empty($row->notary_file_path) => 'Draft + Notary',
@@ -184,10 +170,19 @@
                                     !empty($row->notary_file_path) => 'Notary Only',
                                     default => 'No File',
                                 };
+
+                                $badgeClass = match($workflow) {
+                                    'Accepted' => 'bg-green-50 text-green-700',
+                                    'Reverted' => 'bg-yellow-50 text-yellow-700',
+                                    'Archived' => 'bg-gray-100 text-gray-700',
+                                    'Submitted' => 'bg-blue-50 text-blue-700',
+                                    default => 'bg-orange-50 text-orange-700',
+                                };
                             @endphp
 
                             <tr
                                 x-show="
+                                    (statusTab === null && {{ $showInAccepted ? 'true' : 'false' }}) ||
                                     (statusTab === 'uploaded' && {{ $showInUploaded ? 'true' : 'false' }}) ||
                                     (statusTab === 'submitted' && {{ $showInSubmitted ? 'true' : 'false' }}) ||
                                     (statusTab === 'accepted' && {{ $showInAccepted ? 'true' : 'false' }}) ||
@@ -196,37 +191,18 @@
                                 "
                                 data-url="{{ route('corporate.formation.show', $row->id) }}"
                                 onclick="window.location.href=this.dataset.url"
-                                class="border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition">
+                                class="border-b border-gray-200 hover:bg-blue-50 transition cursor-pointer">
 
                                 <td class="px-3 py-2">{{ $row->date_upload }}</td>
-
-                                <td class="px-3 py-2">
-                                    {{ $row->created_at->format('M d, Y') }}
-                                </td>
-
+                                <td class="px-3 py-2">{{ $row->created_at->format('M d, Y') }}</td>
                                 <td class="px-3 py-2">{{ $row->company_reg_no }}</td>
-
-                                <td class="px-3 py-2 font-semibold text-gray-800">
-                                    {{ $row->corporate_name }}
-                                </td>
-
+                                <td class="px-3 py-2 font-semibold text-gray-800">{{ $row->corporate_name }}</td>
                                 <td class="px-3 py-2">{{ $row->issued_on }}</td>
-
                                 <td class="px-3 py-2">{{ $row->issued_by }}</td>
 
                                 <td class="px-3 py-2">
-                                    @php
-                                        $badgeClass = match($status) {
-                                            'Approved' => 'bg-green-50 text-green-700',
-                                            'Needs Revision' => 'bg-yellow-50 text-yellow-700',
-                                            'Rejected' => 'bg-red-50 text-red-700',
-                                            'Archived' => 'bg-gray-100 text-gray-700',
-                                            default => 'bg-blue-50 text-blue-700',
-                                        };
-                                    @endphp
-
                                     <span class="px-2 py-1 rounded-full text-[10px] font-medium {{ $badgeClass }}">
-                                        {{ $status }}
+                                        {{ $workflow }}
                                     </span>
                                 </td>
 
@@ -252,7 +228,6 @@
 
 </div>
 
-<!-- OVERLAY -->
 <div
     x-show="openPanel"
     x-transition.opacity
@@ -261,7 +236,6 @@
     @click="openPanel = false">
 </div>
 
-<!-- SLIDE PANEL -->
 <div
     x-show="openPanel"
     x-transition:enter="transform transition ease-out duration-300"
@@ -290,6 +264,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-6 py-6">
+
             <div class="space-y-5">
 
                 <div>
@@ -342,6 +317,7 @@
                 </div>
 
             </div>
+
         </div>
 
         <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">

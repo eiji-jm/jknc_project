@@ -17,6 +17,7 @@ class SecCoi extends Model
         'file_path',
         'notary_file_path',
         'approval_status',
+        'workflow_status',
         'submitted_by',
         'approved_by',
         'approved_at',

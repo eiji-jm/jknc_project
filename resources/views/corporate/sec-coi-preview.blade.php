@@ -5,13 +5,15 @@
 @php
     $draftUrl = !empty($record->file_path) ? asset(ltrim($record->file_path, '/')) : null;
     $notaryUrl = !empty($record->notary_file_path) ? asset(ltrim($record->notary_file_path, '/')) : null;
+    $canEditRecord = in_array($record->workflow_status, ['Uploaded', 'Reverted']);
 @endphp
 
 <div class="w-full px-6 py-6"
      x-data="{
         fileTab: '{{ $draftUrl ? 'draft' : ($notaryUrl ? 'notary' : 'draft') }}',
-        editDraft: {{ $draftUrl ? 'false' : 'true' }},
-        editNotary: {{ $notaryUrl ? 'false' : 'true' }}
+        editDraft: false,
+        editNotary: false,
+        editDetails: false
      }">
 
     @if(session('success'))
@@ -45,7 +47,6 @@
                 </button>
             </div>
 
-            <!-- DRAFT VIEW -->
             <div x-show="fileTab === 'draft'">
                 @if($draftUrl)
                     <iframe
@@ -59,7 +60,6 @@
                 @endif
             </div>
 
-            <!-- NOTARY VIEW -->
             <div x-show="fileTab === 'notary'" x-cloak>
                 @if($notaryUrl)
                     <iframe
@@ -80,9 +80,20 @@
         <!-- INFORMATION PANEL -->
         <div class="bg-white border rounded-lg p-6 space-y-4">
 
-            <h2 class="text-lg font-semibold mb-4">
-                Certificate Information
-            </h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold">
+                    Certificate Information
+                </h2>
+
+                @if($canEditRecord)
+                    <button
+                        type="button"
+                        @click="editDetails = !editDetails"
+                        class="text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                        <span x-text="editDetails ? 'Cancel' : 'Edit Details'"></span>
+                    </button>
+                @endif
+            </div>
 
             <div class="flex justify-between gap-4">
                 <span class="text-gray-500">Corporation</span>
@@ -133,6 +144,54 @@
                 </span>
             </div>
 
+            @if($canEditRecord)
+                <form x-show="editDetails" x-cloak
+                      action="{{ route('corporate.formation.update', $record->id) }}"
+                      method="POST"
+                      class="space-y-3 pt-4 border-t border-gray-100">
+                    @csrf
+                    @method('PUT')
+
+                    <input type="text"
+                           name="corporate_name"
+                           value="{{ $record->corporate_name }}"
+                           placeholder="Corporate Name"
+                           class="w-full border rounded p-2"
+                           required>
+
+                    <input type="text"
+                           name="company_reg_no"
+                           value="{{ $record->company_reg_no }}"
+                           placeholder="Company Reg No."
+                           class="w-full border rounded p-2"
+                           required>
+
+                    <input type="text"
+                           name="issued_by"
+                           value="{{ $record->issued_by }}"
+                           placeholder="Issued By"
+                           class="w-full border rounded p-2"
+                           required>
+
+                    <input type="date"
+                           name="issued_on"
+                           value="{{ $record->issued_on }}"
+                           class="w-full border rounded p-2"
+                           required>
+
+                    <input type="date"
+                           name="date_upload"
+                           value="{{ $record->date_upload }}"
+                           class="w-full border rounded p-2"
+                           required>
+
+                    <button type="submit"
+                            class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                        Save Details
+                    </button>
+                </form>
+            @endif
+
             <!-- DRAFT FILE -->
             <div class="pt-4 border-t border-gray-100">
                 <div class="flex items-center justify-between mb-3">
@@ -140,7 +199,7 @@
                         Draft File
                     </h3>
 
-                    @if($draftUrl)
+                    @if($canEditRecord && $draftUrl)
                         <button
                             type="button"
                             @click="editDraft = !editDraft"
@@ -170,20 +229,22 @@
                     </div>
                 @endif
 
-                <form x-show="editDraft" x-cloak
-                      action="{{ route('corporate.formation.upload.draft', $record->id) }}"
-                      method="POST"
-                      enctype="multipart/form-data"
-                      class="space-y-3">
-                    @csrf
+                @if($canEditRecord)
+                    <form x-show="editDraft || !{{ $draftUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.formation.upload.draft', $record->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
 
-                    <input type="file" name="draft_file" class="w-full border rounded p-2" required>
+                        <input type="file" name="draft_file" class="w-full border rounded p-2" required>
 
-                    <button type="submit"
-                            class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
-                        Save Draft File
-                    </button>
-                </form>
+                        <button type="submit"
+                                class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                            Save Draft File
+                        </button>
+                    </form>
+                @endif
             </div>
 
             <!-- NOTARY FILE -->
@@ -193,7 +254,7 @@
                         Notary File
                     </h3>
 
-                    @if($notaryUrl)
+                    @if($canEditRecord && $notaryUrl)
                         <button
                             type="button"
                             @click="editNotary = !editNotary"
@@ -223,20 +284,22 @@
                     </div>
                 @endif
 
-                <form x-show="editNotary" x-cloak
-                      action="{{ route('corporate.formation.upload.notary', $record->id) }}"
-                      method="POST"
-                      enctype="multipart/form-data"
-                      class="space-y-3">
-                    @csrf
+                @if($canEditRecord)
+                    <form x-show="editNotary || !{{ $notaryUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.formation.upload.notary', $record->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
 
-                    <input type="file" name="notary_file" class="w-full border rounded p-2" required>
+                        <input type="file" name="notary_file" class="w-full border rounded p-2" required>
 
-                    <button type="submit"
-                            class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
-                        Save Notary File
-                    </button>
-                </form>
+                        <button type="submit"
+                                class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
+                            Save Notary File
+                        </button>
+                    </form>
+                @endif
             </div>
 
         </div>

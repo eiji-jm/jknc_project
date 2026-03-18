@@ -78,7 +78,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="flex items-center justify-center gap-2">
+                                    <div class="flex items-center justify-center gap-2 flex-wrap">
                                         <form action="{{ $item->approve_route }}" method="POST">
                                             @csrf
                                             <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
@@ -99,6 +99,15 @@
                                                 Revise
                                             </button>
                                         </form>
+
+                                        @if($item->status === 'Approved')
+                                            <form action="{{ $item->archive_route }}" method="POST">
+                                                @csrf
+                                                <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-700 text-white hover:bg-gray-800 transition">
+                                                    Archive
+                                                </button>
+                                            </form>
+                                        @endif
 
                                         <a href="{{ $item->show_route }}"
                                            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
