@@ -583,8 +583,25 @@
 
         downloadFile(type, format) {
             this.activeDownloadMenu = null;
-            const content = this.selectedMeetingDetails.notes.find(n => n.content.toLowerCase().includes(type.toLowerCase()))?.content || 'No content found.';
-            const filename = `${type}_${this.selectedMeetingDetails.title.replace(/\s+/g, '_')}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+            
+            if (type === 'video' || type === 'audio') {
+                const url = type === 'video' ? this.selectedMeetingDetails?.video_url : this.selectedMeetingDetails?.audio_url;
+                if (!url) {
+                    alert('No ' + type + ' file available for this meeting.');
+                    return;
+                }
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'recording'}.${format}`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return;
+            }
+
+            const content = this.selectedMeetingDetails?.notes?.find(n => n.content.toLowerCase().includes(type.toLowerCase()))?.content || 'No content found.';
+            const filename = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'doc'}.${format === 'pdf' ? 'pdf' : 'docx'}`;
 
             if (format === 'pdf') {
                 // Simulate PDF by opening a new window with content for printing
@@ -1602,27 +1619,12 @@
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_video">
                             <div class="w-24 text-sm text-gray-500">Video</div>
                             <div class="flex items-center gap-2">
-                                <div class="relative">
-                                    <button @click="activeDownloadMenu = activeDownloadMenu === 'video' ? null : 'video'" 
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
-                                            :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
-                                        <i class="fas fa-download text-[10px]"></i>
-                                        Download
-                                    </button>
-
-                                    <!-- Dropdown -->
-                                    <div x-show="activeDownloadMenu === 'video'" 
-                                         @click.away="activeDownloadMenu = null"
-                                         class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
-                                         style="display: none;">
-                                        <button @click="downloadFile('video', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                            <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
-                                        </button>
-                                        <button @click="downloadFile('video', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
-                                            <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
-                                        </button>
-                                    </div>
-                                </div>
+                                <button @click="downloadFile('video', 'mp4')" 
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
+                                        :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
+                                    <i class="fas fa-download text-[10px]"></i>
+                                    Download
+                                </button>
                                 <button @click="showVideoPlayer = true" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                         :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     Open
@@ -1633,26 +1635,13 @@
                         <!-- Audio -->
                         <div class="flex items-center" x-show="selectedMeetingDetails?.has_audio">
                             <div class="w-24 text-sm text-gray-500">Audio</div>
-                            <div class="relative">
-                                <button @click="activeDownloadMenu = activeDownloadMenu === 'audio' ? null : 'audio'" 
+                            <div class="flex items-center gap-2">
+                                <button @click="downloadFile('audio', 'mp3')" 
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1d54e2] text-white rounded-lg text-xs font-semibold hover:bg-[#1541b0] transition shadow-sm"
                                         :class="selectedMeetingDetails?.status === 'upcoming' ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''">
                                     <i class="fas fa-download text-[10px]"></i>
                                     Download
                                 </button>
-
-                                <!-- Dropdown -->
-                                <div x-show="activeDownloadMenu === 'audio'" 
-                                     @click.away="activeDownloadMenu = null"
-                                     class="absolute left-0 mt-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden" 
-                                     style="display: none;">
-                                    <button @click="downloadFile('audio', 'pdf')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                                        <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
-                                    </button>
-                                    <button @click="downloadFile('audio', 'docs')" class="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
-                                        <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
-                                    </button>
-                                </div>
                             </div>
                         </div>
 
@@ -1759,6 +1748,8 @@
 
     <!-- Video Player Slide-over -->
     <div x-show="showVideoPlayer" 
+         x-data="videoPlayer()"
+         @keydown.escape.window="showVideoPlayer = false"
          style="display: none;" 
          class="fixed top-0 bottom-0 right-0 z-[110] w-full max-w-[500px] transition-all"
          x-transition:enter="ease-out duration-300"
@@ -1778,30 +1769,46 @@
             
             <!-- Video Area -->
             <div class="flex-1 bg-gray-50 flex flex-col p-6">
-                <div class="bg-black rounded-xl flex items-center justify-center overflow-hidden aspect-video shadow-lg mb-6">
-                    <div class="text-center text-gray-600">
-                        <i class="far fa-file-video text-7xl"></i>
-                        <p class="text-xs mt-4 font-medium uppercase tracking-widest">Video Stream Ready</p>
+                <div class="bg-black rounded-xl flex items-center justify-center overflow-hidden aspect-video shadow-lg mb-6 relative group">
+                    <video x-ref="videoElement" 
+                           :src="videoSrc" 
+                           @timeupdate="updateTime()" 
+                           @loadedmetadata="updateTime()" 
+                           @ended="playing = false"
+                           class="w-full h-full object-contain cursor-pointer"
+                           @click="togglePlay()"></video>
+                    
+                    <!-- Overlay when paused -->
+                    <div x-show="!playing && currentTime === 0" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 bg-black/50 pointer-events-none transition-opacity">
+                        <i class="far fa-file-video text-7xl mb-4 text-white/70"></i>
+                        <p class="text-xs font-medium uppercase tracking-widest text-white/90">Video Stream Ready</p>
                     </div>
                 </div>
 
                 <!-- Playback Controls (Standardized) -->
                 <div class="bg-[#1d54e2] rounded-xl px-6 py-4 flex flex-col shadow-md">
                     <div class="flex items-center gap-4 mb-3">
-                        <button class="text-white hover:text-gray-200 transition">
-                            <i class="fas fa-play text-base"></i>
+                        <button @click="togglePlay()" class="text-white hover:text-gray-200 transition">
+                            <i :class="['fas text-base', playing ? 'fa-pause' : 'fa-play']"></i>
                         </button>
-                        <div class="flex-1 h-1.5 bg-blue-400/30 rounded-full relative">
-                            <div class="absolute left-0 top-0 h-full w-1/3 bg-white rounded-full"></div>
+                        <div class="flex-1 h-1.5 bg-blue-400/30 rounded-full cursor-pointer relative" @click="seek($event)">
+                            <div class="absolute left-0 top-0 h-full bg-white rounded-full transition-all duration-75" :style="`width: ${duration ? (currentTime / duration) * 100 : 0}%`"></div>
                         </div>
-                        <span class="text-white text-xs font-bold font-mono">12:45 / 45:00</span>
+                        <span class="text-white text-xs font-bold font-mono" x-text="`${formatTime(currentTime)} / ${formatTime(duration)}`">00:00 / 00:00</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <button class="text-blue-100 hover:text-white transition"><i class="fas fa-undo text-sm"></i></button>
-                            <button class="text-blue-100 hover:text-white transition"><i class="fas fa-redo text-sm"></i></button>
+                            <button @click="skip(-10)" class="text-blue-100 hover:text-white transition" title="Rewind 10s"><i class="fas fa-undo text-sm"></i></button>
+                            <button @click="skip(10)" class="text-blue-100 hover:text-white transition" title="Skip 10s"><i class="fas fa-redo text-sm"></i></button>
                         </div>
-                        <button class="text-blue-100 hover:text-white transition"><i class="fas fa-volume-up text-sm"></i></button>
+                        <div class="flex items-center gap-4">
+                            <button @click="toggleMute()" class="text-blue-100 hover:text-white transition" title="Toggle Mute">
+                                <i :class="['fas text-sm', muted ? 'fa-volume-mute text-blue-200' : 'fa-volume-up']"></i>
+                            </button>
+                            <button @click="toggleFullScreen()" class="text-blue-100 hover:text-white transition" title="Fullscreen">
+                                <i class="fas fa-expand text-sm"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1810,7 +1817,7 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                             <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Duration</p>
-                            <p class="text-sm font-bold text-gray-700">45 Minutes</p>
+                            <p class="text-sm font-bold text-gray-700" x-text="formatDurationText(duration)">45 Minutes</p>
                         </div>
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                             <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Quality</p>
@@ -1822,7 +1829,7 @@
 
             <!-- Footer -->
             <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
-                <button class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
+                <button @click="downloadVideo()" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
                     Download
                 </button>
                 <button @click="showVideoPlayer = false" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
@@ -2116,4 +2123,114 @@
     </div><!-- end main content -->
 
 </div><!-- end root -->
+
+<script>
+    function videoPlayer() {
+        return {
+            playing: false,
+            currentTime: 0,
+            duration: 0,
+            muted: false,
+            videoSrc: '',
+
+            init() {
+                // React to meeting selection changes from parent scope
+                this.$watch('selectedMeetingDetails', (meeting) => {
+                    this.videoSrc = meeting?.video_url || '';
+                    this.currentTime = 0;
+                    this.duration = 0;
+                    this.playing = false;
+                    if (this.$refs.videoElement) {
+                        this.$refs.videoElement.load();
+                    }
+                });
+            },
+
+            togglePlay() {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                if (vid.paused) {
+                    vid.play();
+                    this.playing = true;
+                } else {
+                    vid.pause();
+                    this.playing = false;
+                }
+            },
+            updateTime() {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                this.currentTime = vid.currentTime;
+                // Wait until duration is available
+                if (vid.duration && !isNaN(vid.duration)) {
+                    this.duration = vid.duration;
+                }
+            },
+            seek(event) {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                let rect = event.currentTarget.getBoundingClientRect();
+                let pos = (event.clientX - rect.left) / rect.width;
+                vid.currentTime = pos * this.duration;
+            },
+            skip(seconds) {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                vid.currentTime += seconds;
+            },
+            toggleMute() {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                vid.muted = !vid.muted;
+                this.muted = vid.muted;
+            },
+            toggleFullScreen() {
+                let vid = this.$refs.videoElement;
+                if (!vid) return;
+                
+                if (!document.fullscreenElement) {
+                    if (vid.requestFullscreen) {
+                        vid.requestFullscreen();
+                    } else if (vid.webkitRequestFullscreen) { /* Safari */
+                        vid.webkitRequestFullscreen();
+                    } else if (vid.msRequestFullscreen) { /* IE11 */
+                        vid.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) { /* Safari */
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) { /* IE11 */
+                        document.msExitFullscreen();
+                    }
+                }
+            },
+            formatTime(seconds) {
+                if (!seconds || isNaN(seconds)) return '00:00';
+                let m = Math.floor(seconds / 60);
+                let s = Math.floor(seconds % 60);
+                return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            },
+            formatDurationText(seconds) {
+                if (!seconds || isNaN(seconds)) return '0 Minutes';
+                let m = Math.floor(seconds / 60);
+                let s = Math.floor(seconds % 60);
+                
+                if (m === 0) return `${s} Seconds`;
+                if (s === 0) return `${m} Minute${m > 1 ? 's' : ''}`;
+                return `${m} Min, ${s} Sec`;
+            },
+            downloadVideo() {
+                if (!this.videoSrc) return;
+                const link = document.createElement('a');
+                link.href = this.videoSrc;
+                link.download = 'meeting_recording.mp4';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    }
+</script>
 @endsection
