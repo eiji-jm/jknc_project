@@ -1,5 +1,8 @@
 ﻿
 @php
+    $formAction = $formAction ?? route('deals.store');
+    $formMethod = strtoupper($formMethod ?? 'POST');
+    $submitLabel = $submitLabel ?? 'Save & View Deal';
     $draft = $dealDraft ?? [];
     $serviceAreaOptions = [
         'Corporate & Regulatory Advisory',
@@ -129,8 +132,11 @@
                 <button id="closeCreateDealModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-800">&times;</button>
             </div>
 
-            <form id="createDealForm" method="POST" action="{{ route('deals.store') }}" class="flex min-h-0 flex-1 flex-col">
+            <form id="createDealForm" method="POST" action="{{ $formAction }}" class="flex min-h-0 flex-1 flex-col">
                 @csrf
+                @if ($formMethod !== 'POST')
+                    @method($formMethod)
+                @endif
                 <input id="deal_selected_owner_id" type="hidden" name="owner_id" value="{{ old('owner_id', $selectedOwnerId) }}">
                 <input id="deal_selected_contact_id" type="hidden" name="contact_id" value="{{ old('contact_id', $draft['contact_id'] ?? '') }}">
 
@@ -506,8 +512,7 @@
 
                 <div class="mt-auto flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
                     <button id="cancelCreateDealModal" type="button" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-                    <button id="previewDealBtn" type="submit" formaction="{{ route('deals.preview') }}" class="h-10 rounded-lg border border-blue-200 bg-blue-50 px-5 text-sm font-medium text-blue-700 hover:bg-blue-100">Preview</button>
-                    <button id="saveDealBtn" type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">Save Deal</button>
+                    <button id="saveDealBtn" type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">{{ $submitLabel }}</button>
                 </div>
             </form>
         </div>
@@ -533,7 +538,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const contactIdInput = document.getElementById('deal_selected_contact_id');
     const dependentSections = document.getElementById('dealDependentSections');
     const requiredMessage = document.getElementById('dealContactRequiredMessage');
-    const previewBtn = document.getElementById('previewDealBtn');
     const saveBtn = document.getElementById('saveDealBtn');
     const feeInputs = [
         document.getElementById('estimated_professional_fee'),
@@ -614,11 +618,6 @@ document.addEventListener('DOMContentLoaded', function () {
         dependentSections.classList.toggle('opacity-60', isDisabled);
         dependentSections.classList.toggle('pointer-events-none', isDisabled);
         requiredMessage?.classList.toggle('hidden', !isDisabled);
-        if (previewBtn) {
-            previewBtn.disabled = isDisabled;
-            previewBtn.classList.toggle('opacity-60', isDisabled);
-            previewBtn.classList.toggle('cursor-not-allowed', isDisabled);
-        }
         if (saveBtn) {
             saveBtn.disabled = isDisabled;
             saveBtn.classList.toggle('opacity-60', isDisabled);

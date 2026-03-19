@@ -24,6 +24,8 @@ Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.p
 Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
 Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
 Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
+Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
+Route::get('/deals/{id}/download', [DealController::class, 'download'])->name('deals.download');
 Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
 
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');

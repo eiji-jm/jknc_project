@@ -244,6 +244,7 @@ class DealController extends Controller
         return view('deals.preview', [
             'draft' => $draft,
             'hiddenFields' => $this->hiddenDraftFields($draft),
+            'dealFormData' => $this->normalizeDealFormData($draft),
         ]);
     }
 
@@ -265,12 +266,16 @@ class DealController extends Controller
         if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
             $mockDeal = $this->buildMockSavedDeal($validated, $contact);
             $request->session()->put('deals.mock_saved', $mockDeal);
+            $request->session()->put('deals.mock_saved_payload', [
+                'id' => $mockDeal['id'],
+                ...$validated,
+            ]);
             $request->session()->forget('deals.preview_payload');
 
-            return redirect()->route('deals.index')->with('success', 'Mock deal saved successfully.');
+            return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved successfully.');
         }
 
-        Deal::query()->create([
+        $createdDeal = Deal::query()->create([
             ...$validated,
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
@@ -287,7 +292,44 @@ class DealController extends Controller
 
         $request->session()->forget('deals.preview_payload');
 
-        return redirect()->route('deals.index')->with('success', 'Deal created successfully.');
+        return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created successfully.');
+    }
+
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $validated = $this->validateDealPayload($request);
+        $contact = $this->resolveContact((int) $validated['contact_id']);
+        abort_unless($contact, 404);
+
+        if (! Schema::hasTable('deals')) {
+            $mockSaved = $this->buildMockSavedDeal($validated, $contact) + ['id' => $id];
+            $request->session()->put('deals.mock_saved', $mockSaved);
+            $request->session()->put('deals.mock_saved_payload', [
+                'id' => $id,
+                ...$validated,
+            ]);
+
+            return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated successfully.');
+        }
+
+        $deal = Deal::query()->findOrFail($id);
+        $deal->fill([
+            ...$validated,
+            'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+            'salutation' => $validated['salutation'] ?? $contact->salutation,
+            'first_name' => $validated['first_name'] ?? $contact->first_name,
+            'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
+            'last_name' => $validated['last_name'] ?? $contact->last_name,
+            'email' => $validated['email'] ?? $contact->email,
+            'mobile' => $validated['mobile'] ?? $contact->phone,
+            'address' => $validated['address'] ?? $contact->contact_address,
+            'company_name' => $validated['company_name'] ?? $contact->company_name,
+            'company_address' => $validated['company_address'] ?? $contact->company_address,
+            'position' => $validated['position'] ?? $contact->position,
+        ]);
+        $deal->save();
+
+        return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated successfully.');
     }
 
     public function show(int $id): View
@@ -374,8 +416,101 @@ class DealController extends Controller
                 return view('deals.show', [
                     'deal' => $deal,
                     'detail' => $detail,
+                    'dealFormData' => $this->normalizeDealFormData($storedDeal->toArray()),
+                    ...$this->dealPanelContext($this->normalizeDealFormData($storedDeal->toArray())),
+                    'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
             }
+        }
+
+        $mockPayload = session('deals.mock_saved_payload');
+        if (is_array($mockPayload) && (int) ($mockPayload['id'] ?? 0) === $id) {
+            $mockDeal = session('deals.mock_saved', []);
+            $deal = [
+                'id' => $id,
+                'deal_name' => $mockPayload['deal_name'] ?? ($mockDeal['deal_name'] ?? 'Mock Deal'),
+                'contact_name' => trim(collect([$mockPayload['first_name'] ?? '', $mockPayload['last_name'] ?? ''])->filter()->implode(' ')) ?: ($mockDeal['contact_name'] ?? 'Linked Contact'),
+                'company_name' => $mockPayload['company_name'] ?? ($mockDeal['company_name'] ?? '-'),
+                'amount' => (int) round((float) ($mockPayload['total_estimated_engagement_value'] ?? 0)),
+                'expected_close' => filled($mockPayload['estimated_completion_date'] ?? null)
+                    ? Carbon::parse($mockPayload['estimated_completion_date'])->format('M d, Y')
+                    : ($mockDeal['expected_close'] ?? 'TBD'),
+                'owner_name' => $mockPayload['assigned_consultant'] ?? ($mockDeal['owner_name'] ?? 'Unassigned'),
+                'stage' => $mockPayload['stage'] ?? ($mockDeal['stage'] ?? 'Inquiry'),
+            ];
+
+            $detail = [
+                'related_contact' => $deal['contact_name'],
+                'related_company' => $deal['company_name'],
+                'deal_amount' => $deal['amount'],
+                'expected_close_date' => $deal['expected_close'],
+                'contact_person_name' => $deal['contact_name'],
+                'contact_person_position' => $mockPayload['position'] ?? '-',
+                'email_address' => $mockPayload['email'] ?? '-',
+                'contact_number' => $mockPayload['mobile'] ?? '-',
+                'client_type' => $mockPayload['customer_type'] ?? '-',
+                'industry' => $mockPayload['service_area'] ?? '-',
+                'deal_stage' => $deal['stage'],
+                'deal_owner' => $deal['owner_name'],
+                'created_date' => now()->format('n/j/Y'),
+                'last_modified' => now()->format('Y-m-d h:i A'),
+                'deal_status' => 'Open',
+                'service' => [
+                    'service_type' => $mockPayload['services'] ?? '-',
+                    'product_type' => $mockPayload['products'] ?? '-',
+                    'engagement_type' => $mockPayload['engagement_type'] ?? '-',
+                    'engagement_duration' => $mockPayload['estimated_duration'] ?? '-',
+                ],
+                'financial' => [
+                    'deal_value' => (int) round((float) ($mockPayload['total_estimated_engagement_value'] ?? 0)),
+                    'pricing_model' => $mockPayload['engagement_type'] ?? '-',
+                    'payment_terms' => $mockPayload['payment_terms'] ?? '-',
+                    'commission_applicable' => $mockPayload['support_required'] ?? '-',
+                ],
+                'referral' => [
+                    'lead_source' => $mockPayload['lead_source'] ?? '-',
+                    'referred_by' => $mockPayload['referred_by'] ?? '-',
+                    'referral_type' => $mockPayload['referral_type'] ?? '-',
+                ],
+                'ownership' => [
+                    'lead_consultant' => $mockPayload['assigned_consultant'] ?? '-',
+                    'lead_associate' => $mockPayload['assigned_associate'] ?? '-',
+                    'handling_team' => $mockPayload['service_department_unit'] ?? '-',
+                    'assigned_members' => array_values(array_filter([
+                        $mockPayload['assigned_consultant'] ?? null,
+                        $mockPayload['assigned_associate'] ?? null,
+                    ])),
+                ],
+                'progress' => [
+                    'stages' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
+                    'current_stage' => $deal['stage'],
+                ],
+                'timeline' => [
+                    [
+                        'icon' => 'fa-file-circle-plus',
+                        'title' => 'Mock deal created',
+                        'timestamp' => now()->format('Y-m-d, h:i A'),
+                        'user' => $deal['owner_name'],
+                    ],
+                ],
+                'stage_history' => [
+                    [
+                        'stage' => $deal['stage'],
+                        'amount' => $deal['amount'],
+                        'duration' => $mockPayload['estimated_duration'] ?? '-',
+                        'modified_by' => $deal['owner_name'],
+                        'date' => now()->format('M d, Y h:i A'),
+                    ],
+                ],
+            ];
+
+            return view('deals.show', [
+                'deal' => $deal,
+                'detail' => $detail,
+                'dealFormData' => $this->normalizeDealFormData($mockPayload),
+                ...$this->dealPanelContext($this->normalizeDealFormData($mockPayload)),
+                'openDealModal' => (bool) request()->boolean('edit_deal'),
+            ]);
         }
 
         $deal = collect($this->mockDeals())->firstWhere('id', $id);
@@ -526,6 +661,52 @@ class DealController extends Controller
         return view('deals.show', [
             'deal' => $deal,
             'detail' => $detail,
+            'dealFormData' => $this->normalizeDealFormData([
+                ...$deal,
+                'contact_id' => 101,
+                'email' => $detail['email_address'] ?? null,
+                'mobile' => $detail['contact_number'] ?? null,
+                'service_area' => $detail['industry'] ?? null,
+                'services' => data_get($detail, 'service.service_type'),
+                'products' => data_get($detail, 'service.product_type'),
+                'engagement_type' => data_get($detail, 'service.engagement_type'),
+                'estimated_duration' => data_get($detail, 'service.engagement_duration'),
+                'payment_terms' => data_get($detail, 'financial.payment_terms'),
+                'assigned_consultant' => data_get($detail, 'ownership.lead_consultant'),
+                'assigned_associate' => data_get($detail, 'ownership.lead_associate'),
+                'service_department_unit' => data_get($detail, 'ownership.handling_team'),
+                'referred_by' => data_get($detail, 'referral.referred_by'),
+            ]),
+            ...$this->dealPanelContext($this->normalizeDealFormData([
+                ...$deal,
+                'contact_id' => 101,
+                'email' => $detail['email_address'] ?? null,
+                'mobile' => $detail['contact_number'] ?? null,
+            ])),
+            'openDealModal' => (bool) request()->boolean('edit_deal'),
+        ]);
+    }
+
+    public function download(int $id): View
+    {
+        $deal = collect($this->mockDeals())->firstWhere('id', $id);
+        $dealFormData = $this->normalizeDealFormData($deal ?: []);
+
+        if (Schema::hasTable('deals')) {
+            $storedDeal = Deal::query()->find($id);
+            if ($storedDeal) {
+                $deal = [
+                    'id' => $storedDeal->id,
+                    'deal_name' => $storedDeal->deal_name,
+                ];
+                $dealFormData = $this->normalizeDealFormData($storedDeal->toArray());
+            }
+        }
+
+        return view('deals.pdf', [
+            'deal' => $deal ?? ['id' => $id, 'deal_name' => 'Deal Form'],
+            'dealFormData' => $dealFormData,
+            'downloadMode' => true,
         ]);
     }
 
@@ -623,6 +804,165 @@ class DealController extends Controller
                 'stage' => 'Inquiry',
             ],
         ];
+    }
+
+    private function dealPanelContext(array $draft = []): array
+    {
+        $owners = $this->ownerOptions();
+        $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
+        $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
+        $contactRecords = [$this->mockContactRecord()];
+        $contactOptions = ['David Lee'];
+        $companyOptions = ['Consulting Group'];
+
+        if (Schema::hasTable('contacts')) {
+            $contactColumns = array_values(array_filter([
+                'id',
+                'customer_type',
+                'client_status',
+                'salutation',
+                'first_name',
+                'middle_initial',
+                'middle_name',
+                'last_name',
+                'name_extension',
+                'sex',
+                'date_of_birth',
+                'email',
+                'phone',
+                'contact_address',
+                'company_name',
+                'company_address',
+                'position',
+            ], fn (string $column): bool => Schema::hasColumn('contacts', $column)));
+            if (! in_array('id', $contactColumns, true)) {
+                $contactColumns[] = 'id';
+            }
+
+            $contacts = Contact::query()->select($contactColumns)->orderBy('first_name')->orderBy('last_name')->get();
+            $contactRecords = $contacts->map(function (Contact $contact): array {
+                return [
+                    'id' => $contact->id,
+                    'label' => trim(collect([$contact->salutation, $contact->first_name, $contact->middle_name, $contact->last_name])->filter()->implode(' ')),
+                    'search_blob' => strtolower(implode(' ', array_filter([
+                        $contact->salutation,
+                        $contact->first_name,
+                        $contact->middle_initial,
+                        $contact->middle_name,
+                        $contact->last_name,
+                        $contact->company_name,
+                        $contact->email,
+                        $contact->phone,
+                    ]))),
+                    'customer_type' => $contact->customer_type,
+                    'client_status' => $contact->client_status,
+                    'salutation' => $contact->salutation,
+                    'first_name' => $contact->first_name,
+                    'middle_initial' => $contact->middle_initial ?: (filled($contact->middle_name) ? mb_substr((string) $contact->middle_name, 0, 1) : null),
+                    'middle_name' => $contact->middle_name,
+                    'last_name' => $contact->last_name,
+                    'name_extension' => $contact->name_extension,
+                    'sex' => $contact->sex,
+                    'date_of_birth' => optional($contact->date_of_birth)->format('Y-m-d'),
+                    'email' => $contact->email,
+                    'mobile' => $contact->phone,
+                    'address' => $contact->contact_address,
+                    'company_name' => $contact->company_name,
+                    'company_address' => $contact->company_address,
+                    'position' => $contact->position,
+                ];
+            })->filter(fn (array $record): bool => $record['label'] !== '' || filled($record['company_name']))->values()->all();
+
+            if (! collect($contactRecords)->contains(fn (array $record) => (int) $record['id'] === 101)) {
+                array_unshift($contactRecords, $this->mockContactRecord());
+            }
+
+            $contactOptions = $contacts->map(fn (Contact $contact): string => trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))->filter()->unique()->values()->all();
+            $companyOptions = array_values(array_unique(array_merge(['Consulting Group'], $contacts->pluck('company_name')->filter()->values()->all())));
+        }
+
+        return [
+            'stageOptions' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
+            'companyOptions' => $companyOptions,
+            'contactOptions' => $contactOptions,
+            'contactRecords' => $contactRecords,
+            'productOptions' => [],
+            'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
+            'owners' => $owners,
+            'defaultOwnerId' => $defaultOwnerId,
+            'dealDraft' => $draft,
+        ];
+    }
+
+    private function normalizeDealFormData(array $payload): array
+    {
+        $normalized = $payload;
+
+        $normalized['service_area_options'] = $this->normalizeListValue($payload['service_area_options'] ?? ($payload['service_area'] ?? null));
+        $normalized['service_options'] = $this->normalizeListValue($payload['service_options'] ?? ($payload['services'] ?? null));
+        $normalized['product_options'] = $this->normalizeListValue($payload['product_options'] ?? ($payload['products'] ?? null));
+        $normalized['required_actions_options'] = $this->normalizeListValue($payload['required_actions_options'] ?? ($payload['required_actions'] ?? null));
+        $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
+        $normalized['requirements_status_map'] = $this->normalizeRequirementStatusMap($payload['requirements_status_map'] ?? ($payload['requirements_status'] ?? null));
+
+        foreach ([
+            'estimated_professional_fee',
+            'estimated_government_fees',
+            'estimated_service_support_fee',
+            'total_estimated_engagement_value',
+        ] as $moneyField) {
+            if (filled($normalized[$moneyField] ?? null) && is_numeric(str_replace(',', '', (string) $normalized[$moneyField]))) {
+                $normalized[$moneyField] = 'P'.number_format((float) str_replace(',', '', (string) $normalized[$moneyField]), 2);
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeListValue(mixed $value): array
+    {
+        if (is_array($value)) {
+            return collect($value)->map(fn ($item) => trim((string) $item))->filter()->values()->all();
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(',', $value))
+            ->map(fn (string $item): string => trim($item))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeRequirementStatusMap(mixed $value): array
+    {
+        if (is_array($value)) {
+            return collect($value)
+                ->mapWithKeys(fn ($status, $key) => [(string) $key => strtolower((string) $status)])
+                ->filter(fn ($status) => in_array($status, ['provided', 'pending'], true))
+                ->all();
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $parsed = [];
+        foreach (explode(';', $value) as $pair) {
+            $parts = explode(':', $pair, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $key = str_replace(' ', '_', trim(strtolower($parts[0])));
+            $status = trim(strtolower($parts[1]));
+            if (in_array($status, ['provided', 'pending'], true)) {
+                $parsed[$key] = $status;
+            }
+        }
+
+        return $parsed;
     }
 
     private function validateDealPayload(Request $request): array
