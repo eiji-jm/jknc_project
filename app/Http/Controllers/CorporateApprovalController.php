@@ -22,6 +22,19 @@ class CorporateApprovalController extends Controller
         }
     }
 
+    private function normalizeWorkflow($record): string
+    {
+        if (!empty($record->workflow_status)) {
+            return $record->workflow_status;
+        }
+
+        return match ($record->approval_status) {
+            'Approved' => 'Accepted',
+            'Needs Revision', 'Rejected' => 'Reverted',
+            default => 'Uploaded',
+        };
+    }
+
     public function dashboard()
     {
         $this->authorizeApprover();
@@ -29,6 +42,8 @@ class CorporateApprovalController extends Controller
         $items = collect();
 
         foreach (SecCoi::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'SEC-COI',
@@ -36,8 +51,8 @@ class CorporateApprovalController extends Controller
                 'company_reg_no' => $row->company_reg_no,
                 'uploaded_by' => $row->submitted_by,
                 'date_uploaded' => $row->date_upload,
-                'status' => $row->approval_status,
-                'workflow_status' => $row->workflow_status ?? 'Uploaded',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
                 'show_route' => route('corporate.formation.show', $row->id),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-coi', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-coi', 'id' => $row->id]),
@@ -47,6 +62,8 @@ class CorporateApprovalController extends Controller
         }
 
         foreach (SecAoi::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'SEC-AOI',
@@ -54,8 +71,8 @@ class CorporateApprovalController extends Controller
                 'company_reg_no' => $row->company_reg_no,
                 'uploaded_by' => $row->uploaded_by,
                 'date_uploaded' => $row->date_upload,
-                'status' => $row->approval_status,
-                'workflow_status' => $row->approval_status,
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
                 'show_route' => route('corporate.sec_aoi.show', $row->id),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-aoi', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-aoi', 'id' => $row->id]),
@@ -65,6 +82,8 @@ class CorporateApprovalController extends Controller
         }
 
         foreach (Bylaw::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'Bylaws',
@@ -72,8 +91,8 @@ class CorporateApprovalController extends Controller
                 'company_reg_no' => $row->company_reg_no,
                 'uploaded_by' => $row->uploaded_by,
                 'date_uploaded' => $row->date_upload,
-                'status' => $row->approval_status,
-                'workflow_status' => $row->approval_status,
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
                 'show_route' => route('corporate.bylaws.show', $row->id),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'bylaws', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'bylaws', 'id' => $row->id]),
@@ -83,6 +102,8 @@ class CorporateApprovalController extends Controller
         }
 
         foreach (GisRecord::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'GIS',
@@ -90,8 +111,8 @@ class CorporateApprovalController extends Controller
                 'company_reg_no' => $row->company_reg_no,
                 'uploaded_by' => $row->uploaded_by,
                 'date_uploaded' => $row->created_at ? $row->created_at->format('Y-m-d') : '',
-                'status' => $row->approval_status,
-                'workflow_status' => $row->approval_status,
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
                 'show_route' => route('gis.show', $row->id),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'gis', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'gis', 'id' => $row->id]),
@@ -102,10 +123,10 @@ class CorporateApprovalController extends Controller
 
         $items = $items->sortByDesc('id')->values();
 
-        $pendingCount = $items->where('status', 'Pending')->count();
-        $approvedCount = $items->where('status', 'Approved')->count();
-        $rejectedCount = $items->where('status', 'Rejected')->count();
-        $revisionCount = $items->where('status', 'Needs Revision')->count();
+        $pendingCount = $items->where('status', 'Submitted')->count();
+        $approvedCount = $items->where('status', 'Accepted')->count();
+        $rejectedCount = $items->where('approval_status', 'Rejected')->count();
+        $revisionCount = $items->where('status', 'Reverted')->count();
 
         return view('admin.corporate-dashboard', compact(
             'items',
@@ -133,18 +154,13 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
-        $updateData = [
+        $record->update([
             'approval_status' => 'Approved',
+            'workflow_status' => 'Accepted',
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'review_note' => null,
-        ];
-
-        if ($module === 'sec-coi') {
-            $updateData['workflow_status'] = 'Accepted';
-        }
-
-        $record->update($updateData);
+        ]);
 
         return back()->with('success', 'Record approved successfully.');
     }
@@ -155,18 +171,13 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
-        $updateData = [
+        $record->update([
             'approval_status' => 'Rejected',
+            'workflow_status' => 'Reverted',
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'review_note' => $request->review_note,
-        ];
-
-        if ($module === 'sec-coi') {
-            $updateData['workflow_status'] = 'Reverted';
-        }
-
-        $record->update($updateData);
+        ]);
 
         return back()->with('success', 'Record rejected successfully.');
     }
@@ -177,18 +188,13 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
-        $updateData = [
+        $record->update([
             'approval_status' => 'Needs Revision',
+            'workflow_status' => 'Reverted',
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'review_note' => $request->review_note,
-        ];
-
-        if ($module === 'sec-coi') {
-            $updateData['workflow_status'] = 'Reverted';
-        }
-
-        $record->update($updateData);
+        ]);
 
         return back()->with('success', 'Record marked as needs revision.');
     }
@@ -199,11 +205,9 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
-        if ($module === 'sec-coi') {
-            $record->update([
-                'workflow_status' => 'Archived',
-            ]);
-        }
+        $record->update([
+            'workflow_status' => 'Archived',
+        ]);
 
         return back()->with('success', 'Record archived successfully.');
     }

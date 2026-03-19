@@ -17,9 +17,24 @@ class SecAoiController extends Controller
         return $user && $user->hasPermission('approve_corporate');
     }
 
+    private function canEditRecord(SecAoi $record): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $record->submitted_by === (int) Auth::id()
+            && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
+    }
+
     public function index()
     {
-        $records = SecAoi::where('approval_status', 'Approved')->latest()->get();
+        if ($this->canApproveCorporate()) {
+            $records = SecAoi::latest()->get();
+        } else {
+            $records = SecAoi::where('submitted_by', Auth::id())->latest()->get();
+        }
+
         return view('corporate.sec-aoi', compact('records'));
     }
 
@@ -75,21 +90,22 @@ class SecAoiController extends Controller
             'file_path'                => $draftPath,
             'notary_file_path'         => $notaryPath,
             'approval_status'          => $isApprover ? 'Approved' : 'Pending',
+            'workflow_status'          => $isApprover ? 'Accepted' : 'Uploaded',
             'submitted_by'             => Auth::id(),
             'approved_by'              => $isApprover ? Auth::id() : null,
             'approved_at'              => $isApprover ? now() : null,
         ]);
 
         return redirect()->route('corporate.sec_aoi')
-            ->with('success', $isApprover ? 'SEC-AOI saved successfully.' : 'SEC-AOI submitted for approval.');
+            ->with('success', $isApprover ? 'SEC-AOI saved successfully.' : 'SEC-AOI saved as uploaded record.');
     }
 
     public function show($id)
     {
         $record = SecAoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canApproveCorporate() && (int) $record->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
         }
 
         return view('corporate.sec-aoi-preview', compact('record'));
@@ -103,14 +119,14 @@ class SecAoiController extends Controller
 
         $record = SecAoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('draft_file');
         $fileName = time() . '_draft_' . $file->getClientOriginalName();
-        $file->storeAs('sec_aoi_files', $fileName, 'public');
-        $filePath = 'sec_aoi_files/' . $fileName;
+        $file->storeAs('sec_aoi', $fileName, 'public');
+        $filePath = 'sec_aoi/' . $fileName;
 
         $record->update([
             'file_path' => $filePath,
@@ -127,19 +143,40 @@ class SecAoiController extends Controller
 
         $record = SecAoi::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('notary_file');
         $fileName = time() . '_notary_' . $file->getClientOriginalName();
-        $file->storeAs('sec_aoi_files', $fileName, 'public');
-        $filePath = 'sec_aoi_files/' . $fileName;
+        $file->storeAs('sec_aoi', $fileName, 'public');
+        $filePath = 'sec_aoi/' . $fileName;
 
         $record->update([
             'notary_file_path' => $filePath,
         ]);
 
         return back()->with('success', 'Notary file attached successfully.');
+    }
+
+    public function submit($id)
+    {
+        $record = SecAoi::findOrFail($id);
+
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record cannot be submitted.');
+        }
+
+        if (empty($record->file_path) || empty($record->notary_file_path)) {
+            return back()->with('success', 'You must upload both Draft and Notary files before submitting.');
+        }
+
+        $record->update([
+            'workflow_status' => 'Submitted',
+            'approval_status' => 'Pending',
+            'review_note'     => null,
+        ]);
+
+        return back()->with('success', 'SEC-AOI submitted for approval.');
     }
 }

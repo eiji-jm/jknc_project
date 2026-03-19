@@ -17,9 +17,24 @@ class BylawController extends Controller
         return $user && $user->hasPermission('approve_corporate');
     }
 
+    private function canEditRecord(Bylaw $record): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $record->submitted_by === (int) Auth::id()
+            && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
+    }
+
     public function index()
     {
-        $records = Bylaw::where('approval_status', 'Approved')->latest()->get();
+        if ($this->canApproveCorporate()) {
+            $records = Bylaw::latest()->get();
+        } else {
+            $records = Bylaw::where('submitted_by', Auth::id())->latest()->get();
+        }
+
         return view('corporate.bylaws', compact('records'));
     }
 
@@ -77,21 +92,22 @@ class BylawController extends Controller
             'file_path'          => $draftPath,
             'notary_file_path'   => $notaryPath,
             'approval_status'    => $isApprover ? 'Approved' : 'Pending',
+            'workflow_status'    => $isApprover ? 'Accepted' : 'Uploaded',
             'submitted_by'       => Auth::id(),
             'approved_by'        => $isApprover ? Auth::id() : null,
             'approved_at'        => $isApprover ? now() : null,
         ]);
 
         return redirect()->route('corporate.bylaws')
-            ->with('success', $isApprover ? 'Bylaws saved successfully.' : 'Bylaws submitted for approval.');
+            ->with('success', $isApprover ? 'Bylaws saved successfully.' : 'Bylaws saved as uploaded record.');
     }
 
     public function show($id)
     {
         $record = Bylaw::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canApproveCorporate() && (int) $record->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
         }
 
         return view('corporate.bylaws-preview', compact('record'));
@@ -105,14 +121,14 @@ class BylawController extends Controller
 
         $record = Bylaw::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('draft_file');
         $fileName = time() . '_draft_' . $file->getClientOriginalName();
-        $file->storeAs('bylaw_files', $fileName, 'public');
-        $filePath = 'bylaw_files/' . $fileName;
+        $file->storeAs('bylaws', $fileName, 'public');
+        $filePath = 'bylaws/' . $fileName;
 
         $record->update([
             'file_path' => $filePath,
@@ -129,19 +145,40 @@ class BylawController extends Controller
 
         $record = Bylaw::findOrFail($id);
 
-        if ($record->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('notary_file');
         $fileName = time() . '_notary_' . $file->getClientOriginalName();
-        $file->storeAs('bylaw_files', $fileName, 'public');
-        $filePath = 'bylaw_files/' . $fileName;
+        $file->storeAs('bylaws', $fileName, 'public');
+        $filePath = 'bylaws/' . $fileName;
 
         $record->update([
             'notary_file_path' => $filePath,
         ]);
 
         return back()->with('success', 'Notary file attached successfully.');
+    }
+
+    public function submit($id)
+    {
+        $record = Bylaw::findOrFail($id);
+
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record cannot be submitted.');
+        }
+
+        if (empty($record->file_path) || empty($record->notary_file_path)) {
+            return back()->with('success', 'You must upload both Draft and Notary files before submitting.');
+        }
+
+        $record->update([
+            'workflow_status' => 'Submitted',
+            'approval_status' => 'Pending',
+            'review_note'     => null,
+        ]);
+
+        return back()->with('success', 'Bylaws submitted for approval.');
     }
 }

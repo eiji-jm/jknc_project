@@ -20,9 +20,20 @@
     $stockholderTotalAmount = $gis->stockholders->sum('amount');
     $stockholderTotalOwnership = $gis->stockholders->sum('ownership_percentage');
     $stockholderTotalPaid = $gis->stockholders->sum('amount_paid');
+
+    $draftUrl = !empty($gis->file) ? asset('storage/' . ltrim($gis->file, '/')) : null;
+    $notaryUrl = !empty($gis->notary_file_path) ? asset('storage/' . ltrim($gis->notary_file_path, '/')) : null;
+    $canEditRecord = in_array($gis->workflow_status, ['Uploaded', 'Reverted']);
 @endphp
 
-<div class="w-full px-6 py-6" x-data="{ tab:null, panel:null }">
+<div class="w-full px-6 py-6"
+     x-data="{
+        tab:null,
+        panel:null,
+        fileTab: '{{ $draftUrl ? 'draft' : ($notaryUrl ? 'notary' : 'draft') }}',
+        editDraft: false,
+        editNotary: false
+     }">
 
     <h1 class="text-2xl font-semibold mb-6">
         General Information Sheet (GIS)
@@ -576,331 +587,329 @@
     </div>
 
     <!-- MAIN CONTENT -->
-    @php
-    $draftUrl = !empty($gis->file) ? asset('storage/' . ltrim($gis->file, '/')) : null;
-    $notaryUrl = !empty($gis->notary_file_path) ? asset('storage/' . ltrim($gis->notary_file_path, '/')) : null;
-@endphp
+    <div class="grid grid-cols-3 gap-6">
 
-<!-- MAIN CONTENT -->
-<div class="grid grid-cols-3 gap-6"
-     x-data="{
-        fileTab: '{{ $draftUrl ? 'draft' : ($notaryUrl ? 'notary' : 'draft') }}',
-        editDraft: {{ $draftUrl ? 'false' : 'true' }},
-        editNotary: {{ $notaryUrl ? 'false' : 'true' }}
-     }">
+        <div class="col-span-2 bg-white border rounded-lg p-4">
 
-    <div class="col-span-2 bg-white border rounded-lg p-4">
+            <div class="flex items-center gap-6 border-b border-gray-200 mb-4">
+                <button
+                    @click="fileTab = 'draft'"
+                    :class="fileTab === 'draft' ? 'border-b-2 border-blue-600 text-blue-600 font-medium' : 'text-gray-600'"
+                    class="pb-3 text-sm">
+                    Draft
+                </button>
 
-        <div class="flex items-center gap-6 border-b border-gray-200 mb-4">
-            <button
-                @click="fileTab = 'draft'"
-                :class="fileTab === 'draft' ? 'border-b-2 border-blue-600 text-blue-600 font-medium' : 'text-gray-600'"
-                class="pb-3 text-sm">
-                Draft
-            </button>
+                <button
+                    @click="fileTab = 'notary'"
+                    :class="fileTab === 'notary' ? 'border-b-2 border-blue-600 text-blue-600 font-medium' : 'text-gray-600'"
+                    class="pb-3 text-sm">
+                    Notary
+                </button>
+            </div>
 
-            <button
-                @click="fileTab = 'notary'"
-                :class="fileTab === 'notary' ? 'border-b-2 border-blue-600 text-blue-600 font-medium' : 'text-gray-600'"
-                class="pb-3 text-sm">
-                Notary
-            </button>
+            <div x-show="fileTab === 'draft'">
+                @if($draftUrl)
+                    <iframe src="{{ $draftUrl }}" class="w-full h-[700px] border rounded"></iframe>
+                @else
+                    <div class="text-gray-400 text-center p-20 border rounded bg-gray-50">
+                        No draft GIS file uploaded
+                    </div>
+                @endif
+            </div>
+
+            <div x-show="fileTab === 'notary'" x-cloak>
+                @if($notaryUrl)
+                    <iframe src="{{ $notaryUrl }}" class="w-full h-[700px] border rounded"></iframe>
+                @else
+                    <div class="text-gray-400 text-center p-20 border rounded bg-gray-50">
+                        No notary GIS file uploaded
+                    </div>
+                @endif
+            </div>
+
         </div>
 
-        <div x-show="fileTab === 'draft'">
-            @if($draftUrl)
-                <iframe src="{{ $draftUrl }}" class="w-full h-[700px] border rounded"></iframe>
-            @else
-                <div class="text-gray-400 text-center p-20 border rounded bg-gray-50">
-                    No draft GIS file uploaded
+        <div class="bg-white border rounded-lg p-6 space-y-4 h-fit">
+            <h2 class="text-lg font-semibold mb-4">
+                GIS Information
+            </h2>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Corporation</span>
+                <span>{{ $gis->corporation_name }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Company Reg No.</span>
+                <span>{{ $gis->company_reg_no }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Uploaded By</span>
+                <span>{{ $gis->uploaded_by }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Submission Status</span>
+                <span>{{ $gis->submission_status }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Receive On</span>
+                <span>{{ $gis->receive_on }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Period Date</span>
+                <span>{{ $gis->period_date }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Annual Meeting</span>
+                <span>{{ $gis->annual_meeting }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Meeting Type</span>
+                <span>{{ $gis->meeting_type }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Workflow Status</span>
+                <span>{{ $gis->workflow_status ?? 'Uploaded' }}</span>
+            </div>
+
+            <hr>
+
+            <div class="pt-1 border-t-0">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase">
+                        Draft File
+                    </h3>
+
+                    @if($canEditRecord && $draftUrl)
+                        <button
+                            type="button"
+                            @click="editDraft = !editDraft"
+                            class="text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            <span x-text="editDraft ? 'Cancel' : 'Edit'"></span>
+                        </button>
+                    @endif
                 </div>
-            @endif
-        </div>
-
-        <div x-show="fileTab === 'notary'" x-cloak>
-            @if($notaryUrl)
-                <iframe src="{{ $notaryUrl }}" class="w-full h-[700px] border rounded"></iframe>
-            @else
-                <div class="text-gray-400 text-center p-20 border rounded bg-gray-50">
-                    No notary GIS file uploaded
-                </div>
-            @endif
-        </div>
-
-    </div>
-
-    <div class="bg-white border rounded-lg p-6 space-y-4 h-fit">
-        <h2 class="text-lg font-semibold mb-4">
-            GIS Information
-        </h2>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Corporation</span>
-            <span>{{ $gis->corporation_name }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Company Reg No.</span>
-            <span>{{ $gis->company_reg_no }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Uploaded By</span>
-            <span>{{ $gis->uploaded_by }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Submission Status</span>
-            <span>{{ $gis->submission_status }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Receive On</span>
-            <span>{{ $gis->receive_on }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Period Date</span>
-            <span>{{ $gis->period_date }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Annual Meeting</span>
-            <span>{{ $gis->annual_meeting }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Meeting Type</span>
-            <span>{{ $gis->meeting_type }}</span>
-        </div>
-
-        <hr>
-
-        <div class="pt-1 border-t-0">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase">
-                    Draft File
-                </h3>
 
                 @if($draftUrl)
-                    <button
-                        type="button"
-                        @click="editDraft = !editDraft"
-                        class="text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
-                        <span x-text="editDraft ? 'Cancel' : 'Edit'"></span>
-                    </button>
+                    <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 mb-3">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Draft file attached</p>
+                            <p class="text-xs text-gray-400">{{ basename($gis->file) }}</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            @click="fileTab = 'draft'"
+                            class="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                            View
+                        </button>
+                    </div>
+                @else
+                    <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-sm text-gray-400 mb-3">
+                        No draft file attached yet.
+                    </div>
+                @endif
+
+                @if($canEditRecord)
+                    <form x-show="editDraft || !{{ $draftUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.gis.upload.draft', $gis->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
+
+                        <input type="file" name="draft_file" class="w-full border rounded p-2" required>
+
+                        <button type="submit"
+                                class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                            Save Draft File
+                        </button>
+                    </form>
                 @endif
             </div>
 
-            @if($draftUrl)
-                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 mb-3">
-                    <div>
-                        <p class="text-sm font-medium text-gray-700">Draft file attached</p>
-                        <p class="text-xs text-gray-400">{{ basename($gis->file) }}</p>
-                    </div>
+            <div class="pt-4 border-t border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700 uppercase">
+                        Notary File
+                    </h3>
 
-                    <button
-                        type="button"
-                        @click="fileTab = 'draft'"
-                        class="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">
-                        View
-                    </button>
+                    @if($canEditRecord && $notaryUrl)
+                        <button
+                            type="button"
+                            @click="editNotary = !editNotary"
+                            class="text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            <span x-text="editNotary ? 'Cancel' : 'Edit'"></span>
+                        </button>
+                    @endif
                 </div>
-            @else
-                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-sm text-gray-400 mb-3">
-                    No draft file attached yet.
-                </div>
-            @endif
-
-            <form x-show="editDraft" x-cloak
-                  action="{{ route('corporate.gis.upload.draft', $gis->id) }}"
-                  method="POST"
-                  enctype="multipart/form-data"
-                  class="space-y-3">
-                @csrf
-
-                <input type="file" name="draft_file" class="w-full border rounded p-2" required>
-
-                <button type="submit"
-                        class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
-                    Save Draft File
-                </button>
-            </form>
-        </div>
-
-        <div class="pt-4 border-t border-gray-100">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase">
-                    Notary File
-                </h3>
 
                 @if($notaryUrl)
-                    <button
-                        type="button"
-                        @click="editNotary = !editNotary"
-                        class="text-xs px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
-                        <span x-text="editNotary ? 'Cancel' : 'Edit'"></span>
-                    </button>
+                    <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 mb-3">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Notary file attached</p>
+                            <p class="text-xs text-gray-400">{{ basename($gis->notary_file_path) }}</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            @click="fileTab = 'notary'"
+                            class="text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700">
+                            View
+                        </button>
+                    </div>
+                @else
+                    <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-sm text-gray-400 mb-3">
+                        No notary file attached yet.
+                    </div>
+                @endif
+
+                @if($canEditRecord)
+                    <form x-show="editNotary || !{{ $notaryUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.gis.upload.notary', $gis->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
+
+                        <input type="file" name="notary_file" class="w-full border rounded p-2" required>
+
+                        <button type="submit"
+                                class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
+                            Save Notary File
+                        </button>
+                    </form>
                 @endif
             </div>
 
-            @if($notaryUrl)
-                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 mb-3">
-                    <div>
-                        <p class="text-sm font-medium text-gray-700">Notary file attached</p>
-                        <p class="text-xs text-gray-400">{{ basename($gis->notary_file_path) }}</p>
-                    </div>
+            <hr>
 
-                    <button
-                        type="button"
-                        @click="fileTab = 'notary'"
-                        class="text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700">
-                        View
-                    </button>
-                </div>
-            @else
-                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-sm text-gray-400 mb-3">
-                    No notary file attached yet.
-                </div>
-            @endif
+            <h3 class="text-sm font-semibold text-gray-800 uppercase">
+                Completed GIS Details
+            </h3>
 
-            <form x-show="editNotary" x-cloak
-                  action="{{ route('corporate.gis.upload.notary', $gis->id) }}"
-                  method="POST"
-                  enctype="multipart/form-data"
-                  class="space-y-3">
-                @csrf
-
-                <input type="file" name="notary_file" class="w-full border rounded p-2" required>
-
-                <button type="submit"
-                        class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
-                    Save Notary File
-                </button>
-            </form>
-        </div>
-
-        <hr>
-
-        <h3 class="text-sm font-semibold text-gray-800 uppercase">
-            Completed GIS Details
-        </h3>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Date Registered</span>
-            <span>{{ $gis->date_registered ? \Carbon\Carbon::parse($gis->date_registered)->format('F d, Y') : '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Trade Name</span>
-            <span>{{ $gis->trade_name ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Fiscal Year End</span>
-            <span>{{ $gis->fiscal_year_end ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">TIN</span>
-            <span>{{ $gis->tin ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Website</span>
-            <span class="text-right break-all">{{ $gis->website ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Email</span>
-            <span class="text-right break-all">{{ $gis->email ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Principal Address</span>
-            <span class="text-right max-w-[180px]">{{ $gis->principal_address ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Business Address</span>
-            <span class="text-right max-w-[180px]">{{ $gis->business_address ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Official Mobile</span>
-            <span>{{ $gis->official_mobile ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Alternate Mobile</span>
-            <span>{{ $gis->alternate_mobile ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Auditor</span>
-            <span class="text-right max-w-[180px]">{{ $gis->auditor ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Industry</span>
-            <span class="text-right max-w-[180px]">{{ $gis->industry ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Geo Code</span>
-            <span>{{ $gis->geo_code ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Parent Company</span>
-            <span class="text-right max-w-[180px]">{{ $gis->parent_company_name ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Parent SEC No.</span>
-            <span>{{ $gis->parent_company_sec_no ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Parent Address</span>
-            <span class="text-right max-w-[180px]">{{ $gis->parent_company_address ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Subsidiary / Affiliate</span>
-            <span class="text-right max-w-[180px]">{{ $gis->subsidiary_name ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Subsidiary SEC No.</span>
-            <span>{{ $gis->subsidiary_sec_no ?: '—' }}</span>
-        </div>
-
-        <div class="flex justify-between">
-            <span class="text-gray-500">Subsidiary Address</span>
-            <span class="text-right max-w-[180px]">{{ $gis->subsidiary_address ?: '—' }}</span>
-        </div>
-
-        @if(!$gis->date_registered)
-            <button
-                @click="panel='completegis'"
-                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm mb-4 w-full">
-                Complete GIS Information
-            </button>
-        @else
-            <div class="w-full bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm text-center mb-3">
-                GIS Information already completed
+            <div class="flex justify-between">
+                <span class="text-gray-500">Date Registered</span>
+                <span>{{ $gis->date_registered ? \Carbon\Carbon::parse($gis->date_registered)->format('F d, Y') : '—' }}</span>
             </div>
 
-            <button
-                @click="panel='completegis'"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full">
-                Edit GIS Information
-            </button>
-        @endif
-    </div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Trade Name</span>
+                <span>{{ $gis->trade_name ?: '—' }}</span>
+            </div>
 
-</div>
+            <div class="flex justify-between">
+                <span class="text-gray-500">Fiscal Year End</span>
+                <span>{{ $gis->fiscal_year_end ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">TIN</span>
+                <span>{{ $gis->tin ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Website</span>
+                <span class="text-right break-all">{{ $gis->website ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Email</span>
+                <span class="text-right break-all">{{ $gis->email ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Principal Address</span>
+                <span class="text-right max-w-[180px]">{{ $gis->principal_address ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Business Address</span>
+                <span class="text-right max-w-[180px]">{{ $gis->business_address ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Official Mobile</span>
+                <span>{{ $gis->official_mobile ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Alternate Mobile</span>
+                <span>{{ $gis->alternate_mobile ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Auditor</span>
+                <span class="text-right max-w-[180px]">{{ $gis->auditor ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Industry</span>
+                <span class="text-right max-w-[180px]">{{ $gis->industry ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Geo Code</span>
+                <span>{{ $gis->geo_code ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Parent Company</span>
+                <span class="text-right max-w-[180px]">{{ $gis->parent_company_name ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Parent SEC No.</span>
+                <span>{{ $gis->parent_company_sec_no ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Parent Address</span>
+                <span class="text-right max-w-[180px]">{{ $gis->parent_company_address ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Subsidiary / Affiliate</span>
+                <span class="text-right max-w-[180px]">{{ $gis->subsidiary_name ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Subsidiary SEC No.</span>
+                <span>{{ $gis->subsidiary_sec_no ?: '—' }}</span>
+            </div>
+
+            <div class="flex justify-between">
+                <span class="text-gray-500">Subsidiary Address</span>
+                <span class="text-right max-w-[180px]">{{ $gis->subsidiary_address ?: '—' }}</span>
+            </div>
+
+            @if(!$gis->date_registered)
+                <button
+                    @click="panel='completegis'"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm mb-4 w-full">
+                    Complete GIS Information
+                </button>
+            @else
+                <div class="w-full bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm text-center mb-3">
+                    GIS Information already completed
+                </div>
+
+                <button
+                    @click="panel='completegis'"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm w-full">
+                    Edit GIS Information
+                </button>
+            @endif
+        </div>
+
+    </div>
 
 </div>
 

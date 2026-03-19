@@ -17,9 +17,24 @@ class GisController extends Controller
         return $user && $user->hasPermission('approve_corporate');
     }
 
+    private function canEditRecord(GisRecord $gis): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $gis->submitted_by === (int) Auth::id()
+            && in_array($gis->workflow_status, ['Uploaded', 'Reverted']);
+    }
+
     public function index()
     {
-        $gis = GisRecord::where('approval_status', 'Approved')->latest()->get();
+        if ($this->canApproveCorporate()) {
+            $gis = GisRecord::latest()->get();
+        } else {
+            $gis = GisRecord::where('submitted_by', Auth::id())->latest()->get();
+        }
+
         return view('corporate.gis', compact('gis'));
     }
 
@@ -69,13 +84,14 @@ class GisController extends Controller
             'file'              => $draftPath,
             'notary_file_path'  => $notaryPath,
             'approval_status'   => $isApprover ? 'Approved' : 'Pending',
+            'workflow_status'   => $isApprover ? 'Accepted' : 'Uploaded',
             'submitted_by'      => Auth::id(),
             'approved_by'       => $isApprover ? Auth::id() : null,
             'approved_at'       => $isApprover ? now() : null,
         ]);
 
         return redirect()->route('corporate.gis')
-            ->with('success', $isApprover ? 'GIS saved successfully.' : 'GIS submitted for approval.');
+            ->with('success', $isApprover ? 'GIS saved successfully.' : 'GIS saved as uploaded record.');
     }
 
     public function companyInfo()
@@ -181,8 +197,8 @@ class GisController extends Controller
             'stockholders'
         ])->findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canApproveCorporate() && (int) $gis->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
         }
 
         return view('corporate.gis-show', compact('gis'));
@@ -196,8 +212,8 @@ class GisController extends Controller
 
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($gis)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('draft_file');
@@ -220,8 +236,8 @@ class GisController extends Controller
 
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($gis)) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $file = $request->file('notary_file');
@@ -234,5 +250,26 @@ class GisController extends Controller
         ]);
 
         return back()->with('success', 'Notary file attached successfully.');
+    }
+
+    public function submit($id)
+    {
+        $gis = GisRecord::findOrFail($id);
+
+        if (!$this->canEditRecord($gis)) {
+            abort(403, 'This record cannot be submitted.');
+        }
+
+        if (empty($gis->file) || empty($gis->notary_file_path)) {
+            return back()->with('success', 'You must upload both Draft and Notary files before submitting.');
+        }
+
+        $gis->update([
+            'workflow_status' => 'Submitted',
+            'approval_status' => 'Pending',
+            'review_note'     => null,
+        ]);
+
+        return back()->with('success', 'GIS submitted for approval.');
     }
 }

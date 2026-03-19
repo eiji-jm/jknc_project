@@ -136,9 +136,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/bylaws/{id}', [BylawController::class, 'show'])->name('corporate.bylaws.show');
     Route::post('/corporate/bylaws/{id}/upload-draft-file', [BylawController::class, 'uploadDraftFile'])
     ->name('corporate.bylaws.upload.draft');
-
     Route::post('/corporate/bylaws/{id}/upload-notary-file', [BylawController::class, 'uploadNotaryFile'])
     ->name('corporate.bylaws.upload.notary');
+    Route::post('/corporate/bylaws/{id}/submit', [BylawController::class, 'submit'])
+    ->name('corporate.bylaws.submit');
+
+    Route::post('/corporate/sec-aoi/{id}/submit', [SecAoiController::class, 'submit'])
+    ->name('corporate.sec_aoi.submit');
 
     /*
     |--------------------------------------------------------------------------

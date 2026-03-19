@@ -156,7 +156,17 @@
                     <tbody>
                         @foreach($records as $row)
                             @php
-                                $workflow = $row->workflow_status ?? 'Accepted';
+                                $workflow = $row->workflow_status;
+
+                                if (!$workflow) {
+                                    if ($row->approval_status === 'Approved') {
+                                        $workflow = 'Accepted';
+                                    } elseif ($row->approval_status === 'Needs Revision' || $row->approval_status === 'Rejected') {
+                                        $workflow = 'Reverted';
+                                    } else {
+                                        $workflow = 'Uploaded';
+                                    }
+                                }
 
                                 $showInUploaded = $workflow === 'Uploaded';
                                 $showInSubmitted = $workflow === 'Submitted';
@@ -164,10 +174,14 @@
                                 $showInReverted = $workflow === 'Reverted';
                                 $showInArchived = $workflow === 'Archived';
 
+                                $hasDraft = !empty($row->file_path);
+                                $hasNotary = !empty($row->notary_file_path);
+                                $canSubmit = $hasDraft && $hasNotary;
+
                                 $fileLabel = match(true) {
-                                    !empty($row->file_path) && !empty($row->notary_file_path) => 'Draft + Notary',
-                                    !empty($row->file_path) => 'Draft Only',
-                                    !empty($row->notary_file_path) => 'Notary Only',
+                                    $hasDraft && $hasNotary => 'Draft + Notary',
+                                    $hasDraft => 'Draft Only',
+                                    $hasNotary => 'Notary Only',
                                     default => 'No File',
                                 };
 
@@ -207,7 +221,31 @@
                                 </td>
 
                                 <td class="px-3 py-2 text-blue-600 font-medium">
-                                    {{ $fileLabel }}
+                                    <div class="flex flex-col items-start gap-2">
+                                        <span>{{ $fileLabel }}</span>
+
+                                        @if($workflow === 'Uploaded' || $workflow === 'Reverted')
+                                            @if($canSubmit)
+                                                <form action="{{ route('corporate.formation.submit', $row->id) }}"
+                                                      method="POST"
+                                                      onclick="event.stopPropagation();">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                                        Submit
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button"
+                                                        onclick="event.stopPropagation();"
+                                                        disabled
+                                                        title="Both Draft and Notary files are required before submitting"
+                                                        class="px-3 py-1.5 text-xs rounded-md bg-gray-200 text-gray-500 cursor-not-allowed">
+                                                    Incomplete
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

@@ -5,12 +5,11 @@
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
      x-data="{
         openPanel:false,
-        statusTab:'uploaded'
+        statusTab:null
      }">
 
     <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
 
-        <!-- TOP MODULES -->
         <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white">
 
             <div class="flex items-center gap-0 overflow-x-auto">
@@ -69,7 +68,6 @@
 
         </div>
 
-        <!-- WORKFLOW STATUS TABS -->
         <div class="px-4 pt-4 bg-white border-b border-gray-100">
             <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
 
@@ -110,23 +108,22 @@
             </div>
         </div>
 
-        <!-- MAIN TABLE AREA -->
         <div class="bg-gray-50 min-h-[680px] px-6 py-4">
 
             <div class="px-0 pb-4">
                 <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
+                     x-show="statusTab === null || statusTab === 'accepted'">
+                    These GIS records were already accepted and approved.
+                </div>
+
+                <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
                      x-show="statusTab === 'uploaded'">
-                    All draft-uploaded GIS documents appear here before final workflow progression.
+                    These GIS records are uploaded drafts and not yet submitted for approval.
                 </div>
 
                 <div class="border border-blue-200 bg-blue-50 text-blue-800 text-[14px] px-4 py-3 rounded-md"
                      x-show="statusTab === 'submitted'">
                     These GIS records have already been submitted and are waiting for review.
-                </div>
-
-                <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
-                     x-show="statusTab === 'accepted'">
-                    These GIS records were already accepted and approved.
                 </div>
 
                 <div class="border border-yellow-200 bg-yellow-50 text-yellow-800 text-[14px] px-4 py-3 rounded-md"
@@ -154,7 +151,7 @@
                             <th class="px-3 py-2 text-left">Corporation Name</th>
                             <th class="px-3 py-2 text-left">Date of Annual Meeting</th>
                             <th class="px-3 py-2 text-left">Type of Meeting</th>
-                            <th class="px-3 py-2 text-left">Approval Status</th>
+                            <th class="px-3 py-2 text-left">Workflow Status</th>
                             <th class="px-3 py-2 text-left">Files</th>
                         </tr>
                     </thead>
@@ -162,24 +159,47 @@
                     <tbody>
                         @forelse($gis ?? [] as $row)
                             @php
-                                $status = $row->approval_status ?? 'Pending';
+                                $workflow = $row->workflow_status;
 
-                                $showInUploaded = in_array($status, ['Pending', 'Needs Revision']);
-                                $showInSubmitted = $status === 'Pending';
-                                $showInAccepted = $status === 'Approved';
-                                $showInReverted = $status === 'Needs Revision';
-                                $showInArchived = $status === 'Archived';
+                                if (!$workflow) {
+                                    if ($row->approval_status === 'Approved') {
+                                        $workflow = 'Accepted';
+                                    } elseif ($row->approval_status === 'Needs Revision' || $row->approval_status === 'Rejected') {
+                                        $workflow = 'Reverted';
+                                    } else {
+                                        $workflow = 'Uploaded';
+                                    }
+                                }
+
+                                $showInUploaded = $workflow === 'Uploaded';
+                                $showInSubmitted = $workflow === 'Submitted';
+                                $showInAccepted = $workflow === 'Accepted';
+                                $showInReverted = $workflow === 'Reverted';
+                                $showInArchived = $workflow === 'Archived';
+
+                                $hasDraft = !empty($row->file);
+                                $hasNotary = !empty($row->notary_file_path);
+                                $canSubmit = $hasDraft && $hasNotary;
 
                                 $fileLabel = match(true) {
-                                    !empty($row->file) && !empty($row->notary_file_path) => 'Draft + Notary',
-                                    !empty($row->file) => 'Draft Only',
-                                    !empty($row->notary_file_path) => 'Notary Only',
+                                    $hasDraft && $hasNotary => 'Draft + Notary',
+                                    $hasDraft => 'Draft Only',
+                                    $hasNotary => 'Notary Only',
                                     default => 'No File',
+                                };
+
+                                $badgeClass = match($workflow) {
+                                    'Accepted' => 'bg-green-50 text-green-700',
+                                    'Reverted' => 'bg-yellow-50 text-yellow-700',
+                                    'Archived' => 'bg-gray-100 text-gray-700',
+                                    'Submitted' => 'bg-blue-50 text-blue-700',
+                                    default => 'bg-orange-50 text-orange-700',
                                 };
                             @endphp
 
                             <tr
                                 x-show="
+                                    (statusTab === null && {{ $showInAccepted ? 'true' : 'false' }}) ||
                                     (statusTab === 'uploaded' && {{ $showInUploaded ? 'true' : 'false' }}) ||
                                     (statusTab === 'submitted' && {{ $showInSubmitted ? 'true' : 'false' }}) ||
                                     (statusTab === 'accepted' && {{ $showInAccepted ? 'true' : 'false' }}) ||
@@ -201,23 +221,37 @@
                                 <td class="px-3 py-2">{{ $row->meeting_type }}</td>
 
                                 <td class="px-3 py-2">
-                                    @php
-                                        $badgeClass = match($status) {
-                                            'Approved' => 'bg-green-50 text-green-700',
-                                            'Needs Revision' => 'bg-yellow-50 text-yellow-700',
-                                            'Rejected' => 'bg-red-50 text-red-700',
-                                            'Archived' => 'bg-gray-100 text-gray-700',
-                                            default => 'bg-blue-50 text-blue-700',
-                                        };
-                                    @endphp
-
                                     <span class="px-2 py-1 rounded-full text-[10px] font-medium {{ $badgeClass }}">
-                                        {{ $status }}
+                                        {{ $workflow }}
                                     </span>
                                 </td>
 
                                 <td class="px-3 py-2 text-blue-600 font-medium">
-                                    {{ $fileLabel }}
+                                    <div class="flex flex-col items-start gap-2">
+                                        <span>{{ $fileLabel }}</span>
+
+                                        @if($workflow === 'Uploaded' || $workflow === 'Reverted')
+                                            @if($canSubmit)
+                                                <form action="{{ route('corporate.gis.submit', $row->id) }}"
+                                                      method="POST"
+                                                      onclick="event.stopPropagation();">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                                        Submit
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button"
+                                                        onclick="event.stopPropagation();"
+                                                        disabled
+                                                        title="Both Draft and Notary files are required before submitting"
+                                                        class="px-3 py-1.5 text-xs rounded-md bg-gray-200 text-gray-500 cursor-not-allowed">
+                                                    Incomplete
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -235,7 +269,6 @@
         </div>
     </div>
 
-    <!-- OVERLAY -->
     <div x-show="openPanel"
          x-transition.opacity
          class="fixed inset-0 bg-black/40 z-40"
@@ -243,7 +276,6 @@
          style="display:none">
     </div>
 
-    <!-- SLIDE PANEL -->
     <div x-show="openPanel"
          x-transition:enter="transform transition ease-out duration-300"
          x-transition:enter-start="translate-x-full"

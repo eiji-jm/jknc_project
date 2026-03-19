@@ -40,6 +40,7 @@ class GisRecord extends Model
         'subsidiary_address',
 
         'approval_status',
+        'workflow_status',
         'submitted_by',
         'approved_by',
         'approved_at',

@@ -5,13 +5,14 @@
 @php
     $draftUrl = !empty($record->file_path) ? asset('storage/' . ltrim($record->file_path, '/')) : null;
     $notaryUrl = !empty($record->notary_file_path) ? asset('storage/' . ltrim($record->notary_file_path, '/')) : null;
+    $canEditRecord = in_array($record->workflow_status, ['Uploaded', 'Reverted']);
 @endphp
 
 <div class="w-full px-6 py-6"
      x-data="{
         fileTab: '{{ $draftUrl ? 'draft' : ($notaryUrl ? 'notary' : 'draft') }}',
-        editDraft: {{ $draftUrl ? 'false' : 'true' }},
-        editNotary: {{ $notaryUrl ? 'false' : 'true' }}
+        editDraft: false,
+        editNotary: false
      }">
 
     @if(session('success'))
@@ -26,7 +27,6 @@
 
     <div class="grid grid-cols-3 gap-6">
 
-        <!-- FILE VIEWER -->
         <div class="col-span-2 bg-white border rounded-lg p-4">
 
             <div class="flex items-center gap-6 border-b border-gray-200 mb-4">
@@ -75,7 +75,6 @@
 
         </div>
 
-        <!-- INFORMATION PANEL -->
         <div class="bg-white border rounded-lg p-6 space-y-4">
 
             <h2 class="text-lg font-semibold mb-4">
@@ -137,14 +136,18 @@
                 <span class="text-right">{{ $record->date_upload }}</span>
             </div>
 
-            <!-- DRAFT FILE -->
+            <div class="flex justify-between gap-4">
+                <span class="text-gray-500">Workflow Status</span>
+                <span class="text-right">{{ $record->workflow_status }}</span>
+            </div>
+
             <div class="pt-4 border-t border-gray-100">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-sm font-semibold text-gray-700 uppercase">
                         Draft File
                     </h3>
 
-                    @if($draftUrl)
+                    @if($canEditRecord && $draftUrl)
                         <button
                             type="button"
                             @click="editDraft = !editDraft"
@@ -174,30 +177,31 @@
                     </div>
                 @endif
 
-                <form x-show="editDraft" x-cloak
-                      action="{{ route('corporate.sec_aoi.upload.draft', $record->id) }}"
-                      method="POST"
-                      enctype="multipart/form-data"
-                      class="space-y-3">
-                    @csrf
+                @if($canEditRecord)
+                    <form x-show="editDraft || !{{ $draftUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.sec_aoi.upload.draft', $record->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
 
-                    <input type="file" name="draft_file" class="w-full border rounded p-2" required>
+                        <input type="file" name="draft_file" class="w-full border rounded p-2" required>
 
-                    <button type="submit"
-                            class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
-                        Save Draft File
-                    </button>
-                </form>
+                        <button type="submit"
+                                class="block w-full text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                            Save Draft File
+                        </button>
+                    </form>
+                @endif
             </div>
 
-            <!-- NOTARY FILE -->
             <div class="pt-4 border-t border-gray-100">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="text-sm font-semibold text-gray-700 uppercase">
                         Notary File
                     </h3>
 
-                    @if($notaryUrl)
+                    @if($canEditRecord && $notaryUrl)
                         <button
                             type="button"
                             @click="editNotary = !editNotary"
@@ -227,20 +231,22 @@
                     </div>
                 @endif
 
-                <form x-show="editNotary" x-cloak
-                      action="{{ route('corporate.sec_aoi.upload.notary', $record->id) }}"
-                      method="POST"
-                      enctype="multipart/form-data"
-                      class="space-y-3">
-                    @csrf
+                @if($canEditRecord)
+                    <form x-show="editNotary || !{{ $notaryUrl ? 'true' : 'false' }}" x-cloak
+                          action="{{ route('corporate.sec_aoi.upload.notary', $record->id) }}"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          class="space-y-3">
+                        @csrf
 
-                    <input type="file" name="notary_file" class="w-full border rounded p-2" required>
+                        <input type="file" name="notary_file" class="w-full border rounded p-2" required>
 
-                    <button type="submit"
-                            class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
-                        Save Notary File
-                    </button>
-                </form>
+                        <button type="submit"
+                                class="block w-full text-center bg-green-600 text-white py-2 rounded-md hover:bg-green-700">
+                            Save Notary File
+                        </button>
+                    </form>
+                @endif
             </div>
 
         </div>

@@ -4,7 +4,7 @@
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
      x-data="{
         openPanel: false,
-        statusTab: 'uploaded'
+        statusTab: null
      }">
 
 <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -48,7 +48,6 @@
             </button>
 
             <div class="flex items-center">
-
                 <button
                     @click="openPanel = true"
                     class="px-4 h-9 rounded-l-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
@@ -59,7 +58,6 @@
                 <button class="w-10 h-9 rounded-r-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center border-l border-white/20">
                     <i class="fas fa-caret-down text-xs"></i>
                 </button>
-
             </div>
 
             <button class="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -69,7 +67,6 @@
         </div>
     </div>
 
-    <!-- WORKFLOW STATUS TABS -->
     <div class="px-4 pt-4 bg-white border-b border-gray-100">
         <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
 
@@ -115,18 +112,18 @@
 
         <div class="px-4 pt-4">
             <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
+                 x-show="statusTab === null || statusTab === 'accepted'">
+                These SEC-AOI records were already accepted and approved.
+            </div>
+
+            <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
                  x-show="statusTab === 'uploaded'">
-                All draft-uploaded AOI documents appear here before final workflow progression.
+                These SEC-AOI records are uploaded drafts and not yet submitted for approval.
             </div>
 
             <div class="border border-blue-200 bg-blue-50 text-blue-800 text-[14px] px-4 py-3 rounded-md"
                  x-show="statusTab === 'submitted'">
                 These SEC-AOI records have already been submitted and are waiting for review.
-            </div>
-
-            <div class="border border-green-200 bg-green-50 text-green-800 text-[14px] px-4 py-3 rounded-md"
-                 x-show="statusTab === 'accepted'">
-                These SEC-AOI records were already accepted and approved.
             </div>
 
             <div class="border border-yellow-200 bg-yellow-50 text-yellow-800 text-[14px] px-4 py-3 rounded-md"
@@ -157,7 +154,7 @@
                             <th class="px-3 py-2 font-semibold">Type of Formation</th>
                             <th class="px-3 py-2 font-semibold">SEC-AOI Version</th>
                             <th class="px-3 py-2 font-semibold">Type of Version</th>
-                            <th class="px-3 py-2 font-semibold">Approval Status</th>
+                            <th class="px-3 py-2 font-semibold">Workflow Status</th>
                             <th class="px-3 py-2 font-semibold">Files</th>
                         </tr>
                     </thead>
@@ -165,24 +162,47 @@
                     <tbody>
                         @foreach($records as $row)
                             @php
-                                $status = $row->approval_status ?? 'Pending';
+                                $workflow = $row->workflow_status;
 
-                                $showInUploaded = in_array($status, ['Pending', 'Needs Revision']);
-                                $showInSubmitted = $status === 'Pending';
-                                $showInAccepted = $status === 'Approved';
-                                $showInReverted = $status === 'Needs Revision';
-                                $showInArchived = $status === 'Archived';
+                                if (!$workflow) {
+                                    if ($row->approval_status === 'Approved') {
+                                        $workflow = 'Accepted';
+                                    } elseif ($row->approval_status === 'Needs Revision' || $row->approval_status === 'Rejected') {
+                                        $workflow = 'Reverted';
+                                    } else {
+                                        $workflow = 'Uploaded';
+                                    }
+                                }
+
+                                $showInUploaded = $workflow === 'Uploaded';
+                                $showInSubmitted = $workflow === 'Submitted';
+                                $showInAccepted = $workflow === 'Accepted';
+                                $showInReverted = $workflow === 'Reverted';
+                                $showInArchived = $workflow === 'Archived';
+
+                                $hasDraft = !empty($row->file_path);
+                                $hasNotary = !empty($row->notary_file_path);
+                                $canSubmit = $hasDraft && $hasNotary;
 
                                 $fileLabel = match(true) {
-                                    !empty($row->file_path) && !empty($row->notary_file_path) => 'Draft + Notary',
-                                    !empty($row->file_path) => 'Draft Only',
-                                    !empty($row->notary_file_path) => 'Notary Only',
+                                    $hasDraft && $hasNotary => 'Draft + Notary',
+                                    $hasDraft => 'Draft Only',
+                                    $hasNotary => 'Notary Only',
                                     default => 'No File',
+                                };
+
+                                $badgeClass = match($workflow) {
+                                    'Accepted' => 'bg-green-50 text-green-700',
+                                    'Reverted' => 'bg-yellow-50 text-yellow-700',
+                                    'Archived' => 'bg-gray-100 text-gray-700',
+                                    'Submitted' => 'bg-blue-50 text-blue-700',
+                                    default => 'bg-orange-50 text-orange-700',
                                 };
                             @endphp
 
                             <tr
                                 x-show="
+                                    (statusTab === null && {{ $showInAccepted ? 'true' : 'false' }}) ||
                                     (statusTab === 'uploaded' && {{ $showInUploaded ? 'true' : 'false' }}) ||
                                     (statusTab === 'submitted' && {{ $showInSubmitted ? 'true' : 'false' }}) ||
                                     (statusTab === 'accepted' && {{ $showInAccepted ? 'true' : 'false' }}) ||
@@ -206,23 +226,37 @@
                                 <td class="px-3 py-2">{{ $row->aoi_type }}</td>
 
                                 <td class="px-3 py-2">
-                                    @php
-                                        $badgeClass = match($status) {
-                                            'Approved' => 'bg-green-50 text-green-700',
-                                            'Needs Revision' => 'bg-yellow-50 text-yellow-700',
-                                            'Rejected' => 'bg-red-50 text-red-700',
-                                            'Archived' => 'bg-gray-100 text-gray-700',
-                                            default => 'bg-blue-50 text-blue-700',
-                                        };
-                                    @endphp
-
                                     <span class="px-2 py-1 rounded-full text-[10px] font-medium {{ $badgeClass }}">
-                                        {{ $status }}
+                                        {{ $workflow }}
                                     </span>
                                 </td>
 
                                 <td class="px-3 py-2 text-blue-600 font-medium">
-                                    {{ $fileLabel }}
+                                    <div class="flex flex-col items-start gap-2">
+                                        <span>{{ $fileLabel }}</span>
+
+                                        @if($workflow === 'Uploaded' || $workflow === 'Reverted')
+                                            @if($canSubmit)
+                                                <form action="{{ route('corporate.sec_aoi.submit', $row->id) }}"
+                                                      method="POST"
+                                                      onclick="event.stopPropagation();">
+                                                    @csrf
+                                                    <button type="submit"
+                                                            class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                                        Submit
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <button type="button"
+                                                        onclick="event.stopPropagation();"
+                                                        disabled
+                                                        title="Both Draft and Notary files are required before submitting"
+                                                        class="px-3 py-1.5 text-xs rounded-md bg-gray-200 text-gray-500 cursor-not-allowed">
+                                                    Incomplete
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -262,11 +296,9 @@ class="fixed top-0 right-0 bottom-0 z-[80] w-[430px] bg-white border-l border-gr
 style="display:none;">
 
 <form action="{{ route('corporate.sec_aoi.store') }}" method="POST" enctype="multipart/form-data" class="h-full flex flex-col">
-
 @csrf
 
 <div class="h-16 px-6 border-b border-gray-200 flex items-center justify-between">
-
     <h2 class="text-[26px] font-semibold text-gray-900 leading-none">
         Add SEC-AOI Record
     </h2>
@@ -277,11 +309,9 @@ style="display:none;">
         class="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-800 flex items-center justify-center transition">
         <i class="fas fa-times text-sm"></i>
     </button>
-
 </div>
 
 <div class="flex-1 overflow-y-auto px-6 py-6">
-
     <div class="space-y-5">
 
         <div>
@@ -300,7 +330,6 @@ style="display:none;">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-
             <div>
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">Par Value</label>
                 <input type="text" name="par_value" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
@@ -310,7 +339,6 @@ style="display:none;">
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">No. of Directors</label>
                 <input type="number" name="directors" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
             </div>
-
         </div>
 
         <div>
@@ -319,7 +347,6 @@ style="display:none;">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-
             <div>
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">Type of Formation</label>
                 <select name="type_of_formation" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm bg-white">
@@ -332,7 +359,6 @@ style="display:none;">
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">SEC-AOI Version</label>
                 <input type="text" name="aoi_version" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
             </div>
-
         </div>
 
         <div>
@@ -345,7 +371,6 @@ style="display:none;">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-
             <div>
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">Uploaded By</label>
                 <input type="text" name="uploaded_by" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
@@ -355,12 +380,10 @@ style="display:none;">
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">Date Upload</label>
                 <input type="date" name="date_upload" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
             </div>
-
         </div>
 
         <div class="pt-2">
             <label class="block text-[13px] font-medium text-gray-700 mb-2">Draft File Upload</label>
-
             <label class="w-full min-h-[84px] border border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 flex flex-col items-center justify-center gap-2 px-4 cursor-pointer transition">
                 <i class="far fa-file-alt text-[26px] text-gray-500"></i>
                 <span class="text-[14px] text-blue-600 font-medium">Choose draft file</span>
@@ -371,7 +394,6 @@ style="display:none;">
 
         <div class="pt-2">
             <label class="block text-[13px] font-medium text-gray-700 mb-2">Notary File Upload</label>
-
             <label class="w-full min-h-[84px] border border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 flex flex-col items-center justify-center gap-2 px-4 cursor-pointer transition">
                 <i class="far fa-file-alt text-[26px] text-gray-500"></i>
                 <span class="text-[14px] text-blue-600 font-medium">Choose notary file</span>
@@ -381,11 +403,9 @@ style="display:none;">
         </div>
 
     </div>
-
 </div>
 
 <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-
     <button
         type="button"
         @click="openPanel = false"
@@ -398,12 +418,9 @@ style="display:none;">
         class="min-w-[92px] px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium">
         Save
     </button>
-
 </div>
 
 </form>
-
 </div>
-
 </div>
 @endsection
