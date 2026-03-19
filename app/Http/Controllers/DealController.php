@@ -3,16 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
-<<<<<<< HEAD
 use App\Models\Deal;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Collection;
-=======
-use App\Models\User;
->>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -33,11 +30,6 @@ class DealController extends Controller
         ];
 
         $deals = $this->mockDeals();
-<<<<<<< HEAD
-        $contactRecords = [$this->mockContactRecord()];
-        $companyOptions = ['Consulting Group'];
-        $contactOptions = ['David Lee'];
-=======
         $owners = $this->ownerOptions();
         $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
         $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
@@ -55,25 +47,36 @@ class DealController extends Controller
             'Sarah Williams',
             'Michael Brown',
         ];
->>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
+        $contactRecords = [$this->mockContactRecord()];
 
         try {
             if (Schema::hasTable('contacts')) {
+                $contactColumns = array_values(array_filter([
+                    'id',
+                    'customer_type',
+                    'client_status',
+                    'salutation',
+                    'first_name',
+                    'middle_initial',
+                    'middle_name',
+                    'last_name',
+                    'name_extension',
+                    'sex',
+                    'date_of_birth',
+                    'email',
+                    'phone',
+                    'contact_address',
+                    'company_name',
+                    'company_address',
+                    'position',
+                ], fn (string $column): bool => Schema::hasColumn('contacts', $column)));
+
+                if (! in_array('id', $contactColumns, true)) {
+                    $contactColumns[] = 'id';
+                }
+
                 $contacts = Contact::query()
-                    ->select([
-                        'id',
-                        'customer_type',
-                        'salutation',
-                        'first_name',
-                        'middle_name',
-                        'last_name',
-                        'email',
-                        'phone',
-                        'contact_address',
-                        'company_name',
-                        'company_address',
-                        'position',
-                    ])
+                    ->select($contactColumns)
                     ->orderBy('first_name')
                     ->orderBy('last_name')
                     ->get();
@@ -91,6 +94,7 @@ class DealController extends Controller
                             'search_blob' => strtolower(implode(' ', array_filter([
                                 $contact->salutation,
                                 $contact->first_name,
+                                $contact->middle_initial,
                                 $contact->middle_name,
                                 $contact->last_name,
                                 $contact->company_name,
@@ -98,10 +102,15 @@ class DealController extends Controller
                                 $contact->phone,
                             ]))),
                             'customer_type' => $contact->customer_type,
+                            'client_status' => $contact->client_status,
                             'salutation' => $contact->salutation,
                             'first_name' => $contact->first_name,
+                            'middle_initial' => $contact->middle_initial ?: (filled($contact->middle_name) ? mb_substr((string) $contact->middle_name, 0, 1) : null),
                             'middle_name' => $contact->middle_name,
                             'last_name' => $contact->last_name,
+                            'name_extension' => $contact->name_extension,
+                            'sex' => $contact->sex,
+                            'date_of_birth' => optional($contact->date_of_birth)->format('Y-m-d'),
                             'email' => $contact->email,
                             'mobile' => $contact->phone,
                             'address' => $contact->contact_address,
@@ -616,200 +625,363 @@ class DealController extends Controller
         ];
     }
 
-<<<<<<< HEAD
     private function validateDealPayload(Request $request): array
     {
-        return $request->validate([
-            'contact_id' => ['required', 'integer'],
+        $validated = $request->validate([
+            'contact_id' => ['required', 'integer', 'min:1'],
             'deal_name' => ['required', 'string', 'max:255'],
-            'stage' => ['required', 'string', 'max:100'],
-            'service_area' => ['nullable', 'string', 'max:150'],
-            'services' => ['nullable', 'string', 'max:150'],
-            'products' => ['nullable', 'string', 'max:150'],
-            'scope_of_work' => ['nullable', 'string', 'max:3000'],
-            'engagement_type' => ['nullable', 'string', 'max:150'],
-            'requirements_status' => ['nullable', 'string', 'max:150'],
-            'required_actions' => ['nullable', 'string', 'max:2000'],
-            'estimated_professional_fee' => ['nullable', 'numeric', 'min:0'],
-            'estimated_government_fees' => ['nullable', 'numeric', 'min:0'],
-            'estimated_service_support_fee' => ['nullable', 'numeric', 'min:0'],
-            'total_estimated_engagement_value' => ['nullable', 'numeric', 'min:0'],
-            'payment_terms' => ['nullable', 'string', 'max:150'],
+            'stage' => ['nullable', 'string', 'max:100'],
+            'owner_id' => ['nullable', 'integer'],
+            'service_area' => ['nullable', 'string', 'max:4000'],
+            'services' => ['nullable', 'string', 'max:4000'],
+            'products' => ['nullable', 'string', 'max:4000'],
+            'service_area_options' => ['nullable', 'array'],
+            'service_area_options.*' => ['string', 'max:255'],
+            'service_area_other' => ['nullable', 'string', 'max:255'],
+            'service_options' => ['nullable', 'array'],
+            'service_options.*' => ['string', 'max:255'],
+            'services_other' => ['nullable', 'string', 'max:255'],
+            'product_options' => ['nullable', 'array'],
+            'product_options.*' => ['string', 'max:255'],
+            'products_other' => ['nullable', 'string', 'max:255'],
+            'scope_of_work' => ['nullable', 'string'],
+            'engagement_type' => ['nullable', 'string', 'max:255'],
+            'requirements_status' => ['nullable'],
+            'requirements_status.*' => ['nullable', 'in:provided,pending'],
+            'requirements_status_map' => ['nullable', 'array'],
+            'requirements_status_map.*' => ['nullable', 'in:provided,pending'],
+            'required_actions' => ['nullable', 'string'],
+            'required_actions_options' => ['nullable', 'array'],
+            'required_actions_options.*' => ['string', 'max:255'],
+            'required_actions_other' => ['nullable', 'string'],
+            'estimated_professional_fee' => ['nullable'],
+            'estimated_government_fees' => ['nullable'],
+            'estimated_service_support_fee' => ['nullable'],
+            'total_estimated_engagement_value' => ['nullable'],
+            'payment_terms' => ['nullable', 'string', 'max:255'],
             'payment_terms_other' => ['nullable', 'string', 'max:255'],
             'planned_start_date' => ['nullable', 'date'],
-            'estimated_duration' => ['nullable', 'string', 'max:150'],
+            'estimated_duration' => ['nullable', 'string', 'max:255'],
             'estimated_completion_date' => ['nullable', 'date'],
             'client_preferred_completion_date' => ['nullable', 'date'],
             'confirmed_delivery_date' => ['nullable', 'date'],
-            'timeline_notes' => ['nullable', 'string', 'max:2000'],
-            'service_complexity' => ['nullable', 'string', 'max:150'],
-            'support_required' => ['nullable', 'string', 'max:150'],
-            'complexity_notes' => ['nullable', 'string', 'max:2000'],
-            'proposal_decision' => ['nullable', 'string', 'max:150'],
-            'decline_reason' => ['nullable', 'string', 'max:2000'],
-            'assigned_consultant' => ['nullable', 'string', 'max:150'],
-            'assigned_associate' => ['nullable', 'string', 'max:150'],
-            'service_department_unit' => ['nullable', 'string', 'max:150'],
-            'consultant_notes' => ['nullable', 'string', 'max:2000'],
-            'associate_notes' => ['nullable', 'string', 'max:2000'],
-            'customer_type' => ['nullable', 'string', 'max:100'],
-            'salutation' => ['nullable', 'string', 'max:30'],
-            'first_name' => ['nullable', 'string', 'max:100'],
-            'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name' => ['nullable', 'string', 'max:100'],
+            'timeline_notes' => ['nullable', 'string'],
+            'service_complexity' => ['nullable', 'string', 'max:255'],
+            'support_required' => ['nullable', 'string', 'max:255'],
+            'support_required_options' => ['nullable', 'array'],
+            'support_required_options.*' => ['string', 'max:255'],
+            'complexity_notes' => ['nullable', 'string'],
+            'proposal_decision' => ['nullable', 'string', 'max:255'],
+            'decline_reason' => ['nullable', 'string'],
+            'assigned_consultant' => ['nullable', 'string', 'max:255'],
+            'assigned_associate' => ['nullable', 'string', 'max:255'],
+            'service_department_unit' => ['nullable', 'string', 'max:255'],
+            'consultant_notes' => ['nullable', 'string'],
+            'associate_notes' => ['nullable', 'string'],
+            'customer_type' => ['nullable', 'string', 'max:255'],
+            'client_status' => ['nullable', 'in:new,existing'],
+            'salutation' => ['nullable', 'string', 'max:255'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_initial' => ['nullable', 'string', 'max:10'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'name_extension' => ['nullable', 'string', 'max:50'],
+            'sex' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date'],
             'email' => ['nullable', 'email', 'max:255'],
-            'mobile' => ['nullable', 'string', 'max:30'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'company_name' => ['nullable', 'string', 'max:150'],
-            'company_address' => ['nullable', 'string', 'max:255'],
-            'position' => ['nullable', 'string', 'max:150'],
+            'mobile' => ['nullable', 'string', 'max:100'],
+            'address' => ['nullable', 'string'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'company_address' => ['nullable', 'string'],
+            'position' => ['nullable', 'string', 'max:255'],
+            'optional_remarks' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', 'max:100'],
+            'deal_reference_number' => ['nullable', 'string', 'max:100'],
+            'selected_owner' => ['nullable', 'string', 'max:255'],
+            'prepared_by' => ['nullable', 'string', 'max:255'],
+            'reviewed_by' => ['nullable', 'string', 'max:255'],
+            'internal_name' => ['nullable', 'string', 'max:255'],
+            'internal_date' => ['nullable', 'date'],
+            'client_fullname_signature' => ['nullable', 'string', 'max:255'],
+            'referred_closed_by' => ['nullable', 'string', 'max:255'],
+            'internal_sales_marketing' => ['nullable', 'string', 'max:255'],
+            'lead_consultant' => ['nullable', 'string', 'max:255'],
+            'lead_associate_assigned' => ['nullable', 'string', 'max:255'],
+            'internal_finance' => ['nullable', 'string', 'max:255'],
+            'internal_president' => ['nullable', 'string', 'max:255'],
+            'created_date' => ['nullable', 'string', 'max:100'],
+            'lead_source' => ['nullable', 'string', 'max:255'],
+            'referred_by' => ['nullable', 'string', 'max:255'],
+            'referral_type' => ['nullable', 'string', 'max:255'],
         ]);
+
+        foreach ([
+            'estimated_professional_fee',
+            'estimated_government_fees',
+            'estimated_service_support_fee',
+            'total_estimated_engagement_value',
+        ] as $moneyField) {
+            if (blank($validated[$moneyField] ?? null)) {
+                $validated[$moneyField] = null;
+                continue;
+            }
+
+            $normalized = str_replace(',', '', (string) $validated[$moneyField]);
+            $validated[$moneyField] = is_numeric($normalized) ? (float) $normalized : null;
+        }
+
+        $validated['service_area'] = $this->truncateStringForColumn($this->composeMultiSelectString(
+            $validated['service_area_options'] ?? [],
+            $validated['service_area_other'] ?? null,
+            'Others: '
+        ));
+        $validated['services'] = $this->truncateStringForColumn($this->composeMultiSelectString(
+            $validated['service_options'] ?? [],
+            $validated['services_other'] ?? null,
+            'Others: '
+        ));
+        $validated['products'] = $this->truncateStringForColumn($this->composeMultiSelectString(
+            $validated['product_options'] ?? [],
+            $validated['products_other'] ?? null,
+            'Others: '
+        ));
+        $requirementsStatusInput = $validated['requirements_status_map'] ?? ($validated['requirements_status'] ?? []);
+        if (! is_array($requirementsStatusInput)) {
+            $requirementsStatusInput = [];
+        }
+        $validated['requirements_status_map'] = $requirementsStatusInput;
+        $validated['requirements_status'] = $this->truncateStringForColumn(
+            $this->stringifyRequirements($requirementsStatusInput)
+        );
+        $validated['required_actions'] = $this->composeMultiSelectString(
+            $validated['required_actions_options'] ?? [],
+            $validated['required_actions_other'] ?? null,
+            'Other Internal Requirements: '
+        );
+        $validated['support_required'] = $this->truncateStringForColumn($this->composeMultiSelectString(
+            $validated['support_required_options'] ?? [],
+            null
+        ));
+
+        if (blank($validated['middle_name'] ?? null) && filled($validated['middle_initial'] ?? null)) {
+            $validated['middle_name'] = $validated['middle_initial'];
+        }
+
+        if (($validated['payment_terms'] ?? null) !== 'Others') {
+            $validated['payment_terms_other'] = null;
+        }
+
+        return $validated;
+    }
+
+    private function composeMultiSelectString(array $selected, ?string $other = null, string $otherPrefix = 'Others: '): ?string
+    {
+        $cleanSelected = collect($selected)
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn (string $value): string => trim($value))
+            ->values();
+
+        if (filled($other)) {
+            $cleanSelected->push($otherPrefix.trim((string) $other));
+        }
+
+        return $cleanSelected->isEmpty() ? null : $cleanSelected->implode(', ');
+    }
+
+    private function stringifyRequirements(array $requirements): ?string
+    {
+        $pairs = collect($requirements)
+            ->filter(fn ($status, $item): bool => filled($item) && in_array($status, ['provided', 'pending'], true))
+            ->map(fn ($status, $item): string => str_replace('_', ' ', (string) $item).': '.$status)
+            ->values();
+
+        return $pairs->isEmpty() ? null : $pairs->implode('; ');
+    }
+
+    private function truncateStringForColumn(?string $value, int $limit = 255): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        return Str::limit((string) $value, $limit, '');
+    }
+
+    private function resolveContact(int $contactId): ?Contact
+    {
+        if (Schema::hasTable('contacts')) {
+            $contact = Contact::query()->find($contactId);
+            if ($contact) {
+                return $contact;
+            }
+        }
+
+        if ($contactId === 101) {
+            return new Contact([
+                'customer_type' => 'Corporation',
+                'client_status' => 'existing',
+                'salutation' => 'Mr.',
+                'first_name' => 'David',
+                'middle_initial' => 'S',
+                'middle_name' => '',
+                'last_name' => 'Lee',
+                'name_extension' => null,
+                'sex' => 'Male',
+                'date_of_birth' => '1990-01-01',
+                'email' => 'david.lee@consulting.com',
+                'phone' => '09331234567',
+                'contact_address' => 'Makati City, Philippines',
+                'company_name' => 'Consulting Group',
+                'company_address' => 'Ayala Avenue, Makati City',
+                'position' => 'CEO',
+                'lead_source' => 'Website',
+                'referred_by' => 'John Smith',
+                'service_inquiry_type' => 'Partner Referral',
+            ]);
+        }
+
+        return null;
     }
 
     private function buildPreviewPayload(array $validated, Contact $contact): array
     {
-        if (blank($validated['total_estimated_engagement_value'] ?? null)) {
-            $validated['total_estimated_engagement_value'] = collect([
-                $validated['estimated_professional_fee'] ?? 0,
-                $validated['estimated_government_fees'] ?? 0,
-                $validated['estimated_service_support_fee'] ?? 0,
-            ])->sum();
-        }
-
-        $preparedBy = $validated['assigned_consultant'] ?? 'Shine Florence Padillo';
-        $reference = 'DL-'.now()->format('Ymd-His');
-
-        return [
-            ...$validated,
+        $contactData = [
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+            'client_status' => $validated['client_status'] ?? $contact->client_status,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
+            'middle_initial' => $validated['middle_initial'] ?? $contact->middle_initial,
             'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
             'last_name' => $validated['last_name'] ?? $contact->last_name,
+            'name_extension' => $validated['name_extension'] ?? $contact->name_extension,
+            'sex' => $validated['sex'] ?? $contact->sex,
+            'date_of_birth' => $validated['date_of_birth'] ?? optional($contact->date_of_birth)->format('Y-m-d'),
             'email' => $validated['email'] ?? $contact->email,
             'mobile' => $validated['mobile'] ?? $contact->phone,
             'address' => $validated['address'] ?? $contact->contact_address,
             'company_name' => $validated['company_name'] ?? $contact->company_name,
             'company_address' => $validated['company_address'] ?? $contact->company_address,
             'position' => $validated['position'] ?? $contact->position,
-            'lead_source' => $contact->lead_source,
-            'referred_by' => $contact->referred_by,
-            'referral_type' => $contact->service_inquiry_type,
-            'selected_owner' => 'Shine Florence Padillo',
-            'prepared_by' => $preparedBy,
-            'created_date' => now()->format('F j, Y'),
-            'status' => 'Draft Preview',
-            'deal_reference_number' => $reference,
-            'optional_remarks' => Arr::first(array_filter([
-                $validated['consultant_notes'] ?? null,
-                $validated['timeline_notes'] ?? null,
-                $validated['associate_notes'] ?? null,
-            ])),
-            'contact_selector_label' => trim(collect([
-                $contact->salutation,
-                $contact->first_name,
-                $contact->middle_name,
-                $contact->last_name,
-            ])->filter()->implode(' ')),
+        ];
+
+        $estimatedTotal = collect([
+            $validated['estimated_professional_fee'] ?? 0,
+            $validated['estimated_government_fees'] ?? 0,
+            $validated['estimated_service_support_fee'] ?? 0,
+        ])->sum();
+
+        $dealValue = $validated['total_estimated_engagement_value'] ?? null;
+        if (blank($dealValue) && $estimatedTotal > 0) {
+            $dealValue = $estimatedTotal;
+        }
+
+        return [
+            ...$validated,
+            ...$contactData,
+            'total_estimated_engagement_value' => $dealValue,
+            'lead_source' => $validated['lead_source'] ?? $contact->lead_source,
+            'referred_by' => $validated['referred_by'] ?? $contact->referred_by,
+            'referral_type' => $validated['referral_type'] ?? $contact->service_inquiry_type,
+            'deal_reference_number' => $validated['deal_reference_number'] ?? ('DEAL-'.now()->format('Ymd-His')),
+            'selected_owner' => $validated['selected_owner']
+                ?? $this->resolveOwnerName((int) ($validated['owner_id'] ?? 0))
+                ?? ($validated['assigned_consultant'] ?? 'Unassigned'),
+            'prepared_by' => $validated['prepared_by'] ?? ($validated['assigned_consultant'] ?? 'System'),
+            'created_date' => $validated['created_date'] ?? now()->format('Y-m-d'),
+            'status' => $validated['status'] ?? 'Draft',
+            'contact_id' => (int) ($validated['contact_id'] ?? 0),
         ];
     }
 
     private function hiddenDraftFields(array $draft): array
     {
-        return collect($draft)
-            ->except([
-                'lead_source',
-                'referred_by',
-                'referral_type',
-                'selected_owner',
-                'prepared_by',
-                'created_date',
-                'status',
-                'deal_reference_number',
-                'optional_remarks',
-                'contact_selector_label',
-            ])
-            ->map(fn ($value) => is_scalar($value) || $value === null ? (string) $value : '')
-            ->all();
+        $hidden = [];
+        $this->flattenHiddenDraftFields($draft, $hidden);
+
+        return $hidden;
     }
 
-    private function resolveContact(int $contactId): ?Contact
+    private function flattenHiddenDraftFields(array $source, array &$destination, ?string $prefix = null): void
     {
-        $contact = Contact::query()->find($contactId);
-        if ($contact) {
-            return $contact;
-        }
+        foreach ($source as $name => $value) {
+            $fieldName = $prefix === null ? (string) $name : $prefix.'['.$name.']';
 
-        if ($contactId === 101) {
-            return $this->mockContact();
-        }
+            if (is_array($value)) {
+                $this->flattenHiddenDraftFields($value, $destination, $fieldName);
+                continue;
+            }
 
-        return null;
+            if (is_object($value)) {
+                continue;
+            }
+
+            $destination[$fieldName] = is_bool($value) ? (int) $value : (string) ($value ?? '');
+        }
     }
 
-    private function mockContact(): Contact
+    private function buildMockSavedDeal(array $validated, Contact $contact): array
     {
-        $contact = new Contact([
-            'customer_type' => 'Corporation',
-            'salutation' => 'Mr.',
-            'first_name' => 'David',
-            'middle_name' => 'S.',
-            'last_name' => 'Lee',
-            'email' => 'david.lee@consulting.com',
-            'phone' => '09331234567',
-            'position' => 'CEO',
-            'contact_address' => 'Cebu City, Philippines',
-            'company_name' => 'Consulting Group',
-            'owner_name' => 'John Admin',
-            'kyc_status' => 'Not Submitted',
-            'lead_source' => 'Website',
-            'referred_by' => 'John Smith',
-            'service_inquiry_type' => 'Partner Referral',
-        ]);
-        $contact->id = 101;
+        $contactName = trim(collect([
+            $validated['first_name'] ?? $contact->first_name,
+            $validated['last_name'] ?? $contact->last_name,
+        ])->filter()->implode(' '));
 
-        return $contact;
+        $amount = $validated['total_estimated_engagement_value'] ?? collect([
+            $validated['estimated_professional_fee'] ?? 0,
+            $validated['estimated_government_fees'] ?? 0,
+            $validated['estimated_service_support_fee'] ?? 0,
+        ])->sum();
+
+        return [
+            'id' => (int) now()->format('His'),
+            'deal_name' => $validated['deal_name'],
+            'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
+            'company_name' => $validated['company_name'] ?? $contact->company_name ?? '-',
+            'amount' => (int) round((float) $amount),
+            'expected_close' => filled($validated['estimated_completion_date'] ?? null)
+                ? Carbon::parse($validated['estimated_completion_date'])->format('M d, Y')
+                : 'TBD',
+            'owner_name' => $validated['assigned_consultant'] ?? 'Unassigned',
+            'stage' => $validated['stage'] ?? 'Inquiry',
+        ];
     }
 
     private function mockContactRecord(): array
     {
         return [
             'id' => 101,
-            'label' => 'Mr. David S. Lee',
-            'search_blob' => 'mr david s lee consulting group david.lee@consulting.com 09331234567',
+            'label' => 'David Lee',
+            'search_blob' => 'david lee consulting group david.lee@consulting.com 09331234567',
             'customer_type' => 'Corporation',
+            'client_status' => 'existing',
             'salutation' => 'Mr.',
             'first_name' => 'David',
-            'middle_name' => 'S.',
+            'middle_initial' => 'S',
+            'middle_name' => '',
             'last_name' => 'Lee',
+            'name_extension' => null,
+            'sex' => 'Male',
+            'date_of_birth' => '1990-01-01',
             'email' => 'david.lee@consulting.com',
             'mobile' => '09331234567',
-            'address' => 'Cebu City, Philippines',
+            'address' => 'Makati City, Philippines',
             'company_name' => 'Consulting Group',
-            'company_address' => 'Cebu City, Philippines',
+            'company_address' => 'Ayala Avenue, Makati City',
             'position' => 'CEO',
         ];
     }
 
-    private function buildMockSavedDeal(array $validated, Contact $contact): array
-    {
-        return [
-            'id' => 501,
-            'deal_name' => $validated['deal_name'],
-            'contact_name' => trim(collect([
-                $validated['first_name'] ?? $contact->first_name,
-                $validated['last_name'] ?? $contact->last_name,
-            ])->filter()->implode(' ')),
-            'company_name' => $validated['company_name'] ?? $contact->company_name ?? '-',
-            'amount' => (int) round((float) ($validated['total_estimated_engagement_value'] ?? 0)),
-            'expected_close' => filled($validated['estimated_completion_date'] ?? null)
-                ? date('M d, Y', strtotime((string) $validated['estimated_completion_date']))
-                : 'Jun 10, 2026',
-            'owner_name' => $validated['assigned_consultant'] ?? 'John Admin',
-            'stage' => $validated['stage'] ?? 'Inquiry',
-=======
     private function ownerOptions(): array
     {
+        if (! Schema::hasTable('users')) {
+            return [
+                ['id' => 1001, 'name' => 'Shine Florence Padillo', 'email' => 'shinepadi@gmail.com'],
+                ['id' => 1002, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
+                ['id' => 1003, 'name' => 'Maria Santos', 'email' => 'maria.santos@example.com'],
+                ['id' => 1004, 'name' => 'Juan Dela Cruz', 'email' => 'juan.delacruz@example.com'],
+            ];
+        }
+
         $users = User::query()
             ->select(['id', 'name', 'email'])
             ->orderBy('name')
@@ -831,7 +1003,17 @@ class DealController extends Controller
             ['id' => 1002, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
             ['id' => 1003, 'name' => 'Maria Santos', 'email' => 'maria.santos@example.com'],
             ['id' => 1004, 'name' => 'Juan Dela Cruz', 'email' => 'juan.delacruz@example.com'],
->>>>>>> 8cba64c798259c81cb3cadd9ddc404dbc43261f6
         ];
+    }
+
+    private function resolveOwnerName(int $ownerId): ?string
+    {
+        if ($ownerId <= 0) {
+            return null;
+        }
+
+        $owner = collect($this->ownerOptions())->firstWhere('id', $ownerId);
+
+        return is_array($owner) ? ($owner['name'] ?? null) : null;
     }
 }

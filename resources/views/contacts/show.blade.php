@@ -84,47 +84,27 @@
                             </div>
                             <div class="p-4">
                                 @if ($cifEditMode)
-                                    <form method="POST" action="{{ route('contacts.cif.save', $contact->id) }}" class="space-y-4">
-                                        @csrf
-                                        <div class="grid gap-4 md:grid-cols-2">
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input name="cif_no" value="{{ old('cif_no', $cifData['cif_no'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">TIN</label><input name="tin" value="{{ old('tin', $cifData['tin'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Customer Type</label><input name="customer_type" value="{{ old('customer_type', $cifData['customer_type'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Salutation</label><input name="salutation" value="{{ old('salutation', $cifData['salutation'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">First Name</label><input name="first_name" value="{{ old('first_name', $cifData['first_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label><input name="middle_name" value="{{ old('middle_name', $cifData['middle_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Last Name</label><input name="last_name" value="{{ old('last_name', $cifData['last_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Email</label><input name="email" value="{{ old('email', $cifData['email'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Mobile</label><input name="mobile" value="{{ old('mobile', $cifData['mobile'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Position / Designation</label><input name="position" value="{{ old('position', $cifData['position'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Company</label><input name="company_name" value="{{ old('company_name', $cifData['company_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Company Address</label><input name="company_address" value="{{ old('company_address', $cifData['company_address'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Owner Name</label><input name="owner_name" value="{{ old('owner_name', $cifData['owner_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">KYC Status</label><input name="kyc_status" value="{{ old('kyc_status', $cifData['kyc_status'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Date Verified</label><input type="date" name="date_verified" value="{{ old('date_verified', $cifData['date_verified'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div><label class="mb-1 block text-sm font-medium text-gray-700">Verified By</label><input name="verified_by" value="{{ old('verified_by', $cifData['verified_by'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                            <div class="md:col-span-2"><label class="mb-1 block text-sm font-medium text-gray-700">Address</label><textarea name="address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('address', $cifData['address'] ?? '') }}</textarea></div>
-                                            <div class="md:col-span-2"><label class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea name="remarks" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('remarks', $cifData['remarks'] ?? '') }}</textarea></div>
-                                        </div>
-                                        <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-                                            <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</a>
-                                            <button type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">Save CIF</button>
-                                        </div>
-                                    </form>
+                                    @include('contacts.partials.cif-document-edit', [
+                                        'contact' => $contact,
+                                        'cifData' => $cifData,
+                                    ])
                                 @else
-                                    <div class="grid gap-4 text-sm md:grid-cols-2">
-                                        <div><p class="text-xs text-gray-500">CIF No.</p><p class="font-medium text-gray-900">{{ $cifData['cif_no'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">TIN</p><p class="font-medium text-gray-900">{{ $cifData['tin'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Customer Type</p><p class="font-medium text-gray-900">{{ $cifData['customer_type'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Salutation</p><p class="font-medium text-gray-900">{{ $cifData['salutation'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">First Name</p><p class="font-medium text-gray-900">{{ $cifData['first_name'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Middle Name</p><p class="font-medium text-gray-900">{{ $cifData['middle_name'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Last Name</p><p class="font-medium text-gray-900">{{ $cifData['last_name'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Email</p><p class="font-medium text-gray-900">{{ $cifData['email'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Mobile</p><p class="font-medium text-gray-900">{{ $cifData['mobile'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Position</p><p class="font-medium text-gray-900">{{ $cifData['position'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Address</p><p class="font-medium text-gray-900">{{ $cifData['address'] ?: '-' }}</p></div>
-                                        <div><p class="text-xs text-gray-500">Company</p><p class="font-medium text-gray-900">{{ $cifData['company_name'] ?: '-' }}</p></div>
+                                    @include('contacts.partials.cif-document', ['cifData' => $cifData])
+                                    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">Optional CIF Document Attachment</p>
+                                                <div class="mt-1 flex flex-wrap items-center gap-2">
+                                                    <span id="cifOptionalBadge" class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"></span>
+                                                    <span id="cifOptionalFileText" class="text-xs text-gray-500"></span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-xs">
+                                                <button id="cifOptionalUploadBtn" type="button" class="rounded-md border border-gray-200 bg-white px-2 py-1 text-gray-700 hover:bg-gray-50">Upload CIF Document</button>
+                                                <button id="cifOptionalViewBtn" type="button" class="rounded-md border border-gray-200 bg-white px-2 py-1 text-gray-700 hover:bg-gray-50">View File</button>
+                                                <button id="cifOptionalRemoveBtn" type="button" class="rounded-md border border-red-200 bg-white px-2 py-1 text-red-600 hover:bg-red-50">Replace/Remove</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 @endif
                             </div>
@@ -142,57 +122,6 @@
                                 </div>
                             </div>
 
-                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-                                <div class="border-b border-gray-100 px-4 py-3">
-                                    <h3 class="text-base font-semibold text-gray-900">Supporting Documents</h3>
-                                </div>
-                                <div class="space-y-4 px-4 py-4">
-                                    <form method="POST" action="{{ route('contacts.cif.documents.upload', $contact->id) }}" enctype="multipart/form-data" class="space-y-3">
-                                        @csrf
-                                        <div>
-                                            <label class="mb-1 block text-sm font-medium text-gray-700">Document Type</label>
-                                            <select name="document_type" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                                <option value="cif_document">CIF Document</option>
-                                                <option value="valid_id">Valid ID</option>
-                                                <option value="tin_document">TIN Document</option>
-                                                <option value="registration_document">Supporting Registration Document</option>
-                                                <option value="other">Other Related File</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="mb-1 block text-sm font-medium text-gray-700">File</label>
-                                            <input type="file" name="document_file" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-                                            <textarea name="document_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
-                                        </div>
-                                        <button type="submit" class="h-10 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 hover:bg-blue-100">Upload Supporting Document</button>
-                                    </form>
-
-                                    <div class="space-y-3 border-t border-gray-100 pt-4">
-                                        @forelse ($cifDocuments as $document)
-                                            <article class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm">
-                                                <div class="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p class="font-semibold text-gray-900">{{ $document['label'] ?? 'Attachment' }}</p>
-                                                        <p class="text-xs text-gray-500">{{ $document['file_name'] ?? '-' }}</p>
-                                                        <p class="mt-1 text-xs text-gray-500">Uploaded: {{ $document['uploaded_at'] ?? '-' }}</p>
-                                                        @if (!empty($document['notes']))
-                                                            <p class="mt-1 text-xs text-gray-600">{{ $document['notes'] }}</p>
-                                                        @endif
-                                                    </div>
-                                                    @if (!empty($document['url']))
-                                                        <a href="{{ $document['url'] }}" target="_blank" class="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">Open</a>
-                                                    @endif
-                                                </div>
-                                            </article>
-                                        @empty
-                                            <p class="text-sm text-gray-500">No supporting documents uploaded yet.</p>
-                                        @endforelse
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -247,8 +176,8 @@
 
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                             <div class="border-b border-gray-100 px-4 py-3">
-                                <h2 class="text-base font-semibold text-gray-900">Uploaded Documents</h2>
-                                <p class="mt-1 text-xs text-gray-500">Upload the required KYC documents below before submitting this contact for verification.</p>
+                                <h2 class="text-base font-semibold text-gray-900">KYC Requirements</h2>
+                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: Two Valid IDs, Specimen Signatures, and TIN.</p>
                             </div>
                             <div id="kycDocumentsList" class="max-h-[520px] space-y-3 overflow-y-auto p-4"></div>
                         </div>
@@ -378,15 +307,16 @@
                             const statusStyles = {'Not Submitted':'bg-gray-100 text-gray-600 border border-gray-200','Pending Verification':'bg-amber-100 text-amber-700 border border-amber-200','For Review':'bg-amber-100 text-amber-700 border border-amber-200','Approved':'bg-green-100 text-green-700 border border-green-200','Rejected':'bg-red-100 text-red-700 border border-red-200'};
                             const statusRaw = @json($status);
                             const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
+                            const cifHasFormData = @json(filled($cifData['first_name'] ?? null) || filled($cifData['last_name'] ?? null) || filled($cifData['cif_no'] ?? null));
                             const requiredDocs = [
-                                { key: 'cif', label: 'CIF Document', isCif: true },
-                                { key: 'valid_id', label: 'Valid ID', isCif: false },
-                                { key: 'tin_doc', label: 'TIN Document', isCif: false },
-                                { key: 'supporting_registration', label: 'Supporting Registration Document', isCif: false },
+                                { key: 'two_valid_ids', label: 'Two Valid IDs', isCif: false },
+                                { key: 'specimen_signatures', label: 'Specimen Signatures', isCif: false },
+                                { key: 'tin_proof', label: 'TIN', isCif: false },
                             ];
                             let kyc = { cif:'123456', tin:'123-456-789', status:statusInit || 'Not Submitted', dateVerified: statusInit === 'Approved' ? '2026-02-26' : '', verifiedBy: statusInit === 'Approved' ? mockUser : '', rejectionReason:'', submitted:['Pending Verification','For Review','Approved','Rejected'].includes(statusInit) };
                             let logs = [`KYC profile loaded by ${mockUser}`];
-                            let docs = { cif: null, valid_id: null, tin_doc: null, supporting_registration: null };
+                            let docs = { two_valid_ids: null, specimen_signatures: null, tin_proof: null };
+                            let cifOptionalDoc = null;
                             let activeDoc = null; let file = null; let fileUrl = '';
 
                             const fmtDate = (s) => { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? s : new Intl.DateTimeFormat('en-US',{month:'short',day:'2-digit',year:'numeric'}).format(d); };
@@ -415,7 +345,20 @@
                             };
                             const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
                             const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
-                            const docDef = (key) => requiredDocs.find((d) => d.key === key);
+                            const docDef = (key) => {
+                                if (key === 'cif_optional') {
+                                    return { key: 'cif_optional', label: 'CIF Document', isCif: true };
+                                }
+                                return requiredDocs.find((d) => d.key === key);
+                            };
+                            const getDocByKey = (key) => key === 'cif_optional' ? cifOptionalDoc : docs[key];
+                            const setDocByKey = (key, value) => {
+                                if (key === 'cif_optional') {
+                                    cifOptionalDoc = value;
+                                    return;
+                                }
+                                docs[key] = value;
+                            };
                             const allRequiredUploaded = () => requiredDocs.every((d) => !!docs[d.key]);
 
                             const render = () => {
@@ -430,6 +373,29 @@
                                 q('approveKycBtn').disabled = !canReview; q('rejectKycBtn').disabled = !canReview;
                                 q('kycRejectionNote').classList.toggle('hidden', !kyc.rejectionReason);
                                 q('kycRejectionNote').textContent = kyc.rejectionReason ? `Rejection reason: ${kyc.rejectionReason}` : '';
+                                const cifOptionalUploaded = !!cifOptionalDoc;
+                                const cifBadge = q('cifOptionalBadge');
+                                if (cifBadge) {
+                                    if (cifHasFormData) {
+                                        cifBadge.className = 'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-green-100 text-green-700 border border-green-200';
+                                        cifBadge.textContent = 'CIF Recorded';
+                                    } else {
+                                        cifBadge.className = 'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600 border border-gray-200';
+                                        cifBadge.textContent = 'CIF Draft';
+                                    }
+                                }
+                                if (q('cifOptionalFileText')) {
+                                    q('cifOptionalFileText').textContent = cifOptionalUploaded
+                                        ? `File attached: ${cifOptionalDoc.fileName || '-'}`
+                                        : 'No CIF file attached (optional)';
+                                }
+                                if (q('cifOptionalUploadBtn')) {
+                                    q('cifOptionalUploadBtn').textContent = cifOptionalUploaded ? 'Replace CIF Document' : 'Upload CIF Document';
+                                }
+                                q('cifOptionalViewBtn')?.classList.toggle('opacity-40', !cifOptionalUploaded);
+                                q('cifOptionalViewBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
+                                q('cifOptionalRemoveBtn')?.classList.toggle('opacity-40', !cifOptionalUploaded);
+                                q('cifOptionalRemoveBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
                                 q('kycDocumentsList').innerHTML = requiredDocs.map((req) => {
                                     const d = docs[req.key];
                                     const uploaded = !!d;
@@ -453,7 +419,7 @@
                             };
 
                             const renderPreview = (name, url, mime) => {
-                                const label = activeDoc ? docDef(activeDoc).label : 'document';
+                                const label = activeDoc && docDef(activeDoc) ? docDef(activeDoc).label : 'document';
                                 if (!name) { q('documentPreviewPanel').innerHTML = `<i class="far fa-file-pdf text-6xl text-gray-400"></i><p class="mt-2">No ${label.toLowerCase()} selected</p><p class="text-xs">Upload a PDF or image file to preview</p>`; return; }
                                 if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
                                 else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="CIF preview" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
@@ -463,7 +429,7 @@
                             const openDocModal = (docKey) => {
                                 activeDoc = docKey;
                                 const def = docDef(docKey);
-                                const existing = docs[docKey];
+                                const existing = getDocByKey(docKey);
                                 file = null; fileUrl = '';
                                 q('documentForm').reset(); q('docUploadDate').value = todayIso; q('docFileNameLabel').textContent = 'Upload File';
                                 q('documentModalTitle').textContent = `${existing ? 'Edit' : 'Upload'} ${def.label}`;
@@ -527,10 +493,10 @@
                             q('documentForm').addEventListener('submit', (e) => {
                                 e.preventDefault();
                                 const def = docDef(activeDoc);
-                                const existing = docs[activeDoc];
+                                const existing = getDocByKey(activeDoc);
                                 const title = q('docTitle').value.trim(); const hasFile = !!file || !!existing?.fileName;
                                 q('docErrorTitle').classList.toggle('hidden', !!title); q('docErrorFile').classList.toggle('hidden', hasFile); if (!title || !hasFile) return;
-                                docs[activeDoc] = { type: def.label, title, fileName: file ? file.name : existing.fileName, certificateNo: def.isCif ? q('docCertificateNo').value.trim() : '', companyRegNo: def.isCif ? q('docCompanyRegNo').value.trim() : '', uploadDate: q('docUploadDate').value || todayIso, createdDate: def.isCif ? q('docCreatedDate').value : '', issuedOn: q('docIssuedOn').value, issuedBy: q('docIssuedBy').value.trim(), fileUrl: fileUrl || existing.fileUrl || '#', mimeType: file ? (file.type || 'file') : (existing.mimeType || 'file'), size: file ? file.size : (existing.size || 0), remarks: q('docRemarks').value.trim() };
+                                setDocByKey(activeDoc, { type: def.label, title, fileName: file ? file.name : existing.fileName, certificateNo: def.isCif ? q('docCertificateNo').value.trim() : '', companyRegNo: def.isCif ? q('docCompanyRegNo').value.trim() : '', uploadDate: q('docUploadDate').value || todayIso, createdDate: def.isCif ? q('docCreatedDate').value : '', issuedOn: q('docIssuedOn').value, issuedBy: q('docIssuedBy').value.trim(), fileUrl: fileUrl || existing.fileUrl || '#', mimeType: file ? (file.type || 'file') : (existing.mimeType || 'file'), size: file ? file.size : (existing.size || 0), remarks: q('docRemarks').value.trim() });
                                 addLog(`${def.label} ${existing ? 'updated' : 'uploaded'} by ${mockUser}`);
                                 render(); close(q('documentModal'));
                             });
@@ -544,7 +510,7 @@
                                 }
                                 if (viewId) {
                                     const def = docDef(viewId);
-                                    const d = docs[viewId]; if (!d) return;
+                                    const d = getDocByKey(viewId); if (!d) return;
                                     q('documentViewTitle').textContent = `${def.label} Details`;
                                     q('viewDocType').textContent = def.label;
                                     q('viewDocCertificateNo').parentElement.classList.toggle('hidden', !def.isCif);
@@ -558,15 +524,39 @@
                                 }
                                 if (removeId) {
                                     const def = docDef(removeId);
-                                    const d = docs[removeId]; if (!d) return;
+                                    const d = getDocByKey(removeId); if (!d) return;
                                     if (!window.confirm(`Are you sure you want to remove this ${def.label.toLowerCase()}?`)) return;
-                                    docs[removeId] = null; addLog(`${def.label} removed by ${mockUser}`); render();
+                                    setDocByKey(removeId, null); addLog(`${def.label} removed by ${mockUser}`); render();
                                 }
+                            });
+
+                            q('cifOptionalUploadBtn')?.addEventListener('click', () => openDocModal('cif_optional'));
+                            q('cifOptionalViewBtn')?.addEventListener('click', () => {
+                                if (!cifOptionalDoc) return;
+                                const def = docDef('cif_optional');
+                                const d = cifOptionalDoc;
+                                q('documentViewTitle').textContent = `${def.label} Details`;
+                                q('viewDocType').textContent = def.label;
+                                q('viewDocCertificateNo').parentElement.classList.toggle('hidden', !def.isCif);
+                                q('viewDocCompanyRegNo').parentElement.classList.toggle('hidden', !def.isCif);
+                                q('viewDocCreatedDate').parentElement.classList.toggle('hidden', !def.isCif);
+                                if ((d.mimeType || '').includes('pdf') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<iframe src="${d.fileUrl}" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
+                                else if ((d.mimeType || '').startsWith('image/') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<img src="${d.fileUrl}" alt="CIF document" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                                else q('documentViewPreview').innerHTML = `<div class="text-center"><i class="far fa-file text-6xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${d.fileName || '-'}</p><p class="text-xs text-gray-500">${d.mimeType || 'Document'} | ${fmtBytes(d.size)}</p><a class="mt-2 inline-block text-blue-600 hover:text-blue-700" href="${d.fileUrl || '#'}" target="_blank" rel="noopener noreferrer">Open File</a></div>`;
+                                q('viewDocTitle').textContent = d.title || '-'; q('viewDocCertificateNo').textContent = d.certificateNo || '-'; q('viewDocCompanyRegNo').textContent = d.companyRegNo || '-'; q('viewDocUploadDate').textContent = fmtDate(d.uploadDate); q('viewDocCreatedDate').textContent = fmtDate(d.createdDate); q('viewDocIssuedOn').textContent = fmtDate(d.issuedOn); q('viewDocIssuedBy').textContent = d.issuedBy || '-'; q('viewDocRemarks').textContent = d.remarks || '-'; q('viewDocFileName').textContent = d.fileName || '-';
+                                open(q('documentViewModal'));
+                            });
+                            q('cifOptionalRemoveBtn')?.addEventListener('click', () => {
+                                if (!cifOptionalDoc) return;
+                                if (!window.confirm('Are you sure you want to remove this optional CIF document attachment?')) return;
+                                cifOptionalDoc = null;
+                                addLog(`CIF document removed by ${mockUser}`);
+                                render();
                             });
 
                             q('submitForVerificationBtn').addEventListener('click', () => {
                                 if (!allRequiredUploaded()) {
-                                    q('kycActionWarning').textContent = 'Please upload all required KYC documents before submitting for verification.';
+                                    q('kycActionWarning').textContent = 'Please upload Two Valid IDs, Specimen Signatures, and TIN proof before submitting for verification.';
                                     q('kycActionWarning').classList.remove('hidden');
                                     setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3400);
                                     return;

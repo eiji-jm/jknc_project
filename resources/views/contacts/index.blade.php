@@ -298,6 +298,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultValueInput = document.getElementById('default_value');
     const oldSelectedContacts = @json(old('selected_contacts', []));
     let createFieldDropdownOpen = false;
+    const organizationTypeInputs = Array.from(document.querySelectorAll('input[name="organization_type"]'));
+    const ownershipFlagInputs = Array.from(document.querySelectorAll('input[name="ownership_flag"]'));
+    const organizationTypeOtherWrap = document.getElementById('organizationTypeOtherWrap');
+    const foreignBusinessNatureWrap = document.getElementById('foreignBusinessNatureWrap');
+    const conditionalOtherToggles = Array.from(document.querySelectorAll('[data-other-toggle]'));
 
     const selectAll = document.getElementById('selectAll');
     const rowChecks = Array.from(document.querySelectorAll('.row-checkbox'));
@@ -542,6 +547,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    const syncOtherFieldVisibility = () => {
+        conditionalOtherToggles.forEach((toggle) => {
+            const targetId = toggle.dataset.otherToggle;
+            if (!targetId) {
+                return;
+            }
+
+            const target = document.getElementById(targetId);
+            if (!target) {
+                return;
+            }
+
+            const matchingToggles = conditionalOtherToggles.filter((item) => item.dataset.otherToggle === targetId);
+            const isVisible = matchingToggles.some((item) => item.checked);
+            target.classList.toggle('hidden', !isVisible);
+        });
+    };
+
+    const syncBusinessConditionalFields = () => {
+        const selectedOrganization = organizationTypeInputs.find((input) => input.checked)?.value || '';
+        const selectedOwnership = ownershipFlagInputs.find((input) => input.checked)?.value || '';
+
+        organizationTypeOtherWrap?.classList.toggle('hidden', selectedOrganization !== 'Others');
+        foreignBusinessNatureWrap?.classList.toggle('hidden', selectedOwnership !== 'Foreign-Owned Business');
+    };
+
     openModalButton?.addEventListener('click', openModal);
     closeModalButton?.addEventListener('click', closeModal);
     cancelModalButton?.addEventListener('click', closeModal);
@@ -673,6 +704,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     rowChecks.forEach((check) => check.addEventListener('change', refreshSelection));
+    conditionalOtherToggles.forEach((toggle) => toggle.addEventListener('change', syncOtherFieldVisibility));
+    organizationTypeInputs.forEach((input) => input.addEventListener('change', syncBusinessConditionalFields));
+    ownershipFlagInputs.forEach((input) => input.addEventListener('change', syncBusinessConditionalFields));
     clearSelection?.addEventListener('click', function () {
         rowChecks.forEach((check) => { check.checked = false; });
         if (selectAll) {
@@ -684,6 +718,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const initialFieldType = createFieldTypeInput ? createFieldTypeInput.value : 'picklist';
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
+    syncOtherFieldVisibility();
+    syncBusinessConditionalFields();
 
     @if ($errors->any())
         @if (old('field_type'))

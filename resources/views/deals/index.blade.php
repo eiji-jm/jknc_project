@@ -131,6 +131,8 @@
     'ownerLabel' => $ownerLabel,
     'owners' => $owners,
     'defaultOwnerId' => $defaultOwnerId,
+    'dealDraft' => $dealDraft ?? [],
+    'openDealModal' => $openDealModal ?? false,
 ])
 
 <script>
