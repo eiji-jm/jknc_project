@@ -28,4 +28,9 @@ class Company extends Model
     {
         return $this->hasMany(CompanyCif::class);
     }
+
+    public function bifs(): HasMany
+    {
+        return $this->hasMany(CompanyBif::class);
+    }
 }

@@ -6,6 +6,7 @@ use App\Models\CompanyActivity;
 use App\Models\CompanyConsultationNote;
 use App\Models\CompanyCif;
 use App\Models\CompanyHistoryEntry;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -17,24 +18,93 @@ class CompanyController extends Controller
 {
     public function index(Request $request): View
     {
-        $companies = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->sortByDesc('created_at')
-            ->values()
-            ->map(fn (array $company) => (object) $company);
+        $search = trim((string) $request->query('search', ''));
+        $typeFilter = trim((string) $request->query('type', 'All'));
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = in_array($perPage, [5, 10, 25, 50], true) ? $perPage : 10;
+        $customFields = $this->companyCustomFields($request);
 
-        return view('company.company', compact('companies'));
+        $allCompanies = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
+            ->map(fn (array $company): array => $this->applyCompanyCustomFieldDefaults($company, $customFields))
+            ->sortByDesc('created_at')
+            ->values();
+
+        $companyTypes = $allCompanies
+            ->pluck('company_type')
+            ->filter(fn (?string $type) => filled($type))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($typeFilter !== 'All' && ! in_array($typeFilter, $companyTypes, true)) {
+            $typeFilter = 'All';
+        }
+
+        $filteredCompanies = $allCompanies
+            ->when($search !== '', function ($collection) use ($search) {
+                $term = Str::lower($search);
+
+                return $collection->filter(function (array $company) use ($term) {
+                    return collect([
+                        $company['company_name'] ?? '',
+                        $company['email'] ?? '',
+                        $company['phone'] ?? '',
+                        $company['website'] ?? '',
+                        $company['address'] ?? '',
+                        $company['owner_name'] ?? '',
+                        $company['company_type'] ?? '',
+                        ...collect($company['custom_fields'] ?? [])->values()->all(),
+                    ])->contains(fn (?string $value) => Str::contains(Str::lower((string) $value), $term));
+                });
+            })
+            ->when($typeFilter !== 'All', fn ($collection) => $collection->where('company_type', $typeFilter))
+            ->values();
+
+        $currentPage = max((int) $request->query('page', 1), 1);
+        $paginatedCompanies = new LengthAwarePaginator(
+            $filteredCompanies
+                ->slice(($currentPage - 1) * $perPage, $perPage)
+                ->map(fn (array $company) => (object) $company)
+                ->values(),
+            $filteredCompanies->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $typeCounts = $allCompanies
+            ->groupBy(fn (array $company) => $company['company_type'] ?: 'Unspecified')
+            ->map(fn ($items) => $items->count())
+            ->all();
+
+        return view('company.company', [
+            'companies' => $paginatedCompanies,
+            'search' => $search,
+            'typeFilter' => $typeFilter,
+            'companyTypes' => $companyTypes,
+            'perPage' => $perPage,
+            'typeCounts' => $typeCounts,
+            'customFields' => $customFields,
+            'fieldTypes' => collect($this->fieldTypes()),
+            'lookupModules' => $this->lookupModules(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateCompany($request);
+        $customFields = $this->companyCustomFields($request);
 
         $companies = $request->session()->get('mock_companies', $this->defaultCompanies());
         $nextId = collect($companies)->max('id') + 1;
 
         $companies[] = [
             'id' => $nextId,
-            ...$this->makeCompanyPayload($validated),
+            ...$this->makeCompanyPayload($validated, $customFields),
             'owner_name' => $request->user()?->name ?? 'Owner 1',
             'created_at' => now()->toDateTimeString(),
         ];
@@ -51,6 +121,7 @@ class CompanyController extends Controller
         $validated = $this->validateCompany($request);
         $companies = collect($request->session()->get('mock_companies', $this->defaultCompanies()));
         $companyData = $companies->firstWhere('id', $company);
+        $customFields = $this->companyCustomFields($request);
 
         abort_unless($companyData, 404);
 
@@ -62,7 +133,7 @@ class CompanyController extends Controller
 
                 return [
                     ...$existingCompany,
-                    ...$this->makeCompanyPayload($validated),
+                    ...$this->makeCompanyPayload($validated, $customFields),
                 ];
             })
             ->values()
@@ -92,25 +163,99 @@ class CompanyController extends Controller
             ->with('success', 'Company deleted successfully.');
     }
 
-    public function show(Request $request, int $company): View
+    public function storeCustomField(Request $request): RedirectResponse
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
+        $allowedTypes = collect($this->fieldTypes())->pluck('value')->all();
 
-        abort_unless($companyData, 404);
+        $validated = $request->validate([
+            'field_type' => ['required', 'string', 'in:'.implode(',', $allowedTypes)],
+            'field_name' => ['required', 'string', 'max:80'],
+            'default_value' => ['nullable', 'string', 'max:255'],
+            'required' => ['nullable', 'boolean'],
+            'lookup_module' => ['nullable', 'string', 'in:'.implode(',', array_column($this->lookupModules(), 'value'))],
+            'options' => ['nullable', 'array'],
+            'options.*' => ['nullable', 'string', 'max:100'],
+        ]);
 
-        $cifDocuments = collect();
+        $fieldName = trim((string) $validated['field_name']);
+        $fieldType = (string) $validated['field_type'];
+        $customFields = collect($request->session()->get('company.custom_fields', []))->values();
 
-        if (Schema::hasTable('company_cifs')) {
-            $cifDocuments = CompanyCif::query()
-                ->where('company_id', $company)
-                ->latest('updated_at')
-                ->get();
+        $nameExists = $customFields->contains(function (array $field) use ($fieldName): bool {
+            return Str::lower((string) ($field['name'] ?? '')) === Str::lower($fieldName);
+        });
+
+        if ($nameExists) {
+            return back()->withErrors(['field_name' => 'Field name already exists for Company.'])->withInput();
         }
 
-        return view('company.overview', [
-            'company' => (object) $companyData,
-            'cifDocuments' => $cifDocuments,
+        $keyBase = Str::slug($fieldName, '_');
+        if ($keyBase === '') {
+            $keyBase = 'custom_field';
+        }
+
+        $key = 'custom_'.$keyBase;
+        $suffix = 1;
+        $usedKeys = $customFields->pluck('key')->all();
+        while (in_array($key, $usedKeys, true)) {
+            $suffix++;
+            $key = 'custom_'.$keyBase.'_'.$suffix;
+        }
+
+        $options = collect($validated['options'] ?? [])
+            ->map(fn ($option) => trim((string) $option))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($fieldType === 'picklist' && count($options) === 0) {
+            return back()->withErrors(['options' => 'Picklist fields need at least one option.'])->withInput();
+        }
+
+        if ($fieldType !== 'lookup') {
+            $validated['lookup_module'] = null;
+        }
+
+        $defaultValue = trim((string) ($validated['default_value'] ?? ''));
+        if ($fieldType === 'checkbox') {
+            $defaultValue = in_array(Str::lower($defaultValue), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
+        }
+        if ($fieldType === 'picklist' && $defaultValue !== '' && ! in_array($defaultValue, $options, true)) {
+            return back()->withErrors(['default_value' => 'Default value must match one of the options.'])->withInput();
+        }
+
+        $customFields->push([
+            'id' => 'fld-'.now()->format('YmdHisv').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+            'type' => $fieldType,
+            'name' => $fieldName,
+            'key' => $key,
+            'required' => (bool) ($validated['required'] ?? false),
+            'options' => $fieldType === 'picklist' ? $options : [],
+            'lookup_module' => $fieldType === 'lookup' ? (string) ($validated['lookup_module'] ?? '') : null,
+            'default_value' => $this->normalizedDefaultValue($fieldType, $defaultValue),
+        ]);
+
+        $request->session()->put('company.custom_fields', $customFields->values()->all());
+        $request->session()->put(
+            'mock_companies',
+            collect($request->session()->get('mock_companies', $this->defaultCompanies()))
+                ->map(fn (array $company): array => $this->applyCompanyCustomFieldDefaults($company, $customFields->all()))
+                ->values()
+                ->all()
+        );
+
+        return redirect()
+            ->route('company.index')
+            ->with('success', 'Company custom field created successfully.');
+    }
+
+    public function show(Request $request, int $company): RedirectResponse
+    {
+        $this->findCompanyOrAbort($request, $company);
+
+        return redirect()->route('company.kyc', [
+            'company' => $company,
+            'tab' => 'client-intake',
         ]);
     }
 
@@ -793,7 +938,7 @@ class CompanyController extends Controller
         ]);
     }
 
-    private function makeCompanyPayload(array $validated): array
+    private function makeCompanyPayload(array $validated, array $customFields = []): array
     {
         return [
             'company_name' => $validated['company_name'],
@@ -803,7 +948,71 @@ class CompanyController extends Controller
             'website' => $validated['website'] ?? null,
             'description' => $validated['description'] ?? null,
             'address' => $validated['address'] ?? null,
+            'custom_fields' => collect($customFields)
+                ->mapWithKeys(fn (array $field) => [$field['key'] => $field['default_value'] ?? ''])
+                ->all(),
         ];
+    }
+
+    private function companyCustomFields(Request $request): array
+    {
+        return collect($request->session()->get('company.custom_fields', []))
+            ->values()
+            ->all();
+    }
+
+    private function applyCompanyCustomFieldDefaults(array $company, array $customFields): array
+    {
+        $company['custom_fields'] = $company['custom_fields'] ?? [];
+
+        foreach ($customFields as $field) {
+            $key = $field['key'] ?? null;
+
+            if (! $key) {
+                continue;
+            }
+
+            $company['custom_fields'][$key] = $company['custom_fields'][$key] ?? ($field['default_value'] ?? '');
+        }
+
+        return $company;
+    }
+
+    private function fieldTypes(): array
+    {
+        return [
+            ['value' => 'picklist', 'label' => 'Picklist', 'icon' => 'fa-list'],
+            ['value' => 'text', 'label' => 'Text', 'icon' => 'fa-font'],
+            ['value' => 'numerical', 'label' => 'Numerical', 'icon' => 'fa-hashtag'],
+            ['value' => 'lookup', 'label' => 'Lookup', 'icon' => 'fa-link'],
+            ['value' => 'date', 'label' => 'Date', 'icon' => 'fa-calendar-days'],
+            ['value' => 'checkbox', 'label' => 'Checkbox', 'icon' => 'fa-square-check'],
+            ['value' => 'email', 'label' => 'Email', 'icon' => 'fa-envelope'],
+            ['value' => 'phone', 'label' => 'Phone', 'icon' => 'fa-phone'],
+            ['value' => 'url', 'label' => 'URL', 'icon' => 'fa-globe'],
+            ['value' => 'user', 'label' => 'User', 'icon' => 'fa-user'],
+            ['value' => 'currency', 'label' => 'Currency', 'icon' => 'fa-peso-sign'],
+        ];
+    }
+
+    private function lookupModules(): array
+    {
+        return [
+            ['value' => 'contacts', 'label' => 'Contacts'],
+            ['value' => 'deals', 'label' => 'Deals'],
+            ['value' => 'services', 'label' => 'Services'],
+        ];
+    }
+
+    private function normalizedDefaultValue(string $fieldType, ?string $defaultValue): string
+    {
+        $value = trim((string) ($defaultValue ?? ''));
+
+        if ($fieldType === 'checkbox') {
+            return in_array(Str::lower($value), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
+        }
+
+        return $value;
     }
 
     private function contactValidator(Request $request)
