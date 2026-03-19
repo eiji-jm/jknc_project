@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
 use App\Models\Bylaw;
 use App\Models\GisRecord;
+use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
 {
@@ -33,6 +35,52 @@ class CorporateApprovalController extends Controller
             'Needs Revision', 'Rejected' => 'Reverted',
             default => 'Uploaded',
         };
+    }
+
+    private function getModuleName(string $module): string
+    {
+        return match ($module) {
+            'sec-coi' => 'SEC-COI',
+            'sec-aoi' => 'SEC-AOI',
+            'bylaws'  => 'Bylaws',
+            'gis'     => 'GIS',
+            default   => 'Corporate Module',
+        };
+    }
+
+    private function getCorporationName($record, string $module): string
+    {
+        return match ($module) {
+            'sec-coi' => $record->corporate_name ?? '',
+            'sec-aoi' => $record->corporation_name ?? '',
+            'bylaws'  => $record->corporation_name ?? '',
+            'gis'     => $record->corporation_name ?? '',
+            default   => '',
+        };
+    }
+
+    private function sendStatusEmail($record, string $module, string $decision, ?string $reviewNote = null): void
+    {
+        if (empty($record->submitted_by)) {
+            return;
+        }
+
+        $employee = User::find($record->submitted_by);
+
+        if (!$employee || empty($employee->email)) {
+            return;
+        }
+
+        Mail::to($employee->email)->send(
+            new CorporateStatusNotificationMail(
+                $employee->name,
+                $this->getModuleName($module),
+                $this->getCorporationName($record, $module),
+                $record->company_reg_no ?? '',
+                $decision,
+                $reviewNote
+            )
+        );
     }
 
     public function dashboard()
@@ -162,6 +210,8 @@ class CorporateApprovalController extends Controller
             'review_note' => null,
         ]);
 
+        $this->sendStatusEmail($record, $module, 'Approved', null);
+
         return back()->with('success', 'Record approved successfully.');
     }
 
@@ -179,6 +229,8 @@ class CorporateApprovalController extends Controller
             'review_note' => $request->review_note,
         ]);
 
+        $this->sendStatusEmail($record, $module, 'Rejected', $request->review_note);
+
         return back()->with('success', 'Record rejected successfully.');
     }
 
@@ -195,6 +247,8 @@ class CorporateApprovalController extends Controller
             'approved_at' => now(),
             'review_note' => $request->review_note,
         ]);
+
+        $this->sendStatusEmail($record, $module, 'Needs Revision', $request->review_note);
 
         return back()->with('success', 'Record marked as needs revision.');
     }
