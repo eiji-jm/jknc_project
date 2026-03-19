@@ -81,15 +81,14 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
-                                <input
-                                    type="text"
-                                    name="from_name"
-                                    value="{{ old('from_name') }}"
-                                    placeholder="Enter sender"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
+                            <input
+                                type="text"
+                                value="{{ Auth::user()->name }}"
+                                readonly
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                            >
+                            <p class="mt-1 text-xs text-gray-400">Automatically set based on signed-in user</p>
                             </div>
-
                             <div>
                                 <label class="block text-xs font-semibold text-gray-500 mb-1">Department / Stakeholder</label>
                                 <input

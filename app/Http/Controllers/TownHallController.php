@@ -38,7 +38,6 @@ class TownHallController extends Controller
 
         $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
-            'from_name' => ['nullable', 'string', 'max:255'],
             'department_stakeholder' => ['nullable', 'string', 'max:255'],
             'to_for' => ['nullable', 'string', 'max:255'],
             'priority' => ['nullable', 'in:High,Low'],
@@ -61,6 +60,8 @@ class TownHallController extends Controller
             $validated['attachment'] = $file->store('townhall_attachments', 'public');
         }
 
+        $validated['from_name'] = Auth::user()->name;
+        $validated['priority'] = $request->priority ?? 'Low';
         $validated['created_by'] = Auth::id();
         $validated['approval_status'] = 'Pending';
 
