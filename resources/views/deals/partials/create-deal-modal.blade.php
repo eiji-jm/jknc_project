@@ -126,8 +126,8 @@
         <div id="createDealPanel" class="pointer-events-auto flex h-full w-full max-w-[860px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-[820px]">
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                 <div>
-                    <h2 class="text-2xl font-semibold text-gray-900">Create Deal</h2>
-                    <p class="mt-1 text-sm text-gray-500">Select an existing client, then complete the consulting and deal form.</p>
+                    <h2 id="dealPanelTitle" class="text-2xl font-semibold text-gray-900">Create Deal</h2>
+                    <p id="dealPanelSubtitle" class="mt-1 text-sm text-gray-500">Select an existing client, then complete the consulting and deal form.</p>
                 </div>
                 <button id="closeCreateDealModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-800">&times;</button>
             </div>
