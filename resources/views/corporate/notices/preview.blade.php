@@ -2,53 +2,7 @@
 
 @section('content')
 @php
-    $sampleNotices = [
-        [
-            'noticeNumber' => '2024-001',
-            'dateOfNotice' => '2024-01-15',
-            'governingBody' => 'Board of Directors',
-            'typeOfMeeting' => 'Regular',
-            'dateOfMeeting' => '2024-02-01',
-            'timeStarted' => '10:00 AM',
-            'location' => 'Conference Room A',
-            'meetingNo' => '1',
-            'chairman' => 'John Smith',
-            'secretary' => 'Jane Doe',
-            'uploadedBy' => 'Admin User',
-            'dateUpdated' => '2024-01-15'
-        ],
-        [
-            'noticeNumber' => '2024-002',
-            'dateOfNotice' => '2024-01-20',
-            'governingBody' => 'Shareholders',
-            'typeOfMeeting' => 'Annual General',
-            'dateOfMeeting' => '2024-02-15',
-            'timeStarted' => '02:00 PM',
-            'location' => 'Main Hall',
-            'meetingNo' => '2',
-            'chairman' => 'Robert Brown',
-            'secretary' => 'Sarah Wilson',
-            'uploadedBy' => 'Compliance Officer',
-            'dateUpdated' => '2024-01-20'
-        ],
-        [
-            'noticeNumber' => '2024-003',
-            'dateOfNotice' => '2024-01-25',
-            'governingBody' => 'Audit Committee',
-            'typeOfMeeting' => 'Special',
-            'dateOfMeeting' => '2024-02-08',
-            'timeStarted' => '11:00 AM',
-            'location' => 'Audit Office',
-            'meetingNo' => '3',
-            'chairman' => 'Michael Johnson',
-            'secretary' => 'Emily Davis',
-            'uploadedBy' => 'Finance Manager',
-            'dateUpdated' => '2024-01-25'
-        ]
-    ];
-
-    $selectedRef = request('ref');
-    $selected = collect($sampleNotices)->firstWhere('noticeNumber', $selectedRef) ?? $sampleNotices[0];
+    $selected = $notice;
 @endphp
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
@@ -59,10 +13,10 @@
             </a>
             <div>
                 <div class="text-lg font-semibold">Notice Preview</div>
-                <div class="text-xs text-gray-500">Notice #: {{ $selected['noticeNumber'] }}</div>
+                <div class="text-xs text-gray-500">Notice #: {{ $selected->notice_number }}</div>
             </div>
             <div class="flex-1"></div>
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ $selected['typeOfMeeting'] }}</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ $selected->type_of_meeting }}</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
@@ -82,7 +36,7 @@
                     </div>
                     <div class="p-8 text-center text-gray-300">
                         <p class="text-lg font-semibold">Notice Document Preview</p>
-                        <p class="text-sm text-gray-400 mt-1">{{ $selected['location'] }} - {{ $selected['dateOfMeeting'] }}</p>
+                        <p class="text-sm text-gray-400 mt-1">{{ $selected->location }} - {{ $selected->date_of_meeting }}</p>
                         <div class="mt-6">
                             <input type="file" accept=".pdf" class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700">
                         </div>
@@ -103,28 +57,28 @@
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Meeting Details</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Governing Body</span><div class="font-medium text-gray-900">{{ $selected['governingBody'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting Type</span><div class="font-medium text-gray-900">{{ $selected['typeOfMeeting'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date</span><div class="font-medium text-gray-900">{{ $selected['dateOfMeeting'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Time</span><div class="font-medium text-gray-900">{{ $selected['timeStarted'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Location</span><div class="font-medium text-gray-900">{{ $selected['location'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Governing Body</span><div class="font-medium text-gray-900">{{ $selected->governing_body }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting Type</span><div class="font-medium text-gray-900">{{ $selected->type_of_meeting }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date</span><div class="font-medium text-gray-900">{{ $selected->date_of_meeting }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Time</span><div class="font-medium text-gray-900">{{ $selected->time_started }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Location</span><div class="font-medium text-gray-900">{{ $selected->location }}</div></div>
                     </div>
                 </div>
 
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">References</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notice No.</span><div class="font-medium text-gray-900">{{ $selected['noticeNumber'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting No.</span><div class="font-medium text-gray-900">{{ $selected['meetingNo'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Updated</span><div class="font-medium text-gray-900">{{ $selected['dateUpdated'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notice No.</span><div class="font-medium text-gray-900">{{ $selected->notice_number }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting No.</span><div class="font-medium text-gray-900">{{ $selected->meeting_no }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Updated</span><div class="font-medium text-gray-900">{{ $selected->date_updated }}</div></div>
                     </div>
                 </div>
 
                 <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Signatories</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Chairman</span><div class="font-medium text-gray-900">{{ $selected['chairman'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Secretary</span><div class="font-medium text-gray-900">{{ $selected['secretary'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Chairman</span><div class="font-medium text-gray-900">{{ $selected->chairman }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Secretary</span><div class="font-medium text-gray-900">{{ $selected->secretary }}</div></div>
                     </div>
                 </div>
 
@@ -144,3 +98,6 @@
     </div>
 </div>
 @endsection
+
+
+

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedEntry: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, showAddPanel: false, selectedEntry: null }">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -10,21 +10,16 @@
             <a href="{{ route('stock-transfer-book') }}" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left"></i>
             </a>
-            <div class="text-lg font-semibold" x-show="!showPreview">Journal</div>
-            <div class="text-lg font-semibold" x-show="showPreview">Journal Entry Preview</div>
+            <div class="text-lg font-semibold">Journal</div>
 
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
                     Add Transaction
-                </button>
-                <button x-show="showPreview" @click="showPreview = false; selectedEntry = null" class="h-9 px-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-2">
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Back to Journal
                 </button>
             </div>
         </div>
@@ -32,7 +27,7 @@
         <div class="border-t border-gray-100"></div>
 
         {{-- NAVIGATION TABS --}}
-        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
+        <div class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
             <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
             <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Journal</a>
             <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
@@ -41,7 +36,7 @@
         </div>
 
         {{-- JOURNAL TABLE VIEW --}}
-        <div x-show="!showPreview" class="p-4">
+        <div class="p-4">
             <div class="overflow-auto">
                 <table class="min-w-full">
                     <thead>
@@ -52,64 +47,25 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Particulars</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. Shares</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Transaction Type</th>
+                            
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
-                            date: 'Jan 15, 2026',
-                            journalNo: 'JNL-001',
-                            ledgerFolio: 'LED-001',
-                            particulars: 'Initial share issuance to John Kelly',
-                            noShares: '1000',
-                            transactionType: 'Issuance',
-                            certificateNo: 'CERT-0001',
-                            shareholder: 'John Kelly',
-                            remarks: 'Original issuance of shares at par value'
-                        }">
-                            <td class="px-4 py-3">Jan 15, 2026</td>
-                            <td class="px-4 py-3">JNL-001</td>
-                            <td class="px-4 py-3">LED-001</td>
-                            <td class="px-4 py-3">Initial share issuance to John Kelly</td>
-                            <td class="px-4 py-3">1000</td>
-                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Issuance</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
-                            date: 'Feb 10, 2026',
-                            journalNo: 'JNL-002',
-                            ledgerFolio: 'LED-002',
-                            particulars: 'Share transfer from Carmen Rodriguez to Miguel Santos',
-                            noShares: '500',
-                            transactionType: 'Transfer',
-                            certificateNo: 'CERT-0002',
-                            shareholder: 'Carmen Rodriguez → Miguel Santos',
-                            remarks: 'Transfer of ownership documented'
-                        }">
-                            <td class="px-4 py-3">Feb 10, 2026</td>
-                            <td class="px-4 py-3">JNL-002</td>
-                            <td class="px-4 py-3">LED-002</td>
-                            <td class="px-4 py-3">Share transfer from Carmen Rodriguez to Miguel Santos</td>
-                            <td class="px-4 py-3">500</td>
-                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Transfer</span></td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedEntry = {
-                            date: 'Feb 28, 2026',
-                            journalNo: 'JNL-003',
-                            ledgerFolio: 'LED-001',
-                            particulars: 'Share cancellation',
-                            noShares: '100',
-                            transactionType: 'Cancellation',
-                            certificateNo: 'CERT-0001B',
-                            shareholder: 'John Kelly',
-                            remarks: 'Shares cancelled and removed from circulation'
-                        }">
-                            <td class="px-4 py-3">Feb 28, 2026</td>
-                            <td class="px-4 py-3">JNL-003</td>
-                            <td class="px-4 py-3">LED-001</td>
-                            <td class="px-4 py-3">Share cancellation</td>
-                            <td class="px-4 py-3">100</td>
-                            <td class="px-4 py-3"><span class="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Cancellation</span></td>
-                        </tr>
-                    </tbody>
+    @forelse ($journals as $journal)
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.journal.show', $journal) }}'">
+            <td class="px-4 py-3">{{ optional($journal->entry_date)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ $journal->journal_no }}</td>
+            <td class="px-4 py-3">{{ $journal->ledger_folio }}</td>
+            <td class="px-4 py-3">{{ $journal->particulars }}</td>
+            <td class="px-4 py-3">{{ $journal->no_shares }}</td>
+            <td class="px-4 py-3">{{ $journal->transaction_type }}</td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No journal entries found.</td>
+        </tr>
+    @endforelse
+</tbody>
                 </table>
             </div>
         </div>
@@ -294,7 +250,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Date</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" data-autofill-field="entry_date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Journal No.</label>
@@ -302,11 +258,11 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Ledger Folio</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="LED-0001">
+                        <input type="text" data-autofill-field="ledger_folio" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="LED-0001">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">No. Shares</label>
-                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        <input type="number" data-autofill-field="no_shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Particulars</label>
@@ -316,17 +272,16 @@
                         <label class="text-xs text-gray-600">Transaction Type</label>
                         <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             <option>Issuance</option>
-                            <option>Transfer</option>
                             <option>Cancellation</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Certificate No.</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
+                        <input type="text" data-autofill-key data-autofill-field="certificate_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Shareholder</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Shareholder name">
+                        <input type="text" data-autofill-field="shareholder" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Shareholder name">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Remarks</label>
@@ -348,3 +303,59 @@
 
 </div>
 @endsection
+
+<script>
+    (function () {
+        const endpoint = "{{ route('stock-transfer-book.lookup') }}";
+        const container = document.currentScript.closest('body');
+        const keyInput = container.querySelector('[data-autofill-key]');
+        if (!keyInput) return;
+
+        const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
+
+        const valueFrom = (field, data) => {
+            const cert = data.certificate || {};
+            const ledger = data.ledger || {};
+            const journal = data.journal || {};
+            const installment = data.installment || {};
+
+            switch (field) {
+                case 'certificate_no':
+                    return cert.stock_number || ledger.certificate_no || journal.certificate_no || installment.stock_number || '';
+                case 'shareholder':
+                    return journal.shareholder || cert.stockholder_name || ledger.full_name || installment.subscriber || '';
+                case 'ledger_folio':
+                    return journal.ledger_folio || '';
+                case 'no_shares':
+                    return journal.no_shares || ledger.shares || cert.number || installment.no_shares || '';
+                case 'entry_date':
+                    return journal.entry_date || '';
+                default:
+                    return '';
+            }
+        };
+
+        const runLookup = async () => {
+            const key = keyInput.value.trim();
+            if (!key) return;
+            try {
+                const res = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                fieldInputs.forEach((input) => {
+                    const field = input.getAttribute('data-autofill-field');
+                    const value = valueFrom(field, data);
+                    if (value !== '' && value !== null && value !== undefined) {
+                        input.value = value;
+                    }
+                });
+            } catch (e) {
+                // ignore lookup errors
+            }
+        };
+
+        keyInput.addEventListener('change', runLookup);
+        keyInput.addEventListener('blur', runLookup);
+    })();
+</script>
+

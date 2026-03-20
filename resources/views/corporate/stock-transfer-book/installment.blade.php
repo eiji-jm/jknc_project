@@ -16,15 +16,11 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
                     Add Installment
-                </button>
-                <button x-show="showPreview" @click="showPreview = false; selectedInstallment = null" class="h-9 px-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-2">
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Back to Installments
                 </button>
             </div>
         </div>
@@ -52,82 +48,25 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. Shares</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. of Installments</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Value</th>
+                            
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
-                            stockNumber: 'STK-001',
-                            subscriber: 'John Kelly',
-                            date: 'Jan 15, 2026',
-                            noShares: '1000',
-                            noInstallments: '4',
-                            totalValue: '100,000.00',
-                            installmentAmount: '25,000.00',
-                            status: 'Ongoing',
-                            paidInstallments: '1',
-                            remainingInstallments: '3',
-                            installmentDetails: [
-                                { no: '1st', dueDate: 'Jan 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Jan 20, 2026' },
-                                { no: '2nd', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                { no: '3rd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                { no: '4th', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                            ]
-                        }">
-                            <td class="px-4 py-3">STK-001</td>
-                            <td class="px-4 py-3">John Kelly</td>
-                            <td class="px-4 py-3">Jan 15, 2026</td>
-                            <td class="px-4 py-3">1000</td>
-                            <td class="px-4 py-3">4</td>
-                            <td class="px-4 py-3">100,000.00</td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
-                            stockNumber: 'STK-002',
-                            subscriber: 'Carmen Rodriguez',
-                            date: 'Feb 01, 2026',
-                            noShares: '500',
-                            noInstallments: '2',
-                            totalValue: '50,000.00',
-                            installmentAmount: '25,000.00',
-                            status: 'Ongoing',
-                            paidInstallments: '0',
-                            remainingInstallments: '2',
-                            installmentDetails: [
-                                { no: '1st', dueDate: 'Feb 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                { no: '2nd', dueDate: 'Mar 01, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                            ]
-                        }">
-                            <td class="px-4 py-3">STK-002</td>
-                            <td class="px-4 py-3">Carmen Rodriguez</td>
-                            <td class="px-4 py-3">Feb 01, 2026</td>
-                            <td class="px-4 py-3">500</td>
-                            <td class="px-4 py-3">2</td>
-                            <td class="px-4 py-3">50,000.00</td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedInstallment = {
-                            stockNumber: 'STK-003',
-                            subscriber: 'Miguel Santos',
-                            date: 'Feb 15, 2026',
-                            noShares: '750',
-                            noInstallments: '3',
-                            totalValue: '75,000.00',
-                            installmentAmount: '25,000.00',
-                            status: 'Ongoing',
-                            paidInstallments: '1',
-                            remainingInstallments: '2',
-                            installmentDetails: [
-                                { no: '1st', dueDate: 'Feb 15, 2026', amount: '25,000.00', status: 'Paid', paidDate: 'Feb 28, 2026' },
-                                { no: '2nd', dueDate: 'Mar 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' },
-                                { no: '3rd', dueDate: 'Apr 15, 2026', amount: '25,000.00', status: 'Pending', paidDate: '-' }
-                            ]
-                        }">
-                            <td class="px-4 py-3">STK-003</td>
-                            <td class="px-4 py-3">Miguel Santos</td>
-                            <td class="px-4 py-3">Feb 15, 2026</td>
-                            <td class="px-4 py-3">750</td>
-                            <td class="px-4 py-3">3</td>
-                            <td class="px-4 py-3">75,000.00</td>
-                        </tr>
-                    </tbody>
+    @forelse ($installments as $installment)
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.installment.show', $installment) }}'">
+            <td class="px-4 py-3">{{ $installment->stock_number }}</td>
+            <td class="px-4 py-3">{{ $installment->subscriber }}</td>
+            <td class="px-4 py-3">{{ optional($installment->installment_date)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ $installment->no_shares }}</td>
+            <td class="px-4 py-3">{{ $installment->no_installments }}</td>
+            <td class="px-4 py-3">{{ $installment->total_value }}</td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No installment plans found.</td>
+        </tr>
+    @endforelse
+</tbody>
                 </table>
             </div>
         </div>
@@ -330,35 +269,35 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Stock Number</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                        <input type="text" data-autofill-key data-autofill-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Subscriber</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Subscriber name">
+                        <input type="text" data-autofill-field="subscriber" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Subscriber name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" data-autofill-field="installment_date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">No. Shares</label>
-                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        <input type="number" data-autofill-field="no_shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">No. of Installments</label>
-                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
+                        <input type="number" data-autofill-field="no_installments" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Total Value (PhP)</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
+                        <input type="text" data-autofill-field="total_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Per Installment</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="25,000.00">
+                        <input type="text" data-autofill-field="installment_amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="25,000.00">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Status</label>
-                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <select data-autofill-field="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             <option>Ongoing</option>
                             <option>Completed</option>
                             <option>Cancelled</option>
@@ -380,3 +319,67 @@
 
 </div>
 @endsection
+
+<script>
+    (function () {
+        const endpoint = "{{ route('stock-transfer-book.lookup') }}";
+        const container = document.currentScript.closest('body');
+        const keyInput = container.querySelector('[data-autofill-key]');
+        if (!keyInput) return;
+
+        const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
+
+        const valueFrom = (field, data) => {
+            const installment = data.installment || {};
+            const cert = data.certificate || {};
+            switch (field) {
+                case 'stock_number':
+                    return installment.stock_number || cert.stock_number || '';
+                case 'subscriber':
+                    return installment.subscriber || cert.stockholder_name || '';
+                case 'installment_date':
+                    return installment.installment_date || '';
+                case 'no_shares':
+                    return installment.no_shares || cert.number || '';
+                case 'no_installments':
+                    return installment.no_installments || '';
+                case 'total_value':
+                    return installment.total_value || cert.amount || '';
+                case 'installment_amount':
+                    return installment.installment_amount || '';
+                case 'status':
+                    return installment.status || '';
+                default:
+                    return '';
+            }
+        };
+
+        const runLookup = async () => {
+            const key = keyInput.value.trim();
+            if (!key) return;
+            try {
+                const res = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                fieldInputs.forEach((input) => {
+                    const field = input.getAttribute('data-autofill-field');
+                    const value = valueFrom(field, data);
+                    if (value !== '' && value !== null && value !== undefined) {
+                        if (input.tagName.toLowerCase() === 'select') {
+                            const option = Array.from(input.options).find((opt) => opt.value === value);
+                            if (option) input.value = value;
+                        } else {
+                            input.value = value;
+                        }
+                    }
+                });
+            } catch (e) {
+                // ignore lookup errors
+            }
+        };
+
+        keyInput.addEventListener('change', runLookup);
+        keyInput.addEventListener('blur', runLookup);
+    })();
+</script>
+

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedCert: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedCert: null, showAddPanel: false, showRequestPanel: false, activeTab: 'stock' }" @keydown.escape.window="showAddPanel = false; showRequestPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
 
@@ -16,15 +16,11 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button x-show="!showPreview" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
                     New Certificate
-                </button>
-                <button x-show="showPreview" @click="showPreview = false; selectedCert = null" class="h-9 px-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-2">
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Back to Certificates
                 </button>
             </div>
         </div>
@@ -42,12 +38,22 @@
 
         {{-- TABS --}}
         <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-4">
-            <button class="text-sm font-medium text-blue-600 border-b-2 border-blue-600 pb-2 px-1">Certificate Stock</button>
-            <button class="text-sm font-medium text-gray-600 hover:text-gray-900 pb-2 px-1">Certificate Voucher</button>
+            <button
+                class="text-sm font-medium pb-2 px-1"
+                :class="activeTab === 'stock' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'"
+                @click="activeTab = 'stock'"
+                type="button"
+            >Certificate Stock</button>
+            <button
+                class="text-sm font-medium pb-2 px-1"
+                :class="activeTab === 'voucher' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'"
+                @click="activeTab = 'voucher'"
+                type="button"
+            >Certificate Voucher</button>
         </div>
 
         {{-- CERTIFICATE STOCK TABLE VIEW --}}
-        <div x-show="!showPreview" class="p-4">
+        <div x-show="!showPreview && activeTab === 'stock'" class="p-4">
             <div class="overflow-auto">
                 <table class="min-w-full">
                     <thead>
@@ -65,67 +71,102 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Issued</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">President</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Corporate Secretary</th>
+                            
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedCert = {
-                            certificateNo: 'CERT-0001',
-                            journalReference: 'JNL-001',
-                            stockholder: 'John Kelly',
-                            par: '100',
-                            numbers: '1000',
-                            amount: '100,000.00',
-                            amountInWords: 'One Hundred Thousand Pesos',
-                            dateIssued: 'Jan 22, 2026',
-                            president: 'John Kelly',
-                            corpSecetary: 'Maria Santos',
-                            corpName: 'John Kelly & Company',
-                            companyRegNo: '12345-ABC'
-                        }">
-                            <td class="px-4 py-3">Jan 20, 2026</td>
-                            <td class="px-4 py-3">Admin</td>
-                            <td class="px-4 py-3">John Kelly & Company</td>
-                            <td class="px-4 py-3">12345-ABC</td>
-                            <td class="px-4 py-3">STK-001</td>
-                            <td class="px-4 py-3">John Kelly</td>
-                            <td class="px-4 py-3">100</td>
-                            <td class="px-4 py-3">1000</td>
-                            <td class="px-4 py-3">100,000.00</td>
-                            <td class="px-4 py-3">One Hundred Thousand</td>
-                            <td class="px-4 py-3">Jan 22, 2026</td>
-                            <td class="px-4 py-3">John Kelly</td>
-                            <td class="px-4 py-3">Maria Santos</td>
+    @forelse ($certificates as $certificate)
+        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.certificates.show', $certificate) }}'">
+            <td class="px-4 py-3">{{ optional($certificate->date_uploaded)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ $certificate->uploaded_by }}</td>
+            <td class="px-4 py-3">{{ $certificate->corporation_name }}</td>
+            <td class="px-4 py-3">{{ $certificate->company_reg_no }}</td>
+            <td class="px-4 py-3">{{ $certificate->stock_number }}</td>
+            <td class="px-4 py-3">{{ $certificate->stockholder_name }}</td>
+            <td class="px-4 py-3">{{ $certificate->par_value }}</td>
+            <td class="px-4 py-3">{{ $certificate->number }}</td>
+            <td class="px-4 py-3">{{ $certificate->amount }}</td>
+            <td class="px-4 py-3">{{ $certificate->amount_in_words }}</td>
+            <td class="px-4 py-3">{{ optional($certificate->date_issued)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ $certificate->president }}</td>
+            <td class="px-4 py-3">{{ $certificate->corporate_secretary }}</td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="13" class="px-4 py-6 text-center text-sm text-gray-500">No certificates found.</td>
+        </tr>
+    @endforelse
+</tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- CERTIFICATE VOUCHER TABLE VIEW --}}
+        <div x-show="!showPreview && activeTab === 'voucher'" class="p-4">
+            <div class="overflow-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200 bg-gray-50">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Uploaded</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Uploaded By</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Corporation Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Company Reg. No.</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Stock Number</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Name of Stockholder</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">PAR</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Number</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Amount (PhP)</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Amount in words</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Issued</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">President</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Corporate Secretary</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Issued To</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Issued To Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Certificate Released Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" @click="showPreview = true; selectedCert = {
-                            certificateNo: 'CERT-0002',
-                            journalReference: 'JNL-002',
-                            stockholder: 'Carmen Rodriguez',
-                            par: '100',
-                            numbers: '500',
-                            amount: '50,000.00',
-                            amountInWords: 'Fifty Thousand Pesos',
-                            dateIssued: 'Feb 03, 2026',
-                            president: 'John Kelly',
-                            corpSecetary: 'Maria Santos',
-                            corpName: 'John Kelly & Company',
-                            companyRegNo: '12345-ABC'
-                        }">
-                            <td class="px-4 py-3">Feb 01, 2026</td>
-                            <td class="px-4 py-3">Admin</td>
-                            <td class="px-4 py-3">John Kelly & Company</td>
-                            <td class="px-4 py-3">12345-ABC</td>
-                            <td class="px-4 py-3">STK-002</td>
-                            <td class="px-4 py-3">Carmen Rodriguez</td>
-                            <td class="px-4 py-3">100</td>
-                            <td class="px-4 py-3">500</td>
-                            <td class="px-4 py-3">50,000.00</td>
-                            <td class="px-4 py-3">Fifty Thousand</td>
-                            <td class="px-4 py-3">Feb 03, 2026</td>
-                            <td class="px-4 py-3">John Kelly</td>
-                            <td class="px-4 py-3">Maria Santos</td>
+                    </thead>
+                    <tbody class="text-sm text-gray-900">
+                        <tr>
+                            <td colspan="17" class="px-4 py-6 text-center text-sm text-gray-500">No certificate vouchers found.</td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        {{-- REQUEST FOR ISSUANCE SUBSECTION --}}
+        <div x-show="!showPreview" class="px-4 pb-6">
+            <div class="border-t border-gray-100 pt-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900">Request for Issuance</h3>
+                    <span class="text-xs text-gray-500">New COS, Loss COS, Damage COS, Digital Copy of COS, Certified True Copy of CV</span>
+                    <div class="flex-1"></div>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700" type="button" @click="showRequestPanel = true">
+                        Add Stockholder Request
+                    </button>
+                </div>
+                <div class="overflow-auto">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="border-b border-gray-200 bg-gray-50">
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Ref #</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Requested</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Time</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Type of Request</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Requester</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Received By</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Issued By</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm text-gray-900">
+                            <tr>
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">No issuance requests found.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -318,55 +359,55 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Date Uploaded</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" data-autofill-field="date_uploaded" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Uploaded By</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader name">
+                        <input type="text" data-autofill-field="uploaded_by" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader name">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Corporation Name</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Corporation name">
+                        <input type="text" data-autofill-field="corporation_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Corporation name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Company Reg. No.</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="12345-ABC">
+                        <input type="text" data-autofill-field="company_reg_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="12345-ABC">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Stock Number</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                        <input type="text" data-autofill-key data-autofill-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Name of Stockholder</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Stockholder name">
+                        <input type="text" data-autofill-field="stockholder_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Stockholder name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">PAR</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100">
+                        <input type="text" data-autofill-field="par_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Number</label>
-                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        <input type="number" data-autofill-field="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Amount (PhP)</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
+                        <input type="text" data-autofill-field="amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Amount in words</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="One Hundred Thousand Pesos">
+                        <input type="text" data-autofill-field="amount_in_words" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="One Hundred Thousand Pesos">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Issued</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" data-autofill-field="date_issued" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">President</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="President name">
+                        <input type="text" data-autofill-field="president" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="President name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Corporate Secretary</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Secretary name">
+                        <input type="text" data-autofill-field="corporate_secretary" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Secretary name">
                     </div>
                 </div>
             </div>
@@ -382,5 +423,151 @@
         </div>
     </div>
 
+    {{-- ADD REQUEST FOR ISSUANCE SLIDER --}}
+    <div x-cloak>
+        <div x-show="showRequestPanel" class="fixed inset-0 bg-black/40 z-40" @click="showRequestPanel = false"></div>
+        <div x-show="showRequestPanel"
+            class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+            x-transition:enter="transform transition ease-in-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in-out duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            @click.stop
+        >
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">Add Request for Issuance</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showRequestPanel = false" type="button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Ref #</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="REQ-0001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date Requested</label>
+                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Time</label>
+                        <input type="time" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Type of Request</label>
+                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option>New COS</option>
+                            <option>Loss COS</option>
+                            <option>Damage COS</option>
+                            <option>Digital Copy of COS</option>
+                            <option>Certified True Copy of CV</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Requester</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Requester name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Received By</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Receiver name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Issued By</label>
+                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Issuer name">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Status</label>
+                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option>Review</option>
+                            <option>Approved</option>
+                            <option>Released</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showRequestPanel = false" type="button">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="button">
+                    Save Request
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 @endsection
+
+<script>
+    (function () {
+        const endpoint = "{{ route('stock-transfer-book.lookup') }}";
+        const container = document.currentScript.closest('body');
+        const keyInput = container.querySelector('[data-autofill-key]');
+        if (!keyInput) return;
+
+        const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
+
+        const valueFrom = (field, data) => {
+            const cert = data.certificate || {};
+            switch (field) {
+                case 'date_uploaded':
+                    return cert.date_uploaded || '';
+                case 'uploaded_by':
+                    return cert.uploaded_by || '';
+                case 'corporation_name':
+                    return cert.corporation_name || '';
+                case 'company_reg_no':
+                    return cert.company_reg_no || '';
+                case 'stock_number':
+                    return cert.stock_number || '';
+                case 'stockholder_name':
+                    return cert.stockholder_name || '';
+                case 'par_value':
+                    return cert.par_value || '';
+                case 'number':
+                    return cert.number || '';
+                case 'amount':
+                    return cert.amount || '';
+                case 'amount_in_words':
+                    return cert.amount_in_words || '';
+                case 'date_issued':
+                    return cert.date_issued || '';
+                case 'president':
+                    return cert.president || '';
+                case 'corporate_secretary':
+                    return cert.corporate_secretary || '';
+                default:
+                    return '';
+            }
+        };
+
+        const runLookup = async () => {
+            const key = keyInput.value.trim();
+            if (!key) return;
+            try {
+                const res = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                fieldInputs.forEach((input) => {
+                    const field = input.getAttribute('data-autofill-field');
+                    const value = valueFrom(field, data);
+                    if (value !== '' && value !== null && value !== undefined) {
+                        input.value = value;
+                    }
+                });
+            } catch (e) {
+                // ignore lookup errors
+            }
+        };
+
+        keyInput.addEventListener('change', runLookup);
+        keyInput.addEventListener('blur', runLookup);
+    })();
+</script>
+

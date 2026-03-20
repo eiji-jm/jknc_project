@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class SecretaryCertificate extends Model
+{
+    protected $fillable = [
+        'certificate_no',
+        'date_uploaded',
+        'uploaded_by',
+        'governing_body',
+        'type_of_meeting',
+        'notice_ref',
+        'meeting_no',
+        'resolution_no',
+        'date_issued',
+        'purpose',
+        'date_of_meeting',
+        'location',
+        'secretary',
+        'notary_doc_no',
+        'notary_page_no',
+        'notary_book_no',
+        'notary_series_no',
+        'notary_public',
+        'document_path',
+    ];
+
+    protected $casts = [
+        'date_uploaded' => 'date',
+        'date_issued' => 'date',
+        'date_of_meeting' => 'date',
+    ];
+}
