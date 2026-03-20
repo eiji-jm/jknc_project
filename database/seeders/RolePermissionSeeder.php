@@ -14,8 +14,13 @@ class RolePermissionSeeder extends Seeder
             [
                 'manage_users' => true,
                 'access_admin_dashboard' => true,
-                'approve_townhall' => true,
+
                 'create_townhall' => true,
+                'approve_townhall' => true,
+
+                'create_corporate' => true,
+                'approve_corporate' => true,
+
                 'access_townhall' => true,
                 'access_corporate' => true,
                 'access_activities' => true,
@@ -29,8 +34,13 @@ class RolePermissionSeeder extends Seeder
             [
                 'manage_users' => false,
                 'access_admin_dashboard' => false,
-                'approve_townhall' => false,
+
                 'create_townhall' => false,
+                'approve_townhall' => false,
+
+                'create_corporate' => false,
+                'approve_corporate' => false,
+
                 'access_townhall' => true,
                 'access_corporate' => true,
                 'access_activities' => false,

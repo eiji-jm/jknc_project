@@ -9,6 +9,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
@@ -45,6 +51,16 @@
                     <label class="flex items-center gap-3 border rounded-lg p-3">
                         <input type="checkbox" name="create_townhall" {{ $permission->create_townhall ? 'checked' : '' }}>
                         <span>Create Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_corporate" {{ $permission->create_corporate ? 'checked' : '' }}>
+                        <span>Create Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_corporate" {{ $permission->approve_corporate ? 'checked' : '' }}>
+                        <span>Approve Corporate</span>
                     </label>
 
                     <label class="flex items-center gap-3 border rounded-lg p-3">

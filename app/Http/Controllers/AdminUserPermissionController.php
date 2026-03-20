@@ -34,13 +34,15 @@ class AdminUserPermissionController extends Controller
             abort(403, 'SuperAdmin permissions cannot be modified.');
         }
 
-        $permission = UserPermission::firstOrCreate(
+        $permission = UserPermission::firstOrNew(
             ['user_id' => $user->id],
             [
                 'manage_users' => false,
                 'access_admin_dashboard' => false,
                 'approve_townhall' => false,
                 'create_townhall' => false,
+                'create_corporate' => false,
+                'approve_corporate' => false,
                 'access_townhall' => false,
                 'access_corporate' => false,
                 'access_activities' => false,
@@ -64,6 +66,12 @@ class AdminUserPermissionController extends Controller
             abort(403, 'SuperAdmin permissions cannot be modified.');
         }
 
+        if ($user->id === Auth::id()) {
+            if (!$request->has('manage_users') || !$request->has('access_admin_dashboard')) {
+                return back()->with('error', 'You cannot remove your own critical admin permissions.');
+            }
+        }
+
         $permission = UserPermission::firstOrCreate(['user_id' => $user->id]);
 
         $permission->update([
@@ -71,6 +79,8 @@ class AdminUserPermissionController extends Controller
             'access_admin_dashboard' => $request->has('access_admin_dashboard'),
             'approve_townhall' => $request->has('approve_townhall'),
             'create_townhall' => $request->has('create_townhall'),
+            'create_corporate' => $request->has('create_corporate'),
+            'approve_corporate' => $request->has('approve_corporate'),
             'access_townhall' => $request->has('access_townhall'),
             'access_corporate' => $request->has('access_corporate'),
             'access_activities' => $request->has('access_activities'),
