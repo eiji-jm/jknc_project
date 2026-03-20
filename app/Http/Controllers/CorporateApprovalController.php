@@ -83,6 +83,22 @@ class CorporateApprovalController extends Controller
         );
     }
 
+    private function canAppearInAdminDashboard(string $workflow): bool
+    {
+        return in_array($workflow, ['Submitted', 'Accepted', 'Reverted', 'Archived'], true);
+    }
+
+    private function ensureSubmittedForDecision($record)
+    {
+        $workflow = $this->normalizeWorkflow($record);
+
+        if ($workflow !== 'Submitted') {
+            return back()->with('error', 'Only submitted records can be approved, rejected, or revised.');
+        }
+
+        return null;
+    }
+
     public function dashboard()
     {
         $this->authorizeApprover();
@@ -91,6 +107,10 @@ class CorporateApprovalController extends Controller
 
         foreach (SecCoi::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
+
+            if (!$this->canAppearInAdminDashboard($workflow)) {
+                continue;
+            }
 
             $items->push((object) [
                 'id' => $row->id,
@@ -112,6 +132,10 @@ class CorporateApprovalController extends Controller
         foreach (SecAoi::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
 
+            if (!$this->canAppearInAdminDashboard($workflow)) {
+                continue;
+            }
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'SEC-AOI',
@@ -132,6 +156,10 @@ class CorporateApprovalController extends Controller
         foreach (Bylaw::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
 
+            if (!$this->canAppearInAdminDashboard($workflow)) {
+                continue;
+            }
+
             $items->push((object) [
                 'id' => $row->id,
                 'module' => 'Bylaws',
@@ -151,6 +179,10 @@ class CorporateApprovalController extends Controller
 
         foreach (GisRecord::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
+
+            if (!$this->canAppearInAdminDashboard($workflow)) {
+                continue;
+            }
 
             $items->push((object) [
                 'id' => $row->id,
@@ -202,6 +234,10 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
+        if ($response = $this->ensureSubmittedForDecision($record)) {
+            return $response;
+        }
+
         $record->update([
             'approval_status' => 'Approved',
             'workflow_status' => 'Accepted',
@@ -220,6 +256,10 @@ class CorporateApprovalController extends Controller
         $this->authorizeApprover();
 
         $record = $this->resolveModel($module, $id);
+
+        if ($response = $this->ensureSubmittedForDecision($record)) {
+            return $response;
+        }
 
         $record->update([
             'approval_status' => 'Rejected',
@@ -240,6 +280,10 @@ class CorporateApprovalController extends Controller
 
         $record = $this->resolveModel($module, $id);
 
+        if ($response = $this->ensureSubmittedForDecision($record)) {
+            return $response;
+        }
+
         $record->update([
             'approval_status' => 'Needs Revision',
             'workflow_status' => 'Reverted',
@@ -258,6 +302,12 @@ class CorporateApprovalController extends Controller
         $this->authorizeApprover();
 
         $record = $this->resolveModel($module, $id);
+
+        $workflow = $this->normalizeWorkflow($record);
+
+        if ($workflow === 'Uploaded') {
+            return back()->with('error', 'Draft records cannot be archived from the admin dashboard.');
+        }
 
         $record->update([
             'workflow_status' => 'Archived',
