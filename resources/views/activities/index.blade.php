@@ -29,7 +29,7 @@
         newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
 
         calls: [],
-        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
+        newCall: { contact: '', to: '', from: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
         tagSearch: '',
 
         meetings: [],
@@ -362,6 +362,11 @@
                     if (!this.newTask.owner) this.newTask.owner = defaultUser;
                     if (!this.newEvent.host) this.newEvent.host = defaultUser;
                     if (!this.newCall.owner) this.newCall.owner = defaultUser;
+                    // For new calls, default to Outbound with user as 'From'
+                    if (this.newCall && !this.newCall.id && !this.newCall.from && !this.newCall.to) {
+                        this.newCall.from = defaultUser;
+                        this.newCall.type = 'Outbound';
+                    }
                     if (!this.newMeeting.owner) this.newMeeting.owner = defaultUser;
                 }
                 // Schedule recordings for all upcoming meetings that need it
@@ -452,7 +457,11 @@
         },
 
         async saveCall() {
-            if (!this.newCall.contact) return;
+            if (!this.newCall.to && !this.newCall.from && !this.newCall.contact) return;
+            // Build combined contact from to/from fields
+            const toVal = this.newCall.to || '';
+            const fromVal = this.newCall.from || '';
+            const combinedContact = toVal && fromVal ? toVal + ' / ' + fromVal : (toVal || fromVal || this.newCall.contact);
             try {
                 const isEdit = !!this.newCall.id;
                 const url = isEdit ? '/api/calls/' + this.newCall.id : '/api/calls';
@@ -465,7 +474,9 @@
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
                     },
                     body: JSON.stringify({
-                        contact: this.newCall.contact,
+                        contact: combinedContact,
+                        to: this.newCall.to,
+                        from: this.newCall.from,
                         type: this.newCall.type,
                         start_time: this.newCall.startTime,
                         start_hour: this.newCall.startHour,
@@ -485,7 +496,8 @@
                     this.calls.unshift(call);
                 }
                 this.showCallModal = false;
-                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: (this.systemUsers[0] || ''), agenda: '', purpose: '', completed: false };
+                const defaultUser = (this.systemUsers[0] || '');
+                this.newCall = { id: null, contact: '', to: '', from: defaultUser, type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: defaultUser, agenda: '', purpose: '', completed: false };
                 this.tagSearch = '';
             } catch (error) {
                 console.error('Error saving call:', error);
@@ -579,9 +591,20 @@
         },
 
         editCall(call) {
+            // Parse existing contact back into to/from if it contains ' / '
+            let toVal = '', fromVal = '';
+            if (call.contact && call.contact.includes(' / ')) {
+                const parts = call.contact.split(' / ');
+                toVal = parts[0] || '';
+                fromVal = parts[1] || '';
+            } else {
+                toVal = call.contact || '';
+            }
             this.newCall = { 
                 id: call.id,
                 contact: call.contact,
+                to: toVal,
+                from: fromVal,
                 type: call.type,
                 startTime: call.start_time,
                 startHour: call.start_hour,
@@ -593,6 +616,18 @@
                 completed: call.completed
             };
             this.showCallModal = true;
+        },
+
+        handleCallDirection(type) {
+            this.newCall.type = type;
+            const currentUser = this.systemUsers[0] || '';
+            if (type === 'Inbound') {
+                this.newCall.to = currentUser;
+                this.newCall.from = '';
+            } else {
+                this.newCall.from = currentUser;
+                this.newCall.to = '';
+            }
         },
 
         addTag(tag) {
@@ -697,6 +732,8 @@
             let list = this.calls;
             if (this.filterSelection.call === 'Scheduled Calls') list = list.filter(c => !c.completed);
             if (this.filterSelection.call === 'Overdue Calls') list = list.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date());
+            if (this.filterSelection.call === 'Inbound Calls') list = list.filter(c => c.type === 'Inbound');
+            if (this.filterSelection.call === 'Outbound Calls') list = list.filter(c => c.type === 'Outbound');
             return list;
         },
         get activeList() {
@@ -1020,6 +1057,8 @@
                                     
                                     <div x-show="activeTab === 'call'" style="display: none;" class="flex flex-col" role="menu" aria-orientation="vertical">
                                         <a href="#" @click.prevent="filterSelection.call = 'All Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">All Calls</a>
+                                        <a href="#" @click.prevent="filterSelection.call = 'Inbound Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Inbound Calls</a>
+                                        <a href="#" @click.prevent="filterSelection.call = 'Outbound Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Outbound Calls</a>
                                         <a href="#" @click.prevent="filterSelection.call = 'Scheduled Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Scheduled Calls</a>
                                         <a href="#" @click.prevent="filterSelection.call = 'Overdue Calls'; allTaskDropdownOpen = false" class="block px-8 py-2 text-sm text-gray-700 hover:bg-gray-100">Overdue Calls</a>
                                     </div>
@@ -1201,21 +1240,26 @@
                              <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 border-gray-300 transition-colors">
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
-                            To/From <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            To
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
-                            Call Type <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            From
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
-                            Call Start Time <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            Call Type
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
-                            Call Duration <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            Call Start Time
                         </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
-                            Related to <i class="fas fa-sort text-blue-400 text-[10px] ml-1 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                            Call Duration
                         </th>
-                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider">Call Owner</th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            Related to
+                        </th>
+                        <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider group cursor-pointer">
+                            Purpose
+                        </th>
                         <th class="py-3 px-4 text-xs font-bold text-gray-700 uppercase tracking-wider text-right">Actions</th>
                     </tr>
                 </thead>
@@ -1229,11 +1273,14 @@
                             </td>
                             <td class="py-3 px-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
-                                    <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.contact"></span>
+                                    <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.to"></span>
                                     <button @click="selectedTaskDetails = call; selectedTaskType = 'call'" class="text-gray-400 hover:text-blue-600 transition-opacity" title="View Call">
                                         <i class="far fa-eye text-sm"></i>
                                     </button>
                                 </div>
+                            </td>
+                            <td class="py-3 px-4 text-sm font-medium text-gray-900">
+                                <span :class="call.completed ? 'line-through text-gray-400' : ''" x-text="call.from"></span>
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.type"></td>
                             <td class="py-3 px-4 text-sm text-gray-600">
@@ -1242,14 +1289,8 @@
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.duration"></td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.related_to"></td>
-                            <td class="py-3 px-4">
-                                <template x-if="call.owner">
-                                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#D1F1DE] text-[#0A5632] rounded-full text-xs font-medium border border-[#BCE8CD]">
-                                        <i class="fas fa-user-circle"></i>
-                                        <span x-text="call.owner"></span>
-                                    </div>
-                                </template>
-                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-600" x-text="call.purpose"></td>
+
                             <td class="py-3 px-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <div @click="editCall(call)" class="inline-flex items-center justify-center w-8 h-6 bg-blue-100 rounded text-blue-600 hover:bg-blue-200 transition cursor-pointer" title="Edit Call">
@@ -2192,32 +2233,19 @@
             <!-- Body -->
             <div class="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                     
-                    <!-- To/From -->
+                    <!-- To -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">To / From <span class="text-red-500">*</span></label>
-                    <input type="text" x-model="newCall.contact" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">To <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newCall.to" placeholder="Recipient (e.g. contact name)" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
                 </div>
 
-                <!-- Owner -->
-                <div class="relative" x-data="{ ownerOpen: false }">
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Owner</label>
-                    <button @click="ownerOpen = !ownerOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
-                        <span x-text="newCall.owner || 'Select owner'"></span>
-                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="ownerOpen ? 'rotate-180' : ''"></i>
-                    </button>
-                    <div x-show="ownerOpen" @click.away="ownerOpen = false" style="display:none"
-                         x-transition:enter="transition ease-out duration-100"
-                         x-transition:enter-start="opacity-0 scale-95"
-                         x-transition:enter-end="opacity-100 scale-100"
-                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
-                        <template x-for="owner in systemUsers" :key="owner">
-                            <button @click="newCall.owner = owner; ownerOpen = false"
-                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
-                                    :class="newCall.owner === owner ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
-                                    x-text="owner"></button>
-                        </template>
-                    </div>
+                <!-- From -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">From</label>
+                    <input type="text" x-model="newCall.from" placeholder="Caller (e.g. your name)" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
                 </div>
+
+
 
                 <!-- Related To (Tagging UI) -->
                 <div>
@@ -2241,10 +2269,25 @@
                     </div>
                 </div>
 
-                <!-- Call Type -->
-                <div>
+                <!-- Call Type Selector -->
+                <div class="relative" x-data="{ typeOpen: false }">
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Call Type</label>
-                    <input type="text" x-model="newCall.type" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    <button @click="typeOpen = !typeOpen" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 flex items-center justify-between bg-white hover:border-[#1d54e2] transition outline-none">
+                        <span x-text="newCall.type"></span>
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 transition-transform" :class="typeOpen ? 'rotate-180' : ''"></i>
+                    </button>
+                    <div x-show="typeOpen" @click.away="typeOpen = false" style="display:none"
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-[110] py-1 overflow-hidden">
+                        <template x-for="t in ['Inbound', 'Outbound']" :key="t">
+                            <button @click="handleCallDirection(t); typeOpen = false"
+                                    class="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-[#1d54e2] transition"
+                                    :class="newCall.type === t ? 'bg-blue-50 text-[#1d54e2] font-semibold' : 'text-gray-700'"
+                                    x-text="t"></button>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Call Start Time -->

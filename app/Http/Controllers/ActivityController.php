@@ -164,6 +164,8 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'contact' => 'required|string',
+            'to' => 'nullable|string',
+            'from' => 'nullable|string',
             'type' => 'nullable|string',
             'start_time' => 'nullable|string',
             'start_hour' => 'nullable|string',
@@ -268,6 +270,8 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'contact' => 'required|string',
+            'to' => 'nullable|string',
+            'from' => 'nullable|string',
             'type' => 'nullable|string',
             'start_time' => 'nullable|string',
             'start_hour' => 'nullable|string',
