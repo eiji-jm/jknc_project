@@ -32,5 +32,6 @@ Route::prefix('api')->group(function () {
     Route::post('/notes', [ActivityController::class, 'storeNote']);
     Route::put('/notes/{id}', [ActivityController::class, 'updateNote']);
     Route::delete('/notes/{id}', [ActivityController::class, 'destroyNote']);
-    Route::post('/meetings/{id}/process', [ActivityController::class, 'processMeeting']);
+    Route::post('/meetings/{id}/analyze', [ActivityController::class, 'analyzeMeeting']);
+    Route::post('/meetings/{id}/upload-video', [ActivityController::class, 'uploadVideo']);
 });

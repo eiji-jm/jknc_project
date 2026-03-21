@@ -16,960 +16,7 @@
         background: #cbd5e1;
     }
 </style>
-<div class="flex w-full" x-data="{ 
-        showTaskModal: false,
-        activeTab: 'task',
-        selectAll: false,
-        selectedTasks: [],
-        tasks: [],
-        systemUsers: [],
-        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: '' },
-        
-        events: [],
-        newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
-
-        calls: [],
-        newCall: { contact: '', to: '', from: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
-        tagSearch: '',
-
-        meetings: [],
-        newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
-
-        filterSelection: {
-            task: 'All Tasks',
-            events: 'All Events',
-            call: 'All Calls'
-        },
-        selectedTaskDetails: null,
-        selectedTaskType: null,
-        meetingsSubTab: 'all',
-        meetingFilters: {
-            videoRecording: false,
-            audioRecording: false,
-            transcription: false,
-            minutes: false
-        },
-        showMeetingModal: false,
-        selectedMeetingDetails: null,
-        meetingDetailsTab: 'information',
-        showVideoPlayer: false,
-        showCallModal: false,
-        showEventModal: false,
-        newNoteContent: '',
-        editingNote: null,
-        activeDownloadMenu: null,
-        currentPage: 1,
-        perPage: 50,
-        perPageOptions: [10, 20, 30, 40, 50, 100],
-        perPageOpen: false,
-
-        // --- Media Recording State ---
-        _videoRecorder: null,
-        _audioRecorder: null,
-        _videoStream: null,
-        _audioStream: null,
-        recordingVideoActive: false,
-        recordingAudioActive: false,
-        recordingError: '',
-        recordedVideoUrl: null,
-        recordedAudioUrl: null,
-        _scheduledTimers: {},           // meetingId -> setTimeout ID
-        activeRecordingMeetingId: null, // which meeting is currently recording
-        // --- Notification prompt (user-gesture gate for getDisplayMedia) ---
-        recordingPromptMeeting: null,   // meeting waiting for user to click Start
-        // --- Transcription (Web Speech API) ---
-        _speechRecognition: null,
-        transcribingActive: false,
-        liveTranscript: '',
-        // --- Minutes ---
-        meetingMinutes: '',
-        // --- Elapsed timer ---
-        recordingElapsed: 0,
-        _elapsedTimer: null,
-
-        // ── Core recorder: start capturing (no auto-stop on duration) ──────────
-        // capturedStream: a MediaStream from getDisplayMedia, provided by startRecordingForMeeting
-        async startRecording(type, capturedStream) {
-            try {
-                let stream;
-                if (type === 'video') {
-                    // Full display stream: video + audio from the Google Meet tab
-                    stream = capturedStream;
-                } else {
-                    // Audio-only: extract audio tracks from the display stream
-                    const audioTracks = capturedStream.getAudioTracks();
-                    stream = audioTracks.length
-                        ? new MediaStream(audioTracks)
-                        : capturedStream; // fallback: use full stream
-                }
-                const chunks = [];
-                const mimeType = type === 'video'
-                    ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm')
-                    : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm');
-                const recorder = new MediaRecorder(stream, { mimeType });
-                recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-                recorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: mimeType });
-                    const url = URL.createObjectURL(blob);
-                    if (type === 'video') {
-                        this.recordedVideoUrl = url;
-                        this.recordingVideoActive = false;
-                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
-                        if (m) m.video_url = url;
-                    } else {
-                        this.recordedAudioUrl = url;
-                        this.recordingAudioActive = false;
-                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
-                        if (m) m.audio_url = url;
-                    }
-                    stream.getTracks().forEach(t => t.stop());
-                };
-                recorder.start(1000);
-                if (type === 'video') {
-                    this._videoRecorder = recorder;
-                    this._videoStream = stream;
-                    this.recordingVideoActive = true;
-                    this.recordedVideoUrl = null;
-                } else {
-                    this._audioRecorder = recorder;
-                    this._audioStream = stream;
-                    this.recordingAudioActive = true;
-                    this.recordedAudioUrl = null;
-                }
-                this.recordingError = '';
-            } catch (err) {
-                this.recordingError = 'Recording error: ' + (err.message || err);
-            }
-        },
-
-        stopRecording(type) {
-            if (type === 'video' && this._videoRecorder && this._videoRecorder.state !== 'inactive') {
-                this._videoRecorder.stop();
-                this._videoRecorder = null;
-            }
-            if (type === 'audio' && this._audioRecorder && this._audioRecorder.state !== 'inactive') {
-                this._audioRecorder.stop();
-                this._audioRecorder = null;
-            }
-        },
-
-        stopAllRecording() {
-            this.stopRecording('video');
-            this.stopRecording('audio');
-            this.activeRecordingMeetingId = null;
-            // Also stop elapsed timer
-            if (this._elapsedTimer) { clearInterval(this._elapsedTimer); this._elapsedTimer = null; }
-        },
-
-        // ── Scheduler: at meeting time, show a notification prompt instead of
-        // calling getDisplayMedia directly (browsers block it from setTimeout)
-        scheduleRecording(meeting) {
-            if (!meeting || meeting.status !== 'upcoming') return;
-            if (!meeting.has_video && !meeting.has_audio && !meeting.has_transcript) return;
-            if (!meeting.date || !meeting.time) return;
-
-            this.cancelScheduledRecording(meeting.id);
-
-            const meetingStart = new Date(meeting.date + 'T' + meeting.time);
-            if (isNaN(meetingStart.getTime())) return;
-
-            const delay = meetingStart.getTime() - Date.now();
-
-            const trigger = () => {
-                delete this._scheduledTimers[meeting.id];
-                const live = this.meetings.find(m => m.id === meeting.id);
-                if (live && live.status === 'upcoming') {
-                    this.promptRecordingForMeeting(live);
-                }
-            };
-
-            if (delay <= 0) {
-                trigger();
-            } else {
-                const timerId = setTimeout(trigger, Math.min(delay, 2147483647));
-                this._scheduledTimers[meeting.id] = timerId;
-            }
-        },
-
-        cancelScheduledRecording(meetingId) {
-            if (this._scheduledTimers[meetingId] !== undefined) {
-                clearTimeout(this._scheduledTimers[meetingId]);
-                delete this._scheduledTimers[meetingId];
-            }
-        },
-
-        // ── Show the notification prompt (called by the scheduler) ───────────
-        promptRecordingForMeeting(meeting) {
-            this.recordingPromptMeeting = meeting;
-        },
-
-        dismissRecordingPrompt() {
-            this.recordingPromptMeeting = null;
-            this.recordingError = '';
-        },
-
-        // ── confirmStartRecording: called via user CLICK — valid gesture for getDisplayMedia
-        async confirmStartRecording() {
-            const meeting = this.recordingPromptMeeting;
-            if (!meeting) return;
-            this.recordingPromptMeeting = null; // close the prompt immediately
-
-            if (this.activeRecordingMeetingId === meeting.id) return;
-            this.stopAllAndFinalize();
-            this.activeRecordingMeetingId = meeting.id;
-            this.liveTranscript = '';
-            this.meetingMinutes = '';
-            this.recordingElapsed = 0;
-
-            const needsMedia = meeting.has_video || meeting.has_audio;
-            const needsTranscript = meeting.has_transcript || meeting.has_minutes;
-
-            try {
-                if (needsMedia) {
-                    // User picks the Google Meet tab — valid user-gesture context
-                    const displayStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: true,
-                        audio: true   // tab audio captures Google Meet voices
-                    });
-                    this.recordingError = '';
-
-                    if (meeting.has_video) await this.startRecording('video', displayStream);
-                    if (meeting.has_audio) await this.startRecording('audio', displayStream);
-
-                    // Auto-stop recorders if user clicks browser's Stop Sharing button
-                    displayStream.getVideoTracks().forEach(track => {
-                        track.addEventListener('ended', () => this.stopAllAndFinalize(), { once: true });
-                    });
-                }
-
-                if (needsTranscript) {
-                    this.startTranscription(meeting);
-                }
-
-                // Start elapsed timer
-                this._elapsedTimer = setInterval(() => { this.recordingElapsed++; }, 1000);
-
-            } catch (err) {
-                this.recordingError = 'Screen capture cancelled or denied: ' + (err.message || err);
-                this.activeRecordingMeetingId = null;
-            }
-        },
-
-        // ── Web Speech API transcription ──────────────────────────────────────
-        startTranscription(meeting) {
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SR) {
-                // Browser doesn't support Speech Recognition — skip silently
-                return;
-            }
-            const recognition = new SR();
-            recognition.continuous = true;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-            recognition.onresult = (event) => {
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) {
-                        this.liveTranscript += event.results[i][0].transcript + ' ';
-                    }
-                }
-            };
-            recognition.onerror = () => { /* ignore errors, keep recording */ };
-            recognition.onend = () => {
-                if (this.transcribingActive) recognition.start(); // auto-restart
-            };
-            recognition.start();
-            this._speechRecognition = recognition;
-            this.transcribingActive = true;
-        },
-
-        stopTranscription() {
-            if (this._speechRecognition) {
-                this.transcribingActive = false; // prevent auto-restart
-                this._speechRecognition.stop();
-                this._speechRecognition = null;
-            }
-        },
-
-        // ── Auto-generate meeting minutes from transcript ─────────────────────
-        generateMinutes(meeting) {
-            if (!this.liveTranscript.trim()) return;
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-            this.meetingMinutes =
-                `MEETING MINUTES\n` +
-                `================\n` +
-                `Meeting: ${meeting.title}\n` +
-                `Date: ${dateStr}\n` +
-                `Time: ${meeting.time || timeStr}\n` +
-                `Duration: ${Math.floor(this.recordingElapsed / 60)} min ${this.recordingElapsed % 60} sec\n` +
-                `Attendees: ${meeting.attendees || 'N/A'}\n\n` +
-                `TRANSCRIPT\n` +
-                `----------\n` +
-                this.liveTranscript.trim() + '\n\n' +
-                `[Generated automatically at ${timeStr}]`;
-            // Attach to the meeting object for display in the details panel
-            const live = this.meetings.find(m => m.id === meeting.id);
-            if (live) {
-                live.transcript_text = this.liveTranscript.trim();
-                live.minutes_text = this.meetingMinutes;
-            }
-        },
-
-        // ── Stop everything and finalise ──────────────────────────────────────
-        stopAllAndFinalize() {
-            const meetingId = this.activeRecordingMeetingId;
-            const meeting = meetingId ? this.meetings.find(m => m.id === meetingId) : null;
-            this.stopTranscription();
-            this.stopAllRecording();
-            if (meeting) this.generateMinutes(meeting);
-            this.recordingElapsed = 0;
-        },
-
-        async startRecordingForMeeting(meeting) {
-            // Legacy method — now delegates to the prompt approach
-            this.promptRecordingForMeeting(meeting);
-        },
-
-        init() {
-            this.$watch('activeTab', () => this.currentPage = 1);
-            this.$watch('filterSelection.task', () => this.currentPage = 1);
-            this.$watch('filterSelection.events', () => this.currentPage = 1);
-            this.$watch('filterSelection.call', () => this.currentPage = 1);
-            this.$watch('meetingsSubTab', () => this.currentPage = 1);
-            this.$watch('perPage', () => this.currentPage = 1);
-
-            // Initial fetch (scheduleRecording is called inside fetchActivities)
-            this.fetchActivities();
-
-            // Refresh every 60 s — re-schedule any newly added meetings
-            setInterval(() => {
-                this.fetchActivities();
-            }, 60000);
-        },
-
-        async fetchActivities() {
-            try {
-                const response = await fetch('/api/activities');
-                const data = await response.json();
-                this.tasks = data.tasks;
-                this.events = data.events;
-                this.calls = data.calls;
-                this.meetings = data.meetings;
-                if (data.users) {
-                    this.systemUsers = data.users;
-                    const defaultUser = this.systemUsers[0] || '';
-                    if (!this.newTask.owner) this.newTask.owner = defaultUser;
-                    if (!this.newEvent.host) this.newEvent.host = defaultUser;
-                    if (!this.newCall.owner) this.newCall.owner = defaultUser;
-                    // For new calls, default to Outbound with user as 'From'
-                    if (this.newCall && !this.newCall.id && !this.newCall.from && !this.newCall.to) {
-                        this.newCall.from = defaultUser;
-                        this.newCall.type = 'Outbound';
-                    }
-                    if (!this.newMeeting.owner) this.newMeeting.owner = defaultUser;
-                }
-                // Schedule recordings for all upcoming meetings that need it
-                if (this.meetings) {
-                    this.meetings.forEach(m => {
-                        // Only add a timer if none exists yet for this meeting
-                        if ((m.has_video || m.has_audio) && this._scheduledTimers[m.id] === undefined
-                            && this.activeRecordingMeetingId !== m.id) {
-                            this.scheduleRecording(m);
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('Error fetching activities:', error);
-            }
-        },
-
-        async saveTask() {
-            if (!this.newTask.name) return;
-            try {
-                const isEdit = !!this.newTask.id;
-                const url = isEdit ? '/api/tasks/' + this.newTask.id : '/api/tasks';
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        name: this.newTask.name,
-                        due_date: this.newTask.dueDate,
-                        status: this.newTask.completed ? 'Completed' : 'Open',
-                        priority: this.newTask.priority ? 'High' : 'Normal',
-                        related_to: this.newTask.relatedTo,
-                        owner: this.newTask.owner,
-                        description: this.newTask.description
-                    })
-                });
-                const task = await response.json();
-                if (isEdit) {
-                    const index = this.tasks.findIndex(t => t.id === task.id);
-                    if (index !== -1) this.tasks[index] = task;
-                } else {
-                    this.tasks.unshift(task);
-                }
-                this.showTaskModal = false;
-                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: (this.systemUsers[0] || '') };
-            } catch (error) {
-                console.error('Error saving task:', error);
-            }
-        },
-
-        async saveEvent() {
-            if (!this.newEvent.title) return;
-            try {
-                const isEdit = !!this.newEvent.id;
-                const url = isEdit ? '/api/events/' + this.newEvent.id : '/api/events';
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        title: this.newEvent.title,
-                        from: this.newEvent.from,
-                        to: this.newEvent.to,
-                        related_to: this.newEvent.relatedTo,
-                        host: this.newEvent.host
-                    })
-                });
-                const event = await response.json();
-                if (isEdit) {
-                    const index = this.events.findIndex(e => e.id === event.id);
-                    if (index !== -1) this.events[index] = event;
-                } else {
-                    this.events.unshift(event);
-                }
-                this.showEventModal = false;
-                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: (this.systemUsers[0] || '') };
-            } catch (error) {
-                console.error('Error saving event:', error);
-            }
-        },
-
-        async saveCall() {
-            if (!this.newCall.to && !this.newCall.from && !this.newCall.contact) return;
-            // Build combined contact from to/from fields
-            const toVal = this.newCall.to || '';
-            const fromVal = this.newCall.from || '';
-            const combinedContact = toVal && fromVal ? toVal + ' / ' + fromVal : (toVal || fromVal || this.newCall.contact);
-            try {
-                const isEdit = !!this.newCall.id;
-                const url = isEdit ? '/api/calls/' + this.newCall.id : '/api/calls';
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        contact: combinedContact,
-                        to: this.newCall.to,
-                        from: this.newCall.from,
-                        type: this.newCall.type,
-                        start_time: this.newCall.startTime,
-                        start_hour: this.newCall.startHour,
-                        duration: this.newCall.duration,
-                        related_to: Array.isArray(this.newCall.relatedTo) ? this.newCall.relatedTo.join(', ') : this.newCall.relatedTo,
-                        owner: this.newCall.owner,
-                        purpose: this.newCall.purpose,
-                        agenda: this.newCall.agenda,
-                        completed: this.newCall.completed || false
-                    })
-                });
-                const call = await response.json();
-                if (isEdit) {
-                    const index = this.calls.findIndex(c => c.id === call.id);
-                    if (index !== -1) this.calls[index] = call;
-                } else {
-                    this.calls.unshift(call);
-                }
-                this.showCallModal = false;
-                const defaultUser = (this.systemUsers[0] || '');
-                this.newCall = { id: null, contact: '', to: '', from: defaultUser, type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: defaultUser, agenda: '', purpose: '', completed: false };
-                this.tagSearch = '';
-            } catch (error) {
-                console.error('Error saving call:', error);
-            }
-        },
-
-        async saveMeeting() {
-            if (!this.newMeeting.title) return;
-            try {
-                // Determine DB-friendly duration string
-                let computedDuration = '';
-                const h = parseInt(this.newMeeting.durationHour) || 0;
-                const m = parseInt(this.newMeeting.durationMin) || 0;
-                if (h > 0) computedDuration += h + ' hr ';
-                if (m > 0 || h === 0) computedDuration += m + ' mins';
-                this.newMeeting.duration = computedDuration.trim();
-
-                const isEdit = !!this.newMeeting.id;
-                const url = isEdit ? '/api/meetings/' + this.newMeeting.id : '/api/meetings';
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: JSON.stringify({
-                        title: this.newMeeting.title,
-                        owner: this.newMeeting.owner,
-                        date: this.newMeeting.date,
-                        time: this.newMeeting.time,
-                        duration: this.newMeeting.duration,
-                        location: this.newMeeting.location,
-                        attendees: this.newMeeting.attendees,
-                        status: this.newMeeting.status || 'upcoming',
-                        description: this.newMeeting.description,
-                        has_video: this.newMeeting.hasVideo,
-                        has_audio: this.newMeeting.hasAudio,
-                        has_transcript: this.newMeeting.hasTranscript,
-                        has_minutes: this.newMeeting.hasMinutes
-                    })
-                });
-                const meeting = await response.json();
-
-                // Cancel any stale timer for this meeting and re-schedule with updated date/time
-                this.cancelScheduledRecording(meeting.id);
-
-                if (isEdit) {
-                    const index = this.meetings.findIndex(m => m.id === meeting.id);
-                    if (index !== -1) this.meetings[index] = meeting;
-                } else {
-                    this.meetings.unshift(meeting);
-                }
-
-                // Schedule recording to fire at the meeting's date+time
-                this.scheduleRecording(meeting);
-
-                this.showMeetingModal = false;
-                this.recordingError = '';
-                this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
-            } catch (error) {
-                console.error('Error saving meeting:', error);
-            }
-        },
-
-        editTask(task) {
-            this.newTask = { 
-                id: task.id, 
-                name: task.name, 
-                dueDate: task.due_date, 
-                relatedTo: task.related_to, 
-                description: task.description, 
-                priority: task.priority === 'High', 
-                completed: task.status === 'Completed', 
-                owner: task.owner 
-            };
-            this.showTaskModal = true;
-        },
-
-        editEvent(event) {
-            this.newEvent = { 
-                id: event.id,
-                title: event.title,
-                from: event.from,
-                to: event.to,
-                relatedTo: event.related_to,
-                host: event.host
-            };
-            this.showEventModal = true;
-        },
-
-        editCall(call) {
-            // Parse existing contact back into to/from if it contains ' / '
-            let toVal = '', fromVal = '';
-            if (call.contact && call.contact.includes(' / ')) {
-                const parts = call.contact.split(' / ');
-                toVal = parts[0] || '';
-                fromVal = parts[1] || '';
-            } else {
-                toVal = call.contact || '';
-            }
-            this.newCall = { 
-                id: call.id,
-                contact: call.contact,
-                to: toVal,
-                from: fromVal,
-                type: call.type,
-                startTime: call.start_time,
-                startHour: call.start_hour,
-                duration: call.duration,
-                relatedTo: call.related_to ? call.related_to.split(', ').filter(Boolean) : [],
-                owner: call.owner,
-                agenda: call.agenda,
-                purpose: call.purpose,
-                completed: call.completed
-            };
-            this.showCallModal = true;
-        },
-
-        handleCallDirection(type) {
-            this.newCall.type = type;
-            const currentUser = this.systemUsers[0] || '';
-            if (type === 'Inbound') {
-                this.newCall.to = currentUser;
-                this.newCall.from = '';
-            } else {
-                this.newCall.from = currentUser;
-                this.newCall.to = '';
-            }
-        },
-
-        addTag(tag) {
-            if (tag && !this.newCall.relatedTo.includes(tag)) {
-                this.newCall.relatedTo.push(tag);
-            }
-            this.tagSearch = '';
-        },
-
-        removeTag(tag) {
-            this.newCall.relatedTo = this.newCall.relatedTo.filter(t => t !== tag);
-        },
-
-        editMeeting(meeting) {
-            let parsedHr = '0';
-            let parsedMin = '30';
-            if (meeting.duration) {
-                const hrMatch = meeting.duration.match(/(\d+)\s*hr/i);
-                if (hrMatch) parsedHr = hrMatch[1];
-                const minMatch = meeting.duration.match(/(\d+)\s*min/i);
-                if (minMatch) parsedMin = minMatch[1];
-            }
-
-            this.newMeeting = { 
-                id: meeting.id,
-                title: meeting.title,
-                owner: meeting.owner,
-                date: meeting.date,
-                time: meeting.time,
-                duration: meeting.duration,
-                durationHour: parsedHr,
-                durationMin: parsedMin,
-                location: meeting.location,
-                attendees: meeting.attendees,
-                description: meeting.description,
-                hasVideo: meeting.has_video,
-                hasAudio: meeting.has_audio,
-                hasTranscript: meeting.has_transcript,
-                hasMinutes: meeting.has_minutes,
-                status: meeting.status
-            };
-            this.showMeetingModal = true;
-        },
-
-        get taskCounts() {
-            return {
-                total: this.tasks.length,
-                open: this.tasks.filter(t => t.status === 'Open').length,
-                completed: this.tasks.filter(t => t.status === 'Completed').length,
-                overdue: this.tasks.filter(t => {
-                    if (t.status === 'Completed') return false;
-                    if (!t.due_date) return false;
-                    return new Date(t.due_date) < new Date();
-                }).length
-            };
-        },
-
-        get eventCounts() {
-            return {
-                total: this.events.length,
-                upcoming: this.events.filter(e => {
-                    if (!e.from) return false;
-                    return new Date(e.from) > new Date();
-                }).length,
-                closed: this.events.filter(e => {
-                    if (!e.to) return false;
-                    return new Date(e.to) < new Date();
-                }).length
-            };
-        },
-
-        get meetingCounts() {
-            return {
-                total: this.meetings.length,
-                upcoming: this.meetings.filter(m => m.status === 'upcoming').length,
-                completed: this.meetings.filter(m => m.status === 'completed').length
-            };
-        },
-
-        get callCounts() {
-            return {
-                total: this.calls.length,
-                scheduled: this.calls.filter(c => !c.completed).length,
-                overdue: this.calls.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date()).length
-            };
-        },
-
-        get filteredTasksList() {
-            let list = this.tasks;
-            if (this.filterSelection.task === 'Open Tasks') list = list.filter(t => t.status === 'Open');
-            if (this.filterSelection.task === 'Closed Tasks') list = list.filter(t => t.status === 'Completed');
-            if (this.filterSelection.task === 'Overdue Tasks') list = list.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < new Date());
-            return list;
-        },
-        get filteredEventsList() {
-            let list = this.events;
-            if (this.filterSelection.events === 'Upcoming Events') list = list.filter(e => e.from && new Date(e.from) > new Date());
-            if (this.filterSelection.events === 'Closed Events') list = list.filter(e => e.to && new Date(e.to) < new Date());
-            return list;
-        },
-        get filteredCallsList() {
-            let list = this.calls;
-            if (this.filterSelection.call === 'Scheduled Calls') list = list.filter(c => !c.completed);
-            if (this.filterSelection.call === 'Overdue Calls') list = list.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date());
-            if (this.filterSelection.call === 'Inbound Calls') list = list.filter(c => c.type === 'Inbound');
-            if (this.filterSelection.call === 'Outbound Calls') list = list.filter(c => c.type === 'Outbound');
-            return list;
-        },
-        get activeList() {
-            if (this.activeTab === 'task') return this.filteredTasksList;
-            if (this.activeTab === 'events') return this.filteredEventsList;
-            if (this.activeTab === 'call') return this.filteredCallsList;
-            if (this.activeTab === 'meetings') return this.filteredMeetings;
-            return [];
-        },
-
-        async deleteActivity(id, type) {
-            if (!confirm('Are you sure you want to delete this ' + type.slice(0, -1) + '?')) return;
-            try {
-                const response = await fetch('/api/' + type + '/' + id, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    }
-                });
-                if (response.ok) {
-                    // If deleting a meeting, cancel any pending recording timer
-                    if (type === 'meetings') {
-                        this.cancelScheduledRecording(id);
-                        if (this.activeRecordingMeetingId === id) this.stopAllRecording();
-                    }
-                    this[type] = this[type].filter(item => item.id !== id);
-                    if (type === 'tasks' && this.selectedTaskDetails?.id === id) this.selectedTaskDetails = null;
-                    if (type === 'meetings' && this.selectedMeetingDetails?.id === id) this.selectedMeetingDetails = null;
-                }
-            } catch (error) {
-                console.error('Error deleting ' + type + ':', error);
-            }
-        },
-
-        get filteredMeetings() {
-            return this.meetings.filter(m => {
-                if (this.meetingsSubTab === 'upcoming' && m.status !== 'upcoming') return false;
-                if (this.meetingsSubTab === 'completed' && m.status !== 'completed') return false;
-                
-                if (this.meetingFilters.videoRecording && !m.has_video) return false;
-                if (this.meetingFilters.audioRecording && !m.has_audio) return false;
-                if (this.meetingFilters.transcription && !m.has_transcript) return false;
-                if (this.meetingFilters.minutes && !m.has_minutes) return false;
-                
-                return true;
-            });
-        },
-
-        showExportModal: false,
-        exportFieldSelection: 'view',
-
-        exportData() {
-            let dataToExport = [];
-            let csvContent = '';
-            let filename = 'export.csv';
-            const q = String.fromCharCode(34);
-            
-            if (this.activeTab === 'task') {
-                dataToExport = this.tasks;
-                filename = 'tasks_export.csv';
-                if (this.exportFieldSelection === 'view') {
-                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner\n';
-                    dataToExport.forEach(item => {
-                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                } else {
-                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner,Description\n';
-                    dataToExport.forEach(item => {
-                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner, item.description].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                }
-            } else if (this.activeTab === 'events') {
-                dataToExport = this.events;
-                filename = 'events_export.csv';
-                if (this.exportFieldSelection === 'view') {
-                    csvContent += 'Title,From,To,Related To,Host\n';
-                    dataToExport.forEach(item => {
-                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                } else {
-                     csvContent += 'Title,From,To,Related To,Host\n';
-                     dataToExport.forEach(item => {
-                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                }
-            } else if (this.activeTab === 'call') {
-                dataToExport = this.calls;
-                filename = 'calls_export.csv';
-                if (this.exportFieldSelection === 'view') {
-                    csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner\n';
-                    dataToExport.forEach(item => {
-                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                } else {
-                     csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner,Purpose,Agenda,Completed\n';
-                     dataToExport.forEach(item => {
-                        const completedStr = item.completed ? 'Yes' : 'No';
-                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner, item.purpose, item.agenda, completedStr].map(v => q + (v || '') + q).join(',') + '\n';
-                    });
-                }
-            }
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            if (link.download !== undefined) {
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', filename);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-            this.showExportModal = false;
-        },
-
-        async saveNote(noteable, type) {
-            if (!this.newNoteContent) return;
-            try {
-                const isEdit = !!this.editingNote;
-                const url = isEdit ? '/api/notes/' + this.editingNote.id : '/api/notes';
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const body = isEdit ? { content: this.newNoteContent } : {
-                    content: this.newNoteContent,
-                    owner: (this.systemUsers[0] || 'John Kelly'),
-                    noteable_id: noteable.id,
-                    noteable_type: type
-                };
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: JSON.stringify(body)
-                });
-                const note = await response.json();
-                
-                if (isEdit) {
-                    const index = noteable.notes.findIndex(n => n.id === note.id);
-                    if (index !== -1) noteable.notes[index] = note;
-                } else {
-                    if (!noteable.notes) noteable.notes = [];
-                    noteable.notes.unshift(note);
-                }
-
-                this.newNoteContent = '';
-                this.editingNote = null;
-            } catch (error) {
-                console.error('Error saving note:', error);
-            }
-        },
-
-        editNote(note) {
-            this.editingNote = note;
-            this.newNoteContent = note.content;
-        },
-
-        async deleteNote(noteId, noteable) {
-            if (!confirm('Are you sure you want to delete this note?')) return;
-            try {
-                const response = await fetch('/api/notes/' + noteId, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    }
-                });
-                if (response.ok) {
-                    noteable.notes = noteable.notes.filter(n => n.id !== noteId);
-                }
-            } catch (error) {
-                console.error('Error deleting note:', error);
-            }
-        },
-
-        async generateMeetingAI(meetingId) {
-            try {
-                const response = await fetch(`/api/meetings/${meetingId}/process`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    }
-                });
-                const updatedMeeting = await response.json();
-                
-                // Update the meeting in the list
-                const idx = this.meetings.findIndex(m => m.id === meetingId);
-                if (idx !== -1) this.meetings[idx] = updatedMeeting;
-                
-                // Update the selected details view
-                this.selectedMeetingDetails = updatedMeeting;
-            } catch (error) {
-                console.error('Error generating AI content:', error);
-            }
-        },
-
-        downloadFile(type, format) {
-            this.activeDownloadMenu = null;
-            
-            if (type === 'video' || type === 'audio') {
-                const url = type === 'video' ? this.selectedMeetingDetails?.video_url : this.selectedMeetingDetails?.audio_url;
-                if (!url) {
-                    alert('No ' + type + ' file available for this meeting.');
-                    return;
-                }
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'recording'}.${format}`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                return;
-            }
-
-            const content = this.selectedMeetingDetails?.notes?.find(n => n.content.toLowerCase().includes(type.toLowerCase()))?.content || 'No content found.';
-            const filename = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'doc'}.${format === 'pdf' ? 'pdf' : 'docx'}`;
-
-            if (format === 'pdf') {
-                // Simulate PDF by opening a new window with content for printing
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write('<ht' + 'ml><he' + 'ad><ti' + 'tle>' + filename + '</ti' + 'tle><sty' + 'le>body{font-family:sans-serif;padding:40px;line-height:1.6;}</sty' + 'le></he' + 'ad><bo' + 'dy><h1' + '>' + type.toUpperCase() + '</h1' + '><pre style=\'white-space: pre-wrap;\'>' + content + '</pre></bo' + 'dy></ht' + 'ml>');
-                printWindow.document.close();
-                printWindow.print();
-            } else {
-                // Generate a simple Word-compatible blob
-                const blob = new Blob([content], { type: 'application/msword' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                link.click();
-            }
-        }
-     }">
+<div class="flex w-full" x-data="activitiesData()">
 
 
     <!-- Left Sidebar -->
@@ -2069,6 +1116,31 @@
                             </div>
                         </div>
 
+                        <!-- Upload -->
+                        <div class="pt-2">
+                            <button @click="$refs.videoUploadInput.click()" 
+                                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-white hover:border-[#1d54e2] hover:text-[#1d54e2] transition-all shadow-sm group"
+                                    :class="isUploading ? 'opacity-50 cursor-wait pointer-events-none' : ''">
+                                <template x-if="!isUploading">
+                                    <i class="fas fa-video text-xs group-hover:scale-110 transition-transform"></i>
+                                </template>
+                                <template x-if="isUploading">
+                                    <i class="fas fa-spinner fa-spin text-xs"></i>
+                                </template>
+                                <span x-text="isUploading ? 'Uploading Video...' : 'Upload Video File'"></span>
+                            </button>
+                        </div>
+
+                        <!-- Open Recording Button -->
+                        <div class="pt-1" x-show="selectedMeetingDetails?.has_video">
+                            <button @click="showVideoPlayer = true" 
+                                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#1d54e2] text-white rounded-xl text-sm font-bold hover:bg-[#1541b0] transition-all shadow-md group">
+                                <i class="fas fa-play-circle text-xs group-hover:scale-110 transition-transform"></i>
+                                Open Recording
+                            </button>
+                        </div>
+
+
                         <!-- AI Generation Button -->
                         <div class="pt-4 border-t border-gray-100" x-show="selectedMeetingDetails?.status === 'completed' && (!selectedMeetingDetails?.has_transcript || !selectedMeetingDetails?.has_minutes)">
                             <button @click="generateMeetingAI(selectedMeetingDetails.id)" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-indigo-800 transition-all shadow-md group">
@@ -2077,7 +1149,15 @@
                             </button>
                             <p class="text-[10px] text-gray-400 text-center mt-2 italic">Powered by CRM-AI Engine</p>
                         </div>
+                        </div>
                     </div>
+
+                    <!-- Hidden File Input for Upload -->
+                    <input type="file" 
+                           x-ref="videoUploadInput" 
+                           class="hidden" 
+                           accept="video/mp4,video/webm,video/ogg" 
+                           @change="uploadVideo($event, selectedMeetingDetails.id)">
                 </div>
 
                 <!-- Notes Tab -->
@@ -2186,24 +1266,63 @@
 
                 <div class="mt-8 space-y-4">
                     <h4 class="text-sm font-bold text-gray-900 border-l-4 border-[#1d54e2] pl-3">Recording Details</h4>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4">
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                             <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Duration</p>
                             <p class="text-sm font-bold text-gray-700" x-text="formatDurationText(duration)">45 Minutes</p>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                            <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Quality</p>
-                            <p class="text-sm font-bold text-gray-700">HD 1080p</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Footer -->
+            <!-- Footer -->
             <div class="px-5 py-4 flex items-center justify-between border-t border-gray-100 shrink-0">
-                <button @click="downloadVideo()" class="px-6 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium transition">
-                    Download
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- Transcript Dropdown -->
+                    <template x-if="selectedMeetingDetails?.has_transcript">
+                        <div class="relative">
+                            <button @click="activeDownloadMenu = activeDownloadMenu === 'player_transcript' ? null : 'player_transcript'" 
+                                    class="px-3 py-2 rounded-lg border border-gray-200 text-gray-700 bg-gray-50 hover:bg-white hover:border-green-500 hover:text-green-600 text-xs font-bold transition-all shadow-sm flex items-center gap-2">
+                                <i class="fas fa-file-alt text-green-500"></i>
+                                Transcript
+                            </button>
+                            <div x-show="activeDownloadMenu === 'player_transcript'" 
+                                 @click.away="activeDownloadMenu = null"
+                                 class="absolute bottom-full left-0 mb-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-[120] overflow-hidden"
+                                 style="display: none;">
+                                <button @click="downloadFile('transcript', 'pdf'); activeDownloadMenu = null" class="w-full text-left px-4 py-2 text-[10px] text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                    <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                </button>
+                                <button @click="downloadFile('transcript', 'docs'); activeDownloadMenu = null" class="w-full text-left px-4 py-2 text-[10px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                    <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Minutes Dropdown -->
+                    <template x-if="selectedMeetingDetails?.has_minutes">
+                        <div class="relative">
+                            <button @click="activeDownloadMenu = activeDownloadMenu === 'player_minutes' ? null : 'player_minutes'" 
+                                    class="px-3 py-2 rounded-lg border border-gray-200 text-gray-700 bg-gray-50 hover:bg-white hover:border-purple-500 hover:text-purple-600 text-xs font-bold transition-all shadow-sm flex items-center gap-2">
+                                <i class="fas fa-file-signature text-purple-500"></i>
+                                Minutes
+                            </button>
+                            <div x-show="activeDownloadMenu === 'player_minutes'" 
+                                 @click.away="activeDownloadMenu = null"
+                                 class="absolute bottom-full left-0 mb-2 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-[120] overflow-hidden"
+                                 style="display: none;">
+                                <button @click="downloadFile('minutes', 'pdf'); activeDownloadMenu = null" class="w-full text-left px-4 py-2 text-[10px] text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                    <i class="far fa-file-pdf text-red-500"></i> PDF (.pdf)
+                                </button>
+                                <button @click="downloadFile('minutes', 'docs'); activeDownloadMenu = null" class="w-full text-left px-4 py-2 text-[10px] text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-50">
+                                    <i class="far fa-file-word text-blue-500"></i> DOCS (.docx)
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
                 <button @click="showVideoPlayer = false" class="px-6 py-2 rounded-md bg-[#1d54e2] text-white hover:bg-[#1541b0] text-sm font-semibold transition shadow-sm">
                     Close
                 </button>
@@ -2515,6 +1634,1004 @@
 </div><!-- end root -->
 
 <script>
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('activitiesData', () => ({ 
+        showTaskModal: false,
+        activeTab: 'task',
+        selectAll: false,
+        selectedTasks: [],
+        tasks: [],
+        systemUsers: [],
+        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: '' },
+        
+        events: [],
+        newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
+
+        calls: [],
+        newCall: { contact: '', to: '', from: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
+        tagSearch: '',
+
+        meetings: [],
+        newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
+
+        filterSelection: {
+            task: 'All Tasks',
+            events: 'All Events',
+            call: 'All Calls'
+        },
+        selectedTaskDetails: null,
+        selectedTaskType: null,
+        meetingsSubTab: 'all',
+        meetingFilters: {
+            videoRecording: false,
+            audioRecording: false,
+            transcription: false,
+            minutes: false
+        },
+        showMeetingModal: false,
+        selectedMeetingDetails: null,
+        meetingDetailsTab: 'information',
+        showVideoPlayer: false,
+        showCallModal: false,
+        showEventModal: false,
+        newNoteContent: '',
+        editingNote: null,
+        activeDownloadMenu: null,
+        isUploading: false,
+        currentPage: 1,
+        perPage: 50,
+        perPageOptions: [10, 20, 30, 40, 50, 100],
+        perPageOpen: false,
+
+        // --- Media Recording State ---
+        _videoRecorder: null,
+        _audioRecorder: null,
+        _videoStream: null,
+        _audioStream: null,
+        recordingVideoActive: false,
+        recordingAudioActive: false,
+        recordingError: '',
+        recordedVideoUrl: null,
+        recordedAudioUrl: null,
+        _scheduledTimers: {},           // meetingId -> setTimeout ID
+        activeRecordingMeetingId: null, // which meeting is currently recording
+        // --- Notification prompt (user-gesture gate for getDisplayMedia) ---
+        recordingPromptMeeting: null,   // meeting waiting for user to click Start
+        // --- Transcription (Web Speech API) ---
+        _speechRecognition: null,
+        transcribingActive: false,
+        liveTranscript: '',
+        // --- Minutes ---
+        meetingMinutes: '',
+        // --- Elapsed timer ---
+        recordingElapsed: 0,
+        _elapsedTimer: null,
+
+        // ── Core recorder: start capturing (no auto-stop on duration) ──────────
+        // capturedStream: a MediaStream from getDisplayMedia, provided by startRecordingForMeeting
+        async startRecording(type, capturedStream) {
+            try {
+                let stream;
+                if (type === 'video') {
+                    // Full display stream: video + audio from the Google Meet tab
+                    stream = capturedStream;
+                } else {
+                    // Audio-only: extract audio tracks from the display stream
+                    const audioTracks = capturedStream.getAudioTracks();
+                    stream = audioTracks.length
+                        ? new MediaStream(audioTracks)
+                        : capturedStream; // fallback: use full stream
+                }
+                const chunks = [];
+                const mimeType = type === 'video'
+                    ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm')
+                    : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm');
+                const recorder = new MediaRecorder(stream, { mimeType });
+                recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    if (type === 'video') {
+                        this.recordedVideoUrl = url;
+                        this.recordingVideoActive = false;
+                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
+                        if (m) m.video_url = url;
+                    } else {
+                        this.recordedAudioUrl = url;
+                        this.recordingAudioActive = false;
+                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
+                        if (m) m.audio_url = url;
+                    }
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                recorder.start(1000);
+                if (type === 'video') {
+                    this._videoRecorder = recorder;
+                    this._videoStream = stream;
+                    this.recordingVideoActive = true;
+                    this.recordedVideoUrl = null;
+                } else {
+                    this._audioRecorder = recorder;
+                    this._audioStream = stream;
+                    this.recordingAudioActive = true;
+                    this.recordedAudioUrl = null;
+                }
+                this.recordingError = '';
+            } catch (err) {
+                this.recordingError = 'Recording error: ' + (err.message || err);
+            }
+        },
+
+        stopRecording(type) {
+            if (type === 'video' && this._videoRecorder && this._videoRecorder.state !== 'inactive') {
+                this._videoRecorder.stop();
+                this._videoRecorder = null;
+            }
+            if (type === 'audio' && this._audioRecorder && this._audioRecorder.state !== 'inactive') {
+                this._audioRecorder.stop();
+                this._audioRecorder = null;
+            }
+        },
+
+        stopAllRecording() {
+            this.stopRecording('video');
+            this.stopRecording('audio');
+            this.activeRecordingMeetingId = null;
+            // Also stop elapsed timer
+            if (this._elapsedTimer) { clearInterval(this._elapsedTimer); this._elapsedTimer = null; }
+        },
+
+        // ── Scheduler: at meeting time, show a notification prompt instead of
+        // calling getDisplayMedia directly (browsers block it from setTimeout)
+        scheduleRecording(meeting) {
+            if (!meeting || meeting.status !== 'upcoming') return;
+            if (!meeting.has_video && !meeting.has_audio && !meeting.has_transcript) return;
+            if (!meeting.date || !meeting.time) return;
+
+            this.cancelScheduledRecording(meeting.id);
+
+            const meetingStart = new Date(meeting.date + 'T' + meeting.time);
+            if (isNaN(meetingStart.getTime())) return;
+
+            const delay = meetingStart.getTime() - Date.now();
+
+            const trigger = () => {
+                delete this._scheduledTimers[meeting.id];
+                const live = this.meetings.find(m => m.id === meeting.id);
+                if (live && live.status === 'upcoming') {
+                    this.promptRecordingForMeeting(live);
+                }
+            };
+
+            if (delay <= 0) {
+                trigger();
+            } else {
+                const timerId = setTimeout(trigger, Math.min(delay, 2147483647));
+                this._scheduledTimers[meeting.id] = timerId;
+            }
+        },
+
+        cancelScheduledRecording(meetingId) {
+            if (this._scheduledTimers[meetingId] !== undefined) {
+                clearTimeout(this._scheduledTimers[meetingId]);
+                delete this._scheduledTimers[meetingId];
+            }
+        },
+
+        // ── Show the notification prompt (called by the scheduler) ───────────
+        promptRecordingForMeeting(meeting) {
+            this.recordingPromptMeeting = meeting;
+        },
+
+        dismissRecordingPrompt() {
+            this.recordingPromptMeeting = null;
+            this.recordingError = '';
+        },
+
+        // ── confirmStartRecording: called via user CLICK — valid gesture for getDisplayMedia
+        async confirmStartRecording() {
+            const meeting = this.recordingPromptMeeting;
+            if (!meeting) return;
+            this.recordingPromptMeeting = null; // close the prompt immediately
+
+            if (this.activeRecordingMeetingId === meeting.id) return;
+            this.stopAllAndFinalize();
+            this.activeRecordingMeetingId = meeting.id;
+            this.liveTranscript = '';
+            this.meetingMinutes = '';
+            this.recordingElapsed = 0;
+
+            const needsMedia = meeting.has_video || meeting.has_audio;
+            const needsTranscript = meeting.has_transcript || meeting.has_minutes;
+
+            try {
+                if (needsMedia) {
+                    // User picks the Google Meet tab — valid user-gesture context
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: true   // tab audio captures Google Meet voices
+                    });
+                    this.recordingError = '';
+
+                    if (meeting.has_video) await this.startRecording('video', displayStream);
+                    if (meeting.has_audio) await this.startRecording('audio', displayStream);
+
+                    // Auto-stop recorders if user clicks browser's Stop Sharing button
+                    displayStream.getVideoTracks().forEach(track => {
+                        track.addEventListener('ended', () => this.stopAllAndFinalize(), { once: true });
+                    });
+                }
+
+                if (needsTranscript) {
+                    this.startTranscription(meeting);
+                }
+
+                // Start elapsed timer
+                this._elapsedTimer = setInterval(() => { this.recordingElapsed++; }, 1000);
+
+            } catch (err) {
+                this.recordingError = 'Screen capture cancelled or denied: ' + (err.message || err);
+                this.activeRecordingMeetingId = null;
+            }
+        },
+
+        // ── Web Speech API transcription ──────────────────────────────────────
+        startTranscription(meeting) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                // Browser doesn't support Speech Recognition — skip silently
+                return;
+            }
+            const recognition = new SR();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        this.liveTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+            };
+            recognition.onerror = () => { /* ignore errors, keep recording */ };
+            recognition.onend = () => {
+                if (this.transcribingActive) recognition.start(); // auto-restart
+            };
+            recognition.start();
+            this._speechRecognition = recognition;
+            this.transcribingActive = true;
+        },
+
+        stopTranscription() {
+            if (this._speechRecognition) {
+                this.transcribingActive = false; // prevent auto-restart
+                this._speechRecognition.stop();
+                this._speechRecognition = null;
+            }
+        },
+
+        // ── Auto-generate meeting minutes from transcript ─────────────────────
+        generateMinutes(meeting) {
+            if (!this.liveTranscript.trim()) return;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            this.meetingMinutes =
+                `MEETING MINUTES\n` +
+                `================\n` +
+                `Meeting: ${meeting.title}\n` +
+                `Date: ${dateStr}\n` +
+                `Time: ${meeting.time || timeStr}\n` +
+                `Duration: ${Math.floor(this.recordingElapsed / 60)} min ${this.recordingElapsed % 60} sec\n` +
+                `Attendees: ${meeting.attendees || 'N/A'}\n\n` +
+                `TRANSCRIPT\n` +
+                `----------\n` +
+                this.liveTranscript.trim() + '\n\n' +
+                `[Generated automatically at ${timeStr}]`;
+            // Attach to the meeting object for display in the details panel
+            const live = this.meetings.find(m => m.id === meeting.id);
+            if (live) {
+                live.transcript_text = this.liveTranscript.trim();
+                live.minutes_text = this.meetingMinutes;
+            }
+        },
+
+        // ── Stop everything and finalise ──────────────────────────────────────
+        stopAllAndFinalize() {
+            const meetingId = this.activeRecordingMeetingId;
+            const meeting = meetingId ? this.meetings.find(m => m.id === meetingId) : null;
+            this.stopTranscription();
+            this.stopAllRecording();
+            if (meeting) this.generateMinutes(meeting);
+            this.recordingElapsed = 0;
+        },
+
+        async startRecordingForMeeting(meeting) {
+            // Legacy method — now delegates to the prompt approach
+            this.promptRecordingForMeeting(meeting);
+        },
+        
+        async uploadVideo(event, meetingId) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('video', file);
+
+            this.isUploading = true;
+            try {
+                const response = await fetch(`/api/meetings/${meetingId}/upload-video`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const updatedMeeting = await response.json();
+                    // Update the meetings array
+                    const index = this.meetings.findIndex(m => m.id === meetingId);
+                    if (index !== -1) {
+                        this.meetings[index] = updatedMeeting;
+                    }
+                    if (this.selectedMeetingDetails && this.selectedMeetingDetails.id === meetingId) {
+                        this.selectedMeetingDetails = updatedMeeting;
+                    }
+                    // Automatically trigger AI transcription and analysis
+                    await this.generateMeetingAI(meetingId);
+                } else {
+                    console.error('Upload failed');
+                }
+            } catch (error) {
+                console.error('Error uploading video:', error);
+            } finally {
+                this.isUploading = false;
+                event.target.value = ''; // Reset input
+            }
+        },
+
+        init() {
+            this.$watch('activeTab', () => this.currentPage = 1);
+            this.$watch('filterSelection.task', () => this.currentPage = 1);
+            this.$watch('filterSelection.events', () => this.currentPage = 1);
+            this.$watch('filterSelection.call', () => this.currentPage = 1);
+            this.$watch('meetingsSubTab', () => this.currentPage = 1);
+            this.$watch('perPage', () => this.currentPage = 1);
+
+            // Initial fetch (scheduleRecording is called inside fetchActivities)
+            this.fetchActivities();
+
+            // Refresh every 60 s — re-schedule any newly added meetings
+            setInterval(() => {
+                this.fetchActivities();
+            }, 60000);
+        },
+
+        async fetchActivities() {
+            try {
+                const response = await fetch('/api/activities');
+                const data = await response.json();
+                this.tasks = data.tasks;
+                this.events = data.events;
+                this.calls = data.calls;
+                this.meetings = data.meetings;
+                if (data.users) {
+                    this.systemUsers = data.users;
+                    const defaultUser = this.systemUsers[0] || '';
+                    if (!this.newTask.owner) this.newTask.owner = defaultUser;
+                    if (!this.newEvent.host) this.newEvent.host = defaultUser;
+                    if (!this.newCall.owner) this.newCall.owner = defaultUser;
+                    // For new calls, default to Outbound with user as 'From'
+                    if (this.newCall && !this.newCall.id && !this.newCall.from && !this.newCall.to) {
+                        this.newCall.from = defaultUser;
+                        this.newCall.type = 'Outbound';
+                    }
+                    if (!this.newMeeting.owner) this.newMeeting.owner = defaultUser;
+                }
+                // Schedule recordings for all upcoming meetings that need it
+                if (this.meetings) {
+                    this.meetings.forEach(m => {
+                        // Only add a timer if none exists yet for this meeting
+                        if ((m.has_video || m.has_audio) && this._scheduledTimers[m.id] === undefined
+                            && this.activeRecordingMeetingId !== m.id) {
+                            this.scheduleRecording(m);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching activities:', error);
+            }
+        },
+
+        async saveTask() {
+            if (!this.newTask.name) return;
+            try {
+                const isEdit = !!this.newTask.id;
+                const url = isEdit ? '/api/tasks/' + this.newTask.id : '/api/tasks';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        name: this.newTask.name,
+                        due_date: this.newTask.dueDate,
+                        status: this.newTask.completed ? 'Completed' : 'Open',
+                        priority: this.newTask.priority ? 'High' : 'Normal',
+                        related_to: this.newTask.relatedTo,
+                        owner: this.newTask.owner,
+                        description: this.newTask.description
+                    })
+                });
+                const task = await response.json();
+                if (isEdit) {
+                    const index = this.tasks.findIndex(t => t.id === task.id);
+                    if (index !== -1) this.tasks[index] = task;
+                } else {
+                    this.tasks.unshift(task);
+                }
+                this.showTaskModal = false;
+                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: (this.systemUsers[0] || '') };
+            } catch (error) {
+                console.error('Error saving task:', error);
+            }
+        },
+
+        async saveEvent() {
+            if (!this.newEvent.title) return;
+            try {
+                const isEdit = !!this.newEvent.id;
+                const url = isEdit ? '/api/events/' + this.newEvent.id : '/api/events';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        title: this.newEvent.title,
+                        from: this.newEvent.from,
+                        to: this.newEvent.to,
+                        related_to: this.newEvent.relatedTo,
+                        host: this.newEvent.host
+                    })
+                });
+                const event = await response.json();
+                if (isEdit) {
+                    const index = this.events.findIndex(e => e.id === event.id);
+                    if (index !== -1) this.events[index] = event;
+                } else {
+                    this.events.unshift(event);
+                }
+                this.showEventModal = false;
+                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: (this.systemUsers[0] || '') };
+            } catch (error) {
+                console.error('Error saving event:', error);
+            }
+        },
+
+        async saveCall() {
+            if (!this.newCall.to && !this.newCall.from && !this.newCall.contact) return;
+            // Build combined contact from to/from fields
+            const toVal = this.newCall.to || '';
+            const fromVal = this.newCall.from || '';
+            const combinedContact = toVal && fromVal ? toVal + ' / ' + fromVal : (toVal || fromVal || this.newCall.contact);
+            try {
+                const isEdit = !!this.newCall.id;
+                const url = isEdit ? '/api/calls/' + this.newCall.id : '/api/calls';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        contact: combinedContact,
+                        to: this.newCall.to,
+                        from: this.newCall.from,
+                        type: this.newCall.type,
+                        start_time: this.newCall.startTime,
+                        start_hour: this.newCall.startHour,
+                        duration: this.newCall.duration,
+                        related_to: Array.isArray(this.newCall.relatedTo) ? this.newCall.relatedTo.join(', ') : this.newCall.relatedTo,
+                        owner: this.newCall.owner,
+                        purpose: this.newCall.purpose,
+                        agenda: this.newCall.agenda,
+                        completed: this.newCall.completed || false
+                    })
+                });
+                const call = await response.json();
+                if (isEdit) {
+                    const index = this.calls.findIndex(c => c.id === call.id);
+                    if (index !== -1) this.calls[index] = call;
+                } else {
+                    this.calls.unshift(call);
+                }
+                this.showCallModal = false;
+                const defaultUser = (this.systemUsers[0] || '');
+                this.newCall = { id: null, contact: '', to: '', from: defaultUser, type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: defaultUser, agenda: '', purpose: '', completed: false };
+                this.tagSearch = '';
+            } catch (error) {
+                console.error('Error saving call:', error);
+            }
+        },
+
+        async saveMeeting() {
+            if (!this.newMeeting.title) return;
+            try {
+                // Determine DB-friendly duration string
+                let computedDuration = '';
+                const h = parseInt(this.newMeeting.durationHour) || 0;
+                const m = parseInt(this.newMeeting.durationMin) || 0;
+                if (h > 0) computedDuration += h + ' hr ';
+                if (m > 0 || h === 0) computedDuration += m + ' mins';
+                this.newMeeting.duration = computedDuration.trim();
+
+                const isEdit = !!this.newMeeting.id;
+                const url = isEdit ? '/api/meetings/' + this.newMeeting.id : '/api/meetings';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        title: this.newMeeting.title,
+                        owner: this.newMeeting.owner,
+                        date: this.newMeeting.date,
+                        time: this.newMeeting.time,
+                        duration: this.newMeeting.duration,
+                        location: this.newMeeting.location,
+                        attendees: this.newMeeting.attendees,
+                        status: this.newMeeting.status || 'upcoming',
+                        description: this.newMeeting.description,
+                        has_video: this.newMeeting.hasVideo,
+                        has_audio: this.newMeeting.hasAudio,
+                        has_transcript: this.newMeeting.hasTranscript,
+                        has_minutes: this.newMeeting.hasMinutes
+                    })
+                });
+                const meeting = await response.json();
+
+                // Cancel any stale timer for this meeting and re-schedule with updated date/time
+                this.cancelScheduledRecording(meeting.id);
+
+                if (isEdit) {
+                    const index = this.meetings.findIndex(m => m.id === meeting.id);
+                    if (index !== -1) this.meetings[index] = meeting;
+                } else {
+                    this.meetings.unshift(meeting);
+                }
+
+                // Schedule recording to fire at the meeting's date+time
+                this.scheduleRecording(meeting);
+
+                this.showMeetingModal = false;
+                this.recordingError = '';
+                this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
+            } catch (error) {
+                console.error('Error saving meeting:', error);
+            }
+        },
+
+        editTask(task) {
+            this.newTask = { 
+                id: task.id, 
+                name: task.name, 
+                dueDate: task.due_date, 
+                relatedTo: task.related_to, 
+                description: task.description, 
+                priority: task.priority === 'High', 
+                completed: task.status === 'Completed', 
+                owner: task.owner 
+            };
+            this.showTaskModal = true;
+        },
+
+        editEvent(event) {
+            this.newEvent = { 
+                id: event.id,
+                title: event.title,
+                from: event.from,
+                to: event.to,
+                relatedTo: event.related_to,
+                host: event.host
+            };
+            this.showEventModal = true;
+        },
+
+        editCall(call) {
+            // Parse existing contact back into to/from if it contains ' / '
+            let toVal = '', fromVal = '';
+            if (call.contact && call.contact.includes(' / ')) {
+                const parts = call.contact.split(' / ');
+                toVal = parts[0] || '';
+                fromVal = parts[1] || '';
+            } else {
+                toVal = call.contact || '';
+            }
+            this.newCall = { 
+                id: call.id,
+                contact: call.contact,
+                to: toVal,
+                from: fromVal,
+                type: call.type,
+                startTime: call.start_time,
+                startHour: call.start_hour,
+                duration: call.duration,
+                relatedTo: call.related_to ? call.related_to.split(', ').filter(Boolean) : [],
+                owner: call.owner,
+                agenda: call.agenda,
+                purpose: call.purpose,
+                completed: call.completed
+            };
+            this.showCallModal = true;
+        },
+
+        handleCallDirection(type) {
+            this.newCall.type = type;
+            const currentUser = this.systemUsers[0] || '';
+            if (type === 'Inbound') {
+                this.newCall.to = currentUser;
+                this.newCall.from = '';
+            } else {
+                this.newCall.from = currentUser;
+                this.newCall.to = '';
+            }
+        },
+
+        addTag(tag) {
+            if (tag && !this.newCall.relatedTo.includes(tag)) {
+                this.newCall.relatedTo.push(tag);
+            }
+            this.tagSearch = '';
+        },
+
+        removeTag(tag) {
+            this.newCall.relatedTo = this.newCall.relatedTo.filter(t => t !== tag);
+        },
+
+        editMeeting(meeting) {
+            let parsedHr = '0';
+            let parsedMin = '30';
+            if (meeting.duration) {
+                const hrMatch = meeting.duration.match(/(\d+)\s*hr/i);
+                if (hrMatch) parsedHr = hrMatch[1];
+                const minMatch = meeting.duration.match(/(\d+)\s*min/i);
+                if (minMatch) parsedMin = minMatch[1];
+            }
+
+            this.newMeeting = { 
+                id: meeting.id,
+                title: meeting.title,
+                owner: meeting.owner,
+                date: meeting.date,
+                time: meeting.time,
+                duration: meeting.duration,
+                durationHour: parsedHr,
+                durationMin: parsedMin,
+                location: meeting.location,
+                attendees: meeting.attendees,
+                description: meeting.description,
+                hasVideo: meeting.has_video,
+                hasAudio: meeting.has_audio,
+                hasTranscript: meeting.has_transcript,
+                hasMinutes: meeting.has_minutes,
+                status: meeting.status
+            };
+            this.showMeetingModal = true;
+        },
+
+        get taskCounts() {
+            return {
+                total: this.tasks.length,
+                open: this.tasks.filter(t => t.status === 'Open').length,
+                completed: this.tasks.filter(t => t.status === 'Completed').length,
+                overdue: this.tasks.filter(t => {
+                    if (t.status === 'Completed') return false;
+                    if (!t.due_date) return false;
+                    return new Date(t.due_date) < new Date();
+                }).length
+            };
+        },
+
+        get eventCounts() {
+            return {
+                total: this.events.length,
+                upcoming: this.events.filter(e => {
+                    if (!e.from) return false;
+                    return new Date(e.from) > new Date();
+                }).length,
+                closed: this.events.filter(e => {
+                    if (!e.to) return false;
+                    return new Date(e.to) < new Date();
+                }).length
+            };
+        },
+
+        get meetingCounts() {
+            return {
+                total: this.meetings.length,
+                upcoming: this.meetings.filter(m => m.status === 'upcoming').length,
+                completed: this.meetings.filter(m => m.status === 'completed').length
+            };
+        },
+
+        get callCounts() {
+            return {
+                total: this.calls.length,
+                scheduled: this.calls.filter(c => !c.completed).length,
+                overdue: this.calls.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date()).length
+            };
+        },
+
+        get filteredTasksList() {
+            let list = this.tasks;
+            if (this.filterSelection.task === 'Open Tasks') list = list.filter(t => t.status === 'Open');
+            if (this.filterSelection.task === 'Closed Tasks') list = list.filter(t => t.status === 'Completed');
+            if (this.filterSelection.task === 'Overdue Tasks') list = list.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < new Date());
+            return list;
+        },
+        get filteredEventsList() {
+            let list = this.events;
+            if (this.filterSelection.events === 'Upcoming Events') list = list.filter(e => e.from && new Date(e.from) > new Date());
+            if (this.filterSelection.events === 'Closed Events') list = list.filter(e => e.to && new Date(e.to) < new Date());
+            return list;
+        },
+        get filteredCallsList() {
+            let list = this.calls;
+            if (this.filterSelection.call === 'Scheduled Calls') list = list.filter(c => !c.completed);
+            if (this.filterSelection.call === 'Overdue Calls') list = list.filter(c => !c.completed && c.start_time && new Date(c.start_time) < new Date());
+            if (this.filterSelection.call === 'Inbound Calls') list = list.filter(c => c.type === 'Inbound');
+            if (this.filterSelection.call === 'Outbound Calls') list = list.filter(c => c.type === 'Outbound');
+            return list;
+        },
+        get activeList() {
+            if (this.activeTab === 'task') return this.filteredTasksList;
+            if (this.activeTab === 'events') return this.filteredEventsList;
+            if (this.activeTab === 'call') return this.filteredCallsList;
+            if (this.activeTab === 'meetings') return this.filteredMeetings;
+            return [];
+        },
+
+        async deleteActivity(id, type) {
+            if (!confirm('Are you sure you want to delete this ' + type.slice(0, -1) + '?')) return;
+            try {
+                const response = await fetch('/api/' + type + '/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                if (response.ok) {
+                    // If deleting a meeting, cancel any pending recording timer
+                    if (type === 'meetings') {
+                        this.cancelScheduledRecording(id);
+                        if (this.activeRecordingMeetingId === id) this.stopAllRecording();
+                    }
+                    this[type] = this[type].filter(item => item.id !== id);
+                    if (type === 'tasks' && this.selectedTaskDetails?.id === id) this.selectedTaskDetails = null;
+                    if (type === 'meetings' && this.selectedMeetingDetails?.id === id) this.selectedMeetingDetails = null;
+                }
+            } catch (error) {
+                console.error('Error deleting ' + type + ':', error);
+            }
+        },
+
+        get filteredMeetings() {
+            return this.meetings.filter(m => {
+                if (this.meetingsSubTab === 'upcoming' && m.status !== 'upcoming') return false;
+                if (this.meetingsSubTab === 'completed' && m.status !== 'completed') return false;
+                
+                if (this.meetingFilters.videoRecording && !m.has_video) return false;
+                if (this.meetingFilters.audioRecording && !m.has_audio) return false;
+                if (this.meetingFilters.transcription && !m.has_transcript) return false;
+                if (this.meetingFilters.minutes && !m.has_minutes) return false;
+                
+                return true;
+            });
+        },
+
+        showExportModal: false,
+        exportFieldSelection: 'view',
+
+        exportData() {
+            let dataToExport = [];
+            let csvContent = '';
+            let filename = 'export.csv';
+            const q = String.fromCharCode(34);
+            
+            if (this.activeTab === 'task') {
+                dataToExport = this.tasks;
+                filename = 'tasks_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                    csvContent += 'Task Name,Due Date,Status,Priority,Related To,Owner,Description\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.name, item.due_date, item.status, item.priority, item.related_to, item.owner, item.description].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            } else if (this.activeTab === 'events') {
+                dataToExport = this.events;
+                filename = 'events_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Title,From,To,Related To,Host\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                     csvContent += 'Title,From,To,Related To,Host\n';
+                     dataToExport.forEach(item => {
+                        csvContent += [item.title, item.from, item.to, item.related_to, item.host].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            } else if (this.activeTab === 'call') {
+                dataToExport = this.calls;
+                filename = 'calls_export.csv';
+                if (this.exportFieldSelection === 'view') {
+                    csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner\n';
+                    dataToExport.forEach(item => {
+                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                } else {
+                     csvContent += 'Contact,Type,Start Time,Start Hour,Duration,Related To,Owner,Purpose,Agenda,Completed\n';
+                     dataToExport.forEach(item => {
+                        const completedStr = item.completed ? 'Yes' : 'No';
+                        csvContent += [item.contact, item.type, item.start_time, item.start_hour, item.duration, item.related_to, item.owner, item.purpose, item.agenda, completedStr].map(v => q + (v || '') + q).join(',') + '\n';
+                    });
+                }
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            this.showExportModal = false;
+        },
+
+        async saveNote(noteable, type) {
+            if (!this.newNoteContent) return;
+            try {
+                const isEdit = !!this.editingNote;
+                const url = isEdit ? '/api/notes/' + this.editingNote.id : '/api/notes';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const body = isEdit ? { content: this.newNoteContent } : {
+                    content: this.newNoteContent,
+                    owner: (this.systemUsers[0] || 'John Kelly'),
+                    noteable_id: noteable.id,
+                    noteable_type: type
+                };
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: JSON.stringify(body)
+                });
+                const note = await response.json();
+                
+                if (isEdit) {
+                    const index = noteable.notes.findIndex(n => n.id === note.id);
+                    if (index !== -1) noteable.notes[index] = note;
+                } else {
+                    if (!noteable.notes) noteable.notes = [];
+                    noteable.notes.unshift(note);
+                }
+
+                this.newNoteContent = '';
+                this.editingNote = null;
+            } catch (error) {
+                console.error('Error saving note:', error);
+            }
+        },
+
+        editNote(note) {
+            this.editingNote = note;
+            this.newNoteContent = note.content;
+        },
+
+        async deleteNote(noteId, noteable) {
+            if (!confirm('Are you sure you want to delete this note?')) return;
+            try {
+                const response = await fetch('/api/notes/' + noteId, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                if (response.ok) {
+                    noteable.notes = noteable.notes.filter(n => n.id !== noteId);
+                }
+            } catch (error) {
+                console.error('Error deleting note:', error);
+            }
+        },
+
+        async generateMeetingAI(meetingId) {
+            try {
+                const response = await fetch(`/api/meetings/${meetingId}/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+                const updatedMeeting = await response.json();
+                
+                // Update the meeting in the list
+                const idx = this.meetings.findIndex(m => m.id === meetingId);
+                if (idx !== -1) this.meetings[idx] = updatedMeeting;
+                
+                // Update the selected details view
+                this.selectedMeetingDetails = updatedMeeting;
+            } catch (error) {
+                console.error('Error generating AI content:', error);
+            }
+        },
+
+        downloadFile(type, format) {
+            this.activeDownloadMenu = null;
+            
+            if (type === 'video' || type === 'audio') {
+                const url = type === 'video' ? this.selectedMeetingDetails?.video_url : this.selectedMeetingDetails?.audio_url;
+                if (!url) {
+                    alert('No ' + type + ' file available for this meeting.');
+                    return;
+                }
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'recording'}.${format}`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                return;
+            }
+
+            const content = this.selectedMeetingDetails?.notes?.find(n => n.content.toLowerCase().includes(type.toLowerCase()))?.content || 'No content found.';
+            const filename = `${type}_${this.selectedMeetingDetails?.title?.replace(/\s+/g, '_') || 'doc'}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+
+            if (format === 'pdf') {
+                // Simulate PDF by opening a new window with content for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write('<ht' + 'ml><he' + 'ad><ti' + 'tle>' + filename + '</ti' + 'tle><sty' + 'le>body{font-family:sans-serif;padding:40px;line-height:1.6;}</sty' + 'le></he' + 'ad><bo' + 'dy><h1' + '>' + type.toUpperCase() + '</h1' + '><pre style=\'white-space: pre-wrap;\'>' + content + '</pre></bo' + 'dy></ht' + 'ml>');
+                printWindow.document.close();
+                printWindow.print();
+            } else {
+                // Generate a simple Word-compatible blob
+                const blob = new Blob([content], { type: 'application/msword' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+            }
+        }
+     }))
+});
     function videoPlayer() {
         return {
             playing: false,

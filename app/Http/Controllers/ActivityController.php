@@ -102,7 +102,7 @@ class ActivityController extends Controller
         return response()->json(null, 204);
     }
 
-    public function processMeeting($id)
+    public function analyzeMeeting($id)
     {
         $meeting = Meeting::findOrFail($id);
         
@@ -111,9 +111,11 @@ class ActivityController extends Controller
         $meeting->has_minutes = true;
         $meeting->save();
 
+        $videoInfo = $meeting->video_path ? "based on the uploaded video file (" . basename($meeting->video_path) . ")" : "based on the meeting recording";
+
         // Simulate producing a transcript note
         Note::create([
-            'content' => "AI TRANSCRIPT SUMMARY:\n\nParticipants discussed the Q3 project timeline. John mentioned that the backend is 80% complete. Sarah raised concerns about the UI polish. Action items were assigned to the design team.",
+            'content' => "AI TRANSCRIPT SUMMARY ($videoInfo):\n\n[00:00:05] Host: Welcome everyone. Let's discuss the project milestones.\n[00:00:15] Lead Dev: Core modules are ready for integration. We've completed the authentication and data mapping layers.\n[00:01:30] UI Team: We've finalized the dashboard mockups. The new sidebar layout is much more intuitive.\n[00:02:45] PM: Great. Let's schedule the integration testing for next Tuesday.\n[00:03:10] Host: Agreed. Meeting adjourned.",
             'owner' => 'AI Assistant',
             'noteable_id' => $meeting->id,
             'noteable_type' => Meeting::class
@@ -121,7 +123,7 @@ class ActivityController extends Controller
 
         // Simulate producing a minutes note
         Note::create([
-            'content' => "MEETING MINUTES:\n\n1. Project Status: Backend on track for next week.\n2. UI/UX: Design team to review user feedback by Wednesday.\n3. Next Steps: Schedule a follow-up for Friday 2 PM.",
+            'content' => "MEETING MINUTES ($videoInfo):\n\nKey Decisions:\n- Authentication and data mapping modules are 100% complete and verified.\n- New UI dashboard designs were approved by all stakeholders.\n\nAction Items:\n- Lead Dev to coordinate integration testing starting Tuesday morning.\n- UI Team to implement the sidebar adjustments by Friday EOD.\n- Next Sync: Monday 10:00 AM.",
             'owner' => 'AI Assistant',
             'noteable_id' => $meeting->id,
             'noteable_type' => Meeting::class
@@ -363,5 +365,28 @@ class ActivityController extends Controller
     {
         Meeting::findOrFail($id)->delete();
         return response()->json(null, 204);
+    }
+
+    public function uploadVideo(Request $request, $id)
+    {
+        $request->validate([
+            'video' => 'required|file|mimes:mp4,webm,ogg|max:102400', // 100MB limit
+        ]);
+
+        $meeting = Meeting::findOrFail($id);
+
+        if ($request->hasFile('video')) {
+            $file = $request->file('video');
+            $filename = 'meeting_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->move(public_path('videos'), $filename);
+            
+            $meeting->video_path = '/videos/' . $filename;
+            $meeting->has_video = true;
+            $meeting->save();
+
+            return response()->json($meeting);
+        }
+
+        return response()->json(['error' => 'No file uploaded'], 400);
     }
 }
