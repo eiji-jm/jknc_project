@@ -58,16 +58,16 @@ A
 <span>Town Hall</span>
 </a>
 
-<a href="/"
-class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-{{ request()->is('/') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+
+
+<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
 <i class="fas fa-building text-base"></i>
 <span>Corporate</span>
 </a>
 
 <a href="/activities"
 class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-{{ request()->is('activities*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+{{ (request()->is('activities*') || request()->is('/')) ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-list-check text-base"></i>
 <span>Activities</span>
 </a>
@@ -86,73 +86,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 
 
 
-<!-- SECOND SIDEBAR -->
-@if (!request()->is('activities*'))
-<aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
-<div class="px-4 py-3 border-b border-gray-100">
-<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Corporate</p>
-</div>
-
-<div class="flex-1 overflow-y-auto p-3">
-
-<div class="space-y-1 text-sm">
-
-<a href="/"
-class="block px-3 py-2 rounded-lg transition
-{{ request()->is('/') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-Company General Information
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Corporate/Formation
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-BIR & Tax
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-NatGov
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-LGU
-</a>
-
-<div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Accounting
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Priority
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Status
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Tag
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Name
-</a>
-
-<a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-Task Owner
-</a>
-
-</div>
-
-</div>
-</div>
-
-</aside>
-@endif
 
 
 

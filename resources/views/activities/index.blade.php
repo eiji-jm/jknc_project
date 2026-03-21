@@ -29,7 +29,8 @@
         newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
 
         calls: [],
-        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: '', agenda: '', purpose: '', status: '' },
+        newCall: { contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
+        tagSearch: '',
 
         meetings: [],
         newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
@@ -57,14 +58,291 @@
         newNoteContent: '',
         editingNote: null,
         activeDownloadMenu: null,
+        currentPage: 1,
+        perPage: 50,
+        perPageOptions: [10, 20, 30, 40, 50, 100],
+        perPageOpen: false,
 
+        // --- Media Recording State ---
+        _videoRecorder: null,
+        _audioRecorder: null,
+        _videoStream: null,
+        _audioStream: null,
+        recordingVideoActive: false,
+        recordingAudioActive: false,
+        recordingError: '',
+        recordedVideoUrl: null,
+        recordedAudioUrl: null,
+        _scheduledTimers: {},           // meetingId -> setTimeout ID
+        activeRecordingMeetingId: null, // which meeting is currently recording
+        // --- Notification prompt (user-gesture gate for getDisplayMedia) ---
+        recordingPromptMeeting: null,   // meeting waiting for user to click Start
+        // --- Transcription (Web Speech API) ---
+        _speechRecognition: null,
+        transcribingActive: false,
+        liveTranscript: '',
+        // --- Minutes ---
+        meetingMinutes: '',
+        // --- Elapsed timer ---
+        recordingElapsed: 0,
+        _elapsedTimer: null,
+
+        // ── Core recorder: start capturing (no auto-stop on duration) ──────────
+        // capturedStream: a MediaStream from getDisplayMedia, provided by startRecordingForMeeting
+        async startRecording(type, capturedStream) {
+            try {
+                let stream;
+                if (type === 'video') {
+                    // Full display stream: video + audio from the Google Meet tab
+                    stream = capturedStream;
+                } else {
+                    // Audio-only: extract audio tracks from the display stream
+                    const audioTracks = capturedStream.getAudioTracks();
+                    stream = audioTracks.length
+                        ? new MediaStream(audioTracks)
+                        : capturedStream; // fallback: use full stream
+                }
+                const chunks = [];
+                const mimeType = type === 'video'
+                    ? (MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm')
+                    : (MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm');
+                const recorder = new MediaRecorder(stream, { mimeType });
+                recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    if (type === 'video') {
+                        this.recordedVideoUrl = url;
+                        this.recordingVideoActive = false;
+                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
+                        if (m) m.video_url = url;
+                    } else {
+                        this.recordedAudioUrl = url;
+                        this.recordingAudioActive = false;
+                        const m = this.meetings.find(m => m.id === this.activeRecordingMeetingId);
+                        if (m) m.audio_url = url;
+                    }
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                recorder.start(1000);
+                if (type === 'video') {
+                    this._videoRecorder = recorder;
+                    this._videoStream = stream;
+                    this.recordingVideoActive = true;
+                    this.recordedVideoUrl = null;
+                } else {
+                    this._audioRecorder = recorder;
+                    this._audioStream = stream;
+                    this.recordingAudioActive = true;
+                    this.recordedAudioUrl = null;
+                }
+                this.recordingError = '';
+            } catch (err) {
+                this.recordingError = 'Recording error: ' + (err.message || err);
+            }
+        },
+
+        stopRecording(type) {
+            if (type === 'video' && this._videoRecorder && this._videoRecorder.state !== 'inactive') {
+                this._videoRecorder.stop();
+                this._videoRecorder = null;
+            }
+            if (type === 'audio' && this._audioRecorder && this._audioRecorder.state !== 'inactive') {
+                this._audioRecorder.stop();
+                this._audioRecorder = null;
+            }
+        },
+
+        stopAllRecording() {
+            this.stopRecording('video');
+            this.stopRecording('audio');
+            this.activeRecordingMeetingId = null;
+            // Also stop elapsed timer
+            if (this._elapsedTimer) { clearInterval(this._elapsedTimer); this._elapsedTimer = null; }
+        },
+
+        // ── Scheduler: at meeting time, show a notification prompt instead of
+        // calling getDisplayMedia directly (browsers block it from setTimeout)
+        scheduleRecording(meeting) {
+            if (!meeting || meeting.status !== 'upcoming') return;
+            if (!meeting.has_video && !meeting.has_audio && !meeting.has_transcript) return;
+            if (!meeting.date || !meeting.time) return;
+
+            this.cancelScheduledRecording(meeting.id);
+
+            const meetingStart = new Date(meeting.date + 'T' + meeting.time);
+            if (isNaN(meetingStart.getTime())) return;
+
+            const delay = meetingStart.getTime() - Date.now();
+
+            const trigger = () => {
+                delete this._scheduledTimers[meeting.id];
+                const live = this.meetings.find(m => m.id === meeting.id);
+                if (live && live.status === 'upcoming') {
+                    this.promptRecordingForMeeting(live);
+                }
+            };
+
+            if (delay <= 0) {
+                trigger();
+            } else {
+                const timerId = setTimeout(trigger, Math.min(delay, 2147483647));
+                this._scheduledTimers[meeting.id] = timerId;
+            }
+        },
+
+        cancelScheduledRecording(meetingId) {
+            if (this._scheduledTimers[meetingId] !== undefined) {
+                clearTimeout(this._scheduledTimers[meetingId]);
+                delete this._scheduledTimers[meetingId];
+            }
+        },
+
+        // ── Show the notification prompt (called by the scheduler) ───────────
+        promptRecordingForMeeting(meeting) {
+            this.recordingPromptMeeting = meeting;
+        },
+
+        dismissRecordingPrompt() {
+            this.recordingPromptMeeting = null;
+            this.recordingError = '';
+        },
+
+        // ── confirmStartRecording: called via user CLICK — valid gesture for getDisplayMedia
+        async confirmStartRecording() {
+            const meeting = this.recordingPromptMeeting;
+            if (!meeting) return;
+            this.recordingPromptMeeting = null; // close the prompt immediately
+
+            if (this.activeRecordingMeetingId === meeting.id) return;
+            this.stopAllAndFinalize();
+            this.activeRecordingMeetingId = meeting.id;
+            this.liveTranscript = '';
+            this.meetingMinutes = '';
+            this.recordingElapsed = 0;
+
+            const needsMedia = meeting.has_video || meeting.has_audio;
+            const needsTranscript = meeting.has_transcript || meeting.has_minutes;
+
+            try {
+                if (needsMedia) {
+                    // User picks the Google Meet tab — valid user-gesture context
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: true   // tab audio captures Google Meet voices
+                    });
+                    this.recordingError = '';
+
+                    if (meeting.has_video) await this.startRecording('video', displayStream);
+                    if (meeting.has_audio) await this.startRecording('audio', displayStream);
+
+                    // Auto-stop recorders if user clicks browser's Stop Sharing button
+                    displayStream.getVideoTracks().forEach(track => {
+                        track.addEventListener('ended', () => this.stopAllAndFinalize(), { once: true });
+                    });
+                }
+
+                if (needsTranscript) {
+                    this.startTranscription(meeting);
+                }
+
+                // Start elapsed timer
+                this._elapsedTimer = setInterval(() => { this.recordingElapsed++; }, 1000);
+
+            } catch (err) {
+                this.recordingError = 'Screen capture cancelled or denied: ' + (err.message || err);
+                this.activeRecordingMeetingId = null;
+            }
+        },
+
+        // ── Web Speech API transcription ──────────────────────────────────────
+        startTranscription(meeting) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) {
+                // Browser doesn't support Speech Recognition — skip silently
+                return;
+            }
+            const recognition = new SR();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        this.liveTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+            };
+            recognition.onerror = () => { /* ignore errors, keep recording */ };
+            recognition.onend = () => {
+                if (this.transcribingActive) recognition.start(); // auto-restart
+            };
+            recognition.start();
+            this._speechRecognition = recognition;
+            this.transcribingActive = true;
+        },
+
+        stopTranscription() {
+            if (this._speechRecognition) {
+                this.transcribingActive = false; // prevent auto-restart
+                this._speechRecognition.stop();
+                this._speechRecognition = null;
+            }
+        },
+
+        // ── Auto-generate meeting minutes from transcript ─────────────────────
+        generateMinutes(meeting) {
+            if (!this.liveTranscript.trim()) return;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            this.meetingMinutes =
+                `MEETING MINUTES\n` +
+                `================\n` +
+                `Meeting: ${meeting.title}\n` +
+                `Date: ${dateStr}\n` +
+                `Time: ${meeting.time || timeStr}\n` +
+                `Duration: ${Math.floor(this.recordingElapsed / 60)} min ${this.recordingElapsed % 60} sec\n` +
+                `Attendees: ${meeting.attendees || 'N/A'}\n\n` +
+                `TRANSCRIPT\n` +
+                `----------\n` +
+                this.liveTranscript.trim() + '\n\n' +
+                `[Generated automatically at ${timeStr}]`;
+            // Attach to the meeting object for display in the details panel
+            const live = this.meetings.find(m => m.id === meeting.id);
+            if (live) {
+                live.transcript_text = this.liveTranscript.trim();
+                live.minutes_text = this.meetingMinutes;
+            }
+        },
+
+        // ── Stop everything and finalise ──────────────────────────────────────
+        stopAllAndFinalize() {
+            const meetingId = this.activeRecordingMeetingId;
+            const meeting = meetingId ? this.meetings.find(m => m.id === meetingId) : null;
+            this.stopTranscription();
+            this.stopAllRecording();
+            if (meeting) this.generateMinutes(meeting);
+            this.recordingElapsed = 0;
+        },
+
+        async startRecordingForMeeting(meeting) {
+            // Legacy method — now delegates to the prompt approach
+            this.promptRecordingForMeeting(meeting);
+        },
 
         init() {
-            // Initial fetch
+            this.$watch('activeTab', () => this.currentPage = 1);
+            this.$watch('filterSelection.task', () => this.currentPage = 1);
+            this.$watch('filterSelection.events', () => this.currentPage = 1);
+            this.$watch('filterSelection.call', () => this.currentPage = 1);
+            this.$watch('meetingsSubTab', () => this.currentPage = 1);
+            this.$watch('perPage', () => this.currentPage = 1);
+
+            // Initial fetch (scheduleRecording is called inside fetchActivities)
             this.fetchActivities();
-            
-            // Seamlessly run in the background every 60 seconds to pull
-            // down dynamically updated Meeting statuses without page refreshes!
+
+            // Refresh every 60 s — re-schedule any newly added meetings
             setInterval(() => {
                 this.fetchActivities();
             }, 60000);
@@ -85,6 +363,16 @@
                     if (!this.newEvent.host) this.newEvent.host = defaultUser;
                     if (!this.newCall.owner) this.newCall.owner = defaultUser;
                     if (!this.newMeeting.owner) this.newMeeting.owner = defaultUser;
+                }
+                // Schedule recordings for all upcoming meetings that need it
+                if (this.meetings) {
+                    this.meetings.forEach(m => {
+                        // Only add a timer if none exists yet for this meeting
+                        if ((m.has_video || m.has_audio) && this._scheduledTimers[m.id] === undefined
+                            && this.activeRecordingMeetingId !== m.id) {
+                            this.scheduleRecording(m);
+                        }
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching activities:', error);
@@ -182,7 +470,7 @@
                         start_time: this.newCall.startTime,
                         start_hour: this.newCall.startHour,
                         duration: this.newCall.duration,
-                        related_to: this.newCall.relatedTo,
+                        related_to: Array.isArray(this.newCall.relatedTo) ? this.newCall.relatedTo.join(', ') : this.newCall.relatedTo,
                         owner: this.newCall.owner,
                         purpose: this.newCall.purpose,
                         agenda: this.newCall.agenda,
@@ -197,7 +485,8 @@
                     this.calls.unshift(call);
                 }
                 this.showCallModal = false;
-                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: '', owner: (this.systemUsers[0] || ''), agenda: '', purpose: '', completed: false };
+                this.newCall = { id: null, contact: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: (this.systemUsers[0] || ''), agenda: '', purpose: '', completed: false };
+                this.tagSearch = '';
             } catch (error) {
                 console.error('Error saving call:', error);
             }
@@ -206,7 +495,7 @@
         async saveMeeting() {
             if (!this.newMeeting.title) return;
             try {
-                // Determine seamless DB-friendly string
+                // Determine DB-friendly duration string
                 let computedDuration = '';
                 const h = parseInt(this.newMeeting.durationHour) || 0;
                 const m = parseInt(this.newMeeting.durationMin) || 0;
@@ -241,13 +530,22 @@
                     })
                 });
                 const meeting = await response.json();
+
+                // Cancel any stale timer for this meeting and re-schedule with updated date/time
+                this.cancelScheduledRecording(meeting.id);
+
                 if (isEdit) {
                     const index = this.meetings.findIndex(m => m.id === meeting.id);
                     if (index !== -1) this.meetings[index] = meeting;
                 } else {
                     this.meetings.unshift(meeting);
                 }
+
+                // Schedule recording to fire at the meeting's date+time
+                this.scheduleRecording(meeting);
+
                 this.showMeetingModal = false;
+                this.recordingError = '';
                 this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
             } catch (error) {
                 console.error('Error saving meeting:', error);
@@ -288,13 +586,24 @@
                 startTime: call.start_time,
                 startHour: call.start_hour,
                 duration: call.duration,
-                relatedTo: call.related_to,
+                relatedTo: call.related_to ? call.related_to.split(', ').filter(Boolean) : [],
                 owner: call.owner,
                 agenda: call.agenda,
                 purpose: call.purpose,
                 completed: call.completed
             };
             this.showCallModal = true;
+        },
+
+        addTag(tag) {
+            if (tag && !this.newCall.relatedTo.includes(tag)) {
+                this.newCall.relatedTo.push(tag);
+            }
+            this.tagSearch = '';
+        },
+
+        removeTag(tag) {
+            this.newCall.relatedTo = this.newCall.relatedTo.filter(t => t !== tag);
         },
 
         editMeeting(meeting) {
@@ -408,6 +717,11 @@
                     }
                 });
                 if (response.ok) {
+                    // If deleting a meeting, cancel any pending recording timer
+                    if (type === 'meetings') {
+                        this.cancelScheduledRecording(id);
+                        if (this.activeRecordingMeetingId === id) this.stopAllRecording();
+                    }
                     this[type] = this[type].filter(item => item.id !== id);
                     if (type === 'tasks' && this.selectedTaskDetails?.id === id) this.selectedTaskDetails = null;
                     if (type === 'meetings' && this.selectedMeetingDetails?.id === id) this.selectedMeetingDetails = null;
@@ -789,7 +1103,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'task'">
-                    <template x-for="task in filteredTasksList" :key="task.id">
+                    <template x-for="task in filteredTasksList.slice((currentPage - 1) * perPage, currentPage * perPage)" :key="task.id">
                         <tr class="group transition-colors" :class="selectedTasks.includes(task.id) ? 'bg-blue-50/50' : 'hover:bg-gray-50'">
                             <td class="py-3 px-4 text-center">
                                 <input type="checkbox" :value="task.id" x-model="selectedTasks" @change="selectAll = (selectedTasks.length === filteredTasksList.length && filteredTasksList.length > 0)" class="rounded text-blue-600 border-gray-300 transition-colors">
@@ -837,7 +1151,7 @@
                 
                 <!-- Events Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'events'" style="display: none;">
-                    <template x-for="event in filteredEventsList" :key="event.id">
+                    <template x-for="event in filteredEventsList.slice((currentPage - 1) * perPage, currentPage * perPage)" :key="event.id">
                         <tr class="group hover:bg-gray-50 transition-colors">
                             <td class="py-3 px-4 text-center">
                                 <input type="checkbox" class="rounded border-gray-300 transition-colors">
@@ -908,7 +1222,7 @@
 
                 <!-- Call Tab Body -->
                 <tbody class="divide-y divide-gray-100" x-show="activeTab === 'call'" style="display: none;">
-                    <template x-for="call in filteredCallsList" :key="call.id">
+                    <template x-for="call in filteredCallsList.slice((currentPage - 1) * perPage, currentPage * perPage)" :key="call.id">
                         <tr class="group hover:bg-gray-50 transition-colors">
                             <td class="py-3 px-4 text-center">
                                 <input type="checkbox" class="rounded border-gray-300 transition-colors">
@@ -924,7 +1238,7 @@
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.type"></td>
                             <td class="py-3 px-4 text-sm text-gray-600">
                                 <div x-text="call.start_time"></div>
-                                <div class="text-xs text-gray-400" x-text="call.startHour"></div>
+                                <div class="text-xs text-gray-400" x-text="call.start_hour"></div>
                             </td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.duration"></td>
                             <td class="py-3 px-4 text-sm text-gray-600" x-text="call.related_to"></td>
@@ -1017,7 +1331,7 @@
 
                 <!-- Meeting Cards Area -->
                 <div class="flex-1 p-5 space-y-4 overflow-y-auto">
-                    <template x-for="meeting in filteredMeetings" :key="meeting.id">
+                    <template x-for="meeting in filteredMeetings.slice((currentPage - 1) * perPage, currentPage * perPage)" :key="meeting.id">
                         <div class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                             <div class="flex items-start justify-between mb-3">
                                 <div class="flex items-center gap-3">
@@ -1050,7 +1364,13 @@
                                     <span x-text="meeting.attendees + ' Attendees'"></span>
                                 </span>
                             </div>
-                            <div class="flex items-center gap-3">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <template x-if="(meeting.has_video || meeting.has_audio) && meeting.status === 'upcoming' && activeRecordingMeetingId !== meeting.id && _scheduledTimers[meeting.id] !== undefined">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium border border-blue-200">
+                                        <i class="far fa-clock text-[10px]"></i>
+                                        Scheduled
+                                    </span>
+                                </template>
                                 <template x-if="meeting.has_video">
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
                                         <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
@@ -1118,30 +1438,30 @@
                 <span class="text-gray-600">Overdue <span class="text-red-500" x-text="callCounts.overdue"></span></span>
             </div>
             
-            <div x-show="activeTab !== 'meetings'" class="flex items-center gap-4 text-[11px] text-blue-600 font-semibold tracking-wide bg-blue-50/50 px-3 py-1.5 rounded-md">
-                <div class="flex items-center gap-2 text-blue-600 relative" x-data="{ perPageOpen: false, perPageOptions: [10, 20, 30, 40, 50, 100], perPage: 50 }" @click.away="perPageOpen = false">
-                    Records per page 
-                    <button @click="perPageOpen = !perPageOpen" class="focus:outline-none flex items-center gap-1 hover:text-blue-800 transition">
-                        <span x-text="perPage"></span> <i class="fas fa-chevron-down text-[9px] opacity-80" :class="perPageOpen ? 'rotate-180' : ''"></i>
+            <div class="flex items-center gap-4 text-xs font-semibold text-gray-500 tracking-wide">
+                <div class="flex items-center gap-2 relative" @click.away="perPageOpen = false">
+                    <span class="text-gray-600">Records per page</span>
+                    <button @click="perPageOpen = !perPageOpen" class="focus:outline-none flex items-center gap-1 text-gray-800 hover:text-black transition">
+                        <span x-text="perPage"></span> <i class="fas fa-chevron-down text-[9px]" :class="perPageOpen ? 'rotate-180' : ''"></i>
                     </button>
                     <!-- Dropdown -->
                     <div x-show="perPageOpen" 
                          style="display: none;"
-                         class="absolute bottom-full left-0 mb-1 w-20 bg-white rounded shadow-lg border border-gray-100 py-1 z-50 text-gray-700 text-[11px]">
+                         class="absolute bottom-full left-0 mb-1 w-20 bg-white rounded shadow-lg border border-gray-200 py-1 z-50 text-gray-800 text-xs font-normal">
                         <template x-for="option in perPageOptions" :key="option">
                             <button @click="perPage = option; perPageOpen = false" 
-                                    class="w-full text-left px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 transition"
-                                    :class="perPage === option ? 'bg-blue-50 text-blue-600 font-bold' : ''"
+                                    class="w-full text-left px-3 py-1.5 hover:bg-gray-100 transition"
+                                    :class="perPage === option ? 'bg-gray-100 font-bold text-black' : ''"
                                     x-text="option">
                             </button>
                         </template>
                     </div>
                 </div>
-                <div class="w-px h-3 bg-blue-200"></div>
-                <span><span x-text="activeList.length > 0 ? '1' : '0'"></span> - <span x-text="activeList.length"></span> of <span x-text="activeList.length"></span></span>
-                <div class="flex items-center gap-2 text-gray-400">
-                    <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-left text-[9px]"></i></button>
-                    <button class="hover:text-blue-600 transition disabled:opacity-50"><i class="fas fa-chevron-right text-[9px]"></i></button>
+                <div class="w-px h-3 bg-gray-300"></div>
+                <span class="text-gray-600"><span class="text-gray-800" x-text="activeList.length > 0 ? ((currentPage - 1) * perPage) + 1 : '0'"></span> - <span class="text-gray-800" x-text="Math.min(currentPage * perPage, activeList.length)"></span> of <span class="text-gray-800" x-text="activeList.length"></span></span>
+                <div class="flex items-center gap-3 text-gray-400">
+                    <button @click="if(currentPage > 1) currentPage--" :disabled="currentPage === 1" class="hover:text-gray-800 transition disabled:opacity-50"><i class="fas fa-chevron-left text-[11px]"></i></button>
+                    <button @click="if(currentPage * perPage < activeList.length) currentPage++" :disabled="currentPage * perPage >= activeList.length" class="hover:text-gray-800 transition disabled:opacity-50"><i class="fas fa-chevron-right text-[11px]"></i></button>
                 </div>
             </div>
         </div>
@@ -1351,10 +1671,21 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-2">Recording & Documentation</label>
                     <div class="flex flex-col gap-2">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasVideo" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Record Video</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasAudio" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Record Audio</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600 select-none">
+                            <input type="checkbox" x-model="newMeeting.hasVideo" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]">
+                            Record Video
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600 select-none">
+                            <input type="checkbox" x-model="newMeeting.hasAudio" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]">
+                            Record Audio
+                        </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasTranscript" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Generate transcript automatically</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-600"><input type="checkbox" x-model="newMeeting.hasMinutes" class="w-4 h-4 rounded border-gray-300 text-[#1d54e2] focus:ring-[#1d54e2]"> Generate meeting minutes automatically</label>
+                    </div>
+                    <!-- Scheduling info note -->
+                    <div class="mt-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                        <i class="far fa-clock text-blue-400 mt-0.5 text-xs shrink-0"></i>
+                        <p class="text-xs text-blue-600">Recording will start automatically at the scheduled date &amp; time and will continue until the page is closed or the meeting is deleted.</p>
                     </div>
                 </div>
             </div>
@@ -1888,10 +2219,26 @@
                     </div>
                 </div>
 
-                <!-- Related To -->
+                <!-- Related To (Tagging UI) -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
-                    <input type="text" x-model="newCall.relatedTo" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    <div class="relative">
+                        <div class="flex flex-wrap gap-1.5 p-2 bg-white border border-gray-300 rounded-md focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition min-h-[40px]">
+                            <template x-for="tag in newCall.relatedTo" :key="tag">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                                    <span x-text="tag"></span>
+                                    <i @click="removeTag(tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
+                                </span>
+                            </template>
+                            <input 
+                                type="text" 
+                                x-model="tagSearch" 
+                                @keydown.enter.prevent="tagSearch && addTag(tagSearch)"
+                                placeholder="Type and press Enter to add tag" 
+                                class="flex-1 min-w-[150px] border-none p-0 text-sm text-gray-800 outline-none focus:ring-0 bg-transparent"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Call Type -->
@@ -2233,4 +2580,134 @@
         }
     }
 </script>
+
+{{-- ═══════════════════════════════════════════════════════════════════════
+     FLOATING MEETING NOTIFICATION CARD
+     Appears when a scheduled meeting's time arrives.
+     The "Start Recording" button is a real user-gesture click → valid for getDisplayMedia.
+═══════════════════════════════════════════════════════════════════════ --}}
+<div x-data
+     x-show="$store.app ? false : false"
+     style="display:none"></div>
+
+<template x-if="recordingPromptMeeting">
+    <div class="fixed bottom-6 right-6 z-[200] w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0">
+
+        {{-- Header --}}
+        <div class="bg-gradient-to-r from-[#1d54e2] to-[#3b6ef5] px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                <span class="text-white text-xs font-bold uppercase tracking-widest">Meeting Starting Now</span>
+            </div>
+            <button @click="dismissRecordingPrompt()" class="text-white/70 hover:text-white transition text-base leading-none">&times;</button>
+        </div>
+
+        {{-- Body --}}
+        <div class="px-4 py-3">
+            <p class="text-sm font-semibold text-gray-900 mb-0.5" x-text="recordingPromptMeeting?.title"></p>
+            <p class="text-xs text-gray-500 mb-3">
+                <span x-text="recordingPromptMeeting?.date"></span>
+                &nbsp;&bull;&nbsp;
+                <span x-text="recordingPromptMeeting?.time"></span>
+            </p>
+
+            {{-- Feature indicators --}}
+            <div class="flex flex-wrap gap-1.5 mb-4">
+                <template x-if="recordingPromptMeeting?.has_video">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold border border-blue-100">
+                        <i class="fas fa-video text-[9px]"></i> Video
+                    </span>
+                </template>
+                <template x-if="recordingPromptMeeting?.has_audio">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold border border-blue-100">
+                        <i class="fas fa-microphone text-[9px]"></i> Audio
+                    </span>
+                </template>
+                <template x-if="recordingPromptMeeting?.has_transcript">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[10px] font-semibold border border-purple-100">
+                        <i class="fas fa-align-left text-[9px]"></i> Transcript
+                    </span>
+                </template>
+                <template x-if="recordingPromptMeeting?.has_minutes">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full text-[10px] font-semibold border border-purple-100">
+                        <i class="fas fa-file-alt text-[9px]"></i> Minutes
+                    </span>
+                </template>
+            </div>
+
+            {{-- Error (if any from previous attempt) --}}
+            <div x-show="recordingError" class="mb-3 px-2 py-1.5 bg-red-50 border border-red-100 rounded-lg">
+                <p class="text-[10px] text-red-600" x-text="recordingError"></p>
+            </div>
+
+            {{-- Action buttons --}}
+            <div class="flex gap-2">
+                <button @click="confirmStartRecording()"
+                        class="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-[#1d54e2] text-white text-xs font-bold rounded-xl hover:bg-[#1541b0] transition shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+                    Start Recording
+                </button>
+                <button @click="dismissRecordingPrompt()"
+                        class="px-3 py-2 text-xs text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl transition font-medium">
+                    Skip
+                </button>
+            </div>
+
+            <p class="text-[9px] text-gray-400 text-center mt-2">You'll be asked to select your Google Meet tab</p>
+        </div>
+    </div>
+</template>
+
+
+{{-- ═══════════════════════════════════════════════════════════════════════
+     ACTIVE RECORDING STATUS BAR
+     Shown while recording/transcribing is in progress.
+═══════════════════════════════════════════════════════════════════════ --}}
+<template x-if="recordingVideoActive || recordingAudioActive || transcribingActive">
+    <div class="fixed bottom-0 left-0 right-0 z-[190] bg-gray-900/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between shadow-2xl"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0">
+
+        <div class="flex items-center gap-4">
+            {{-- Live pulse --}}
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                <span class="text-white text-xs font-bold uppercase tracking-wider">Recording</span>
+            </div>
+            {{-- Active streams --}}
+            <div class="flex items-center gap-3 text-[10px] text-gray-400">
+                <span x-show="recordingVideoActive" class="flex items-center gap-1">
+                    <i class="fas fa-video text-blue-400"></i> Video
+                </span>
+                <span x-show="recordingAudioActive" class="flex items-center gap-1">
+                    <i class="fas fa-microphone text-blue-400"></i> Audio
+                </span>
+                <span x-show="transcribingActive" class="flex items-center gap-1">
+                    <i class="fas fa-align-left text-purple-400"></i> Transcribing
+                </span>
+            </div>
+            {{-- Elapsed time --}}
+            <span class="text-gray-300 text-xs font-mono"
+                  x-text="`${String(Math.floor(recordingElapsed/3600)).padStart(2,'0')}:${String(Math.floor((recordingElapsed%3600)/60)).padStart(2,'0')}:${String(recordingElapsed%60).padStart(2,'0')}`">
+            </span>
+        </div>
+
+        {{-- Live transcript preview --}}
+        <div x-show="transcribingActive && liveTranscript" class="hidden md:block flex-1 mx-6 px-3 py-1 bg-white/5 rounded-lg overflow-hidden">
+            <p class="text-[10px] text-gray-400 truncate" x-text="liveTranscript.slice(-120)"></p>
+        </div>
+
+        {{-- Stop button --}}
+        <button @click="stopAllAndFinalize()"
+                class="inline-flex items-center gap-2 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition">
+            <i class="fas fa-stop text-[9px]"></i> Stop & Save
+        </button>
+    </div>
+</template>
+
 @endsection
+

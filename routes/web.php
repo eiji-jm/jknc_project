@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('corporate.company-general-information');
+    return view('activities.index');
 });
 
 use App\Http\Controllers\ActivityController;
