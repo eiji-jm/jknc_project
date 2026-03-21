@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class SecretaryCertificate extends Model
 {
@@ -12,8 +13,10 @@ class SecretaryCertificate extends Model
         'uploaded_by',
         'governing_body',
         'type_of_meeting',
+        'notice_id',
         'notice_ref',
         'meeting_no',
+        'resolution_id',
         'resolution_no',
         'date_issued',
         'purpose',
@@ -33,4 +36,22 @@ class SecretaryCertificate extends Model
         'date_issued' => 'date',
         'date_of_meeting' => 'date',
     ];
+
+    public function notice()
+    {
+        if (Schema::hasColumn('secretary_certificates', 'notice_id')) {
+            return $this->belongsTo(Notice::class, 'notice_id');
+        }
+
+        return $this->belongsTo(Notice::class, 'notice_ref', 'notice_number');
+    }
+
+    public function resolution()
+    {
+        if (Schema::hasColumn('secretary_certificates', 'resolution_id')) {
+            return $this->belongsTo(Resolution::class, 'resolution_id');
+        }
+
+        return $this->belongsTo(Resolution::class, 'resolution_no', 'resolution_no');
+    }
 }

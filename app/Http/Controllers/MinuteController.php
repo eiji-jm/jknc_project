@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Minute;
+use App\Models\Notice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class MinuteController extends Controller
 {
@@ -12,9 +14,10 @@ class MinuteController extends Controller
 
     public function index()
     {
-        $minutes = Minute::latest()->get();
+        $minutes = Minute::with('notice')->latest()->get();
+        $notices = Notice::orderBy('date_of_meeting')->get();
 
-        return view('corporate.minutes.index', compact('minutes'));
+        return view('corporate.minutes.index', compact('minutes', 'notices'));
     }
 
     public function create()
@@ -32,6 +35,7 @@ class MinuteController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
+        $data = $this->mergeNoticeData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
 
         Minute::create($data);
@@ -41,6 +45,8 @@ class MinuteController extends Controller
 
     public function show(Minute $minute)
     {
+        $minute->load('notice');
+
         return view('corporate.minutes.preview', [
             'minute' => $minute,
             'backRoute' => route('minutes'),
@@ -64,11 +70,125 @@ class MinuteController extends Controller
     public function update(Request $request, Minute $minute)
     {
         $data = $this->validateData($request);
+        $data = $this->mergeNoticeData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $minute->document_path);
 
         $minute->update($data);
 
         return redirect()->route('minutes')->with('success', 'Minutes updated.');
+    }
+
+    public function approve(Request $request, Minute $minute)
+    {
+        abort_unless($this->userCanApprove(), 403);
+
+        $validated = $request->validate([
+            'approved_minutes_path' => [$minute->approved_minutes_path ? 'nullable' : 'required', 'file', 'mimes:pdf', 'max:5120'],
+        ]);
+
+        $minute->update([
+            'approved_by' => auth()->user()?->name,
+            'approved_minutes_path' => $this->handleUpload($request, 'approved_minutes_path', $minute->approved_minutes_path),
+        ]);
+
+        return redirect()->back()->with('success', $validated['approved_minutes_path'] ?? null ? 'Minutes approved and signed copy uploaded.' : 'Minutes approval updated.');
+    }
+
+    public function saveWorkspace(Request $request, Minute $minute)
+    {
+        $request->validate([
+            'tentative_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'recording_clips' => ['nullable', 'array'],
+            'recording_clips.*' => ['file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'meeting_video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo,video/*', 'max:204800'],
+            'script_file' => ['nullable', 'file', 'mimes:pdf,doc,docx,txt', 'max:51200'],
+            'recording_notes' => ['nullable', 'string'],
+            'script_text' => ['nullable', 'string'],
+        ]);
+
+        $recordingClips = collect($minute->recording_clips ?? []);
+
+        if ($request->hasFile('recording_clips')) {
+            foreach ($request->file('recording_clips') as $clip) {
+                $recordingClips->push($clip->store('uploads', 'public'));
+            }
+        }
+
+        $minute->update([
+            'tentative_audio_path' => $this->handleUpload($request, 'tentative_audio', $minute->tentative_audio_path),
+            'meeting_video_path' => $this->handleUpload($request, 'meeting_video', $minute->meeting_video_path),
+            'script_file_path' => $this->handleUpload($request, 'script_file', $minute->script_file_path),
+            'recording_clips' => $recordingClips->values()->all(),
+            'recording_notes' => $request->input('recording_notes', $minute->recording_notes),
+            'script_text' => $request->input('script_text', $minute->script_text),
+        ]);
+
+        return response()->json($this->workspacePayload($minute->fresh()));
+    }
+
+    public function saveFinalRecording(Request $request, Minute $minute)
+    {
+        $request->validate([
+            'final_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+        ]);
+
+        $finalPath = $this->handleUpload($request, 'final_audio', $minute->final_audio_path);
+
+        if (!$request->hasFile('final_audio') && $minute->tentative_audio_path) {
+            $finalPath = $this->duplicateUpload($minute->tentative_audio_path);
+        }
+
+        if (!$finalPath) {
+            return response()->json([
+                'message' => 'No tentative audio is available to save to the final preview.',
+            ], 422);
+        }
+
+        $minute->update([
+            'final_audio_path' => $finalPath,
+        ]);
+
+        return response()->json($this->workspacePayload($minute->fresh()));
+    }
+
+    public function saveFinalPreview(Request $request, Minute $minute)
+    {
+        $request->validate([
+            'tentative_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'final_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'recording_clips' => ['nullable', 'array'],
+            'recording_clips.*' => ['file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'meeting_video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo,video/*', 'max:204800'],
+            'script_file' => ['nullable', 'file', 'mimes:pdf,doc,docx,txt', 'max:51200'],
+            'recording_notes' => ['nullable', 'string'],
+            'script_text' => ['nullable', 'string'],
+        ]);
+
+        $recordingClips = collect($minute->recording_clips ?? []);
+
+        if ($request->hasFile('recording_clips')) {
+            foreach ($request->file('recording_clips') as $clip) {
+                $recordingClips->push($clip->store('uploads', 'public'));
+            }
+        }
+
+        $finalPath = $this->handleUpload($request, 'final_audio', $minute->final_audio_path);
+
+        if (! $request->hasFile('final_audio') && ! $finalPath && $minute->tentative_audio_path) {
+            $finalPath = $this->duplicateUpload($minute->tentative_audio_path);
+        }
+
+        $minute->update([
+            'tentative_audio_path' => $this->handleUpload($request, 'tentative_audio', $minute->tentative_audio_path),
+            'final_audio_path' => $finalPath,
+            'meeting_video_path' => $this->handleUpload($request, 'meeting_video', $minute->meeting_video_path),
+            'script_file_path' => $this->handleUpload($request, 'script_file', $minute->script_file_path),
+            'recording_clips' => $recordingClips->values()->all(),
+            'recording_notes' => $request->input('recording_notes', $minute->recording_notes),
+            'script_text' => $request->input('script_text', $minute->script_text),
+        ]);
+
+        return response()->json($this->workspacePayload($minute->fresh()));
     }
 
     public function destroy(Minute $minute)
@@ -84,9 +204,10 @@ class MinuteController extends Controller
             ['name' => 'minutes_ref', 'label' => 'Minutes Reference', 'type' => 'text'],
             ['name' => 'date_uploaded', 'label' => 'Date Uploaded', 'type' => 'date'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
-            ['name' => 'governing_body', 'label' => 'Governing Body', 'type' => 'text'],
-            ['name' => 'type_of_meeting', 'label' => 'Type of Meeting', 'type' => 'text'],
-            ['name' => 'meeting_mode', 'label' => 'Meeting Mode', 'type' => 'text'],
+            ['name' => 'governing_body', 'label' => 'Governing Body', 'type' => 'select', 'options' => $this->governingBodyOptions()],
+            ['name' => 'type_of_meeting', 'label' => 'Type of Meeting', 'type' => 'select', 'options' => $this->meetingTypeOptions()],
+            ['name' => 'meeting_mode', 'label' => 'Meeting Mode', 'type' => 'select', 'options' => ['In-Person', 'Virtual', 'Hybrid']],
+            ['name' => 'notice_id', 'label' => 'Linked Notice', 'type' => 'text'],
             ['name' => 'notice_ref', 'label' => 'Notice Reference #', 'type' => 'text'],
             ['name' => 'date_of_meeting', 'label' => 'Date of Meeting', 'type' => 'date'],
             ['name' => 'time_started', 'label' => 'Time Started', 'type' => 'time'],
@@ -94,6 +215,7 @@ class MinuteController extends Controller
             ['name' => 'location', 'label' => 'Location', 'type' => 'text'],
             ['name' => 'call_link', 'label' => 'Call Link', 'type' => 'text'],
             ['name' => 'recording_notes', 'label' => 'Recording Notes', 'type' => 'text'],
+            ['name' => 'script_text', 'label' => 'Script Text', 'type' => 'textarea'],
             ['name' => 'meeting_no', 'label' => 'Meeting Number', 'type' => 'text'],
             ['name' => 'chairman', 'label' => 'Chairman', 'type' => 'text'],
             ['name' => 'secretary', 'label' => 'Secretary', 'type' => 'text'],
@@ -110,6 +232,7 @@ class MinuteController extends Controller
             'governing_body' => ['nullable', 'string', 'max:255'],
             'type_of_meeting' => ['nullable', 'string', 'max:255'],
             'meeting_mode' => ['nullable', 'string', 'max:255'],
+            'notice_id' => ['required', 'integer', 'exists:notices,id'],
             'notice_ref' => ['nullable', 'string', 'max:255'],
             'date_of_meeting' => ['nullable', 'date'],
             'time_started' => ['nullable'],
@@ -117,10 +240,86 @@ class MinuteController extends Controller
             'location' => ['nullable', 'string', 'max:255'],
             'call_link' => ['nullable', 'string', 'max:255'],
             'recording_notes' => ['nullable', 'string', 'max:255'],
+            'script_text' => ['nullable', 'string'],
             'meeting_no' => ['nullable', 'string', 'max:255'],
             'chairman' => ['nullable', 'string', 'max:255'],
             'secretary' => ['nullable', 'string', 'max:255'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function mergeNoticeData(array $data): array
+    {
+        $notice = Notice::find($data['notice_id']);
+        if (!$notice) {
+            return $data;
+        }
+
+        $data['notice_ref'] = $data['notice_ref'] ?: $notice->notice_number;
+        $data['governing_body'] = $data['governing_body'] ?: $notice->governing_body;
+        $data['type_of_meeting'] = $data['type_of_meeting'] ?: $notice->type_of_meeting;
+        $data['date_of_meeting'] = $data['date_of_meeting'] ?: optional($notice->date_of_meeting)?->toDateString();
+        $data['time_started'] = $data['time_started'] ?: $notice->time_started;
+        $data['location'] = $data['location'] ?: $notice->location;
+        $data['meeting_no'] = $data['meeting_no'] ?: $notice->meeting_no;
+        $data['chairman'] = $data['chairman'] ?: $notice->chairman;
+        $data['secretary'] = $data['secretary'] ?: $notice->secretary;
+
+        return $data;
+    }
+
+    private function governingBodyOptions(): array
+    {
+        return ['Stockholders', 'Board of Directors', 'Joint Stockholders and Board of Directors'];
+    }
+
+    private function meetingTypeOptions(): array
+    {
+        return ['Regular', 'Special'];
+    }
+
+    private function userCanApprove(): bool
+    {
+        return auth()->check() && auth()->user()?->role === 'Admin';
+    }
+
+    private function workspacePayload(Minute $minute): array
+    {
+        return [
+            'message' => 'Workspace files saved.',
+            'tentative_audio_url' => $minute->tentative_audio_path ? route('uploads.show', ['path' => $minute->tentative_audio_path]) : null,
+            'tentative_audio_download_url' => $minute->tentative_audio_path ? route('uploads.show', ['path' => $minute->tentative_audio_path, 'download' => 1]) : null,
+            'tentative_audio_filename' => $minute->tentative_audio_path ? basename($minute->tentative_audio_path) : null,
+            'final_audio_url' => $minute->final_audio_path ? route('uploads.show', ['path' => $minute->final_audio_path]) : null,
+            'final_audio_download_url' => $minute->final_audio_path ? route('uploads.show', ['path' => $minute->final_audio_path, 'download' => 1]) : null,
+            'final_audio_filename' => $minute->final_audio_path ? basename($minute->final_audio_path) : null,
+            'meeting_video_url' => $minute->meeting_video_path ? route('uploads.show', ['path' => $minute->meeting_video_path]) : null,
+            'meeting_video_download_url' => $minute->meeting_video_path ? route('uploads.show', ['path' => $minute->meeting_video_path, 'download' => 1]) : null,
+            'meeting_video_filename' => $minute->meeting_video_path ? basename($minute->meeting_video_path) : null,
+            'script_file_url' => $minute->script_file_path ? route('uploads.show', ['path' => $minute->script_file_path]) : null,
+            'script_file_download_url' => $minute->script_file_path ? route('uploads.show', ['path' => $minute->script_file_path, 'download' => 1]) : null,
+            'script_file_filename' => $minute->script_file_path ? basename($minute->script_file_path) : null,
+            'recording_notes' => $minute->recording_notes,
+            'script_text' => $minute->script_text,
+            'recording_clips' => collect($minute->recording_clips ?? [])->map(fn ($path) => [
+                'url' => route('uploads.show', ['path' => $path]),
+                'download_url' => route('uploads.show', ['path' => $path, 'download' => 1]),
+                'filename' => basename($path),
+            ])->values()->all(),
+        ];
+    }
+
+    private function duplicateUpload(string $existingPath): ?string
+    {
+        if (!Storage::disk('public')->exists($existingPath)) {
+            return null;
+        }
+
+        $extension = pathinfo($existingPath, PATHINFO_EXTENSION);
+        $copyPath = 'uploads/' . uniqid('final-audio-', true) . ($extension ? '.' . $extension : '');
+
+        Storage::disk('public')->copy($existingPath, $copyPath);
+
+        return $copyPath;
     }
 }

@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $currentUser = auth()->user()?->name ?? '';
+@endphp
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
 
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -9,7 +12,7 @@
         <div class="flex items-center gap-3 px-4 py-4">
             <div class="text-lg font-semibold">NatGov</div>
             <div class="flex-1"></div>
-            <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+            <button type="button" data-open-add-panel @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                 </svg>
@@ -70,7 +73,7 @@
     {{-- ADD NATGOV SLIDER --}}
     <div x-cloak>
     <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
-    <div x-show="showAddPanel"
+    <div x-show="showAddPanel" data-add-panel
         class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
         x-transition:enter="transform transition ease-in-out duration-200"
         x-transition:enter-start="translate-x-full"
@@ -87,59 +90,109 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="p-6 overflow-y-auto space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="text-xs text-gray-600">Client</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Client">
+        <form method="POST" action="{{ route('natgov.store') }}" enctype="multipart/form-data" class="flex flex-1 flex-col">
+            @csrf
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
+                    JK&C internal-company details are pre-filled below. You can still adjust them before saving if needed.
                 </div>
-                <div>
-                    <label class="text-xs text-gray-600">TIN</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="TIN">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Govt Body/Agency</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Agency">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Registration Status</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Status">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Reg. Date</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Registration No.</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="REG-001">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Status</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Active">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Uploaded By</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Date Uploaded</label>
-                    <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Client</label>
+                        <input type="text" name="client" value="{{ old('client', $companyDefaults['client']) }}" data-company-default="{{ $companyDefaults['client'] }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Client">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">TIN</label>
+                        <input type="text" name="tin" value="{{ old('tin', $companyDefaults['tin']) }}" data-company-default="{{ $companyDefaults['tin'] }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="TIN">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Govt Body/Agency</label>
+                        <input type="text" name="agency" value="{{ old('agency') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Agency">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Registration Status</label>
+                        <input type="text" name="registration_status" value="{{ old('registration_status') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Status">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Reg. Date</label>
+                        <input type="date" name="registration_date" value="{{ old('registration_date') }}" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Registration No.</label>
+                        <input type="text" name="registration_no" value="{{ old('registration_no') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="REG-001">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Status</label>
+                        <input type="text" name="status" value="{{ old('status') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Active">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Uploaded By</label>
+                        <input type="text" name="uploaded_by" value="{{ old('uploaded_by', $currentUser) }}" data-default-field="current_user" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date Uploaded</label>
+                        <input type="date" name="date_uploaded" value="{{ old('date_uploaded') }}" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Upload Draft NatGov PDF</label>
+                        <input type="file" name="document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-white hover:file:bg-slate-800">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Upload Approved NatGov PDF</label>
+                        <input type="file" name="approved_document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
-            <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
-                Cancel
-            </button>
-            <div class="flex-1"></div>
-            <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="button">
-                Save NatGov
-            </button>
-        </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
+                    Cancel
+                </button>
+                <div class="flex-1"></div>
+                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="submit">
+                    Save NatGov
+                </button>
+            </div>
+        </form>
     </div>
     </div>
 
 </div>
 @endsection
+
+<script>
+    (function () {
+        const container = document.currentScript.closest('body');
+        const addButton = container.querySelector('[data-open-add-panel]');
+        const addPanel = container.querySelector('[data-add-panel]');
+        const today = new Date().toISOString().split('T')[0];
+        const currentUser = @js($currentUser);
+
+        const applyDefaults = () => {
+            if (!addPanel) return;
+
+            addPanel.querySelectorAll('[data-default-field="today"]').forEach((field) => {
+                if (!field.value) {
+                    field.value = today;
+                }
+            });
+
+            addPanel.querySelectorAll('[data-default-field="current_user"]').forEach((field) => {
+                if (!field.value) {
+                    field.value = currentUser;
+                }
+            });
+
+            addPanel.querySelectorAll('[data-company-default]').forEach((field) => {
+                if (!field.value) {
+                    field.value = field.dataset.companyDefault || '';
+                }
+            });
+        };
+
+        if (addButton) {
+            addButton.addEventListener('click', applyDefaults);
+        }
+    })();
+</script>
 
 

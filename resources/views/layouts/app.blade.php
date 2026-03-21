@@ -245,6 +245,48 @@ Accounting
 </div>
 
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script>
+    (() => {
+        const currentUser = @js(auth()->user()?->name ?? '');
+        const today = @js(now()->toDateString());
+
+        const isVisible = (element) => {
+            if (!element) {
+                return false;
+            }
+
+            return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+        };
+
+        const applyPanelDefaults = (root = document) => {
+            root.querySelectorAll('input[name="uploaded_by"], [data-default-field="current_user"]').forEach((field) => {
+                if (isVisible(field) && !field.value && currentUser) {
+                    field.value = currentUser;
+                }
+            });
+
+            root.querySelectorAll('input[type="text"]').forEach((field) => {
+                const label = field.closest('div')?.querySelector('label')?.textContent?.trim();
+                if (label === 'Uploaded By' && isVisible(field) && !field.value && currentUser) {
+                    field.value = currentUser;
+                }
+            });
+
+            root.querySelectorAll('[data-default-field="today"]').forEach((field) => {
+                if (isVisible(field) && !field.value) {
+                    field.value = today;
+                }
+            });
+        };
+
+        document.addEventListener('click', () => {
+            window.setTimeout(() => applyPanelDefaults(), 0);
+        });
+
+        document.addEventListener('focusin', () => applyPanelDefaults());
+        document.addEventListener('DOMContentLoaded', () => applyPanelDefaults());
+    })();
+</script>
 
 </body>
 </html>

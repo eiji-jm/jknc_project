@@ -10,6 +10,7 @@ use App\Http\Controllers\NatGovController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\ResolutionController;
 use App\Http\Controllers\SecretaryCertificateController;
+use App\Http\Controllers\UploadedFileController;
 use App\Http\Controllers\StockTransferCertificateController;
 use App\Http\Controllers\StockTransferInstallmentController;
 use App\Http\Controllers\StockTransferJournalController;
@@ -30,6 +31,10 @@ Route::post('/register',[RegisterController::class,'submit'])->name('register.po
 Route::post('/logout',[LoginController::class,'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
+
+    Route::get('/uploads/{path}', [UploadedFileController::class, 'show'])
+        ->where('path', '.*')
+        ->name('uploads.show');
 
     Route::get('/corporate',function(){
         return view('corporate.company-general-information');
@@ -74,9 +79,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'update'])->name('stock-transfer-book.journal.update');
     Route::delete('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'destroy'])->name('stock-transfer-book.journal.destroy');
 
-    Route::get('/stock-transfer-book/index', function () {
-        return view('corporate.stock-transfer-book.stb-index');
-    })->name('stock-transfer-book.index');
+    Route::get('/stock-transfer-book/index', [StockTransferLedgerController::class, 'indexPage'])->name('stock-transfer-book.index');
 
     Route::get('/stock-transfer-book/installment', [StockTransferInstallmentController::class, 'index'])->name('stock-transfer-book.installment');
     Route::get('/stock-transfer-book/installment/create', [StockTransferInstallmentController::class, 'create'])->name('stock-transfer-book.installment.create');
@@ -84,6 +87,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'show'])->name('stock-transfer-book.installment.show');
     Route::get('/stock-transfer-book/installment/{stockTransferInstallment}/edit', [StockTransferInstallmentController::class, 'edit'])->name('stock-transfer-book.installment.edit');
     Route::put('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'update'])->name('stock-transfer-book.installment.update');
+    Route::post('/stock-transfer-book/installment/{stockTransferInstallment}/cancel', [StockTransferInstallmentController::class, 'cancelInstallment'])->name('stock-transfer-book.installment.cancel');
     Route::delete('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'destroy'])->name('stock-transfer-book.installment.destroy');
 
     Route::get('/stock-transfer-book/certificates', [StockTransferCertificateController::class, 'index'])->name('stock-transfer-book.certificates');
@@ -95,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'destroy'])->name('stock-transfer-book.certificates.destroy');
 
     Route::get('/stock-transfer-book/lookup', [StockTransferLookupController::class, 'lookup'])->name('stock-transfer-book.lookup');
+    Route::get('/stock-transfer-book/defaults', [StockTransferLookupController::class, 'defaults'])->name('stock-transfer-book.defaults');
 
 });
 
@@ -114,6 +119,10 @@ Route::post('/minutes', [MinuteController::class, 'store'])->name('minutes.store
 Route::get('/minutes/{minute}', [MinuteController::class, 'show'])->name('minutes.preview');
 Route::get('/minutes/{minute}/edit', [MinuteController::class, 'edit'])->name('minutes.edit');
 Route::put('/minutes/{minute}', [MinuteController::class, 'update'])->name('minutes.update');
+Route::post('/minutes/{minute}/approve', [MinuteController::class, 'approve'])->name('minutes.approve');
+Route::post('/minutes/{minute}/workspace-save', [MinuteController::class, 'saveWorkspace'])->name('minutes.workspace-save');
+Route::post('/minutes/{minute}/final-audio', [MinuteController::class, 'saveFinalRecording'])->name('minutes.final-audio');
+Route::post('/minutes/{minute}/final-save', [MinuteController::class, 'saveFinalPreview'])->name('minutes.final-save');
 Route::delete('/minutes/{minute}', [MinuteController::class, 'destroy'])->name('minutes.destroy');
 
 // Resolutions
@@ -131,6 +140,7 @@ Route::get('/secretary-certificates/create', [SecretaryCertificateController::cl
 Route::post('/secretary-certificates', [SecretaryCertificateController::class, 'store'])->name('secretary-certificates.store');
 Route::get('/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'show'])->name('secretary-certificates.preview');
 Route::get('/secretary-certificates/{secretaryCertificate}/edit', [SecretaryCertificateController::class, 'edit'])->name('secretary-certificates.edit');
+Route::match(['post', 'put'], '/secretary-certificates/{secretaryCertificate}/edit', [SecretaryCertificateController::class, 'update']);
 Route::put('/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'update'])->name('secretary-certificates.update');
 Route::delete('/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'destroy'])->name('secretary-certificates.destroy');
 

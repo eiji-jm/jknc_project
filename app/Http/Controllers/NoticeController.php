@@ -12,7 +12,7 @@ class NoticeController extends Controller
 
     public function index()
     {
-        $notices = Notice::latest()->get();
+        $notices = Notice::with(['minutes', 'resolutions', 'secretaryCertificates'])->latest()->get();
 
         return view('corporate.notices.index', compact('notices'));
     }
@@ -41,6 +41,8 @@ class NoticeController extends Controller
 
     public function show(Notice $notice)
     {
+        $notice->load(['minutes', 'resolutions', 'secretaryCertificates']);
+
         return view('corporate.notices.preview', [
             'notice' => $notice,
         ]);
@@ -80,8 +82,8 @@ class NoticeController extends Controller
         return [
             ['name' => 'notice_number', 'label' => 'Notice Number', 'type' => 'text'],
             ['name' => 'date_of_notice', 'label' => 'Date of Notice', 'type' => 'date'],
-            ['name' => 'governing_body', 'label' => 'Governing Body', 'type' => 'text'],
-            ['name' => 'type_of_meeting', 'label' => 'Type of Meeting', 'type' => 'text'],
+            ['name' => 'governing_body', 'label' => 'Governing Body', 'type' => 'select', 'options' => $this->governingBodyOptions()],
+            ['name' => 'type_of_meeting', 'label' => 'Type of Meeting', 'type' => 'select', 'options' => $this->meetingTypeOptions()],
             ['name' => 'date_of_meeting', 'label' => 'Date of Meeting', 'type' => 'date'],
             ['name' => 'time_started', 'label' => 'Time Started', 'type' => 'time'],
             ['name' => 'location', 'label' => 'Location', 'type' => 'text'],
@@ -90,6 +92,8 @@ class NoticeController extends Controller
             ['name' => 'secretary', 'label' => 'Secretary', 'type' => 'text'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
             ['name' => 'date_updated', 'label' => 'Date Updated', 'type' => 'date'],
+            ['name' => 'body_html', 'label' => 'Notice Body', 'type' => 'textarea'],
+            ['name' => 'body_mode', 'label' => 'Body Mode', 'type' => 'select', 'options' => ['builder', 'upload']],
             ['name' => 'document_path', 'label' => 'Upload Notice (PDF)', 'type' => 'file'],
         ];
     }
@@ -109,7 +113,19 @@ class NoticeController extends Controller
             'secretary' => ['nullable', 'string', 'max:255'],
             'uploaded_by' => ['nullable', 'string', 'max:255'],
             'date_updated' => ['nullable', 'date'],
+            'body_html' => ['nullable', 'string'],
+            'body_mode' => ['nullable', 'string', 'max:50'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function governingBodyOptions(): array
+    {
+        return ['Stockholders', 'Board of Directors', 'Joint Stockholders and Board of Directors'];
+    }
+
+    private function meetingTypeOptions(): array
+    {
+        return ['Regular', 'Special'];
     }
 }

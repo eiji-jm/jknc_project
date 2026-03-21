@@ -4,22 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
+use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
+use App\Models\Contact;
 use Illuminate\Http\Request;
 
 class StockTransferLedgerController extends Controller
 {
     use HandlesUploads;
     use MatchesShareholder;
+    use GeneratesStockTransferIds;
+
+    public function indexPage()
+    {
+        $ledgers = StockTransferLedger::latest()->get();
+        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
+
+        return view('corporate.stock-transfer-book.stb-index', compact('ledgers', 'contacts'));
+    }
 
     public function index()
     {
         $ledgers = StockTransferLedger::latest()->get();
+        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
 
-        return view('corporate.stock-transfer-book.ledger', compact('ledgers'));
+        return view('corporate.stock-transfer-book.ledger', compact('ledgers', 'contacts'));
     }
 
     public function create()
@@ -38,6 +50,28 @@ class StockTransferLedgerController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['status'] = $data['status'] ?? 'active';
+
+        $contact = $this->resolveContact($data['first_name'] ?? null, $data['middle_name'] ?? null, $data['family_name'] ?? null);
+        if (!$contact) {
+            return back()->withErrors([
+                'first_name' => 'Stockholder must exist in Contacts before adding to Index.',
+            ])->withInput();
+        }
+
+        if (empty($data['certificate_no'])) {
+            $data['certificate_no'] = $this->nextStockNumber();
+        }
+
+        // Auto-fill contact details when missing.
+        $data['email'] = $data['email'] ?: $contact->email;
+        $data['nationality'] = $data['nationality'] ?: $contact->nationality;
+        $data['address'] = $data['address'] ?: $contact->address;
+        $data['tin'] = $data['tin'] ?: $contact->tax_id;
+
+        if (empty($data['date_registered'])) {
+            $data['date_registered'] = now()->toDateString();
+        }
 
         StockTransferLedger::create($data);
 
@@ -60,7 +94,7 @@ class StockTransferLedgerController extends Controller
             })
             ->where(function ($query) {
                 $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation']);
+                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
@@ -160,5 +194,18 @@ class StockTransferLedgerController extends Controller
             'status' => ['nullable', 'string', 'max:255'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function resolveContact(?string $firstName, ?string $middleName, ?string $familyName): ?Contact
+    {
+        $name = trim(collect([$firstName, $middleName, $familyName])->filter()->implode(' '));
+        if ($name === '') {
+            return null;
+        }
+
+        $query = Contact::query();
+        $this->applyNameTokens($query, $name, ['name']);
+
+        return $query->first();
     }
 }

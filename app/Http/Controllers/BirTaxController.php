@@ -14,7 +14,10 @@ class BirTaxController extends Controller
     {
         $taxes = BirTax::latest()->get();
 
-        return view('corporate.bir-tax.index', compact('taxes'));
+        return view('corporate.bir-tax.index', [
+            'taxes' => $taxes,
+            'companyDefaults' => $this->companyDefaults(),
+        ]);
     }
 
     public function create()
@@ -33,6 +36,7 @@ class BirTaxController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
 
         BirTax::create($data);
 
@@ -46,6 +50,7 @@ class BirTaxController extends Controller
             'backRoute' => route('bir-tax'),
             'editRoute' => route('bir-tax.edit', $birTax),
             'deleteRoute' => route('bir-tax.destroy', $birTax),
+            'updateRoute' => route('bir-tax.update', $birTax),
         ]);
     }
 
@@ -65,6 +70,7 @@ class BirTaxController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $birTax->document_path);
+        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $birTax->approved_document_path);
 
         $birTax->update($data);
 
@@ -91,7 +97,8 @@ class BirTaxController extends Controller
             ['name' => 'due_date', 'label' => 'Due Date', 'type' => 'date'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
             ['name' => 'date_uploaded', 'label' => 'Date Uploaded', 'type' => 'date'],
-            ['name' => 'document_path', 'label' => 'Upload BIR & Tax Document (PDF)', 'type' => 'file'],
+            ['name' => 'document_path', 'label' => 'Upload Draft BIR & Tax Document (PDF)', 'type' => 'file'],
+            ['name' => 'approved_document_path', 'label' => 'Upload Approved BIR & Tax Document (PDF)', 'type' => 'file'],
         ];
     }
 
@@ -109,6 +116,16 @@ class BirTaxController extends Controller
             'uploaded_by' => ['nullable', 'string', 'max:255'],
             'date_uploaded' => ['nullable', 'date'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'approved_document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function companyDefaults(): array
+    {
+        return [
+            'tax_payer' => 'JK&C Group of Companies',
+            'tin' => '000-000-000-000',
+            'registered_address' => 'JK&C Corporate Office',
+        ];
     }
 }

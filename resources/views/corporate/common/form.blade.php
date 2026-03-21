@@ -62,7 +62,13 @@
                         @elseif ($isFile)
                             <input type="file" name="{{ $fieldName }}" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700">
                             @if ($value)
-                                <p class="text-xs text-gray-500 mt-2">Existing file stored.</p>
+                                <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                                    <p class="text-xs text-gray-700">Existing file stored.</p>
+                                    <label class="mt-2 inline-flex items-center gap-2 text-xs font-medium text-red-700">
+                                        <input type="checkbox" name="remove_{{ $fieldName }}" value="1" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                        Remove current file
+                                    </label>
+                                </div>
                             @endif
                         @else
                             <input

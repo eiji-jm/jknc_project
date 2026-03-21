@@ -6,10 +6,13 @@ use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
+use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use Illuminate\Http\Request;
 
 class StockTransferLookupController extends Controller
 {
+    use GeneratesStockTransferIds;
+
     public function lookup(Request $request)
     {
         $key = trim((string) $request->query('key', ''));
@@ -93,8 +96,18 @@ class StockTransferLookupController extends Controller
                 'no_installments' => $installment->no_installments,
                 'total_value' => $installment->total_value,
                 'installment_amount' => $installment->installment_amount,
-                'status' => $installment->status,
+                'status' => $installment->payment_status,
             ] : null,
+        ]);
+    }
+
+    public function defaults()
+    {
+        return response()->json([
+            'today' => now()->toDateString(),
+            'journal_no' => $this->nextJournalNo(),
+            'ledger_folio' => $this->nextLedgerFolio(),
+            'stock_number' => $this->nextStockNumber(),
         ]);
     }
 }

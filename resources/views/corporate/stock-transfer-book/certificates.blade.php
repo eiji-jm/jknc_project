@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@php($currentUser = auth()->user()?->name ?? '')
+
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedCert: null, showAddPanel: false, showRequestPanel: false, activeTab: 'stock' }" @keydown.escape.window="showAddPanel = false; showRequestPanel = false">
 
@@ -16,7 +18,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button type="button" data-open-add-panel @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -52,10 +54,15 @@
             >Certificate Voucher</button>
         </div>
 
+        {{-- SEARCH --}}
+        <div x-show="!showPreview" class="px-4 py-4 bg-gray-50 border-b border-gray-100">
+            <input type="text" id="certificate-search" placeholder="Search certificates..." class="w-full rounded-md border border-gray-300 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 px-3 py-2 text-sm" />
+        </div>
+
         {{-- CERTIFICATE STOCK TABLE VIEW --}}
         <div x-show="!showPreview && activeTab === 'stock'" class="p-4">
             <div class="overflow-auto">
-                <table class="min-w-full">
+                <table class="min-w-full" id="certificate-stock-table">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Uploaded</th>
@@ -74,9 +81,9 @@
                             
                         </tr>
                     </thead>
-                    <tbody class="text-sm text-gray-900">
+                    <tbody class="text-sm text-gray-900" id="certificate-stock-body">
     @forelse ($certificates as $certificate)
-        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.certificates.show', $certificate) }}'">
+        <tr data-search-row class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.certificates.show', $certificate) }}'">
             <td class="px-4 py-3">{{ optional($certificate->date_uploaded)->format('M d, Y') }}</td>
             <td class="px-4 py-3">{{ $certificate->uploaded_by }}</td>
             <td class="px-4 py-3">{{ $certificate->corporation_name }}</td>
@@ -92,7 +99,7 @@
             <td class="px-4 py-3">{{ $certificate->corporate_secretary }}</td>
         </tr>
     @empty
-        <tr>
+        <tr data-empty-row>
             <td colspan="13" class="px-4 py-6 text-center text-sm text-gray-500">No certificates found.</td>
         </tr>
     @endforelse
@@ -104,7 +111,7 @@
         {{-- CERTIFICATE VOUCHER TABLE VIEW --}}
         <div x-show="!showPreview && activeTab === 'voucher'" class="p-4">
             <div class="overflow-auto">
-                <table class="min-w-full">
+                <table class="min-w-full" id="certificate-voucher-table">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Uploaded</th>
@@ -126,10 +133,34 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="text-sm text-gray-900">
-                        <tr>
-                            <td colspan="17" class="px-4 py-6 text-center text-sm text-gray-500">No certificate vouchers found.</td>
-                        </tr>
+                    <tbody class="text-sm text-gray-900" id="certificate-voucher-body">
+                        @forelse ($certificates as $certificate)
+                            <tr data-search-row class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3">{{ optional($certificate->date_uploaded)->format('M d, Y') }}</td>
+                                <td class="px-4 py-3">{{ $certificate->uploaded_by }}</td>
+                                <td class="px-4 py-3">{{ $certificate->corporation_name }}</td>
+                                <td class="px-4 py-3">{{ $certificate->company_reg_no }}</td>
+                                <td class="px-4 py-3">{{ $certificate->stock_number }}</td>
+                                <td class="px-4 py-3">{{ $certificate->stockholder_name }}</td>
+                                <td class="px-4 py-3">{{ $certificate->par_value }}</td>
+                                <td class="px-4 py-3">{{ $certificate->number }}</td>
+                                <td class="px-4 py-3">{{ $certificate->amount }}</td>
+                                <td class="px-4 py-3">{{ $certificate->amount_in_words }}</td>
+                                <td class="px-4 py-3">{{ optional($certificate->date_issued)->format('M d, Y') }}</td>
+                                <td class="px-4 py-3">{{ $certificate->president }}</td>
+                                <td class="px-4 py-3">{{ $certificate->corporate_secretary }}</td>
+                                <td class="px-4 py-3">{{ $certificate->stockholder_name }}</td>
+                                <td class="px-4 py-3">Stockholder</td>
+                                <td class="px-4 py-3">{{ optional($certificate->date_issued)->format('M d, Y') }}</td>
+                                <td class="px-4 py-3">
+                                    <a href="{{ route('stock-transfer-book.certificates.show', $certificate) }}" class="text-blue-600 hover:text-blue-700 text-xs font-medium">View</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr data-empty-row>
+                                <td colspan="17" class="px-4 py-6 text-center text-sm text-gray-500">No certificate vouchers found.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -142,7 +173,7 @@
                     <h3 class="text-sm font-semibold text-gray-900">Request for Issuance</h3>
                     <span class="text-xs text-gray-500">New COS, Loss COS, Damage COS, Digital Copy of COS, Certified True Copy of CV</span>
                     <div class="flex-1"></div>
-                    <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700" type="button" @click="showRequestPanel = true">
+                    <button data-open-request-panel class="px-3 py-1.5 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700" type="button" @click="showRequestPanel = true">
                         Add Stockholder Request
                     </button>
                 </div>
@@ -338,7 +369,7 @@
     {{-- ADD CERTIFICATE SLIDER --}}
     <div x-cloak>
         <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
-        <div x-show="showAddPanel"
+        <div x-show="showAddPanel" data-add-panel
             class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
             x-transition:enter="transform transition ease-in-out duration-200"
             x-transition:enter-start="translate-x-full"
@@ -355,78 +386,83 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-4">
+            <form method="POST" action="{{ route('stock-transfer-book.certificates.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
+                @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Date Uploaded</label>
-                        <input type="date" data-autofill-field="date_uploaded" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" name="date_uploaded" data-autofill-field="date_uploaded" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Uploaded By</label>
-                        <input type="text" data-autofill-field="uploaded_by" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader name">
+                        <input type="text" name="uploaded_by" value="{{ $currentUser }}" data-autofill-field="uploaded_by" data-default-field="current_user" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Uploader name">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Corporation Name</label>
-                        <input type="text" data-autofill-field="corporation_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Corporation name">
+                        <input type="text" name="corporation_name" data-autofill-field="corporation_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Corporation name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Company Reg. No.</label>
-                        <input type="text" data-autofill-field="company_reg_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="12345-ABC">
+                        <input type="text" name="company_reg_no" data-autofill-field="company_reg_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="12345-ABC">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Stock Number</label>
-                        <input type="text" data-autofill-key data-autofill-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                        <input type="text" name="stock_number" data-autofill-key data-autofill-field="stock_number" data-default-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Name of Stockholder</label>
-                        <input type="text" data-autofill-field="stockholder_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Stockholder name">
+                        <input type="text" name="stockholder_name" list="index-shareholders" data-autofill-field="stockholder_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Stockholder name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">PAR</label>
-                        <input type="text" data-autofill-field="par_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100">
+                        <input type="text" name="par_value" data-autofill-field="par_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Number</label>
-                        <input type="number" data-autofill-field="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        <input type="number" name="number" data-autofill-field="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Amount (PhP)</label>
-                        <input type="text" data-autofill-field="amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
+                        <input type="text" name="amount" data-autofill-field="amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100,000.00">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Amount in words</label>
-                        <input type="text" data-autofill-field="amount_in_words" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="One Hundred Thousand Pesos">
+                        <input type="text" name="amount_in_words" data-autofill-field="amount_in_words" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="One Hundred Thousand Pesos">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Issued</label>
-                        <input type="date" data-autofill-field="date_issued" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" name="date_issued" data-autofill-field="date_issued" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">President</label>
-                        <input type="text" data-autofill-field="president" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="President name">
+                        <input type="text" name="president" data-autofill-field="president" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="President name">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Corporate Secretary</label>
-                        <input type="text" data-autofill-field="corporate_secretary" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Secretary name">
+                        <input type="text" name="corporate_secretary" data-autofill-field="corporate_secretary" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Secretary name">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Upload Document (PDF)</label>
+                        <input type="file" name="document_path" class="mt-1 block w-full text-sm text-gray-600">
                     </div>
                 </div>
-            </div>
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
-                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
-                    Cancel
-                </button>
-                <div class="flex-1"></div>
-                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
-                    Save Certificate
-                </button>
-            </div>
+                <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2 -mx-6 -mb-6 mt-4">
+                    <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
+                        Cancel
+                    </button>
+                    <div class="flex-1"></div>
+                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="submit">
+                        Save Certificate
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     {{-- ADD REQUEST FOR ISSUANCE SLIDER --}}
     <div x-cloak>
         <div x-show="showRequestPanel" class="fixed inset-0 bg-black/40 z-40" @click="showRequestPanel = false"></div>
-        <div x-show="showRequestPanel"
+        <div x-show="showRequestPanel" data-request-panel
             class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
             x-transition:enter="transform transition ease-in-out duration-200"
             x-transition:enter-start="translate-x-full"
@@ -451,7 +487,7 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Requested</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="date" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Time</label>
@@ -504,22 +540,63 @@
 </div>
 @endsection
 
+<datalist id="index-shareholders">
+    @foreach (($indexShareholders ?? collect()) as $name)
+        <option value="{{ $name }}"></option>
+    @endforeach
+</datalist>
+
 <script>
+    // Filter both certificate tables using only their real data rows.
+    (function () {
+        const searchInput = document.getElementById('certificate-search');
+        const stockBody = document.getElementById('certificate-stock-body');
+        const voucherBody = document.getElementById('certificate-voucher-body');
+        if (!searchInput || (!stockBody && !voucherBody)) return;
+
+        const filterBody = (body, query) => {
+            if (!body) return;
+            const rows = Array.from(body.querySelectorAll('[data-search-row]'));
+            const emptyRow = body.querySelector('[data-empty-row]');
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const matches = query === '' || row.textContent.toLowerCase().includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) {
+                    visibleCount += 1;
+                }
+            });
+
+            if (emptyRow) {
+                emptyRow.style.display = rows.length === 0 || visibleCount === 0 ? '' : 'none';
+            }
+        };
+
+        const applyFilter = () => {
+            const query = searchInput.value.trim().toLowerCase();
+            filterBody(stockBody, query);
+            filterBody(voucherBody, query);
+        };
+
+        searchInput.addEventListener('input', applyFilter);
+        applyFilter();
+    })();
+
     (function () {
         const endpoint = "{{ route('stock-transfer-book.lookup') }}";
+        const defaultsEndpoint = "{{ route('stock-transfer-book.defaults') }}";
         const container = document.currentScript.closest('body');
         const keyInput = container.querySelector('[data-autofill-key]');
-        if (!keyInput) return;
 
         const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
+        const today = new Date().toISOString().split('T')[0];
 
         const valueFrom = (field, data) => {
             const cert = data.certificate || {};
             switch (field) {
                 case 'date_uploaded':
                     return cert.date_uploaded || '';
-                case 'uploaded_by':
-                    return cert.uploaded_by || '';
                 case 'corporation_name':
                     return cert.corporation_name || '';
                 case 'company_reg_no':
@@ -566,8 +643,66 @@
             }
         };
 
-        keyInput.addEventListener('change', runLookup);
-        keyInput.addEventListener('blur', runLookup);
+        if (keyInput) {
+            keyInput.addEventListener('change', runLookup);
+            keyInput.addEventListener('blur', runLookup);
+        }
+
+        const addPanel = container.querySelector('[data-add-panel]');
+        const requestButton = container.querySelector('[data-open-request-panel]');
+        const requestPanel = container.querySelector('[data-request-panel]');
+        const applyDefaults = (panel, defaults = {}) => {
+            if (!panel) return;
+
+            panel.querySelectorAll('[data-default-field]').forEach((field) => {
+                const key = field.getAttribute('data-default-field');
+                if (!key) return;
+
+                if (key in defaults && defaults[key] !== null && defaults[key] !== undefined && defaults[key] !== '') {
+                    field.value = defaults[key];
+                    return;
+                }
+
+                if (key === 'today' && !field.value) {
+                    field.value = today;
+                    return;
+                }
+
+                if (key === 'current_user' && !field.value) {
+                    field.value = @js($currentUser);
+                }
+            });
+        };
+
+        const addButton = container.querySelector('[data-open-add-panel]');
+        if (addButton && addPanel) {
+            addButton.addEventListener('click', async () => {
+                applyDefaults(addPanel);
+
+                try {
+                    const res = await fetch(defaultsEndpoint);
+                    if (!res.ok) return;
+                    const defaults = await res.json();
+                    applyDefaults(addPanel, defaults);
+                } catch (e) {
+                    // ignore defaults errors
+                }
+            });
+        }
+
+        if (requestButton && requestPanel) {
+            requestButton.addEventListener('click', async () => {
+                applyDefaults(requestPanel);
+
+                try {
+                    const res = await fetch(defaultsEndpoint);
+                    if (!res.ok) return;
+                    const defaults = await res.json();
+                    applyDefaults(requestPanel, defaults);
+                } catch (e) {
+                    // ignore defaults errors
+                }
+            });
+        }
     })();
 </script>
-

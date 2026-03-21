@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
+use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
@@ -14,12 +15,22 @@ class StockTransferCertificateController extends Controller
 {
     use HandlesUploads;
     use MatchesShareholder;
+    use GeneratesStockTransferIds;
 
     public function index()
     {
         $certificates = StockTransferCertificate::latest()->get();
 
-        return view('corporate.stock-transfer-book.certificates', compact('certificates'));
+        $indexShareholders = StockTransferLedger::query()
+            ->get(['first_name', 'middle_name', 'family_name'])
+            ->map(function ($ledger) {
+                return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        return view('corporate.stock-transfer-book.certificates', compact('certificates', 'indexShareholders'));
     }
 
     public function create()
@@ -38,6 +49,62 @@ class StockTransferCertificateController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['status'] = $data['status'] ?? 'active';
+
+        $ledger = $this->resolveLedger($data['stock_number'] ?? null, $data['stockholder_name'] ?? null);
+        if (!$ledger) {
+            return back()->withErrors([
+                'stock_number' => 'Stockholder must exist in the Index before issuing a certificate.',
+            ])->withInput();
+        }
+
+        if (empty($data['stock_number'])) {
+            $data['stock_number'] = $ledger->certificate_no ?: $this->nextStockNumber();
+            if (!$ledger->certificate_no) {
+                $ledger->certificate_no = $data['stock_number'];
+                $ledger->save();
+            }
+        }
+
+        if (empty($data['stockholder_name'])) {
+            $data['stockholder_name'] = trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+        }
+
+        if (empty($data['date_uploaded'])) {
+            $data['date_uploaded'] = now()->toDateString();
+        }
+
+        if (empty($data['date_issued'])) {
+            $data['date_issued'] = now()->toDateString();
+        }
+
+        if (empty($data['number']) && $ledger->shares) {
+            $data['number'] = $ledger->shares;
+        }
+
+        $installment = null;
+        if (!empty($data['stock_number'])) {
+            $installment = StockTransferInstallment::query()
+                ->where('stock_number', $data['stock_number'])
+                ->latest()
+                ->first();
+        }
+
+        if ($installment && !$installment->isFullyPaid()) {
+            return back()->withErrors([
+                'stock_number' => 'Cannot issue certificate: installment is not fully paid.',
+            ])->withInput();
+        }
+
+        if ($installment && $installment->certificate && $installment->certificate->status !== 'voided') {
+            return back()->withErrors([
+                'stock_number' => 'Cannot issue certificate: an active certificate already exists for this installment.',
+            ])->withInput();
+        }
+
+        if ($installment) {
+            $data['installment_id'] = $installment->id;
+        }
 
         StockTransferCertificate::create($data);
 
@@ -58,7 +125,7 @@ class StockTransferCertificateController extends Controller
             })
             ->where(function ($query) {
                 $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation']);
+                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
@@ -117,9 +184,10 @@ class StockTransferCertificateController extends Controller
 
     public function destroy(StockTransferCertificate $stockTransferCertificate)
     {
-        $stockTransferCertificate->delete();
+        $stockTransferCertificate->status = 'voided';
+        $stockTransferCertificate->save();
 
-        return redirect()->route('stock-transfer-book.certificates')->with('success', 'Certificate deleted.');
+        return redirect()->route('stock-transfer-book.certificates')->with('success', 'Certificate voided.');
     }
 
     private function fields(): array
@@ -158,7 +226,21 @@ class StockTransferCertificateController extends Controller
             'date_issued' => ['nullable', 'date'],
             'president' => ['nullable', 'string', 'max:255'],
             'corporate_secretary' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'in:active,cancelled,voided,completed'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function resolveLedger(?string $stockNumber, ?string $stockholderName): ?StockTransferLedger
+    {
+        $query = StockTransferLedger::query();
+        $query->where(function ($sub) use ($stockNumber, $stockholderName) {
+            if ($stockNumber) {
+                $sub->orWhere('certificate_no', $stockNumber);
+            }
+            $this->applyNameTokens($sub, $stockholderName, ['first_name', 'middle_name', 'family_name']);
+        });
+
+        return $query->first();
     }
 }

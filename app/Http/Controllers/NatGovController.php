@@ -14,7 +14,10 @@ class NatGovController extends Controller
     {
         $natgovs = NatGov::latest()->get();
 
-        return view('corporate.natgov.index', compact('natgovs'));
+        return view('corporate.natgov.index', [
+            'natgovs' => $natgovs,
+            'companyDefaults' => $this->companyDefaults(),
+        ]);
     }
 
     public function create()
@@ -33,6 +36,7 @@ class NatGovController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
 
         NatGov::create($data);
 
@@ -46,6 +50,7 @@ class NatGovController extends Controller
             'backRoute' => route('natgov'),
             'editRoute' => route('natgov.edit', $natgov),
             'deleteRoute' => route('natgov.destroy', $natgov),
+            'updateRoute' => route('natgov.update', $natgov),
         ]);
     }
 
@@ -65,6 +70,7 @@ class NatGovController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $natgov->document_path);
+        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $natgov->approved_document_path);
 
         $natgov->update($data);
 
@@ -90,7 +96,8 @@ class NatGovController extends Controller
             ['name' => 'status', 'label' => 'Status', 'type' => 'text'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
             ['name' => 'date_uploaded', 'label' => 'Date Uploaded', 'type' => 'date'],
-            ['name' => 'document_path', 'label' => 'Upload NatGov Document (PDF)', 'type' => 'file'],
+            ['name' => 'document_path', 'label' => 'Upload Draft NatGov Document (PDF)', 'type' => 'file'],
+            ['name' => 'approved_document_path', 'label' => 'Upload Approved NatGov Document (PDF)', 'type' => 'file'],
         ];
     }
 
@@ -107,6 +114,15 @@ class NatGovController extends Controller
             'uploaded_by' => ['nullable', 'string', 'max:255'],
             'date_uploaded' => ['nullable', 'date'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'approved_document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function companyDefaults(): array
+    {
+        return [
+            'client' => 'JK&C Group of Companies',
+            'tin' => '000-000-000-000',
+        ];
     }
 }

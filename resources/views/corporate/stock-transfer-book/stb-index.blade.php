@@ -13,7 +13,7 @@
             <div class="text-lg font-semibold">Index</div>
 
             <div class="flex-1"></div>
-            <button @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+            <button type="button" data-open-add-panel @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                 </svg>
@@ -40,7 +40,7 @@
         {{-- INDEX TABLE --}}
         <div class="p-4">
             <div class="overflow-auto">
-                <table class="min-w-full">
+                <table class="min-w-full" id="index-table">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Index</th>
@@ -53,42 +53,21 @@
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900" id="index-table-body">
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <td class="px-4 py-3 font-medium">1</td>
-                            <td class="px-4 py-3">Kelly</td>
-                            <td class="px-4 py-3">John</td>
-                            <td class="px-4 py-3">Michael</td>
-                            <td class="px-4 py-3">Filipino</td>
-                            <td class="px-4 py-3">1234 Elm Street, Ayala</td>
-                            <td class="px-4 py-3">123-45-6789</td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <td class="px-4 py-3 font-medium">2</td>
-                            <td class="px-4 py-3">Rodriguez</td>
-                            <td class="px-4 py-3">Carmen</td>
-                            <td class="px-4 py-3">Maria</td>
-                            <td class="px-4 py-3">Filipino</td>
-                            <td class="px-4 py-3">5678 Oak Avenue, Makati</td>
-                            <td class="px-4 py-3">456-78-9012</td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <td class="px-4 py-3 font-medium">3</td>
-                            <td class="px-4 py-3">Santos</td>
-                            <td class="px-4 py-3">Miguel</td>
-                            <td class="px-4 py-3">Antonio</td>
-                            <td class="px-4 py-3">Filipino</td>
-                            <td class="px-4 py-3">9012 Cedar Road, BGC</td>
-                            <td class="px-4 py-3">234-56-7890</td>
-                        </tr>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
-                            <td class="px-4 py-3 font-medium">4</td>
-                            <td class="px-4 py-3">Thompson</td>
-                            <td class="px-4 py-3">Elizabeth</td>
-                            <td class="px-4 py-3">Anne</td>
-                            <td class="px-4 py-3">American</td>
-                            <td class="px-4 py-3">3456 Maple Drive, Ortigas</td>
-                            <td class="px-4 py-3">567-89-0123</td>
-                        </tr>
+                        @forelse ($ledgers as $index => $ledger)
+                            <tr data-search-row class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.ledger.show', $ledger) }}'">
+                                <td class="px-4 py-3 font-medium">{{ $index + 1 }}</td>
+                                <td class="px-4 py-3">{{ $ledger->family_name }}</td>
+                                <td class="px-4 py-3">{{ $ledger->first_name }}</td>
+                                <td class="px-4 py-3">{{ $ledger->middle_name }}</td>
+                                <td class="px-4 py-3">{{ $ledger->nationality }}</td>
+                                <td class="px-4 py-3">{{ $ledger->address }}</td>
+                                <td class="px-4 py-3">{{ $ledger->tin }}</td>
+                            </tr>
+                        @empty
+                            <tr data-empty-row>
+                                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">No index entries found.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -99,7 +78,7 @@
     {{-- ADD INDEX SLIDER --}}
     <div x-cloak>
         <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
-        <div x-show="showAddPanel"
+        <div x-show="showAddPanel" data-add-panel
             class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
             x-transition:enter="transform transition ease-in-out duration-200"
             x-transition:enter-start="translate-x-full"
@@ -116,69 +95,249 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form method="POST" action="{{ route('stock-transfer-book.ledger.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
+                @csrf
+                <div class="space-y-4">
                     <div>
-                        <label class="text-xs text-gray-600">Family Name</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter family name">
+                        <input type="text" data-contact-search class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Search contacts...">
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-600">First Name</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter first name">
+
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4" data-contact-empty>
+                        <div class="text-sm text-gray-500">No contact selected.</div>
+                        <a href="{{ route('contacts') }}" class="mt-3 inline-flex items-center rounded-lg border border-blue-600 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">
+                            Go to Contacts
+                        </a>
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Middle Name</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter middle name">
+
+                    <div class="hidden rounded-xl border border-gray-200 bg-white p-4" data-contact-card>
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-900" data-contact-name></div>
+                                <div class="text-xs text-gray-500" data-contact-email></div>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Nationality</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter nationality">
+
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-600">Family Name</label>
+                            <input type="text" name="family_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">First Name</label>
+                            <input type="text" name="first_name_display" disabled class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Middle Name</label>
+                            <input type="text" name="middle_name_display" disabled class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Nationality</label>
+                            <input type="text" name="nationality" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Specific Residential Address</label>
+                            <input type="text" name="address" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Date Registered</label>
+                            <input type="date" name="date_registered" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Tax Identification No.</label>
+                            <input type="text" name="tin" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Email</label>
+                            <input type="email" name="email_display" disabled class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Phone</label>
+                            <input type="text" name="phone" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Number of Shares</label>
+                            <input type="number" name="shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Certificate No.</label>
+                            <input type="text" name="certificate_no" data-default-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Status</label>
+                            <input type="text" name="status" value="active" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs text-gray-600">Current Address</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter current address">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">TIN</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter TIN">
-                    </div>
+
+                    <input type="hidden" name="first_name" data-contact-first>
+                    <input type="hidden" name="middle_name" data-contact-middle>
+                    <input type="hidden" name="email" data-contact-email-input>
                 </div>
-            </div>
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
-                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
-                    Cancel
-                </button>
-                <div class="flex-1"></div>
-                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
-                    Save Index
-                </button>
-            </div>
+                <div class="mt-6 flex items-center gap-2 border-t border-gray-100 px-0 pt-4">
+                    <div class="flex-1"></div>
+                    <button type="button" class="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-300" @click="showAddPanel = false">
+                        Cancel
+                    </button>
+                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                        Add
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
 </div>
 
 <script>
-    // Search functionality
-    const searchInput = document.getElementById('index-search');
-    const tableBody = document.getElementById('index-table-body');
-    const rows = tableBody.querySelectorAll('tr');
+    (function () {
+        const searchInput = document.getElementById('index-search');
+        const tableBody = document.getElementById('index-table-body');
+        if (!searchInput || !tableBody) return;
 
-    searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim().toLowerCase();
+        const filterRows = () => {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = Array.from(tableBody.querySelectorAll('[data-search-row]'));
+            const emptyRow = tableBody.querySelector('[data-empty-row]');
+            let visibleCount = 0;
 
-        rows.forEach(row => {
-            const familyName = row.querySelector('td:nth-child(2)');
-            const firstName = row.querySelector('td:nth-child(3)');
-            const name = (familyName?.textContent + ' ' + firstName?.textContent).toLowerCase();
+            rows.forEach((row) => {
+                const matches = query === '' || row.textContent.toLowerCase().includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) {
+                    visibleCount += 1;
+                }
+            });
 
-            if (query === '' || name.includes(query)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+            if (emptyRow) {
+                emptyRow.style.display = rows.length === 0 || visibleCount === 0 ? '' : 'none';
             }
-        });
-    });
+        };
+
+        searchInput.addEventListener('input', filterRows);
+        filterRows();
+    })();
+
+    (function () {
+        const contacts = @json($contacts ?? []);
+        const container = document.currentScript.closest('body');
+        const searchInput = container.querySelector('[data-contact-search]');
+        const emptyState = container.querySelector('[data-contact-empty]');
+        const card = container.querySelector('[data-contact-card]');
+        const cardName = container.querySelector('[data-contact-name]');
+        const cardEmail = container.querySelector('[data-contact-email]');
+        const firstInput = container.querySelector('[data-contact-first]');
+        const middleInput = container.querySelector('[data-contact-middle]');
+        const emailInput = container.querySelector('[data-contact-email-input]');
+        const familyNameInput = container.querySelector('[name="family_name"]');
+        const firstNameDisplay = container.querySelector('[name="first_name_display"]');
+        const middleNameDisplay = container.querySelector('[name="middle_name_display"]');
+        const emailDisplay = container.querySelector('[name="email_display"]');
+        const nationalityInput = container.querySelector('[name="nationality"]');
+        const addressInput = container.querySelector('[name="address"]');
+        const tinInput = container.querySelector('[name="tin"]');
+        const addPanel = container.querySelector('[data-add-panel]');
+
+        const splitName = (name) => {
+            if (!name) return { first: '', middle: '', last: '' };
+            if (name.includes(',')) {
+                const [last, rest] = name.split(',').map((part) => part.trim());
+                const parts = rest.split(' ').filter(Boolean);
+                return { first: parts[0] || '', middle: parts.slice(1).join(' '), last: last || '' };
+            }
+            const parts = name.split(' ').filter(Boolean);
+            return {
+                first: parts[0] || '',
+                middle: parts.slice(1, -1).join(' '),
+                last: parts.length > 1 ? parts[parts.length - 1] : '',
+            };
+        };
+
+        const list = document.createElement('div');
+        list.className = 'max-h-48 overflow-auto rounded-xl border border-gray-200 bg-white';
+        list.style.display = 'none';
+        searchInput?.parentElement?.appendChild(list);
+
+        const renderList = (items) => {
+            list.innerHTML = '';
+            if (!items.length) {
+                list.style.display = 'none';
+                return;
+            }
+            items.forEach((contact) => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'w-full border-b border-gray-100 px-3 py-2 text-left last:border-b-0 hover:bg-gray-50';
+                row.innerHTML = `<div class="text-sm font-medium text-gray-900">${contact.name}</div><div class="text-xs text-gray-500">${contact.email || ''}</div>`;
+                row.addEventListener('click', () => {
+                    const nameParts = splitName(contact.name);
+                    firstInput.value = nameParts.first;
+                    middleInput.value = nameParts.middle;
+                    emailInput.value = contact.email || '';
+                    if (familyNameInput && !familyNameInput.value) {
+                        familyNameInput.value = nameParts.last;
+                    }
+                    if (firstNameDisplay) {
+                        firstNameDisplay.value = nameParts.first;
+                    }
+                    if (middleNameDisplay) {
+                        middleNameDisplay.value = nameParts.middle;
+                    }
+                    if (emailDisplay) {
+                        emailDisplay.value = contact.email || '';
+                    }
+                    if (nationalityInput && !nationalityInput.value) {
+                        nationalityInput.value = contact.nationality || '';
+                    }
+                    if (addressInput && !addressInput.value) {
+                        addressInput.value = contact.address || '';
+                    }
+                    if (tinInput && !tinInput.value) {
+                        tinInput.value = contact.tax_id || '';
+                    }
+                    cardName.textContent = contact.name;
+                    cardEmail.textContent = contact.email || '';
+                    card.classList.remove('hidden');
+                    emptyState.classList.add('hidden');
+                    list.style.display = 'none';
+                });
+                list.appendChild(row);
+            });
+            list.style.display = 'block';
+        };
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.toLowerCase().trim();
+                if (!term) {
+                    list.style.display = 'none';
+                    return;
+                }
+                const matches = contacts.filter((contact) => (contact.name || '').toLowerCase().includes(term));
+                renderList(matches);
+            });
+        }
+
+        const defaultsButton = container.querySelector('[data-open-add-panel]');
+        if (defaultsButton && addPanel) {
+            defaultsButton.addEventListener('click', async () => {
+                try {
+                    const response = await fetch("{{ route('stock-transfer-book.defaults') }}");
+                    if (!response.ok) return;
+                    const defaults = await response.json();
+                    addPanel.querySelectorAll('[data-default-field]').forEach((field) => {
+                        const key = field.getAttribute('data-default-field');
+                        if (!key) return;
+                        if (key in defaults) {
+                            field.value = defaults[key];
+                        }
+                    });
+                } catch (error) {
+                    // ignore defaults loading errors
+                }
+            });
+        }
+    })();
 </script>
 
 @endsection

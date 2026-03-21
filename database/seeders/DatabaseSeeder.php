@@ -17,6 +17,7 @@ use App\Models\UltimateBeneficialOwner;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
 class DatabaseSeeder extends Seeder
@@ -113,211 +114,286 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        if (StockTransferLedger::count() === 0) {
-            StockTransferLedger::insert([
-                [
-                    'family_name' => 'Kelly',
-                    'first_name' => 'John',
-                    'middle_name' => 'Michael',
-                    'nationality' => 'Filipino',
-                    'address' => '1234 Elm Street, Ayala',
-                    'tin' => '123-45-6789',
-                    'email' => 'john.kelly@jkc.com',
-                    'phone' => '+63 2 1234 5678',
-                    'shares' => 1000,
-                    'certificate_no' => 'CERT-001',
-                    'date_registered' => '2026-01-15',
-                    'status' => 'Active',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'family_name' => 'Rodriguez',
-                    'first_name' => 'Carmen',
-                    'middle_name' => 'Maria',
-                    'nationality' => 'Filipino',
-                    'address' => '5678 Oak Avenue, Makati',
-                    'tin' => '456-78-9012',
-                    'email' => 'carmen.rodriguez@email.com',
-                    'phone' => '+63 2 8765 4321',
-                    'shares' => 500,
-                    'certificate_no' => 'CERT-002',
-                    'date_registered' => '2026-02-01',
-                    'status' => 'Active',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'family_name' => 'Santos',
-                    'first_name' => 'Miguel',
-                    'middle_name' => 'Antonio',
-                    'nationality' => 'Filipino',
-                    'address' => '9012 Cedar Road, BGC',
-                    'tin' => '234-56-7890',
-                    'email' => 'miguel.santos@email.com',
-                    'phone' => '+63 2 5432 1098',
-                    'shares' => 750,
-                    'certificate_no' => 'CERT-003',
-                    'date_registered' => '2026-02-10',
-                    'status' => 'Active',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            ]);
-        }
+        // Reset stock transfer data and replace it with a clean, connected sample set.
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::table('stock_transfer_certificates')->truncate();
+        DB::table('stock_transfer_installments')->truncate();
+        DB::table('stock_transfer_journals')->truncate();
+        DB::table('stock_transfer_ledgers')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
-        if (StockTransferJournal::count() === 0) {
-            StockTransferJournal::insert([
-                [
-                    'entry_date' => '2026-01-15',
-                    'journal_no' => 'JNL-001',
-                    'ledger_folio' => 'LED-001',
-                    'particulars' => 'Initial share issuance to John Kelly',
-                    'no_shares' => 1000,
-                    'transaction_type' => 'Issuance',
-                    'certificate_no' => 'CERT-0001',
-                    'shareholder' => 'John Kelly',
-                    'remarks' => 'Original issuance of shares at par value',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'entry_date' => '2026-02-10',
-                    'journal_no' => 'JNL-002',
-                    'ledger_folio' => 'LED-002',
-                    'particulars' => 'Share transfer from Carmen Rodriguez to Miguel Santos',
-                    'no_shares' => 500,
-                    'transaction_type' => 'Transfer',
-                    'certificate_no' => 'CERT-0002',
-                    'shareholder' => 'Carmen Rodriguez -> Miguel Santos',
-                    'remarks' => 'Transfer of ownership documented',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'entry_date' => '2026-02-28',
-                    'journal_no' => 'JNL-003',
-                    'ledger_folio' => 'LED-001',
-                    'particulars' => 'Share cancellation',
-                    'no_shares' => 100,
-                    'transaction_type' => 'Cancellation',
-                    'certificate_no' => 'CERT-0001B',
-                    'shareholder' => 'John Kelly',
-                    'remarks' => 'Shares cancelled and removed from circulation',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            ]);
-        }
+        $now = now();
 
-        if (StockTransferInstallment::count() === 0) {
-            StockTransferInstallment::insert([
-                [
-                    'stock_number' => 'STK-001',
-                    'subscriber' => 'John Kelly',
-                    'installment_date' => '2026-01-15',
-                    'no_shares' => 1000,
-                    'no_installments' => 4,
-                    'total_value' => 100000,
-                    'installment_amount' => 25000,
-                    'status' => 'Ongoing',
-                    'schedule' => json_encode([
-                        ['no' => '1st', 'dueDate' => '2026-01-15', 'amount' => '25000.00', 'status' => 'Paid'],
-                        ['no' => '2nd', 'dueDate' => '2026-02-15', 'amount' => '25000.00', 'status' => 'Pending'],
-                    ]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'stock_number' => 'STK-002',
-                    'subscriber' => 'Carmen Rodriguez',
-                    'installment_date' => '2026-02-01',
-                    'no_shares' => 500,
-                    'no_installments' => 2,
-                    'total_value' => 50000,
-                    'installment_amount' => 25000,
-                    'status' => 'Ongoing',
-                    'schedule' => json_encode([
-                        ['no' => '1st', 'dueDate' => '2026-02-01', 'amount' => '25000.00', 'status' => 'Pending'],
-                        ['no' => '2nd', 'dueDate' => '2026-03-01', 'amount' => '25000.00', 'status' => 'Pending'],
-                    ]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'stock_number' => 'STK-003',
-                    'subscriber' => 'Miguel Santos',
-                    'installment_date' => '2026-02-15',
-                    'no_shares' => 750,
-                    'no_installments' => 3,
-                    'total_value' => 75000,
-                    'installment_amount' => 25000,
-                    'status' => 'Ongoing',
-                    'schedule' => json_encode([
-                        ['no' => '1st', 'dueDate' => '2026-02-15', 'amount' => '25000.00', 'status' => 'Paid'],
-                        ['no' => '2nd', 'dueDate' => '2026-03-15', 'amount' => '25000.00', 'status' => 'Pending'],
-                    ]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            ]);
-        }
+        DB::table('stock_transfer_ledgers')->insert([
+            [
+                'family_name' => 'Kelly',
+                'first_name' => 'John',
+                'middle_name' => null,
+                'nationality' => 'Filipino',
+                'address' => '1234 Elm Street, Ayala',
+                'tin' => '123-45-6789',
+                'email' => 'john.kelly@email.com',
+                'phone' => '+63 917 100 0001',
+                'shares' => 1000,
+                'certificate_no' => 'STK-0001',
+                'date_registered' => '2026-03-01',
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'family_name' => 'Rodriguez',
+                'first_name' => 'Carmen',
+                'middle_name' => null,
+                'nationality' => 'Filipino',
+                'address' => '5678 Oak Avenue, Makati',
+                'tin' => '456-78-9012',
+                'email' => 'carmen.rodriguez@email.com',
+                'phone' => '+63 917 100 0002',
+                'shares' => 500,
+                'certificate_no' => 'STK-0002',
+                'date_registered' => '2026-03-02',
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'family_name' => 'Thompson',
+                'first_name' => 'Elizabeth',
+                'middle_name' => null,
+                'nationality' => 'American',
+                'address' => '3456 Maple Drive, Ortigas',
+                'tin' => '567-89-0123',
+                'email' => 'elizabeth.thompson@email.com',
+                'phone' => '+63 917 100 0003',
+                'shares' => 300,
+                'certificate_no' => 'STK-0003',
+                'date_registered' => '2026-03-03',
+                'status' => 'cancelled',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
 
-        if (StockTransferCertificate::count() === 0) {
-            StockTransferCertificate::insert([
-                [
-                    'date_uploaded' => '2026-01-20',
-                    'uploaded_by' => 'Admin',
-                    'corporation_name' => 'John Kelly & Company',
-                    'company_reg_no' => '12345-ABC',
-                    'stock_number' => 'STK-001',
-                    'stockholder_name' => 'John Kelly',
-                    'par_value' => 100,
-                    'number' => 1000,
-                    'amount' => 100000,
-                    'amount_in_words' => 'One Hundred Thousand Pesos',
-                    'date_issued' => '2026-01-22',
-                    'president' => 'John Kelly',
-                    'corporate_secretary' => 'Maria Santos',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'date_uploaded' => '2026-02-01',
-                    'uploaded_by' => 'Admin',
-                    'corporation_name' => 'John Kelly & Company',
-                    'company_reg_no' => '12345-ABC',
-                    'stock_number' => 'STK-002',
-                    'stockholder_name' => 'Carmen Rodriguez',
-                    'par_value' => 100,
-                    'number' => 500,
-                    'amount' => 50000,
-                    'amount_in_words' => 'Fifty Thousand Pesos',
-                    'date_issued' => '2026-02-03',
-                    'president' => 'John Kelly',
-                    'corporate_secretary' => 'Maria Santos',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-                [
-                    'date_uploaded' => '2026-02-10',
-                    'uploaded_by' => 'Admin',
-                    'corporation_name' => 'John Kelly & Company',
-                    'company_reg_no' => '12345-ABC',
-                    'stock_number' => 'STK-003',
-                    'stockholder_name' => 'Miguel Santos',
-                    'par_value' => 100,
-                    'number' => 750,
-                    'amount' => 75000,
-                    'amount_in_words' => 'Seventy Five Thousand Pesos',
-                    'date_issued' => '2026-02-12',
-                    'president' => 'John Kelly',
-                    'corporate_secretary' => 'Maria Santos',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            ]);
-        }
+        $journalId1 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-01',
+            'journal_no' => 'JNL-0001',
+            'ledger_folio' => 'LED-0001',
+            'particulars' => 'Installment plan created',
+            'no_shares' => 1000,
+            'transaction_type' => 'Issuance',
+            'certificate_no' => 'STK-0001',
+            'shareholder' => 'John Kelly',
+            'remarks' => 'Pending installment sample',
+            'status' => 'active',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $journalId2 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-02',
+            'journal_no' => 'JNL-0002',
+            'ledger_folio' => 'LED-0002',
+            'particulars' => 'Installment plan created',
+            'no_shares' => 500,
+            'transaction_type' => 'Issuance',
+            'certificate_no' => 'STK-0002',
+            'shareholder' => 'Carmen Rodriguez',
+            'remarks' => 'Completed installment sample',
+            'status' => 'completed',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $paymentJournal21 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-05',
+            'journal_no' => 'JNL-0003',
+            'ledger_folio' => 'LED-0002',
+            'particulars' => 'Installment payment received',
+            'no_shares' => 250,
+            'transaction_type' => 'Payment',
+            'certificate_no' => 'STK-0002',
+            'shareholder' => 'Carmen Rodriguez',
+            'remarks' => 'First payment for completed sample',
+            'status' => 'completed',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $paymentJournal22 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-12',
+            'journal_no' => 'JNL-0004',
+            'ledger_folio' => 'LED-0002',
+            'particulars' => 'Installment payment received',
+            'no_shares' => 250,
+            'transaction_type' => 'Payment',
+            'certificate_no' => 'STK-0002',
+            'shareholder' => 'Carmen Rodriguez',
+            'remarks' => 'Final payment for completed sample',
+            'status' => 'completed',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $journalId3 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-03',
+            'journal_no' => 'JNL-0005',
+            'ledger_folio' => 'LED-0003',
+            'particulars' => 'Installment plan created',
+            'no_shares' => 300,
+            'transaction_type' => 'Issuance',
+            'certificate_no' => 'STK-0003',
+            'shareholder' => 'Elizabeth Thompson',
+            'remarks' => 'Cancelled installment sample',
+            'status' => 'voided',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $paymentJournal31 = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-08',
+            'journal_no' => 'JNL-0006',
+            'ledger_folio' => 'LED-0003',
+            'particulars' => 'Installment payment received',
+            'no_shares' => 300,
+            'transaction_type' => 'Payment',
+            'certificate_no' => 'STK-0003',
+            'shareholder' => 'Elizabeth Thompson',
+            'remarks' => 'Payment before cancellation',
+            'status' => 'completed',
+            'document_path' => null,
+            'reversal_of_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $cancellationJournal = DB::table('stock_transfer_journals')->insertGetId([
+            'entry_date' => '2026-03-15',
+            'journal_no' => 'JNL-0007',
+            'ledger_folio' => 'LED-0003',
+            'particulars' => 'Reversal of cancelled installment',
+            'no_shares' => 300,
+            'transaction_type' => 'Cancellation',
+            'certificate_no' => 'STK-0003',
+            'shareholder' => 'Elizabeth Thompson',
+            'remarks' => 'Cancellation sample with reversal',
+            'status' => 'completed',
+            'document_path' => null,
+            'reversal_of_id' => $journalId3,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $installmentId1 = DB::table('stock_transfer_installments')->insertGetId([
+            'journal_id' => $journalId1,
+            'stock_number' => 'STK-0001',
+            'subscriber' => 'John Kelly',
+            'installment_date' => '2026-03-01',
+            'no_shares' => 1000,
+            'no_installments' => 4,
+            'total_value' => 100000,
+            'installment_amount' => 25000,
+            'status' => 'pending',
+            'schedule' => json_encode([
+                ['no' => '1st', 'dueDate' => '2026-03-15', 'amount' => '25000.00', 'status' => 'Pending'],
+                ['no' => '2nd', 'dueDate' => '2026-04-15', 'amount' => '25000.00', 'status' => 'Pending'],
+                ['no' => '3rd', 'dueDate' => '2026-05-15', 'amount' => '25000.00', 'status' => 'Pending'],
+                ['no' => '4th', 'dueDate' => '2026-06-15', 'amount' => '25000.00', 'status' => 'Pending'],
+            ]),
+            'document_path' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $installmentId2 = DB::table('stock_transfer_installments')->insertGetId([
+            'journal_id' => $journalId2,
+            'stock_number' => 'STK-0002',
+            'subscriber' => 'Carmen Rodriguez',
+            'installment_date' => '2026-03-02',
+            'no_shares' => 500,
+            'no_installments' => 2,
+            'total_value' => 50000,
+            'installment_amount' => 25000,
+            'status' => 'completed',
+            'schedule' => json_encode([
+                ['no' => '1st', 'dueDate' => '2026-03-05', 'amount' => '25000.00', 'status' => 'Paid'],
+                ['no' => '2nd', 'dueDate' => '2026-03-12', 'amount' => '25000.00', 'status' => 'Paid'],
+            ]),
+            'document_path' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $installmentId3 = DB::table('stock_transfer_installments')->insertGetId([
+            'journal_id' => $journalId3,
+            'stock_number' => 'STK-0003',
+            'subscriber' => 'Elizabeth Thompson',
+            'installment_date' => '2026-03-03',
+            'no_shares' => 300,
+            'no_installments' => 1,
+            'total_value' => 30000,
+            'installment_amount' => 30000,
+            'status' => 'cancelled',
+            'schedule' => json_encode([
+                ['no' => '1st', 'dueDate' => '2026-03-08', 'amount' => '30000.00', 'status' => 'Paid'],
+            ]),
+            'document_path' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('stock_transfer_certificates')->insert([
+            [
+                'installment_id' => $installmentId2,
+                'date_uploaded' => '2026-03-12',
+                'uploaded_by' => 'Admin',
+                'corporation_name' => 'John Kelly & Company',
+                'company_reg_no' => '12345-ABC',
+                'stock_number' => 'STK-0002',
+                'stockholder_name' => 'Carmen Rodriguez',
+                'par_value' => 100,
+                'number' => 500,
+                'amount' => 50000,
+                'amount_in_words' => 'Fifty Thousand Pesos',
+                'date_issued' => '2026-03-12',
+                'president' => 'John Kelly',
+                'corporate_secretary' => 'Maria Santos',
+                'document_path' => null,
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'installment_id' => $installmentId3,
+                'date_uploaded' => '2026-03-10',
+                'uploaded_by' => 'Admin',
+                'corporation_name' => 'John Kelly & Company',
+                'company_reg_no' => '12345-ABC',
+                'stock_number' => 'STK-0003',
+                'stockholder_name' => 'Elizabeth Thompson',
+                'par_value' => 100,
+                'number' => 300,
+                'amount' => 30000,
+                'amount_in_words' => 'Thirty Thousand Pesos',
+                'date_issued' => '2026-03-10',
+                'president' => 'John Kelly',
+                'corporate_secretary' => 'Maria Santos',
+                'document_path' => null,
+                'status' => 'voided',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
 
         if (Notice::count() === 0) {
             Notice::insert([

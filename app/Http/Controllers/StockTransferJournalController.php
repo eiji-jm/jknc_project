@@ -4,28 +4,40 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
+use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
 use App\Models\StockTransferInstallment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class StockTransferJournalController extends Controller
 {
     use HandlesUploads;
     use MatchesShareholder;
+    use GeneratesStockTransferIds;
 
     public function index()
     {
         $journals = StockTransferJournal::query()
             ->where(function ($query) {
                 $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation']);
+                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
 
-        return view('corporate.stock-transfer-book.journal', compact('journals'));
+        $indexShareholders = StockTransferLedger::query()
+            ->get(['first_name', 'middle_name', 'family_name'])
+            ->map(function ($ledger) {
+                return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        return view('corporate.stock-transfer-book.journal', compact('journals', 'indexShareholders'));
     }
 
     public function create()
@@ -44,6 +56,56 @@ class StockTransferJournalController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['status'] = $data['status'] ?? 'active';
+
+        $ledger = $this->resolveLedger($data['certificate_no'] ?? null, $data['shareholder'] ?? null);
+        if (!$ledger) {
+            return back()->withErrors([
+                'certificate_no' => 'Stockholder must exist in the Index before adding a journal entry.',
+            ])->withInput();
+        }
+
+        if (empty($data['certificate_no'])) {
+            $data['certificate_no'] = $ledger->certificate_no ?: $this->nextStockNumber();
+            if (!$ledger->certificate_no) {
+                $ledger->certificate_no = $data['certificate_no'];
+                $ledger->save();
+            }
+        }
+
+        if (empty($data['shareholder'])) {
+            $data['shareholder'] = trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+        }
+
+        if (empty($data['entry_date'])) {
+            $data['entry_date'] = now()->toDateString();
+        }
+
+        if (empty($data['journal_no'])) {
+            $data['journal_no'] = $this->nextJournalNo();
+        }
+
+        if (empty($data['ledger_folio'])) {
+            $data['ledger_folio'] = $this->nextLedgerFolio();
+        }
+
+        $installment = null;
+        if (!empty($data['certificate_no'])) {
+            $installment = StockTransferInstallment::query()
+                ->where('stock_number', $data['certificate_no'])
+                ->latest()
+                ->first();
+        }
+
+        $isPaymentEntry = ($data['transaction_type'] ?? '') === 'Payment'
+            || Str::contains(Str::lower($data['particulars'] ?? ''), 'payment')
+            || Str::contains(Str::lower($data['remarks'] ?? ''), 'payment');
+
+        if ($installment && $installment->isCancelled() && $isPaymentEntry) {
+            return back()->withErrors([
+                'certificate_no' => 'Cannot record payment: installment has been cancelled.',
+            ])->withInput();
+        }
 
         StockTransferJournal::create($data);
 
@@ -64,7 +126,7 @@ class StockTransferJournalController extends Controller
             })
             ->where(function ($query) {
                 $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation']);
+                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
@@ -134,9 +196,10 @@ class StockTransferJournalController extends Controller
 
     public function destroy(StockTransferJournal $stockTransferJournal)
     {
-        $stockTransferJournal->delete();
+        $stockTransferJournal->status = 'voided';
+        $stockTransferJournal->save();
 
-        return redirect()->route('stock-transfer-book.journal')->with('success', 'Journal entry deleted.');
+        return redirect()->route('stock-transfer-book.journal')->with('success', 'Journal entry voided.');
     }
 
     private function fields(): array
@@ -147,7 +210,7 @@ class StockTransferJournalController extends Controller
             ['name' => 'ledger_folio', 'label' => 'Ledger Folio', 'type' => 'text'],
             ['name' => 'particulars', 'label' => 'Particulars', 'type' => 'textarea'],
             ['name' => 'no_shares', 'label' => 'No. Shares', 'type' => 'number'],
-            ['name' => 'transaction_type', 'label' => 'Transaction Type', 'type' => 'select', 'options' => ['Issuance', 'Cancellation']],
+            ['name' => 'transaction_type', 'label' => 'Transaction Type', 'type' => 'select', 'options' => ['Issuance', 'Cancellation', 'Payment']],
             ['name' => 'certificate_no', 'label' => 'Certificate No.', 'type' => 'text'],
             ['name' => 'shareholder', 'label' => 'Shareholder', 'type' => 'text'],
             ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea'],
@@ -163,11 +226,25 @@ class StockTransferJournalController extends Controller
             'ledger_folio' => ['nullable', 'string', 'max:255'],
             'particulars' => ['nullable', 'string'],
             'no_shares' => ['nullable', 'integer'],
-            'transaction_type' => ['nullable', 'string', 'in:Issuance,Cancellation'],
+            'transaction_type' => ['nullable', 'string', 'in:Issuance,Cancellation,Payment'],
             'certificate_no' => ['nullable', 'string', 'max:255'],
             'shareholder' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', 'in:active,cancelled,voided,completed'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
+    }
+
+    private function resolveLedger(?string $certificateNo, ?string $shareholder): ?StockTransferLedger
+    {
+        $query = StockTransferLedger::query();
+        $query->where(function ($sub) use ($certificateNo, $shareholder) {
+            if ($certificateNo) {
+                $sub->orWhere('certificate_no', $certificateNo);
+            }
+            $this->applyNameTokens($sub, $shareholder, ['first_name', 'middle_name', 'family_name']);
+        });
+
+        return $query->first();
     }
 }

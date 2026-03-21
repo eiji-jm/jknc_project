@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockTransferCertificate extends Model
 {
     protected $fillable = [
+        'installment_id',
         'date_uploaded',
         'uploaded_by',
         'corporation_name',
@@ -21,6 +23,7 @@ class StockTransferCertificate extends Model
         'president',
         'corporate_secretary',
         'document_path',
+        'status',
     ];
 
     protected $casts = [
@@ -29,4 +32,13 @@ class StockTransferCertificate extends Model
         'par_value' => 'decimal:2',
         'amount' => 'decimal:2',
     ];
+
+    /**
+     * Certificate -> Installment (inverse).
+     */
+    public function installment(): BelongsTo
+    {
+        return $this->belongsTo(StockTransferInstallment::class, 'installment_id');
+    }
+
 }

@@ -1,13 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    @media print {
-        body * { visibility: hidden; }
-        #natgov-print, #natgov-print * { visibility: visible; }
-        #natgov-print { position: absolute; left: 0; top: 0; width: 100%; }
-    }
-</style>
+@php
+    $draftUrl = $natgov->document_path ? route('uploads.show', ['path' => $natgov->document_path]) : null;
+    $draftDownloadUrl = $natgov->document_path ? route('uploads.show', ['path' => $natgov->document_path, 'download' => 1]) : null;
+    $approvedUrl = $natgov->approved_document_path ? route('uploads.show', ['path' => $natgov->approved_document_path]) : null;
+    $approvedDownloadUrl = $natgov->approved_document_path ? route('uploads.show', ['path' => $natgov->approved_document_path, 'download' => 1]) : null;
+@endphp
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -17,7 +16,7 @@
             </a>
             <div>
                 <div class="text-lg font-semibold">NatGov Preview</div>
-                <div class="text-xs text-gray-500">Client {{ $natgov->client ?? '—' }}</div>
+                <div class="text-xs text-gray-500">Client {{ $natgov->client ?? '-' }}</div>
             </div>
             <div class="flex-1"></div>
             <a href="{{ $editRoute }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Edit</a>
@@ -30,31 +29,41 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3 space-y-4">
-                <div class="bg-gray-900 rounded-xl overflow-hidden">
-                    <div class="bg-gray-800 px-4 py-3 flex items-center gap-2 border-b border-gray-700">
-                        <span class="text-gray-300 text-sm font-medium">NatGov Document</span>
-                        <div class="flex-1"></div>
-                        <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition" onclick="window.print()"><i class="fas fa-print"></i></button>
-                        <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition" onclick="window.print()"><i class="fas fa-download"></i></button>
-                    </div>
-                    <div class="p-6 overflow-auto">
-                        <div id="natgov-print" class="bg-white w-full max-w-md rounded-sm shadow-2xl mx-auto" style="aspect-ratio: 8.5/11;">
-                            <div class="p-8 h-full flex flex-col justify-between text-center">
-                                <div class="border-b-2 border-gray-800 pb-4 mb-4">
-                                    <h1 class="text-xl font-bold text-gray-900">NATGOV</h1>
-                                    <p class="text-xs text-gray-600 mt-2">{{ $natgov->agency ?? '—' }}</p>
-                                </div>
-                                <div class="flex-1 flex flex-col justify-center space-y-3 text-xs text-gray-700">
-                                    <p><strong>Client:</strong> {{ $natgov->client ?? '—' }}</p>
-                                    <p><strong>TIN:</strong> {{ $natgov->tin ?? '—' }}</p>
-                                    <p><strong>Registration No.:</strong> {{ $natgov->registration_no ?? '—' }}</p>
-                                    <p><strong>Status:</strong> {{ $natgov->status ?? '—' }}</p>
-                                </div>
-                                <div class="border-t-2 border-gray-800 pt-3 text-xs text-gray-600">
-                                    Uploaded by {{ $natgov->uploaded_by ?? '—' }}
-                                </div>
-                            </div>
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-semibold text-slate-900">Draft NatGov File</div>
+                            <div class="text-xs text-slate-500">The internal draft uploaded from the slider appears here.</div>
                         </div>
+                        @if ($draftDownloadUrl)
+                            <a href="{{ $draftDownloadUrl }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Download Draft</a>
+                        @endif
+                    </div>
+                    <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                        @if ($draftUrl)
+                            <iframe src="{{ $draftUrl }}" class="h-[720px] w-full rounded-lg bg-white"></iframe>
+                        @else
+                            <div class="text-sm text-slate-500">No draft file uploaded yet.</div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-semibold text-slate-900">Approved NatGov File</div>
+                            <div class="text-xs text-slate-500">Upload now from the slider or add the approved PDF later from this preview.</div>
+                        </div>
+                        @if ($approvedDownloadUrl)
+                            <a href="{{ $approvedDownloadUrl }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Download Approved</a>
+                        @endif
+                    </div>
+                    <div class="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                        @if ($approvedUrl)
+                            <iframe src="{{ $approvedUrl }}" class="h-[720px] w-full rounded-lg bg-white"></iframe>
+                        @else
+                            <div class="text-sm text-slate-500">No approved file uploaded yet.</div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -63,24 +72,41 @@
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">NatGov Details</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Client</span><div class="font-medium text-gray-900">{{ $natgov->client ?? '—' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">TIN</span><div class="font-medium text-gray-900">{{ $natgov->tin ?? '—' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Agency</span><div class="font-medium text-gray-900">{{ $natgov->agency ?? '—' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registration Status</span><div class="font-medium text-gray-900">{{ $natgov->registration_status ?? '—' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registration Date</span><div class="font-medium text-gray-900">{{ optional($natgov->registration_date)->format('M d, Y') ?? '—' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Uploaded</span><div class="font-medium text-gray-900">{{ optional($natgov->date_uploaded)->format('M d, Y') ?? '—' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Client</span><div class="font-medium text-gray-900">{{ $natgov->client ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">TIN</span><div class="font-medium text-gray-900">{{ $natgov->tin ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Agency</span><div class="font-medium text-gray-900">{{ $natgov->agency ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registration Status</span><div class="font-medium text-gray-900">{{ $natgov->registration_status ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registration Date</span><div class="font-medium text-gray-900">{{ optional($natgov->registration_date)->format('M d, Y') ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Uploaded</span><div class="font-medium text-gray-900">{{ optional($natgov->date_uploaded)->format('M d, Y') ?? '-' }}</div></div>
                     </div>
                 </div>
 
+                <div class="bg-white border border-emerald-200 rounded-xl p-4">
+                    <div class="text-sm font-semibold text-gray-900">Upload Approved File Later</div>
+                    <div class="mt-1 text-xs text-gray-500">Use this when the approved NatGov PDF becomes available after the draft was already saved.</div>
+                    <form method="POST" action="{{ $updateRoute }}" enctype="multipart/form-data" class="mt-4 space-y-3">
+                        @csrf
+                        @method('PUT')
+                        <input type="file" name="approved_document_path" accept="application/pdf" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                        <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            {{ $natgov->approved_document_path ? 'Update Approved File' : 'Upload Approved File' }}
+                        </button>
+                    </form>
+                </div>
+
                 <div class="space-y-2 pt-2">
-                    <button class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2" onclick="window.print()">
-                        <i class="fas fa-download"></i>
-                        Download PDF
-                    </button>
-                    <button class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2" onclick="window.print()">
-                        <i class="fas fa-print"></i>
-                        Print
-                    </button>
+                    @if ($draftDownloadUrl)
+                        <a href="{{ $draftDownloadUrl }}" class="w-full inline-flex px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition items-center justify-center gap-2">
+                            <i class="fas fa-download"></i>
+                            Download Draft PDF
+                        </a>
+                    @endif
+                    @if ($approvedDownloadUrl)
+                        <a href="{{ $approvedDownloadUrl }}" class="w-full inline-flex px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition items-center justify-center gap-2">
+                            <i class="fas fa-download"></i>
+                            Download Approved PDF
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>

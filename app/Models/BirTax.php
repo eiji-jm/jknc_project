@@ -18,6 +18,7 @@ class BirTax extends Model
         'uploaded_by',
         'date_uploaded',
         'document_path',
+        'approved_document_path',
     ];
 
     protected $casts = [

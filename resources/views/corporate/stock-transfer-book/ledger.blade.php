@@ -15,7 +15,7 @@
             <div class="flex-1"></div>
 
             <div class="flex items-center gap-2">
-                <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+                <button type="button" data-open-add-panel @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -35,41 +35,15 @@
             <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
         </div>
 
-        {{-- SHAREHOLDER SUMMARY --}}
+        {{-- SEARCH --}}
         <div class="px-4 py-4 bg-gray-50 border-b border-gray-100">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Shareholder Information</p>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="text-xs text-gray-600">Family Name</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter family name">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">First Name</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter first name">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Middle Name</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter middle name">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Nationality</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter nationality">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">Current Residential Address</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter address">
-                </div>
-                <div>
-                    <label class="text-xs text-gray-600">TIN</label>
-                    <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter TIN">
-                </div>
-            </div>
+            <input type="text" id="ledger-search" placeholder="Search shareholders..." class="w-full rounded-md border border-gray-300 focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 px-3 py-2 text-sm" />
         </div>
 
         {{-- LEDGER TABLE VIEW --}}
         <div class="p-4">
             <div class="overflow-auto">
-                <table class="min-w-full">
+                <table class="min-w-full" id="ledger-table">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Family Name</th>
@@ -81,9 +55,9 @@
                             
                         </tr>
                     </thead>
-                    <tbody class="text-sm text-gray-900">
+                    <tbody class="text-sm text-gray-900" id="ledger-table-body">
                         @forelse ($ledgers as $ledger)
-                            <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.ledger.show', $ledger) }}'">
+                            <tr data-search-row class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.ledger.show', $ledger) }}'">
                                 <td class="px-4 py-3">{{ $ledger->family_name }}</td>
                                 <td class="px-4 py-3">{{ $ledger->first_name }}</td>
                                 <td class="px-4 py-3">{{ $ledger->middle_name }}</td>
@@ -92,7 +66,7 @@
                                 <td class="px-4 py-3">{{ $ledger->tin }}</td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr data-empty-row>
                                 <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No shareholders found.</td>
                             </tr>
                         @endforelse
@@ -104,7 +78,7 @@
         {{-- ADD SHAREHOLDER SLIDER --}}
         <div x-cloak>
             <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
-            <div x-show="showAddPanel"
+            <div x-show="showAddPanel" data-add-panel
                 class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
                 x-transition:enter="transform transition ease-in-out duration-200"
                 x-transition:enter-start="translate-x-full"
@@ -121,78 +95,127 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="p-6 overflow-y-auto space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form method="POST" action="{{ route('stock-transfer-book.ledger.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
+                    @csrf
+                    <div class="space-y-4">
                         <div>
-                            <label class="text-xs text-gray-600">Family Name</label>
-                            <input type="text" data-autofill-field="family_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Family name">
+                            <input type="text" data-contact-search class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Search contacts...">
                         </div>
-                        <div>
-                            <label class="text-xs text-gray-600">First Name</label>
-                            <input type="text" data-autofill-field="first_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="First name">
+
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4" data-contact-empty>
+                            <div class="text-sm text-gray-600">No contact selected.</div>
+                            <a href="{{ route('contacts') }}" class="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50">
+                                Go to Contacts
+                            </a>
                         </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Middle Name</label>
-                            <input type="text" data-autofill-field="middle_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Middle name">
+
+                        <div class="hidden rounded-xl border border-gray-200 bg-white p-4" data-contact-card>
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-full bg-gray-200"></div>
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900" data-contact-name></div>
+                                    <div class="text-xs text-gray-500" data-contact-email></div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Nationality</label>
-                            <input type="text" data-autofill-field="nationality" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Nationality">
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-gray-600">Nationality</label>
+                                <input type="text" name="nationality" data-autofill-field="nationality" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Specific Residential Address</label>
+                                <input type="text" name="address" data-autofill-field="address" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Date Registered</label>
+                                <input type="date" name="date_registered" data-autofill-field="date_registered" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Tax Identification No.</label>
+                                <input type="text" name="tin" data-autofill-field="tin" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Number of Shares</label>
+                                <input type="number" name="shares" data-autofill-field="shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Certificate No.</label>
+                                <input type="text" name="certificate_no" data-autofill-key data-autofill-field="certificate_no" data-default-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Status</label>
+                                <input type="text" name="status" data-autofill-field="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="active">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-600">Phone</label>
+                                <input type="text" name="phone" data-autofill-field="phone" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-xs text-gray-600">Upload Document (PDF)</label>
+                                <input type="file" name="document_path" class="mt-1 block w-full text-sm text-gray-600">
+                            </div>
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="text-xs text-gray-600">Current Residential Address</label>
-                            <input type="text" data-autofill-field="address" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Address">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">TIN</label>
-                            <input type="text" data-autofill-field="tin" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="TIN">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Email</label>
-                            <input type="email" data-autofill-field="email" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Email">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Phone</label>
-                            <input type="text" data-autofill-field="phone" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Phone">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Number of Shares</label>
-                            <input type="number" data-autofill-field="shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Certificate No.</label>
-                            <input type="text" data-autofill-key data-autofill-field="certificate_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Date Registered</label>
-                            <input type="date" data-autofill-field="date_registered" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="text-xs text-gray-600">Status</label>
-                            <input type="text" data-autofill-field="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Active">
-                        </div>
+
+                        <input type="hidden" name="first_name" data-contact-first>
+                        <input type="hidden" name="middle_name" data-contact-middle>
+                        <input type="hidden" name="family_name" data-contact-last>
+                        <input type="hidden" name="email" data-contact-email-input>
                     </div>
-                </div>
-                <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
-                    <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
-                        Cancel
-                    </button>
-                    <div class="flex-1"></div>
-                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="button">
-                        Save Shareholder
-                    </button>
-                </div>
+                    <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2 -mx-6 -mb-6 mt-4">
+                        <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
+                            Cancel
+                        </button>
+                        <div class="flex-1"></div>
+                        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" type="submit">
+                            Save Shareholder
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 </div>
 @endsection
 
 <script>
+    // Filter only actual ledger rows and keep the empty state predictable.
+    (function () {
+        const searchInput = document.getElementById('ledger-search');
+        const tableBody = document.getElementById('ledger-table-body');
+        if (!searchInput || !tableBody) return;
+
+        const filterRows = () => {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = Array.from(tableBody.querySelectorAll('[data-search-row]'));
+            const emptyRow = tableBody.querySelector('[data-empty-row]');
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const matches = query === '' || row.textContent.toLowerCase().includes(query);
+                row.style.display = matches ? '' : 'none';
+                if (matches) {
+                    visibleCount += 1;
+                }
+            });
+
+            if (emptyRow) {
+                emptyRow.style.display = rows.length === 0 || visibleCount === 0 ? '' : 'none';
+            }
+        };
+
+        searchInput.addEventListener('input', () => {
+            filterRows();
+        });
+
+        filterRows();
+    })();
+
     (function () {
         const endpoint = "{{ route('stock-transfer-book.lookup') }}";
+        const defaultsEndpoint = "{{ route('stock-transfer-book.defaults') }}";
         const container = document.currentScript.closest('body');
         const keyInput = container.querySelector('[data-autofill-key]');
-        if (!keyInput) return;
 
         const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
 
@@ -248,7 +271,111 @@
             }
         };
 
-        keyInput.addEventListener('change', runLookup);
-        keyInput.addEventListener('blur', runLookup);
+        if (keyInput) {
+            keyInput.addEventListener('change', runLookup);
+            keyInput.addEventListener('blur', runLookup);
+        }
+
+        const addButton = container.querySelector('[data-open-add-panel]');
+        const addPanel = container.querySelector('[data-add-panel]');
+        if (addButton && addPanel) {
+            addButton.addEventListener('click', async () => {
+                try {
+                    const res = await fetch(defaultsEndpoint);
+                    if (!res.ok) return;
+                    const defaults = await res.json();
+                    const fields = addPanel.querySelectorAll('[data-default-field]');
+                    fields.forEach((field) => {
+                        const key = field.getAttribute('data-default-field');
+                        if (!key) return;
+                        if (key in defaults) {
+                            field.value = defaults[key];
+                        }
+                    });
+                } catch (e) {
+                    // ignore defaults errors
+                }
+            });
+        }
+
+        const contacts = @json($contacts ?? []);
+        const searchInput = container.querySelector('[data-contact-search]');
+        const emptyState = container.querySelector('[data-contact-empty]');
+        const card = container.querySelector('[data-contact-card]');
+        const cardName = container.querySelector('[data-contact-name]');
+        const cardEmail = container.querySelector('[data-contact-email]');
+        const firstInput = container.querySelector('[data-contact-first]');
+        const middleInput = container.querySelector('[data-contact-middle]');
+        const lastInput = container.querySelector('[data-contact-last]');
+        const emailInput = container.querySelector('[data-contact-email-input]');
+        const nationalityInput = container.querySelector('[name="nationality"]');
+        const addressInput = container.querySelector('[name="address"]');
+        const tinInput = container.querySelector('[name="tin"]');
+
+        const list = document.createElement('div');
+        list.className = 'rounded-xl border border-gray-200 bg-white divide-y divide-gray-100 max-h-48 overflow-auto';
+        list.style.display = 'none';
+        searchInput?.parentElement?.appendChild(list);
+
+        const splitName = (name) => {
+            if (!name) return { first: '', middle: '', last: '' };
+            if (name.includes(',')) {
+                const [last, rest] = name.split(',').map((part) => part.trim());
+                const parts = rest.split(' ').filter(Boolean);
+                return { first: parts[0] || '', middle: parts.slice(1).join(' '), last: last || '' };
+            }
+            const parts = name.split(' ').filter(Boolean);
+            return { first: parts[0] || '', middle: parts.slice(1, -1).join(' '), last: parts.length > 1 ? parts[parts.length - 1] : '' };
+        };
+
+        const renderList = (items) => {
+            list.innerHTML = '';
+            if (!items.length) {
+                list.style.display = 'none';
+                return;
+            }
+            items.forEach((contact) => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'w-full text-left px-3 py-2 hover:bg-gray-50';
+                row.innerHTML = `<div class="text-sm font-medium text-gray-900">${contact.name}</div><div class="text-xs text-gray-500">${contact.email || ''}</div>`;
+                row.addEventListener('click', () => {
+                    const nameParts = splitName(contact.name);
+                    firstInput.value = nameParts.first;
+                    middleInput.value = nameParts.middle;
+                    lastInput.value = nameParts.last;
+                    emailInput.value = contact.email || '';
+                    if (nationalityInput && !nationalityInput.value) {
+                        nationalityInput.value = contact.nationality || '';
+                    }
+                    if (addressInput && !addressInput.value) {
+                        addressInput.value = contact.address || '';
+                    }
+                    if (tinInput && !tinInput.value) {
+                        tinInput.value = contact.tax_id || '';
+                    }
+
+                    cardName.textContent = contact.name;
+                    cardEmail.textContent = contact.email || '';
+                    card.classList.remove('hidden');
+                    emptyState.classList.add('hidden');
+                    list.style.display = 'none';
+                });
+                list.appendChild(row);
+            });
+            list.style.display = 'block';
+        };
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const term = searchInput.value.toLowerCase().trim();
+                if (!term) {
+                    list.style.display = 'none';
+                    return;
+                }
+                const matches = contacts.filter((c) => (c.name || '').toLowerCase().includes(term));
+                renderList(matches);
+            });
+        }
     })();
 </script>
