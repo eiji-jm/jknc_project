@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\PermitController;
+use App\Http\Controllers\CorrespondenceController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -15,6 +17,10 @@ Route::get('/register',[RegisterController::class,'show'])->name('register');
 Route::post('/register',[RegisterController::class,'submit'])->name('register.post');
 
 Route::post('/logout',[LoginController::class,'logout'])->name('logout');
+Route::get('/permits/{permitType}', [PermitController::class, 'index']);
+Route::post('/permits', [PermitController::class, 'store']);
+Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
+Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
 Route::middleware('auth')->group(function () {
 
