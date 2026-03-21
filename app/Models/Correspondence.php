@@ -19,11 +19,10 @@ class Correspondence extends Model
         'from',
         'to',
         'department',
+        'details',
         'date',
         'time',
         'deadline',
-        'period',
-        'response_date',
         'sent_via',
         'status',
     ];

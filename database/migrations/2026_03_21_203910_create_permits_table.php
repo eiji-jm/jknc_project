@@ -9,13 +9,15 @@ return new class extends Migration {
     {
         Schema::create('permits', function (Blueprint $table) {
             $table->id();
-            $table->string('permit_type'); // Mayor's Permit, Fire Permit, etc.
-            $table->date('date');
-            $table->string('user'); // uploader
+            $table->string('permit_type');
+            $table->date('date_of_registration')->nullable();
+            $table->date('approved_date_of_registration')->nullable();
+            $table->date('expiration_date_of_registration')->nullable();
+            $table->string('user');
             $table->string('client');
-            $table->string('tin');
-            $table->string('registration_status');
-            $table->string('status'); // Active, Overdue, For Review
+            $table->string('tin')->nullable();
+            $table->string('registration_status')->nullable();
+            $table->string('status')->nullable();
             $table->timestamps();
         });
     }

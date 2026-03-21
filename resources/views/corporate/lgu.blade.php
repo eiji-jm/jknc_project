@@ -29,10 +29,27 @@
                                 <label class="block text-sm font-medium">Client</label>
                                 <input id="clientInput" class="w-full border rounded-md p-2" placeholder="Client Name">
                             </div>
+
                             <div>
                                 <label class="block text-sm font-medium">TIN</label>
                                 <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
                             </div>
+
+                            <div>
+                                <label class="block text-sm font-medium">Date of Registration</label>
+                                <input id="dateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium">Approved Date of Registration</label>
+                                <input id="approvedDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium">Expiration Date of Registration</label>
+                                <input id="expirationDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-medium">Registration Status</label>
                                 <select id="regInput" class="w-full border rounded-md p-2">
@@ -41,6 +58,7 @@
                                     <option>Expired</option>
                                 </select>
                             </div>
+
                             <div>
                                 <label class="block text-sm font-medium">Status</label>
                                 <select id="statusInput" class="w-full border rounded-md p-2">
@@ -85,10 +103,12 @@
                 <table class="w-full text-sm table-fixed border-collapse">
                     <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
-                            <th class="w-32 p-3 text-left">Date</th>
+                            <th class="w-40 p-3 text-left">Date of Registration</th>
+                            <th class="w-48 p-3 text-left">Approved Date of Registration</th>
+                            <th class="w-44 p-3 text-left">Expiration Date of Registration</th>
                             <th class="w-32 p-3 text-left">Uploader</th>
                             <th class="w-40 p-3 text-left">Client</th>
-                            <th class="w-24 p-3 text-left">TIN</th>
+                            <th class="w-32 p-3 text-left">TIN</th>
                             <th class="w-32 p-3 text-left">Reg Status</th>
                             <th class="w-32 p-3 text-left">Status</th>
                         </tr>
@@ -117,21 +137,33 @@ async function renderTable(permitName) {
     const permitData = await fetchPermits(permitName);
 
     if (permitData.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
         return;
     }
 
     permitData.forEach(item => {
-        const statusClass = item.status === 'Active' ? 'text-green-600' : (item.status === 'Overdue' ? 'text-red-600' : 'text-yellow-600');
-        const dotClass = item.status === 'Active' ? 'bg-green-500' : (item.status === 'Overdue' ? 'bg-red-500' : 'bg-yellow-500');
+        const statusClass = item.status === 'Active'
+            ? 'text-green-600'
+            : (item.status === 'Overdue' ? 'text-red-600' : 'text-yellow-600');
+
+        const dotClass = item.status === 'Active'
+            ? 'bg-green-500'
+            : (item.status === 'Overdue' ? 'bg-red-500' : 'bg-yellow-500');
+
         tableBody.innerHTML += `
             <tr class="border-t hover:bg-gray-50">
-                <td class="p-3">${item.date}</td>
+                <td class="p-3">${item.date_of_registration ?? ''}</td>
+                <td class="p-3">${item.approved_date_of_registration ?? ''}</td>
+                <td class="p-3">${item.expiration_date_of_registration ?? ''}</td>
                 <td class="p-3">${item.user}</td>
                 <td class="p-3 truncate">${item.client}</td>
                 <td class="p-3">${item.tin}</td>
                 <td class="p-3">${item.registration_status}</td>
-                <td class="p-3"><span class="status-val flex items-center gap-1.5 ${statusClass}"><span class="w-2 h-2 ${dotClass} rounded-full"></span> ${item.status}</span></td>
+                <td class="p-3">
+                    <span class="status-val flex items-center gap-1.5 ${statusClass}">
+                        <span class="w-2 h-2 ${dotClass} rounded-full"></span> ${item.status}
+                    </span>
+                </td>
             </tr>`;
     });
 }
@@ -139,21 +171,26 @@ async function renderTable(permitName) {
 async function addPermit() {
     const client = document.getElementById('clientInput').value;
     const tin = document.getElementById('tinInput').value;
+    const dateOfRegistration = document.getElementById('dateOfRegistrationInput').value;
+    const approvedDateOfRegistration = document.getElementById('approvedDateOfRegistrationInput').value;
+    const expirationDateOfRegistration = document.getElementById('expirationDateOfRegistrationInput').value;
     const reg = document.getElementById('regInput').value;
     const status = document.getElementById('statusInput').value;
 
     await fetch('/permits', {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'X-CSRF-TOKEN': '{{ csrf_token() }}' 
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
         },
         body: JSON.stringify({
             permit_type: currentPermit,
-            date: new Date().toISOString().slice(0,10),
             user: '{{ Auth::user()->name }}',
             client,
             tin,
+            date_of_registration: dateOfRegistration,
+            approved_date_of_registration: approvedDateOfRegistration,
+            expiration_date_of_registration: expirationDateOfRegistration,
             registration_status: reg,
             status
         })
@@ -170,13 +207,15 @@ document.getElementById("permitDropdownBtn").addEventListener("click", e => {
     e.stopPropagation();
     document.getElementById("permitMenu").classList.toggle("hidden");
 });
+
 document.getElementById("permitMenu").addEventListener("click", e => {
-    if(e.target.tagName === 'DIV') {
+    if (e.target.tagName === 'DIV') {
         document.getElementById("selectedPermit").innerText = e.target.innerText;
         renderTable(e.target.innerText);
         document.getElementById("permitMenu").classList.add("hidden");
     }
 });
+
 document.addEventListener("click", () => {
     document.getElementById("permitMenu").classList.add("hidden");
 });
