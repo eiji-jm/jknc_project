@@ -16,8 +16,6 @@ return new class extends Migration {
             $table->string('user');
             $table->string('client');
             $table->string('tin')->nullable();
-            $table->string('registration_status')->nullable();
-            $table->string('status')->nullable();
             $table->timestamps();
         });
     }

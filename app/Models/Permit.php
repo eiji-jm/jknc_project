@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Permit extends Model
 {
@@ -14,7 +15,24 @@ class Permit extends Model
         'user',
         'client',
         'tin',
-        'registration_status',
-        'status',
     ];
+
+    protected $appends = ['status'];
+
+    protected $casts = [
+        'date_of_registration' => 'date:Y-m-d',
+        'approved_date_of_registration' => 'date:Y-m-d',
+        'expiration_date_of_registration' => 'date:Y-m-d',
+    ];
+
+    public function getStatusAttribute()
+    {
+        if (!$this->expiration_date_of_registration) {
+            return 'No Expiration Date';
+        }
+
+        return $this->expiration_date_of_registration->lt(Carbon::today())
+            ? 'Expired'
+            : 'Active';
+    }
 }
