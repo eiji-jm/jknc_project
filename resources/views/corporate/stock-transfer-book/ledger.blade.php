@@ -1,47 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-@php
-    $tempIndexContacts = [
-        [
-            'id' => 1,
-            'family_name' => 'Caparoso',
-            'first_name' => 'Brian',
-            'middle_name' => 'P.',
-            'nationality' => 'Filipino',
-            'current_address' => 'Mandaue City, Cebu',
-            'tin' => '123-456-789-000',
-        ],
-        [
-            'id' => 2,
-            'family_name' => 'Kelly',
-            'first_name' => 'John',
-            'middle_name' => 'Michael',
-            'nationality' => 'Filipino',
-            'current_address' => 'Cebu City',
-            'tin' => '234-567-890-111',
-        ],
-        [
-            'id' => 3,
-            'family_name' => 'Rodriguez',
-            'first_name' => 'Carmen',
-            'middle_name' => 'Maria',
-            'nationality' => 'Filipino',
-            'current_address' => 'Makati City',
-            'tin' => '345-678-901-222',
-        ],
-        [
-            'id' => 4,
-            'family_name' => 'Santos',
-            'first_name' => 'Miguel',
-            'middle_name' => 'Antonio',
-            'nationality' => 'Filipino',
-            'current_address' => 'BGC, Taguig',
-            'tin' => '456-789-012-333',
-        ],
-    ];
-@endphp
-
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
      x-data="{ showAddPanel: false }"
      @keydown.escape.window="showAddPanel = false">
@@ -95,6 +54,16 @@
             </div>
         @endif
 
+        @if($errors->any())
+            <div class="mx-4 mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <ul class="list-disc ml-5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
             <input type="text"
                    id="ledger-search"
@@ -127,12 +96,12 @@
                                 <td class="px-4 py-3">{{ $ledger->first_name }}</td>
                                 <td class="px-4 py-3">{{ $ledger->middle_name }}</td>
                                 <td class="px-4 py-3">{{ $ledger->nationality }}</td>
-                                <td class="px-4 py-3">{{ $ledger->address ?? $ledger->current_address }}</td>
+                                <td class="px-4 py-3">{{ $ledger->current_address }}</td>
                                 <td class="px-4 py-3">{{ $ledger->tin }}</td>
-                                <td class="px-4 py-3">{{ $ledger->certificate_no ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $ledger->number_of_shares ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $ledger->date_registered ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ $ledger->status ?? '—' }}</td>
+                                <td class="px-4 py-3">{{ $ledger->certificate_no ?: '—' }}</td>
+                                <td class="px-4 py-3">{{ $ledger->number_of_shares ?: '—' }}</td>
+                                <td class="px-4 py-3">{{ $ledger->date_registered ?: '—' }}</td>
+                                <td class="px-4 py-3">{{ $ledger->status ?: '—' }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -157,7 +126,7 @@
                  x-transition:leave-end="translate-x-full"
                  @click.stop>
 
-                <form action="#"
+                <form action="{{ route('stock-transfer-book.ledger.store') }}"
                       method="POST"
                       class="h-full flex flex-col"
                       autocomplete="off">
@@ -193,81 +162,48 @@
 
                         <div>
                             <label class="text-xs text-gray-600">First Name</label>
-                            <input type="text"
-                                   id="ledger_first_name"
-                                   readonly
-                                   class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm"
-                                   placeholder="">
+                            <input type="text" id="ledger_first_name" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-600">Middle Name</label>
-                            <input type="text"
-                                   id="ledger_middle_name"
-                                   readonly
-                                   class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm"
-                                   placeholder="">
+                            <input type="text" id="ledger_middle_name" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-600">Nationality</label>
-                            <input type="text"
-                                   id="ledger_nationality"
-                                   readonly
-                                   class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm"
-                                   placeholder="">
+                            <input type="text" id="ledger_nationality" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-600">Current Residential Address</label>
-                            <input type="text"
-                                   id="ledger_current_address"
-                                   readonly
-                                   class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm"
-                                   placeholder="">
+                            <input type="text" id="ledger_current_address" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-600">TIN</label>
-                            <input type="text"
-                                   id="ledger_tin"
-                                   readonly
-                                   class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm"
-                                   placeholder="">
+                            <input type="text" id="ledger_tin" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="text-xs text-gray-600">Certificate No.</label>
-                                <input type="text"
-                                       id="ledger_certificate_no"
-                                       name="certificate_no"
-                                       class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                       placeholder="CERT-0001">
+                                <input type="text" name="certificate_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-600">Number of Shares</label>
-                                <input type="number"
-                                       id="ledger_number_of_shares"
-                                       name="number_of_shares"
-                                       class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                                       placeholder="1000">
+                                <input type="number" name="number_of_shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-600">Date Registered</label>
-                                <input type="date"
-                                       id="ledger_date_registered"
-                                       name="date_registered"
-                                       class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                                <input type="date" name="date_registered" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             </div>
 
                             <div>
                                 <label class="text-xs text-gray-600">Status</label>
-                                <select id="ledger_status"
-                                        name="status"
-                                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
+                                <select name="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
                                     <option value="">Select status</option>
                                     <option value="Active">Active</option>
                                     <option value="Inactive">Inactive</option>
@@ -277,7 +213,7 @@
                         </div>
 
                         <div class="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
-                            Ledger uses the same shareholder details from Index, then adds certificate and share ownership details.
+                            Ledger uses the same details from Index, then adds ledger-specific stock details.
                         </div>
                     </div>
 
@@ -288,7 +224,7 @@
                         <div class="flex-1"></div>
                         <button id="save_ledger_btn"
                                 class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                type="button"
+                                type="submit"
                                 disabled>
                             Save Ledger
                         </button>
@@ -301,7 +237,7 @@
 </div>
 
 <script>
-    const tempIndexContacts = @json($tempIndexContacts);
+    const indexRecords = @json($indexes);
 
     const ledgerSearchInput = document.getElementById('ledger-search');
     const ledgerTableBody = document.getElementById('ledger-table-body');
@@ -358,8 +294,8 @@
     function renderLedgerSuggestions(query = '') {
         const q = query.trim().toLowerCase();
 
-        const filtered = tempIndexContacts.filter(contact => {
-            const full = `${contact.family_name} ${contact.first_name} ${contact.middle_name}`.toLowerCase();
+        const filtered = indexRecords.filter(contact => {
+            const full = `${contact.family_name || ''} ${contact.first_name || ''} ${contact.middle_name || ''}`.toLowerCase();
             return q === '' || full.includes(q);
         });
 
@@ -382,7 +318,7 @@
 
             option.innerHTML = `
                 <div class="font-medium text-gray-900">
-                    ${contact.family_name}, ${contact.first_name} ${contact.middle_name || ''}
+                    ${contact.family_name || ''}, ${contact.first_name || ''} ${contact.middle_name || ''}
                 </div>
                 <div class="text-xs text-gray-500 mt-0.5">
                     ${contact.nationality || ''}${contact.current_address ? ' • ' + contact.current_address : ''}

@@ -44,6 +44,22 @@
             <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
         </div>
 
+        @if(session('success'))
+            <div class="mx-4 mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="mx-4 mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <ul class="list-disc ml-5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="p-4">
             <div class="overflow-auto">
                 <table class="min-w-full">
@@ -52,6 +68,8 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Journal</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Ledger Folio</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Shareholder</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Certificate No.</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Particulars</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">No. Shares</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Transaction Type</th>
@@ -63,13 +81,15 @@
                                 <td class="px-4 py-3">{{ optional($journal->entry_date)->format('M d, Y') }}</td>
                                 <td class="px-4 py-3">{{ $journal->journal_no }}</td>
                                 <td class="px-4 py-3">{{ $journal->ledger_folio }}</td>
+                                <td class="px-4 py-3">{{ $journal->shareholder }}</td>
+                                <td class="px-4 py-3">{{ $journal->certificate_no }}</td>
                                 <td class="px-4 py-3">{{ $journal->particulars }}</td>
                                 <td class="px-4 py-3">{{ $journal->no_shares }}</td>
                                 <td class="px-4 py-3">{{ $journal->transaction_type }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No journal entries found.</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">No journal entries found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -81,6 +101,7 @@
 
     <div x-cloak>
         <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+
         <div x-show="showAddPanel"
             class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
             x-transition:enter="transform transition ease-in-out duration-200"
@@ -90,70 +111,207 @@
             x-transition:leave-start="translate-x-0"
             x-transition:leave-end="translate-x-full"
             @click.stop>
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                <div class="text-lg font-semibold">Add Journal Transaction</div>
-                <div class="flex-1"></div>
-                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
 
-            <div class="p-6 overflow-y-auto space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form action="{{ route('stock-transfer-book.journal.store') }}" method="POST" class="h-full flex flex-col" autocomplete="off">
+                @csrf
+
+                <input type="hidden" name="stock_transfer_book_ledger_id" id="journal_ledger_id">
+
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                    <div class="text-lg font-semibold">Add Journal Transaction</div>
+                    <div class="flex-1"></div>
+                    <button class="text-gray-500 hover:text-gray-700" type="button" @click="showAddPanel = false">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto space-y-5">
+
+                    <div class="relative z-[300]">
+                        <label class="text-xs text-gray-600">Ledger / Shareholder</label>
+                        <input type="text"
+                               id="journal_ledger_picker"
+                               autocomplete="new-password"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                               placeholder="Search and select ledger">
+
+                        <div id="journal_ledger_suggestions"
+                             class="hidden absolute left-0 right-0 top-full mt-1 z-[9999] rounded-md border border-gray-200 bg-white shadow-xl max-h-60 overflow-y-auto">
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="text-xs text-gray-600">Date</label>
-                        <input type="date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Journal No.</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="JNL-0001">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Ledger Folio</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="LED-0001">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">No. Shares</label>
-                        <input type="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs text-gray-600">Particulars</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter particulars">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Transaction Type</label>
-                        <select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            <option>Issuance</option>
-                            <option>Cancellation</option>
-                            <option>Transfer</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-600">Certificate No.</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="CERT-0001">
-                    </div>
-                    <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Shareholder</label>
-                        <input type="text" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Shareholder name">
+                        <input type="text" id="journal_shareholder" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
                     </div>
-                    <div class="md:col-span-2">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-600">Ledger Folio</label>
+                            <input type="text" id="journal_ledger_folio" name="ledger_folio" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-600">Certificate No.</label>
+                            <input type="text" id="journal_certificate_no" name="certificate_no" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-50 px-3 py-2 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-600">Date</label>
+                            <input type="date" name="entry_date" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-600">Journal No.</label>
+                            <input type="text" name="journal_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="JNL-0001">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-600">No. Shares</label>
+                            <input type="number" id="journal_no_shares" name="no_shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-600">Transaction Type</label>
+                            <select name="transaction_type" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
+                                <option value="">Select transaction type</option>
+                                <option value="Issuance">Issuance</option>
+                                <option value="Cancellation">Cancellation</option>
+                                <option value="Transfer">Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-gray-600">Particulars</label>
+                        <input type="text" name="particulars" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Enter particulars">
+                    </div>
+
+                    <div>
                         <label class="text-xs text-gray-600">Remarks</label>
-                        <textarea rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Add remarks"></textarea>
+                        <textarea rows="3" name="remarks" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Add remarks"></textarea>
+                    </div>
+
+                    <div class="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700">
+                        Journal uses an existing Ledger record, then stores the transaction details for that shareholder and certificate.
                     </div>
                 </div>
-            </div>
 
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
-                <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false">
-                    Cancel
-                </button>
-                <div class="flex-1"></div>
-                <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
-                    Save Transaction
-                </button>
-            </div>
+                <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2">
+                    <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" type="button" @click="showAddPanel = false">
+                        Cancel
+                    </button>
+                    <div class="flex-1"></div>
+                    <button id="save_journal_btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" type="submit" disabled>
+                        Save Transaction
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
 </div>
+
+<script>
+    const ledgerRecords = @json($ledgerRecords);
+
+    const pickerInput = document.getElementById('journal_ledger_picker');
+    const suggestionBox = document.getElementById('journal_ledger_suggestions');
+    const ledgerIdInput = document.getElementById('journal_ledger_id');
+    const shareholderInput = document.getElementById('journal_shareholder');
+    const ledgerFolioInput = document.getElementById('journal_ledger_folio');
+    const certificateNoInput = document.getElementById('journal_certificate_no');
+    const noSharesInput = document.getElementById('journal_no_shares');
+    const saveBtn = document.getElementById('save_journal_btn');
+
+    function clearJournalSelection() {
+        ledgerIdInput.value = '';
+        shareholderInput.value = '';
+        ledgerFolioInput.value = '';
+        certificateNoInput.value = '';
+        noSharesInput.value = '';
+        saveBtn.disabled = true;
+    }
+
+    function hideSuggestions() {
+        suggestionBox.classList.add('hidden');
+        suggestionBox.innerHTML = '';
+    }
+
+    function fillJournalLedger(item) {
+        pickerInput.value = item.shareholder || '';
+        ledgerIdInput.value = item.id || '';
+        shareholderInput.value = item.shareholder || '';
+        ledgerFolioInput.value = item.ledger_folio || '';
+        certificateNoInput.value = item.certificate_no || '';
+        noSharesInput.value = item.number_of_shares || '';
+        saveBtn.disabled = false;
+        hideSuggestions();
+    }
+
+    function renderJournalSuggestions(query = '') {
+        const q = query.trim().toLowerCase();
+
+        const filtered = ledgerRecords.filter(item => {
+            const full = `${item.shareholder || ''} ${item.ledger_folio || ''} ${item.certificate_no || ''}`.toLowerCase();
+            return q === '' || full.includes(q);
+        });
+
+        suggestionBox.innerHTML = '';
+
+        if (!filtered.length) {
+            suggestionBox.innerHTML = `
+                <div class="px-3 py-3 text-sm text-gray-500 border-b border-gray-100">
+                    No ledger record found.
+                </div>
+            `;
+            suggestionBox.classList.remove('hidden');
+            return;
+        }
+
+        filtered.forEach(item => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'w-full text-left px-3 py-3 hover:bg-gray-50 border-b border-gray-100 text-sm';
+
+            option.innerHTML = `
+                <div class="font-medium text-gray-900">
+                    ${item.shareholder || ''}
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5">
+                    ${item.ledger_folio || ''}${item.certificate_no ? ' • ' + item.certificate_no : ''}${item.number_of_shares ? ' • ' + item.number_of_shares + ' shares' : ''}
+                </div>
+            `;
+
+            option.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                fillJournalLedger(item);
+            });
+
+            suggestionBox.appendChild(option);
+        });
+
+        suggestionBox.classList.remove('hidden');
+    }
+
+    if (pickerInput) {
+        pickerInput.addEventListener('focus', function () {
+            renderJournalSuggestions(this.value);
+        });
+
+        pickerInput.addEventListener('input', function () {
+            clearJournalSelection();
+            renderJournalSuggestions(this.value);
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!suggestionBox.contains(e.target) && e.target !== pickerInput) {
+                hideSuggestions();
+            }
+        });
+    }
+</script>
 @endsection

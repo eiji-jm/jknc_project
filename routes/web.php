@@ -164,4 +164,24 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/corporate/stock-transfer-book/certificates', [StockTransferBookController::class, 'certificates'])
     ->name('stock-transfer-book.certificates');
+
+    Route::post('/corporate/stock-transfer-book/ledger/store', [StockTransferBookController::class, 'storeLedger'])
+    ->name('stock-transfer-book.ledger.store');
+
+    Route::post('/corporate/stock-transfer-book/journal/store', [StockTransferBookController::class, 'storeJournal'])
+    ->name('stock-transfer-book.journal.store');
+
+    Route::post('/corporate/stock-transfer-book/certificates/store', [StockTransferBookController::class, 'storeCertificate'])
+    ->name('stock-transfer-book.certificates.store');
+    Route::put('/corporate/stock-transfer-book/certificates/voucher/{id}/update', [StockTransferBookController::class, 'updateCertificateVoucher'])
+    ->name('stock-transfer-book.certificates.voucher.update');
+    Route::post('/corporate/stock-transfer-book/certificates/request/store', [StockTransferBookController::class, 'storeIssuanceRequest'])
+    ->name('stock-transfer-book.certificates.request.store');
+    Route::post('/corporate/stock-transfer-book/certificates/cancellation/store', [StockTransferBookController::class, 'storeCertificateCancellation'])
+    ->name('stock-transfer-book.certificates.cancellation.store');
+
+Route::put('/corporate/stock-transfer-book/certificates/voucher/{id}/update', [StockTransferBookController::class, 'cancelCertificateVoucher'])
+    ->name('stock-transfer-book.certificates.voucher.update');
+    Route::post('/corporate/stock-transfer-book/installment/store', [StockTransferBookController::class, 'storeInstallment'])
+    ->name('stock-transfer-book.installment.store');
 });
