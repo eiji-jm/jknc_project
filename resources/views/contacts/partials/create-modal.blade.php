@@ -1,4 +1,13 @@
 @php
+    $editContact = $editContact ?? null;
+    $metaCreatedBy = old('created_by', data_get($editContact, 'created_by') ?: ($createdByDisplay ?? 'Admin User'));
+    $metaCreatedAt = old('created_at_display', data_get($editContact, 'created_at')
+        ? \Illuminate\Support\Carbon::parse(data_get($editContact, 'created_at'))->format('F j, Y • g:i A')
+        : ($createdAtDisplay ?? now()->format('F j, Y • g:i A')));
+    $metaBusinessDate = old('business_date', data_get($editContact, 'business_date')
+        ? \Illuminate\Support\Carbon::parse(data_get($editContact, 'business_date'))->toDateString()
+        : ($defaultBusinessDate ?? now()->toDateString()));
+
     $serviceInquiryOptions = [
         'Business Registration / Entity Formation',
         'Business Permit (New / Renewal)',
@@ -51,7 +60,7 @@
                 <input id="owner_id" type="hidden" name="owner_id" value="{{ old('owner_id', $selectedOwnerId) }}">
 
                 <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6 sm:px-8">
-                    <div class="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="space-y-4 border-b border-gray-100 pb-5">
                         <div>
                             <p class="text-sm font-medium text-gray-500">Client Intake</p>
                             <p class="text-xs text-gray-400">Use this as the main contact and business record.</p>
@@ -59,11 +68,12 @@
 
                         <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
                             <div>
-                                <label for="intake_date" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Date</label>
-                                <input id="intake_date" type="date" name="intake_date" value="{{ old('intake_date', now()->toDateString()) }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <label for="business_date" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Business Date</label>
+                                <input id="business_date" type="date" name="business_date" value="{{ $metaBusinessDate }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                             </div>
-                            <div class="relative sm:flex-shrink-0">
-                                <button id="ownerDropdownTrigger" type="button" class="inline-flex h-10 w-full items-center justify-between gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 sm:w-auto">
+                            <div class="relative">
+                                <label for="ownerDropdownTrigger" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Owner</label>
+                                <button id="ownerDropdownTrigger" type="button" class="inline-flex h-10 w-full items-center justify-between gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100">
                                     <span class="h-2 w-2 rounded-full bg-blue-500"></span>
                                     <span id="ownerSelectedLabel">Owner: {{ $selectedOwnerName }}</span>
                                     <i class="fas fa-chevron-down text-[10px] text-gray-400"></i>
@@ -86,6 +96,19 @@
                                         @endforeach
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 border-t border-gray-100 pt-3">
+                            <div>
+                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Created By</p>
+                                <p class="text-sm text-gray-500">{{ $metaCreatedBy }}</p>
+                            </div>
+                            <div>
+                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Created At</p>
+                                <p class="text-sm text-gray-500">
+                                    <span id="createdAtLiveValue">{{ $metaCreatedAt }}</span>
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -125,14 +148,14 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div><label for="salutation" class="mb-1 block text-sm font-medium text-gray-700">Salutation</label><select id="salutation" name="salutation" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="" disabled @selected(blank(old('salutation'))) >Select salutation</option>@foreach (['Mr.', 'Ms.', 'Mrs.', 'Atty.', 'CPA', 'Engr.', 'Dr.'] as $option)<option value="{{ $option }}" @selected(old('salutation') === $option)>{{ $option }}</option>@endforeach</select></div>
                             <div><label for="sex" class="mb-1 block text-sm font-medium text-gray-700">Sex</label><select id="sex" name="sex" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="" disabled @selected(blank(old('sex'))) >Select sex</option>@foreach (['Male', 'Female', 'Prefer not to say'] as $option)<option value="{{ $option }}" @selected(old('sex') === $option)>{{ $option }}</option>@endforeach</select></div>
-                            <div><label for="first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label><input id="first_name" name="first_name" required value="{{ old('first_name') }}" placeholder="First Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                            <div><label for="first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label><input id="first_name" name="first_name" required value="{{ old('first_name') }}" placeholder="First Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">@error('first_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                             <div><label for="middle_initial" class="mb-1 block text-sm font-medium text-gray-700">Middle Initial</label><input id="middle_initial" name="middle_initial" value="{{ old('middle_initial') }}" placeholder="Middle Initial" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             <div><label for="middle_name" class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label><input id="middle_name" name="middle_name" value="{{ old('middle_name') }}" placeholder="Middle Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                            <div><label for="last_name" class="mb-1 block text-sm font-medium text-gray-700">Last Name</label><input id="last_name" name="last_name" value="{{ old('last_name') }}" placeholder="Last Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                            <div><label for="last_name" class="mb-1 block text-sm font-medium text-gray-700">Last Name <span class="text-red-500">*</span></label><input id="last_name" name="last_name" required value="{{ old('last_name') }}" placeholder="Last Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">@error('last_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                             <div><label for="name_extension" class="mb-1 block text-sm font-medium text-gray-700">Name Extension</label><input id="name_extension" name="name_extension" value="{{ old('name_extension') }}" placeholder="Jr./Sr./III" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             <div><label for="date_of_birth" class="mb-1 block text-sm font-medium text-gray-700">Date of Birth</label><input id="date_of_birth" type="date" name="date_of_birth" value="{{ old('date_of_birth') }}" placeholder="Date of Birth (MM/DD/YYYY)" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                            <div><label for="email" class="mb-1 block text-sm font-medium text-gray-700">Email Address</label><input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="Email Address" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                            <div><label for="mobile" class="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label><input id="mobile" name="mobile" value="{{ old('mobile') }}" placeholder="Mobile Number" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                            <div><label for="email" class="mb-1 block text-sm font-medium text-gray-700">Email Address <span class="text-red-500">*</span></label><input id="email" name="email" type="email" required value="{{ old('email') }}" placeholder="Email Address" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">@error('email')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                            <div><label for="mobile_number" class="mb-1 block text-sm font-medium text-gray-700">Mobile Number <span class="text-red-500">*</span></label><input id="mobile_number" name="mobile_number" required value="{{ old('mobile_number', old('mobile')) }}" placeholder="Mobile Number" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">@error('mobile_number')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                             <div class="sm:col-span-2"><label for="contact_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label><textarea id="contact_address" name="contact_address" rows="2" placeholder="House No., Street, Barangay, City, Province, Postal Code" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('contact_address') }}</textarea></div>
                             <div><label for="company_name" class="mb-1 block text-sm font-medium text-gray-700">Company</label><input id="company_name" name="company_name" value="{{ old('company_name') }}" placeholder="Company Name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             <div><label for="position" class="mb-1 block text-sm font-medium text-gray-700">Position / Designation</label><input id="position" name="position" value="{{ old('position') }}" placeholder="Position / Designation" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
@@ -228,11 +251,28 @@
                     </section>
 
                     <section class="rounded-2xl border border-gray-200 p-4">
-                        <h3 class="text-base font-semibold text-gray-900">Referral / Stage</h3>
-                        <p class="mb-4 text-xs text-gray-500">Record referral details and current lead stage.</p>
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div><label for="referred_by" class="mb-1 block text-sm font-medium text-gray-700">Referred By</label><input id="referred_by" name="referred_by" value="{{ old('referred_by') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                            <div><label for="lead_stage" class="mb-1 block text-sm font-medium text-gray-700">Lead Stage</label><select id="lead_stage" name="lead_stage" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="">Select stage</option>@foreach (['Intake', 'Qualified', 'Converted', 'Lost', 'Not Qualified'] as $option)<option value="{{ $option }}" @selected(old('lead_stage') === $option)>{{ $option }}</option>@endforeach</select></div>
+                        <h3 class="text-base font-semibold text-gray-900">Referral Information</h3>
+                        <p class="mb-4 text-xs text-gray-500">Who referred this client or lead source details.</p>
+                        <div>
+                            <label for="referred_by" class="mb-1 block text-sm font-medium text-gray-700">Referred By</label>
+                            <input id="referred_by" name="referred_by" value="{{ old('referred_by') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                        </div>
+                    </section>
+
+                    <section class="rounded-2xl border border-gray-200 p-4">
+                        <h3 class="text-base font-semibold text-gray-900">Lead Stage</h3>
+                        <p class="mb-4 text-xs text-gray-500">Current stage of the lead in the pipeline.</p>
+                        @php
+                            $leadStageOptions = ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'];
+                            $selectedLeadStage = old('lead_stage', 'Inquiry');
+                        @endphp
+                        <div>
+                            <label for="lead_stage" class="mb-1 block text-sm font-medium text-gray-700">Lead Stage</label>
+                            <select id="lead_stage" name="lead_stage" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                @foreach ($leadStageOptions as $option)
+                                    <option value="{{ $option }}" @selected($selectedLeadStage === $option)>{{ $option }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </section>
 

@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 
 class Contact extends Model
 {
     protected $fillable = [
+        'business_date',
         'intake_date',
         'customer_type',
         'client_status',
@@ -56,9 +58,11 @@ class Contact extends Model
         'last_activity_at',
         'lead_source',
         'description',
+        'created_by',
     ];
 
     protected $casts = [
+        'business_date' => 'date',
         'intake_date' => 'date',
         'date_of_birth' => 'date',
         'last_activity_at' => 'datetime',
@@ -73,5 +77,10 @@ class Contact extends Model
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    public function specimenSignature(): HasOne
+    {
+        return $this->hasOne(SpecimenSignature::class);
     }
 }

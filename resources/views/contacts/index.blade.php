@@ -172,6 +172,9 @@
     'owners' => $owners,
     'selectedOwnerId' => $selectedOwnerId,
     'selectedOwnerName' => $selectedOwnerName,
+    'createdByDisplay' => $createdByDisplay ?? 'Admin User',
+    'createdAtDisplay' => $createdAtDisplay ?? now()->format('F j, Y • g:i A'),
+    'defaultBusinessDate' => $defaultBusinessDate ?? now()->toDateString(),
 ])
 
 <div id="assignOwnerModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
@@ -266,6 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ownerInput = document.getElementById('owner_id');
     const ownerLabel = document.getElementById('ownerSelectedLabel');
     const ownerOptions = Array.from(document.querySelectorAll('.owner-option'));
+    const createdAtLiveValue = document.getElementById('createdAtLiveValue');
     const assignOwnerModal = document.getElementById('assignOwnerModal');
     const openAssignOwnerModalButton = document.getElementById('openAssignOwnerModal');
     const closeAssignOwnerModalButton = document.getElementById('closeAssignOwnerModal');
@@ -309,6 +313,42 @@ document.addEventListener('DOMContentLoaded', function () {
     const actionBar = document.getElementById('selectionActionBar');
     const selectedCount = document.getElementById('selectedCount');
     const clearSelection = document.getElementById('clearSelection');
+    let createdAtIntervalId = null;
+
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    });
+
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    });
+
+    const formatCreatedAt = (date) => `${dateFormatter.format(date)} • ${timeFormatter.format(date)}`;
+
+    const renderCreatedAtClock = () => {
+        if (!createdAtLiveValue) {
+            return;
+        }
+        createdAtLiveValue.textContent = formatCreatedAt(new Date());
+    };
+
+    const stopCreatedAtClock = () => {
+        if (createdAtIntervalId !== null) {
+            window.clearInterval(createdAtIntervalId);
+            createdAtIntervalId = null;
+        }
+    };
+
+    const startCreatedAtClock = () => {
+        stopCreatedAtClock();
+        renderCreatedAtClock();
+        createdAtIntervalId = window.setInterval(renderCreatedAtClock, 1000);
+    };
 
     const openModal = () => {
         if (!modal || !contactPanel) {
@@ -317,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
+        startCreatedAtClock();
         requestAnimationFrame(() => {
             contactOverlay?.classList.remove('opacity-0');
             contactPanel.classList.remove('translate-x-full');
@@ -330,6 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ownerMenu?.classList.add('hidden');
         contactOverlay?.classList.add('opacity-0');
         contactPanel.classList.add('translate-x-full');
+        stopCreatedAtClock();
         document.body.classList.remove('overflow-hidden');
         window.setTimeout(() => {
             modal.classList.add('hidden');
@@ -720,6 +762,7 @@ document.addEventListener('DOMContentLoaded', function () {
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
     syncOtherFieldVisibility();
     syncBusinessConditionalFields();
+    renderCreatedAtClock();
 
     @if ($errors->any())
         @if (old('field_type'))
