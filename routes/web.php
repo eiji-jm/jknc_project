@@ -43,11 +43,18 @@ Route::middleware('auth')->group(function () {
     | TOWN HALL
     |--------------------------------------------------------------------------
     */
+
+
     Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
+    Route::get('/townhall/department', [TownHallController::class, 'department'])
+    ->name('townhall.department');
+    Route::get('/townhall/attachments', [TownHallController::class, 'attachments'])
+    ->name('townhall.attachments');
     Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
     Route::get('/townhall/{id}', [TownHallController::class, 'show'])->name('townhall.show');
     Route::get('/townhall/{id}/download-pdf', [TownHallController::class, 'downloadPdf'])
     ->name('townhall.download.pdf');
+
 
     Route::post('/townhall/{id}/approve', [TownHallController::class, 'approve'])->name('townhall.approve');
     Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');

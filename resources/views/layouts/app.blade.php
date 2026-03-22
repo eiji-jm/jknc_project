@@ -117,7 +117,7 @@
             @if(Auth::user()->hasPermission('access_townhall'))
                 <a href="{{ route('townhall') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-                   {{ request()->routeIs('townhall') || request()->routeIs('townhall.show') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                  {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-bullhorn text-base"></i>
                     <span>Town Hall</span>
                 </a>
@@ -159,7 +159,7 @@
         </aside>
 
         <!-- SECOND SIDEBAR -->
-        @if(request()->routeIs('townhall'))
+        @if(request()->routeIs('townhall*'))
             <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
@@ -169,20 +169,24 @@
                     <div class="space-y-1 text-sm">
                         <a href="{{ route('townhall') }}"
                            class="block px-3 py-2 rounded-lg transition
-                           {{ request()->routeIs('townhall') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                           {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                             Communications
                         </a>
 
                         <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                            {{-- DEPARTMENT --}}
+                            <a href="{{ route('townhall.department') }}"
+                            class="block px-3 py-2 rounded-lg transition
+                            {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Department
                             </a>
 
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                            {{-- ATTACHMENTS --}}
+                            <a href="{{ route('townhall.attachments') }}"
+                            class="block px-3 py-2 rounded-lg transition
+                            {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Attachments
-                            </a>
+                        </a>
                         </div>
                     </div>
                 </div>

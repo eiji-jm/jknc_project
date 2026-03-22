@@ -13,18 +13,28 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class TownHallController extends Controller
 {
-    public function index()
-{
-    if (!Auth::user()->hasPermission('access_townhall')) {
-        abort(403, 'Unauthorized');
+    public function index(Request $request)
+    {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $query = TownHallCommunication::where('approval_status', 'Approved');
+
+        // 🔥 DEPARTMENT FILTER
+        if ($request->filled('department')) {
+            $query->where('department_stakeholder', $request->department);
+        }
+
+        $communications = $query->latest()->paginate(10);
+
+        // 🔥 GET UNIQUE DEPARTMENTS
+        $departments = TownHallCommunication::select('department_stakeholder')
+            ->distinct()
+            ->pluck('department_stakeholder');
+
+        return view('townhall.townhall', compact('communications', 'departments'));
     }
-
-    $communications = TownHallCommunication::where('approval_status', 'Approved')
-        ->latest()
-        ->paginate(10);
-
-    return view('townhall.townhall', compact('communications'));
-}
 
     public function store(Request $request)
     {
@@ -70,6 +80,33 @@ class TownHallController extends Controller
         return redirect()
             ->route('townhall')
             ->with('success', 'Town Hall communication created successfully.');
+    }
+
+    public function department(Request $request)
+    {
+        $departments = TownHallCommunication::select('department_stakeholder')
+            ->distinct()
+            ->pluck('department_stakeholder');
+
+        $query = TownHallCommunication::where('approval_status', 'Approved');
+
+        if ($request->filled('department')) {
+            $query->where('department_stakeholder', $request->department);
+        }
+
+        $communications = $query->latest()->get();
+
+        return view('townhall.department', compact('communications', 'departments'));
+    }
+
+    public function attachments()
+    {
+        $communications = TownHallCommunication::whereNotNull('attachment')
+            ->where('approval_status', 'Approved')
+            ->latest()
+            ->get();
+
+        return view('townhall.attachments', compact('communications'));
     }
 
     public function show($id)
