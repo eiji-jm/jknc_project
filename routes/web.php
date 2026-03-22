@@ -6,6 +6,8 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\PermitController;
 use App\Http\Controllers\CorrespondenceController;
 
+
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -21,6 +23,8 @@ Route::get('/permits/{permitType}', [PermitController::class, 'index']);
 Route::post('/permits', [PermitController::class, 'store']);
 Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
 Route::post('/correspondence', [CorrespondenceController::class, 'store']);
+Route::get('/permits/template/mayors-permit/{id}', [PermitController::class, 'showMayorPermitTemplate'])
+    ->name('permits.template.mayors-permit');
 
 Route::middleware('auth')->group(function () {
 

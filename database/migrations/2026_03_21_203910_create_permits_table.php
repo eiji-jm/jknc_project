@@ -10,11 +10,11 @@ return new class extends Migration {
         Schema::create('permits', function (Blueprint $table) {
             $table->id();
             $table->string('permit_type');
+            $table->string('permit_number')->unique();
             $table->date('date_of_registration')->nullable();
             $table->date('approved_date_of_registration')->nullable();
             $table->date('expiration_date_of_registration')->nullable();
             $table->string('user');
-            $table->string('client');
             $table->string('tin')->nullable();
             $table->timestamps();
         });

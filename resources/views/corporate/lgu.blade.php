@@ -27,11 +27,6 @@
                         {{-- FORM --}}
                         <div class="p-6 space-y-4 flex-1 overflow-y-auto">
                             <div>
-                                <label class="block text-sm font-medium mb-1">Client</label>
-                                <input id="clientInput" class="w-full border rounded-md p-2" placeholder="Client Name">
-                            </div>
-
-                            <div>
                                 <label class="block text-sm font-medium mb-1">TIN</label>
                                 <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
                             </div>
@@ -58,7 +53,7 @@
                                     This permit has an expiration date
                                 </label>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    If unchecked, expiration date will be disabled and registration status will automatically be Active.
+                                    If unchecked, expiration date will be disabled and status will automatically be Active.
                                 </p>
                             </div>
 
@@ -78,7 +73,7 @@
                         <div class="p-6 border-t flex gap-3">
                             <button @click="showSlideOver=false" class="flex-1 border py-2 rounded">Cancel</button>
                             <button
-                                @click="addPermit().then(success => { if (success) { showSlideOver = false; hasExpiration = true; } })"
+                                @click="addPermit().then(success => { if (success) { showSlideOver = false; hasExpiration = true; resetFormDefaults(); } })"
                                 class="flex-1 bg-blue-600 text-white py-2 rounded"
                             >
                                 Save
@@ -106,7 +101,12 @@
                 </div>
             </div>
 
-            <button @click="showSlideOver = true" class="bg-blue-600 text-white px-6 py-2 rounded text-sm">+ Add</button>
+            <button
+                @click="showSlideOver = true; $nextTick(() => resetFormDefaults())"
+                class="bg-blue-600 text-white px-6 py-2 rounded text-sm"
+            >
+                + Add
+            </button>
         </div>
 
         {{-- TABLE --}}
@@ -115,13 +115,14 @@
                 <table class="w-full text-sm table-fixed border-collapse">
                     <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
+                            <th class="w-40 p-3 text-left">Permit No.</th>
                             <th class="w-40 p-3 text-left">Date of Registration</th>
                             <th class="w-48 p-3 text-left">Approved Date</th>
                             <th class="w-44 p-3 text-left">Expiration Date</th>
                             <th class="w-32 p-3 text-left">Uploader</th>
-                            <th class="w-40 p-3 text-left">Client</th>
                             <th class="w-32 p-3 text-left">TIN</th>
                             <th class="w-32 p-3 text-left">Status</th>
+                            <th class="w-32 p-3 text-left">Template</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="bg-white"></tbody>
@@ -134,6 +135,16 @@
 
 <script>
 let currentPermit = "Mayor's Permit";
+
+function resetFormDefaults() {
+    document.getElementById('tinInput').value = '';
+    document.getElementById('dateOfRegistrationInput').value = '';
+    document.getElementById('approvedDateOfRegistrationInput').value = '';
+    document.getElementById('hasExpirationInput').checked = true;
+    document.getElementById('expirationDateOfRegistrationInput').value = '';
+    document.getElementById('expirationDateOfRegistrationInput').disabled = false;
+    document.getElementById('expirationDateOfRegistrationInput').classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+}
 
 async function fetchPermits(permitName) {
     const res = await fetch(`/permits/${encodeURIComponent(permitName)}`);
@@ -170,7 +181,7 @@ async function renderTable(permitName) {
     const permitData = await fetchPermits(permitName);
 
     if (!permitData || permitData.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
         return;
     }
 
@@ -179,11 +190,11 @@ async function renderTable(permitName) {
 
         tableBody.innerHTML += `
             <tr class="border-t hover:bg-gray-50">
+                <td class="p-3">${item.permit_number ?? ''}</td>
                 <td class="p-3">${item.date_of_registration ?? ''}</td>
                 <td class="p-3">${item.approved_date_of_registration ?? ''}</td>
                 <td class="p-3">${item.expiration_date_of_registration ?? 'No Expiration'}</td>
                 <td class="p-3">${item.user ?? ''}</td>
-                <td class="p-3 truncate">${item.client ?? ''}</td>
                 <td class="p-3">${item.tin ?? ''}</td>
                 <td class="p-3">
                     <span class="flex items-center gap-1.5 ${classes.textClass}">
@@ -191,13 +202,19 @@ async function renderTable(permitName) {
                         ${item.status ?? 'No Status'}
                     </span>
                 </td>
+                <td class="p-3">
+                    ${
+                        item.permit_type === "Mayor's Permit"
+                            ? `<a href="/permits/template/mayors-permit/${item.id}" target="_blank" class="text-blue-600 hover:underline">View</a>`
+                            : `<span class="text-gray-400">N/A</span>`
+                    }
+                </td>
             </tr>
         `;
     });
 }
 
 async function addPermit() {
-    const client = document.getElementById('clientInput').value;
     const tin = document.getElementById('tinInput').value;
     const dateOfRegistration = document.getElementById('dateOfRegistrationInput').value;
     const approvedDateOfRegistration = document.getElementById('approvedDateOfRegistrationInput').value;
@@ -215,7 +232,6 @@ async function addPermit() {
         },
         body: JSON.stringify({
             permit_type: currentPermit,
-            client: client,
             tin: tin,
             date_of_registration: dateOfRegistration,
             approved_date_of_registration: approvedDateOfRegistration,
@@ -227,13 +243,6 @@ async function addPermit() {
         alert('Failed to save permit.');
         return false;
     }
-
-    document.getElementById('clientInput').value = '';
-    document.getElementById('tinInput').value = '';
-    document.getElementById('dateOfRegistrationInput').value = '';
-    document.getElementById('approvedDateOfRegistrationInput').value = '';
-    document.getElementById('hasExpirationInput').checked = true;
-    document.getElementById('expirationDateOfRegistrationInput').value = '';
 
     await renderTable(currentPermit);
     return true;
@@ -248,8 +257,10 @@ document.getElementById("permitDropdownBtn").addEventListener("click", e => {
 
 document.getElementById("permitMenu").addEventListener("click", e => {
     if (e.target.tagName === 'DIV') {
-        document.getElementById("selectedPermit").innerText = e.target.innerText;
-        renderTable(e.target.innerText);
+        const selected = e.target.innerText;
+        document.getElementById("selectedPermit").innerText = selected;
+        currentPermit = selected;
+        renderTable(selected);
         document.getElementById("permitMenu").classList.add("hidden");
     }
 });

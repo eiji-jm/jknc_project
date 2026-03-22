@@ -9,11 +9,11 @@ class Permit extends Model
 {
     protected $fillable = [
         'permit_type',
+        'permit_number',
         'date_of_registration',
         'approved_date_of_registration',
         'expiration_date_of_registration',
         'user',
-        'client',
         'tin',
     ];
 
