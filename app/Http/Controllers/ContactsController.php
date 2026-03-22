@@ -544,6 +544,11 @@ class ContactsController extends Controller
             ...$validated,
         ]);
 
+        $this->syncContactKycSnapshot($contactModel, [
+            'cif_no' => $validated['cif_no'] ?? null,
+            'tin' => $validated['tin'] ?? null,
+        ]);
+
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
             ->with('success', 'CIF information saved successfully.');
@@ -569,7 +574,6 @@ class ContactsController extends Controller
             'mime_type' => $request->file('document_file')->getMimeType(),
             'uploaded_at' => now()->toDateTimeString(),
             'notes' => $validated['document_notes'] ?? '',
-            'url' => Storage::disk('public')->url($storedPath),
         ];
 
         $this->saveCifDocumentsToStorage($contactModel, $documents);
@@ -585,37 +589,105 @@ class ContactsController extends Controller
         abort_unless($contactModel, 404);
 
         $validated = $request->validate([
-            'requirement' => ['required', 'string', 'in:two_valid_ids,tin_proof,specimen_signature_upload'],
-            'document_file' => ['required', 'file', 'max:5120'],
+            'requirement' => ['required', 'string', 'in:cif_signed_document,two_valid_ids,tin_proof,specimen_signature_upload'],
+            'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'document_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'document_title' => ['nullable', 'string', 'max:255'],
+            'cif_no' => ['nullable', 'string', 'max:100'],
+            'company_reg_no' => ['nullable', 'string', 'max:100'],
+            'date_upload' => ['nullable', 'date'],
+            'date_created' => ['nullable', 'date'],
+            'issued_on' => ['nullable', 'date'],
+            'issued_by' => ['nullable', 'string', 'max:255'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $documents = $this->loadKycRequirementDocuments($contactModel);
         $requirement = $validated['requirement'];
-        $storedPath = $request->file('document_file')->store('contact-kyc-documents', 'public');
-        $document = [
-            'path' => $storedPath,
-            'file_name' => $request->file('document_file')->getClientOriginalName(),
-            'mime_type' => $request->file('document_file')->getMimeType(),
-            'uploaded_at' => now()->toDateTimeString(),
-            'url' => Storage::disk('public')->url($storedPath),
-        ];
+        $upload = $requirement === 'cif_signed_document'
+            ? $request->file('document')
+            : ($request->file('document_file') ?? $request->file('document'));
+
+        if ($requirement !== 'cif_signed_document' && ! $upload) {
+            return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                ->withErrors(['document_file' => 'Please upload a document file.']);
+        }
 
         if ($requirement === 'two_valid_ids') {
+            $storedPath = $upload->store('contact-kyc-documents', 'public');
+            $document = [
+                'path' => $storedPath,
+                'file_path' => $storedPath,
+                'file_name' => $upload->getClientOriginalName(),
+                'mime_type' => $upload->getMimeType(),
+                'uploaded_at' => now()->toDateTimeString(),
+                'uploaded_by' => $request->user()?->name ?? 'Admin User',
+            ];
             $existing = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
             $existing[] = $document;
             $documents['two_valid_ids'] = $existing;
-        } else {
-            $existing = $documents[$requirement] ?? null;
-            if (is_array($existing) && ! empty($existing['path']) && Storage::disk('public')->exists($existing['path'])) {
-                Storage::disk('public')->delete($existing['path']);
+        } elseif ($requirement === 'cif_signed_document') {
+            $existing = is_array($documents[$requirement] ?? null) ? $documents[$requirement] : null;
+
+            if (! $upload && $existing === null) {
+                return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                    ->withErrors(['document' => 'Please upload the signed CIF document first.']);
             }
+
+            $document = $existing ?? [];
+
+            if ($upload) {
+                if (! empty($document['path']) && Storage::disk('public')->exists($document['path'])) {
+                    Storage::disk('public')->delete($document['path']);
+                }
+
+                $storedPath = $upload->store('contact-kyc-documents', 'public');
+                $document['path'] = $storedPath;
+                $document['file_path'] = $storedPath;
+                $document['file_name'] = $upload->getClientOriginalName();
+                $document['mime_type'] = $upload->getMimeType();
+                $document['uploaded_at'] = $validated['date_upload'] ?? now()->toDateTimeString();
+                $document['uploaded_by'] = $request->user()?->name ?? 'Admin User';
+            } else {
+                $document['uploaded_at'] = $validated['date_upload'] ?? ($document['uploaded_at'] ?? now()->toDateTimeString());
+                $document['uploaded_by'] = $document['uploaded_by'] ?? ($request->user()?->name ?? 'Admin User');
+            }
+
+            $document['document_title'] = $validated['document_title']
+                ?? ($document['document_title']
+                ?? pathinfo((string) ($document['file_name'] ?? ''), PATHINFO_FILENAME));
+            $document['cif_no'] = $validated['cif_no']
+                ?? ($document['cif_no'] ?? ($contactModel->cif_no ?: ($this->loadCifData($contactModel)['cif_no'] ?? '')));
+            $document['company_reg_no'] = $validated['company_reg_no'] ?? ($document['company_reg_no'] ?? '');
+            $document['date_created'] = $validated['date_created'] ?? ($document['date_created'] ?? '');
+            $document['issued_on'] = $validated['issued_on'] ?? ($document['issued_on'] ?? '');
+            $document['issued_by'] = $validated['issued_by'] ?? ($document['issued_by'] ?? '');
+            $document['remarks'] = $validated['remarks'] ?? ($document['remarks'] ?? '');
+
             $documents[$requirement] = $document;
+        } else {
+            $storedPath = $upload->store('contact-kyc-documents', 'public');
+            $document = [
+                'path' => $storedPath,
+                'file_path' => $storedPath,
+                'file_name' => $upload->getClientOriginalName(),
+                'mime_type' => $upload->getMimeType(),
+                'uploaded_at' => now()->toDateTimeString(),
+                'uploaded_by' => $request->user()?->name ?? 'Admin User',
+            ];
+            $existing = array_values(array_filter((array) ($documents[$requirement] ?? []), fn ($item) => is_array($item)));
+            $existing[] = $document;
+            $documents[$requirement] = $existing;
         }
 
         $this->saveKycRequirementDocuments($contactModel, $documents);
+        $this->syncContactKycSnapshot($contactModel, [
+            'tin' => $requirement === 'tin_proof'
+                ? ($this->loadCifData($contactModel)['tin'] ?? $contactModel->tin)
+                : $contactModel->tin,
+        ]);
 
-        return redirect()
-            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+        return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
             ->with('success', 'KYC requirement document uploaded successfully.');
     }
 
@@ -623,29 +695,59 @@ class ContactsController extends Controller
     {
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
-        abort_unless(in_array($requirement, ['two_valid_ids', 'tin_proof', 'specimen_signature_upload'], true), 404);
+        abort_unless(in_array($requirement, ['cif_signed_document', 'two_valid_ids', 'tin_proof', 'specimen_signature_upload'], true), 404);
 
         $documents = $this->loadKycRequirementDocuments($contactModel);
+        $index = $request->filled('index') ? max(0, (int) $request->input('index')) : null;
 
         if ($requirement === 'two_valid_ids') {
-            foreach ((array) ($documents['two_valid_ids'] ?? []) as $document) {
-                if (is_array($document) && ! empty($document['path']) && Storage::disk('public')->exists($document['path'])) {
-                    Storage::disk('public')->delete($document['path']);
+            $files = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
+            if ($index !== null && isset($files[$index])) {
+                $storedPath = $files[$index]['file_path'] ?? $files[$index]['path'] ?? null;
+                if (! empty($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                    Storage::disk('public')->delete($storedPath);
                 }
+                unset($files[$index]);
+                $documents['two_valid_ids'] = array_values($files);
+            } else {
+                foreach ($files as $document) {
+                    $storedPath = $document['file_path'] ?? $document['path'] ?? null;
+                    if (! empty($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                        Storage::disk('public')->delete($storedPath);
+                    }
+                }
+                $documents['two_valid_ids'] = [];
             }
-            $documents['two_valid_ids'] = [];
+        } elseif (in_array($requirement, ['tin_proof', 'specimen_signature_upload'], true)) {
+            $files = array_values(array_filter((array) ($documents[$requirement] ?? []), fn ($item) => is_array($item)));
+            if ($index !== null && isset($files[$index])) {
+                $storedPath = $files[$index]['file_path'] ?? $files[$index]['path'] ?? null;
+                if (! empty($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                    Storage::disk('public')->delete($storedPath);
+                }
+                unset($files[$index]);
+                $documents[$requirement] = array_values($files);
+            } else {
+                foreach ($files as $document) {
+                    $storedPath = $document['file_path'] ?? $document['path'] ?? null;
+                    if (! empty($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                        Storage::disk('public')->delete($storedPath);
+                    }
+                }
+                $documents[$requirement] = [];
+            }
         } else {
             $document = $documents[$requirement] ?? null;
-            if (is_array($document) && ! empty($document['path']) && Storage::disk('public')->exists($document['path'])) {
-                Storage::disk('public')->delete($document['path']);
+            $storedPath = is_array($document) ? ($document['file_path'] ?? $document['path'] ?? null) : null;
+            if (is_array($document) && ! empty($storedPath) && Storage::disk('public')->exists($storedPath)) {
+                Storage::disk('public')->delete($storedPath);
             }
             $documents[$requirement] = null;
         }
 
         $this->saveKycRequirementDocuments($contactModel, $documents);
 
-        return redirect()
-            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+        return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
             ->with('success', 'KYC requirement document removed successfully.');
     }
 
@@ -802,9 +904,33 @@ class ContactsController extends Controller
             ]
         );
 
+        $this->syncContactKycSnapshot($contactModel, [
+            'cif_no' => $validated['left_cif_no'] ?? $contactModel->cif_no,
+        ]);
+
         return redirect()
             ->route('contacts.specimen-signature', ['id' => $contactModel->id])
             ->with('success', 'Specimen Signature Form saved successfully.');
+    }
+
+    public function submitKycForVerification(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        if (! $this->canSubmitKycForVerification($contactModel)) {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Please complete the signed CIF document, Two Valid IDs, Specimen Signature, and TIN before submitting for verification.']);
+        }
+
+        $contactModel->forceFill([
+            'kyc_status' => 'Pending Verification',
+        ])->save();
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'KYC submitted for verification successfully.');
     }
 
     public function downloadSpecimenSignature(Request $request, string $id)
@@ -981,7 +1107,11 @@ class ContactsController extends Controller
     {
         $path = $this->cifDocumentsPath($contact);
         if (Storage::disk('local')->exists($path)) {
-            return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+            $documents = json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+
+            return collect($documents)
+                ->map(fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-cif-documents') : $document)
+                ->all();
         }
 
         return [];
@@ -1008,15 +1138,133 @@ class ContactsController extends Controller
                 : (isset($cifDocuments['valid_id']) ? [$cifDocuments['valid_id']] : []),
             fn ($item) => is_array($item) && ! empty($item['file_name'] ?? $item['path'] ?? null)
         ));
-        $stored['tin_proof'] = array_key_exists('tin_proof', $stored) ? $stored['tin_proof'] : ($cifDocuments['tin_document'] ?? null);
-        $stored['specimen_signature_upload'] = array_key_exists('specimen_signature_upload', $stored) ? $stored['specimen_signature_upload'] : null;
+        $stored['two_valid_ids'] = array_values(array_map(
+            fn ($document) => $this->normalizeStoredDocument((array) $document, 'contact-kyc-documents'),
+            $stored['two_valid_ids']
+        ));
+        $stored['cif_signed_document'] = array_key_exists('cif_signed_document', $stored) ? $this->normalizeNullableDocument($stored['cif_signed_document'], 'contact-kyc-documents') : ($cifDocuments['cif_document'] ?? null);
+        $stored['tin_proof'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['tin_proof'] ?? ($cifDocuments['tin_document'] ?? null))
+        )));
+        $stored['specimen_signature_upload'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['specimen_signature_upload'] ?? [])
+        )));
 
         return $stored;
+    }
+
+    private function normalizeDocumentsArray(mixed $documents): array
+    {
+        if (is_array($documents) && array_is_list($documents)) {
+            return array_values(array_filter($documents, fn ($item) => is_array($item)));
+        }
+
+        if (is_array($documents)) {
+            return [$documents];
+        }
+
+        return [];
     }
 
     private function saveKycRequirementDocuments(Contact $contact, array $documents): void
     {
         Storage::disk('local')->put($this->kycRequirementDocumentsPath($contact), json_encode($documents, JSON_PRETTY_PRINT));
+    }
+
+    private function normalizeNullableDocument(mixed $document, string $defaultDirectory): ?array
+    {
+        if (! is_array($document)) {
+            return null;
+        }
+
+        return $this->normalizeStoredDocument($document, $defaultDirectory);
+    }
+
+    private function normalizeStoredDocument(array $document, string $defaultDirectory): array
+    {
+        $path = $this->normalizeStoredPath($document['file_path'] ?? $document['path'] ?? null, $defaultDirectory);
+        if ($path !== null) {
+            $path = $this->migrateLegacyDocumentPath($path);
+        }
+
+        if ($path !== null) {
+            $document['path'] = $path;
+            $document['file_path'] = $path;
+            $document['url'] = asset('storage/'.$path);
+        } else {
+            $document['path'] = null;
+            $document['file_path'] = null;
+            $document['url'] = '#';
+        }
+
+        return $document;
+    }
+
+    private function normalizeStoredPath(mixed $path, string $defaultDirectory): ?string
+    {
+        $value = trim((string) ($path ?? ''));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace('\\', '/', $value);
+
+        if (str_contains($value, '/storage/')) {
+            $value = Str::after($value, '/storage/');
+        } elseif (str_starts_with($value, 'storage/')) {
+            $value = Str::after($value, 'storage/');
+        } elseif (str_contains($value, 'contact-kyc-documents/')) {
+            $value = Str::after($value, 'contact-kyc-documents/');
+            $value = 'contact-kyc-documents/'.$value;
+        } elseif (str_contains($value, 'contact-cif-documents/')) {
+            $value = Str::after($value, 'contact-cif-documents/');
+            $value = 'contact-cif-documents/'.$value;
+        } elseif (! str_contains($value, '/')) {
+            $value = trim($defaultDirectory, '/').'/'.$value;
+        }
+
+        return ltrim($value, '/');
+    }
+
+    private function migrateLegacyDocumentPath(string $path): string
+    {
+        if (Storage::disk('public')->exists($path)) {
+            return $path;
+        }
+
+        if (Storage::disk('local')->exists($path)) {
+            Storage::disk('public')->put($path, Storage::disk('local')->get($path));
+            Storage::disk('local')->delete($path);
+
+            return $path;
+        }
+
+        return $path;
+    }
+
+    private function syncContactKycSnapshot(Contact $contact, array $overrides = []): void
+    {
+        $payload = array_filter([
+            'cif_no' => $overrides['cif_no'] ?? ($this->loadCifData($contact)['cif_no'] ?? $contact->cif_no),
+            'tin' => $overrides['tin'] ?? ($this->loadCifData($contact)['tin'] ?? $contact->tin),
+        ], fn ($value) => $value !== null && $value !== '');
+
+        if (! empty($payload)) {
+            $contact->forceFill($payload)->save();
+        }
+    }
+
+    private function canSubmitKycForVerification(Contact $contact): bool
+    {
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
+        $state = $this->kycRequirementState($contact, $specimenSignature);
+
+        return $state['cif_signed_document']['complete']
+            && $state['specimen_signature_form']['complete']
+            && $state['two_valid_ids']['complete']
+            && $state['tin_proof']['complete'];
     }
 
     private function kycRequirementDocumentsPath(Contact $contact): string
@@ -1027,12 +1275,17 @@ class ContactsController extends Controller
     private function kycRequirementState(Contact $contact, ?SpecimenSignature $specimenSignature): array
     {
         $documents = $this->loadKycRequirementDocuments($contact);
+        $cifSignedDocument = is_array($documents['cif_signed_document'] ?? null) ? $documents['cif_signed_document'] : null;
         $twoValidIds = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
-        $tinProof = is_array($documents['tin_proof'] ?? null) ? $documents['tin_proof'] : null;
-        $specimenUpload = is_array($documents['specimen_signature_upload'] ?? null) ? $documents['specimen_signature_upload'] : null;
+        $tinProofFiles = array_values(array_filter((array) ($documents['tin_proof'] ?? []), fn ($item) => is_array($item)));
+        $specimenUploadFiles = array_values(array_filter((array) ($documents['specimen_signature_upload'] ?? []), fn ($item) => is_array($item)));
         $specimenFormExists = $specimenSignature !== null;
 
         return [
+            'cif_signed_document' => [
+                'file' => $cifSignedDocument,
+                'complete' => $cifSignedDocument !== null,
+            ],
             'two_valid_ids' => [
                 'count' => count($twoValidIds),
                 'files' => $twoValidIds,
@@ -1040,12 +1293,14 @@ class ContactsController extends Controller
             ],
             'specimen_signature_form' => [
                 'form_exists' => $specimenFormExists,
-                'file' => $specimenUpload,
-                'complete' => $specimenFormExists || $specimenUpload !== null,
+                'file' => $specimenUploadFiles[0] ?? null,
+                'files' => $specimenUploadFiles,
+                'complete' => $specimenFormExists || count($specimenUploadFiles) > 0,
             ],
             'tin_proof' => [
-                'file' => $tinProof,
-                'complete' => $tinProof !== null,
+                'file' => $tinProofFiles[0] ?? null,
+                'files' => $tinProofFiles,
+                'complete' => count($tinProofFiles) > 0,
             ],
         ];
     }

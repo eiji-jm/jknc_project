@@ -58,6 +58,8 @@ class Contact extends Model
         'last_activity_at',
         'lead_source',
         'description',
+        'cif_no',
+        'tin',
         'created_by',
     ];
 

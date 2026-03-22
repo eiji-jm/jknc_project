@@ -14,10 +14,12 @@
     $status = $contact->kyc_status ?: 'Not Submitted';
     $name = trim($contact->first_name.' '.$contact->last_name);
     $initials = strtoupper(mb_substr($contact->first_name ?? '', 0, 1).mb_substr($contact->last_name ?? '', 0, 1));
+    $contactCifNo = $contact->cif_no ?: ($cifData['cif_no'] ?? '-');
     $kycRequirements = $kycRequirementState ?? [
+        'cif_signed_document' => ['file' => null, 'complete' => false],
         'two_valid_ids' => ['count' => 0, 'files' => [], 'complete' => false],
-        'specimen_signature_form' => ['form_exists' => false, 'file' => null, 'complete' => false],
-        'tin_proof' => ['file' => null, 'complete' => false],
+        'specimen_signature_form' => ['form_exists' => false, 'file' => null, 'files' => [], 'complete' => false],
+        'tin_proof' => ['file' => null, 'files' => [], 'complete' => false],
     ];
 @endphp
 
@@ -41,6 +43,7 @@
                     <span>Phone number: {{ $contact->phone ?: '09345234' }}</span>
                     <span>Customer Type: {{ $contact->customer_type ?: 'Corporation' }}</span>
                     <span>Position: {{ $contact->position ?: 'CEO' }}</span>
+                    <span>CIF No: {{ $contactCifNo ?: '-' }}</span>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <span id="contactKycHeaderBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusPillClasses[$status] ?? $statusPillClasses['Not Submitted'] }}">{{ $status }}</span>
@@ -73,6 +76,7 @@
             @endif
 
             @if ($tab === 'kyc')
+                <div id="kyc">
                 <div id="kycTabApp">
                     <div class="mb-4 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -95,22 +99,6 @@
                                     ])
                                 @else
                                     @include('contacts.partials.cif-document', ['cifData' => $cifData])
-                                    <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                        <div class="flex flex-wrap items-center justify-between gap-2">
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">Optional CIF Document Attachment</p>
-                                                <div class="mt-1 flex flex-wrap items-center gap-2">
-                                                    <span id="cifOptionalBadge" class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"></span>
-                                                    <span id="cifOptionalFileText" class="text-xs text-gray-500"></span>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center gap-2 text-xs">
-                                                <button id="cifOptionalUploadBtn" type="button" class="rounded-md border border-gray-200 bg-white px-2 py-1 text-gray-700 hover:bg-gray-50">Upload CIF Document</button>
-                                                <button id="cifOptionalViewBtn" type="button" class="rounded-md border border-gray-200 bg-white px-2 py-1 text-gray-700 hover:bg-gray-50">View File</button>
-                                                <button id="cifOptionalRemoveBtn" type="button" class="rounded-md border border-red-200 bg-white px-2 py-1 text-red-600 hover:bg-red-50">Replace/Remove</button>
-                                            </div>
-                                        </div>
-                                    </div>
                                 @endif
                             </div>
                         </div>
@@ -166,7 +154,10 @@
                                     <h3 class="text-base font-semibold text-gray-900">Actions</h3>
                                 </div>
                                 <div class="space-y-2 px-4 py-4">
-                                    <button id="submitForVerificationBtn" type="button" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
+                                    <form id="submitKycForVerificationForm" method="POST" action="{{ route('contacts.kyc.submit', $contact->id) }}">
+                                        @csrf
+                                        <button id="submitForVerificationBtn" type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
+                                    </form>
                                     <button id="approveKycBtn" type="button" class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300">Approve</button>
                                     <button id="rejectKycBtn" type="button" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300">Reject</button>
                                     <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
@@ -182,10 +173,11 @@
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                             <div class="border-b border-gray-100 px-4 py-3">
                                 <h2 class="text-base font-semibold text-gray-900">KYC Requirements</h2>
-                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: Two Valid IDs, Specimen Signature Form, and TIN.</p>
+                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: CIF Document (Signed), Two Valid IDs, Specimen Signature Form, and TIN.</p>
                             </div>
                             <div class="max-h-[520px] space-y-3 overflow-y-auto p-4">
                                 @php
+                                    $cifSignedRequirement = $kycRequirements['cif_signed_document'];
                                     $twoValidIds = $kycRequirements['two_valid_ids'];
                                     $specimenRequirement = $kycRequirements['specimen_signature_form'];
                                     $tinRequirement = $kycRequirements['tin_proof'];
@@ -198,13 +190,63 @@
                                 <article class="rounded-xl border border-gray-200 bg-white p-3">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
+                                            <p class="text-sm font-semibold text-gray-900">CIF Document (Signed)</p>
+                                            <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $cifSignedRequirement['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
+                                                {{ $cifSignedRequirement['complete'] ? 'Complete' : 'Missing' }}
+                                            </span>
+                                            <p class="mt-2 text-xs text-gray-500">{{ $cifSignedRequirement['file']['file_name'] ?? 'No file uploaded' }}</p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                @csrf
+                                                <input type="hidden" name="requirement" value="cif_signed_document">
+                                                <label class="{{ $actionBtn }} cursor-pointer">
+                                                    Upload
+                                                    <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                </label>
+                                            </form>
+                                            <button
+                                                id="viewCifSignedDocumentBtn"
+                                                type="button"
+                                                @if ($cifSignedRequirement['file'])
+                                                    onclick="openDocumentModal(@js($cifSignedRequirement['file']['file_path'] ?? $cifSignedRequirement['file']['path'] ?? ''), 'cif_signed_document')"
+                                                @endif
+                                                class="{{ $actionBtn }} {{ $cifSignedRequirement['file'] ? '' : $disabledBtn }}"
+                                            >
+                                                View
+                                            </button>
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'cif_signed_document']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded signed CIF document?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="{{ $dangerBtn }} {{ $cifSignedRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
                                             <p class="text-sm font-semibold text-gray-900">Two Valid IDs</p>
                                             <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $twoValidIds['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
                                                 {{ $twoValidIds['complete'] ? 'Complete' : 'Missing' }}
                                             </span>
-                                            <p class="mt-1 text-xs text-gray-500">
-                                                {{ $twoValidIds['count'] > 0 ? $twoValidIds['count'].' file'.($twoValidIds['count'] === 1 ? '' : 's').' uploaded' : 'Upload at least 2 valid IDs.' }}
+                                            <p class="mt-2 text-xs text-gray-500">
+                                                {{ $twoValidIds['count'] > 0 ? $twoValidIds['count'].' file'.($twoValidIds['count'] === 1 ? '' : 's').' uploaded' : 'No file uploaded' }}
                                             </p>
+                                            @if ($twoValidIds['count'] > 0)
+                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                    @foreach ($twoValidIds['files'] as $fileIndex => $file)
+                                                        <button
+                                                            type="button"
+                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'two_valid_ids', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))), {{ $fileIndex }})"
+                                                            class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                                                        >
+                                                            File {{ $loop->iteration }}
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
                                             <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
@@ -216,7 +258,15 @@
                                                 </label>
                                             </form>
                                             @php $twoValidFirstFile = $twoValidIds['files'][0] ?? null; @endphp
-                                            <a href="{{ $twoValidFirstFile['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $twoValidFirstFile ? '' : $disabledBtn }}">View</a>
+                                            <button
+                                                type="button"
+                                                @if ($twoValidFirstFile)
+                                                    onclick="openDocumentModal(@js($twoValidFirstFile['file_path'] ?? $twoValidFirstFile['path'] ?? ''), 'two_valid_ids', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))), 0)"
+                                                @endif
+                                                class="{{ $actionBtn }} {{ $twoValidFirstFile ? '' : $disabledBtn }}"
+                                            >
+                                                View
+                                            </button>
                                             <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'two_valid_ids']) }}" class="inline-flex" onsubmit="return confirm('Remove all uploaded valid IDs for this requirement?');">
                                                 @csrf
                                                 @method('DELETE')
@@ -233,17 +283,28 @@
                                             <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $specimenRequirement['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
                                                 {{ $specimenRequirement['complete'] ? 'Complete' : 'Missing' }}
                                             </span>
-                                            <p class="mt-1 text-xs text-gray-500">
-                                                @if ($specimenRequirement['form_exists'] && $specimenRequirement['file'])
-                                                    System form created and scanned file uploaded.
+                                            <p class="mt-2 text-xs text-gray-500">
+                                                @if ($specimenRequirement['file'])
+                                                    {{ $specimenRequirement['file']['file_name'] ?? 'Specimen signature file uploaded' }}
                                                 @elseif ($specimenRequirement['form_exists'])
-                                                    System form already created.
-                                                @elseif ($specimenRequirement['file'])
-                                                    Scanned document uploaded.
+                                                    System form created
                                                 @else
-                                                    Create the system form or upload a scanned document.
+                                                    No file uploaded
                                                 @endif
                                             </p>
+                                            @if (!empty($specimenRequirement['files']))
+                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                    @foreach ($specimenRequirement['files'] as $fileIndex => $file)
+                                                        <button
+                                                            type="button"
+                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'specimen_signature_upload', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files']))), {{ $fileIndex }})"
+                                                            class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                                                        >
+                                                            File {{ $loop->iteration }}
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
                                             @if ($specimenRequirement['form_exists'])
@@ -260,7 +321,15 @@
                                                     <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
                                                 </label>
                                             </form>
-                                            <a href="{{ $specimenRequirement['file']['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}">View</a>
+                                            <button
+                                                type="button"
+                                                @if ($specimenRequirement['file'])
+                                                    onclick="openDocumentModal(@js($specimenRequirement['file']['file_path'] ?? $specimenRequirement['file']['path'] ?? ''), 'specimen_signature_upload', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files'] ?? []))), 0)"
+                                                @endif
+                                                class="{{ $actionBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}"
+                                            >
+                                                View
+                                            </button>
                                             <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'specimen_signature_upload']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded specimen signature file?');">
                                                 @csrf
                                                 @method('DELETE')
@@ -277,9 +346,26 @@
                                             <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $tinRequirement['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
                                                 {{ $tinRequirement['complete'] ? 'Complete' : 'Missing' }}
                                             </span>
-                                            <p class="mt-1 text-xs text-gray-500">
-                                                {{ $tinRequirement['file'] ? ($tinRequirement['file']['file_name'] ?? 'TIN document uploaded') : 'Upload a TIN document.' }}
+                                            <p class="mt-2 text-xs text-gray-500">
+                                                @if (!empty($tinRequirement['files']))
+                                                    {{ count($tinRequirement['files']) > 1 ? count($tinRequirement['files']).' files uploaded' : ($tinRequirement['file']['file_name'] ?? 'No file uploaded') }}
+                                                @else
+                                                    No file uploaded
+                                                @endif
                                             </p>
+                                            @if (!empty($tinRequirement['files']))
+                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                    @foreach ($tinRequirement['files'] as $fileIndex => $file)
+                                                        <button
+                                                            type="button"
+                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'tin_proof', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files']))), {{ $fileIndex }})"
+                                                            class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                                                        >
+                                                            File {{ $loop->iteration }}
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
                                             <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
@@ -290,7 +376,15 @@
                                                     <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
                                                 </label>
                                             </form>
-                                            <a href="{{ $tinRequirement['file']['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}">View</a>
+                                            <button
+                                                type="button"
+                                                @if ($tinRequirement['file'])
+                                                    onclick="openDocumentModal(@js($tinRequirement['file']['file_path'] ?? $tinRequirement['file']['path'] ?? ''), 'tin_proof', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files'] ?? []))), 0)"
+                                                @endif
+                                                class="{{ $actionBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}"
+                                            >
+                                                View
+                                            </button>
                                             <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'tin_proof']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded TIN document?');">
                                                 @csrf
                                                 @method('DELETE')
@@ -358,10 +452,12 @@
                         <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
                         <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[960px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
                             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
-                                <h3 id="documentModalTitle" class="text-xl font-semibold text-gray-900">Upload CIF Document</h3>
+                                <h3 id="documentModalTitle" class="text-xl font-semibold text-gray-900">Edit CIF Document</h3>
                                 <button id="closeDocumentModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button>
                             </div>
-                            <form id="documentForm" class="flex min-h-0 flex-1 flex-col">
+                            <form id="documentForm" method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="flex min-h-0 flex-1 flex-col">
+                                @csrf
+                                <input type="hidden" name="requirement" value="cif_signed_document">
                                 <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
                                 <div class="border-b border-gray-100 p-5 lg:border-b-0 lg:border-r">
                                     <div id="documentPreviewPanel" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-sm text-gray-500">
@@ -371,26 +467,45 @@
                                     </div>
                                 </div>
                                 <div class="space-y-3 p-5">
-                                    <div><label for="docTitle" class="mb-1 block text-sm font-medium text-gray-700">Document Title</label><input id="docTitle" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><p id="docErrorTitle" class="mt-1 hidden text-xs text-red-600">Document title is required.</p></div>
-                                    <div><label for="docCertificateNo" class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input id="docCertificateNo" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                    <div><label for="docCompanyRegNo" class="mb-1 block text-sm font-medium text-gray-700">Company Reg No.</label><input id="docCompanyRegNo" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                    <div class="grid grid-cols-2 gap-3"><div><label for="docUploadDate" class="mb-1 block text-sm font-medium text-gray-700">Date Upload</label><input id="docUploadDate" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docCreatedDate" class="mb-1 block text-sm font-medium text-gray-700">Date Created</label><input id="docCreatedDate" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
-                                    <div class="grid grid-cols-2 gap-3"><div><label for="docIssuedOn" class="mb-1 block text-sm font-medium text-gray-700">Issued On</label><input id="docIssuedOn" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docIssuedBy" class="mb-1 block text-sm font-medium text-gray-700">Issued By</label><input id="docIssuedBy" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                    <div><label for="docTitle" class="mb-1 block text-sm font-medium text-gray-700">Document Title</label><input id="docTitle" name="document_title" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><p id="docErrorTitle" class="mt-1 hidden text-xs text-red-600">Document title is required.</p></div>
+                                    <div><label for="docCertificateNo" class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input id="docCertificateNo" name="cif_no" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                    <div><label for="docCompanyRegNo" class="mb-1 block text-sm font-medium text-gray-700">Company Reg No.</label><input id="docCompanyRegNo" name="company_reg_no" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                    <div class="grid grid-cols-2 gap-3"><div><label for="docUploadDate" class="mb-1 block text-sm font-medium text-gray-700">Date Upload</label><input id="docUploadDate" name="date_upload" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docCreatedDate" class="mb-1 block text-sm font-medium text-gray-700">Date Created</label><input id="docCreatedDate" name="date_created" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                    <div class="grid grid-cols-2 gap-3"><div><label for="docIssuedOn" class="mb-1 block text-sm font-medium text-gray-700">Issued On</label><input id="docIssuedOn" name="issued_on" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docIssuedBy" class="mb-1 block text-sm font-medium text-gray-700">Issued By</label><input id="docIssuedBy" name="issued_by" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                     <div>
                                         <label class="mb-1 block text-sm font-medium text-gray-700">Document</label>
-                                        <label for="docFileInput" class="flex h-11 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-folder-open mr-2 text-blue-600"></i><span id="docFileNameLabel">Upload File</span></label>
-                                        <input id="docFileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
-                                        <button id="clearDocFileBtn" type="button" class="mt-2 hidden text-xs text-gray-500 hover:text-red-600">Remove selected file</button>
+                                        <label for="docFileInput" class="flex h-11 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-folder-open mr-2 text-blue-600"></i><span id="docFileNameLabel">Replace file</span></label>
+                                        <input id="docFileInput" name="document" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
+                                        <div class="mt-2 flex items-center justify-between gap-3 text-xs">
+                                            <span id="docCurrentFileMeta" class="text-gray-500"></span>
+                                            <button id="clearDocFileBtn" type="button" class="hidden text-gray-500 hover:text-red-600">Clear replacement file</button>
+                                        </div>
                                         <p id="docErrorFile" class="mt-1 hidden text-xs text-red-600">Please upload a CIF document file.</p>
                                     </div>
-                                    <div><label for="docRemarks" class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea id="docRemarks" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
+                                    <div><label for="docRemarks" class="mb-1 block text-sm font-medium text-gray-700">Remarks</label><textarea id="docRemarks" name="remarks" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea></div>
                                 </div>
                                 </div>
-                                <div class="flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8"><button id="cancelDocumentModal" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button><button type="submit" id="saveDocumentBtn" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save</button></div>
+                                <div class="flex justify-between gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
+                                    <button id="removeCifSignedDocumentBtn" type="button" class="h-10 rounded-lg border border-red-200 bg-white px-4 text-sm text-red-600 hover:bg-red-50">Remove file</button>
+                                    <div class="flex justify-end gap-3">
+                                        <button id="cancelDocumentModal" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                                        <button type="submit" id="saveDocumentBtn" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Save</button>
+                                    </div>
+                                </div>
                             </form>
                         </div>
                         </div>
                     </div>
+
+                    <form id="removeCifSignedDocumentForm" method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'cif_signed_document']) }}" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    <form id="removeKycDocumentForm" method="POST" action="" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="index" id="removeKycDocumentIndex" value="">
+                    </form>
 
                     <div id="documentViewModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
                         <button type="button" data-slideover-overlay class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
@@ -429,17 +544,27 @@
                             const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
                             const specimenSignatureExists = @json((bool) $specimenSignature);
                             const kycRequirementState = @json($kycRequirements);
+                            const cifSignedDocument = @json($cifSignedRequirement['file'] ?? null);
                             const specimenSignatureRoutes = {
                                 create: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
                                 view: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
                                 edit: @json(route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1])),
                                 download: @json(route('contacts.specimen-signature.download', ['id' => $contact->id])),
                             };
-                            const cifHasFormData = @json(filled($cifData['first_name'] ?? null) || filled($cifData['last_name'] ?? null) || filled($cifData['cif_no'] ?? null));
-                            let kyc = { cif:'123456', tin:'123-456-789', status:statusInit || 'Not Submitted', dateVerified: statusInit === 'Approved' ? '2026-02-26' : '', verifiedBy: statusInit === 'Approved' ? mockUser : '', rejectionReason:'', submitted:['Pending Verification','For Review','Approved','Rejected'].includes(statusInit) };
+                            let kyc = {
+                                cif: @json($contact->cif_no ?: ($cifData['cif_no'] ?? '')),
+                                tin: @json($contact->tin ?: ($cifData['tin'] ?? '')),
+                                status: statusInit || 'Not Submitted',
+                                dateVerified: @json($cifData['date_verified'] ?? ''),
+                                verifiedBy: @json($cifData['verified_by'] ?? ''),
+                                rejectionReason: '',
+                                submitted: ['Pending Verification','For Review','Approved','Rejected', 'Verified'].includes(statusInit)
+                            };
                             let logs = [`KYC profile loaded by ${mockUser}`];
-                            let cifOptionalDoc = null;
                             let activeDoc = null; let file = null; let fileUrl = '';
+                            let currentFiles = [];
+                            let currentIndex = 0;
+                            let currentDocs = [];
 
                             const fmtDate = (s) => { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? s : new Intl.DateTimeFormat('en-US',{month:'short',day:'2-digit',year:'numeric'}).format(d); };
                             const fmtBytes = (n) => !n ? '-' : (n < 1024 ? `${n} B` : (n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`));
@@ -467,14 +592,8 @@
                             };
                             const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
                             const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
-                            const docDef = (key) => key === 'cif_optional' ? { key: 'cif_optional', label: 'CIF Document', isCif: true } : null;
-                            const getDocByKey = (key) => key === 'cif_optional' ? cifOptionalDoc : null;
-                            const setDocByKey = (key, value) => {
-                                if (key === 'cif_optional') {
-                                    cifOptionalDoc = value;
-                                }
-                            };
                             const allRequiredUploaded = () => !!(
+                                kycRequirementState.cif_signed_document?.complete &&
                                 kycRequirementState.two_valid_ids?.complete &&
                                 kycRequirementState.specimen_signature_form?.complete &&
                                 kycRequirementState.tin_proof?.complete
@@ -492,69 +611,94 @@
                                 q('approveKycBtn').disabled = !canReview; q('rejectKycBtn').disabled = !canReview;
                                 q('kycRejectionNote').classList.toggle('hidden', !kyc.rejectionReason);
                                 q('kycRejectionNote').textContent = kyc.rejectionReason ? `Rejection reason: ${kyc.rejectionReason}` : '';
-                                const cifOptionalUploaded = !!cifOptionalDoc;
-                                const cifBadge = q('cifOptionalBadge');
-                                if (cifBadge) {
-                                    if (cifHasFormData) {
-                                        cifBadge.className = 'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-green-100 text-green-700 border border-green-200';
-                                        cifBadge.textContent = 'CIF Recorded';
-                                    } else {
-                                        cifBadge.className = 'inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-600 border border-gray-200';
-                                        cifBadge.textContent = 'CIF Draft';
-                                    }
-                                }
-                                if (q('cifOptionalFileText')) {
-                                    q('cifOptionalFileText').textContent = cifOptionalUploaded
-                                        ? `File attached: ${cifOptionalDoc.fileName || '-'}`
-                                        : 'No CIF file attached (optional)';
-                                }
-                                if (q('cifOptionalUploadBtn')) {
-                                    q('cifOptionalUploadBtn').textContent = cifOptionalUploaded ? 'Replace CIF Document' : 'Upload CIF Document';
-                                }
-                                q('cifOptionalViewBtn')?.classList.toggle('opacity-40', !cifOptionalUploaded);
-                                q('cifOptionalViewBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
-                                q('cifOptionalRemoveBtn')?.classList.toggle('opacity-40', !cifOptionalUploaded);
-                                q('cifOptionalRemoveBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
                             };
 
                             const renderPreview = (name, url, mime) => {
-                                const label = activeDoc && docDef(activeDoc) ? docDef(activeDoc).label : 'document';
+                                const label = 'document';
                                 if (!name) { q('documentPreviewPanel').innerHTML = `<i class="far fa-file-pdf text-6xl text-gray-400"></i><p class="mt-2">No ${label.toLowerCase()} selected</p><p class="text-xs">Upload a PDF or image file to preview</p>`; return; }
                                 if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
-                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="CIF preview" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="Document preview" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
                                 else q('documentPreviewPanel').innerHTML = `<div class="text-center"><i class="far fa-file text-5xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${name}</p><p class="text-xs text-gray-500">${mime || 'Document file'}</p></div>`;
                             };
 
-                            const openDocModal = (docKey) => {
-                                activeDoc = docKey;
-                                const def = docDef(docKey);
-                                const existing = getDocByKey(docKey);
-                                file = null; fileUrl = '';
-                                q('documentForm').reset(); q('docUploadDate').value = todayIso; q('docFileNameLabel').textContent = 'Upload File';
-                                q('documentModalTitle').textContent = `${existing ? 'Edit' : 'Upload'} ${def.label}`;
-                                q('docErrorTitle').classList.add('hidden'); q('docErrorFile').classList.add('hidden');
-                                q('clearDocFileBtn').classList.add('hidden');
-                                q('docCertificateNo').closest('div').classList.toggle('hidden', !def.isCif);
-                                q('docCompanyRegNo').closest('div').classList.toggle('hidden', !def.isCif);
-                                q('docCreatedDate').closest('div').classList.toggle('hidden', !def.isCif);
-                                if (existing) {
-                                    q('docTitle').value = existing.title || '';
-                                    q('docCertificateNo').value = existing.certificateNo || '';
-                                    q('docCompanyRegNo').value = existing.companyRegNo || '';
-                                    q('docUploadDate').value = existing.uploadDate || todayIso;
-                                    q('docCreatedDate').value = existing.createdDate || '';
-                                    q('docIssuedOn').value = existing.issuedOn || '';
-                                    q('docIssuedBy').value = existing.issuedBy || '';
-                                    q('docRemarks').value = existing.remarks || '';
-                                    q('docFileNameLabel').textContent = existing.fileName || 'Upload File';
-                                    q('clearDocFileBtn').classList.toggle('hidden', !existing.fileName);
-                                    fileUrl = existing.fileUrl || '';
-                                    renderPreview(existing.fileName, existing.fileUrl, existing.mimeType);
-                                } else {
-                                    renderPreview('', '', '');
+                            const normalizeDateInput = (value) => {
+                                if (!value) return '';
+                                return String(value).slice(0, 10);
+                            };
+
+                            const renderPreviewSwitcher = () => {
+                                let switcher = document.getElementById('documentPreviewSwitcher');
+                                if (!switcher) {
+                                    switcher = document.createElement('div');
+                                    switcher.id = 'documentPreviewSwitcher';
+                                    switcher.className = 'mt-3 flex flex-wrap gap-2';
+                                    q('documentPreviewPanel').insertAdjacentElement('afterend', switcher);
                                 }
+                                if (currentFiles.length <= 1) {
+                                    switcher.innerHTML = '';
+                                    return;
+                                }
+                                switcher.innerHTML = currentFiles.map((_, index) => `
+                                    <button type="button" data-preview-index="${index}" class="rounded-md border px-2 py-1 text-xs ${index === currentIndex ? 'border-blue-200 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}">
+                                        ${index + 1}
+                                    </button>
+                                `).join('');
+                                switcher.querySelectorAll('[data-preview-index]').forEach((button) => {
+                                    button.addEventListener('click', () => switchFile(Number(button.dataset.previewIndex)));
+                                });
+                            };
+
+                            const renderActiveDocument = () => {
+                                const doc = currentDocs[currentIndex] || {};
+                                const filePath = currentFiles[currentIndex] || '';
+                                const previewUrl = filePath ? `/storage/${filePath}` : (doc.url || '');
+                                q('documentModalTitle').textContent = activeDoc === 'cif_signed_document' ? 'Edit CIF Document' : 'View Document';
+                                q('docTitle').value = doc.document_title || (doc.file_name ? doc.file_name.replace(/\.[^.]+$/, '') : 'Document');
+                                q('docCertificateNo').value = doc.cif_no || kyc.cif || '';
+                                q('docCompanyRegNo').value = doc.company_reg_no || '';
+                                q('docUploadDate').value = normalizeDateInput(doc.uploaded_at) || todayIso;
+                                q('docCreatedDate').value = normalizeDateInput(doc.date_created);
+                                q('docIssuedOn').value = normalizeDateInput(doc.issued_on);
+                                q('docIssuedBy').value = doc.issued_by || '';
+                                q('docRemarks').value = doc.remarks || '';
+                                q('docFileNameLabel').textContent = doc.file_name ? 'Replace file' : 'Upload File';
+                                q('docCurrentFileMeta').textContent = doc.file_name ? `Current file: ${doc.file_name}` : 'No file uploaded yet';
+                                q('removeCifSignedDocumentBtn').classList.toggle('hidden', !doc.file_name);
+                                const showCifFields = activeDoc === 'cif_signed_document';
+                                q('docCertificateNo').closest('div').classList.toggle('hidden', !showCifFields);
+                                q('docCompanyRegNo').closest('div').classList.toggle('hidden', !showCifFields);
+                                q('docCreatedDate').closest('div').classList.toggle('hidden', !showCifFields);
+                                renderPreview(doc.file_name || '', previewUrl, doc.mime_type || '');
+                                renderPreviewSwitcher();
+                            };
+
+                            const switchFile = (index) => {
+                                currentIndex = index;
+                                renderActiveDocument();
+                            };
+                            window.switchFile = switchFile;
+
+                            const openDocumentModal = (filePath, docType, files = [], startIndex = 0) => {
+                                activeDoc = docType;
+                                const requirementState = docType === 'cif_signed_document'
+                                    ? { files: cifSignedDocument ? [cifSignedDocument] : [] }
+                                    : kycRequirementState[docType];
+                                currentDocs = Array.isArray(requirementState?.files) && requirementState.files.length
+                                    ? requirementState.files
+                                    : (requirementState?.file ? [requirementState.file] : []);
+                                currentFiles = files.length ? files : currentDocs.map((doc) => doc.file_path || doc.path || '');
+                                currentIndex = Math.min(Math.max(startIndex, 0), Math.max(currentFiles.length - 1, 0));
+                                if (!currentFiles[currentIndex] && !(currentDocs[currentIndex]?.file_name)) return;
+                                file = null;
+                                fileUrl = '';
+                                q('documentForm').reset();
+                                q('docErrorTitle').classList.add('hidden');
+                                q('docErrorFile').classList.add('hidden');
+                                q('clearDocFileBtn').classList.add('hidden');
+                                renderActiveDocument();
                                 open(q('documentModal'));
                             };
+                            window.openDocumentModal = openDocumentModal;
 
                             q('openKycEditModal').addEventListener('click', () => { q('kycEditCif').value = kyc.cif; q('kycEditTin').value = kyc.tin; q('kycEditStatus').value = kyc.status; q('kycEditDateVerified').value = kyc.dateVerified; q('kycEditVerifiedBy').value = kyc.verifiedBy; ['kycErrorCif','kycErrorTin','kycErrorDateVerified','kycErrorVerifiedBy'].forEach((id) => q(id).classList.add('hidden')); open(q('kycEditModal')); });
                             [q('closeKycEditModal'), q('cancelKycEdit')].forEach((b) => b.addEventListener('click', () => close(q('kycEditModal'))));
@@ -577,7 +721,8 @@
                                 if (!f) return;
                                 file = f;
                                 fileUrl = URL.createObjectURL(f);
-                                q('docFileNameLabel').textContent = f.name;
+                                q('docFileNameLabel').textContent = 'Replace file';
+                                q('docCurrentFileMeta').textContent = `Replacement file: ${f.name}`;
                                 q('clearDocFileBtn').classList.remove('hidden');
                                 renderPreview(f.name, fileUrl, f.type || '');
                             });
@@ -585,57 +730,42 @@
                                 file = null;
                                 fileUrl = '';
                                 q('docFileInput').value = '';
-                                q('docFileNameLabel').textContent = 'Upload File';
                                 q('clearDocFileBtn').classList.add('hidden');
-                                renderPreview('', '', '');
+                                renderActiveDocument();
                             });
-                            q('documentForm').addEventListener('submit', (e) => {
-                                e.preventDefault();
-                                const def = docDef(activeDoc);
-                                const existing = getDocByKey(activeDoc);
-                                const title = q('docTitle').value.trim(); const hasFile = !!file || !!existing?.fileName;
-                                q('docErrorTitle').classList.toggle('hidden', !!title); q('docErrorFile').classList.toggle('hidden', hasFile); if (!title || !hasFile) return;
-                                setDocByKey(activeDoc, { type: def.label, title, fileName: file ? file.name : existing.fileName, certificateNo: def.isCif ? q('docCertificateNo').value.trim() : '', companyRegNo: def.isCif ? q('docCompanyRegNo').value.trim() : '', uploadDate: q('docUploadDate').value || todayIso, createdDate: def.isCif ? q('docCreatedDate').value : '', issuedOn: q('docIssuedOn').value, issuedBy: q('docIssuedBy').value.trim(), fileUrl: fileUrl || existing.fileUrl || '#', mimeType: file ? (file.type || 'file') : (existing.mimeType || 'file'), size: file ? file.size : (existing.size || 0), remarks: q('docRemarks').value.trim() });
-                                addLog(`${def.label} ${existing ? 'updated' : 'uploaded'} by ${mockUser}`);
-                                render(); close(q('documentModal'));
+                            q('removeCifSignedDocumentBtn')?.addEventListener('click', () => {
+                                const activeFile = currentDocs[currentIndex] || {};
+                                if (!activeFile?.file_name || !window.confirm('Delete this file?')) return;
+                                if (activeDoc === 'cif_signed_document') {
+                                    q('removeCifSignedDocumentForm').submit();
+                                    return;
+                                }
+                                q('removeKycDocumentForm').setAttribute('action', @js(route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => '__REQUIREMENT__'])).replace('__REQUIREMENT__', activeDoc));
+                                q('removeKycDocumentIndex').value = String(currentIndex);
+                                q('removeKycDocumentForm').submit();
                             });
-
-                            q('cifOptionalUploadBtn')?.addEventListener('click', () => openDocModal('cif_optional'));
-                            q('cifOptionalViewBtn')?.addEventListener('click', () => {
-                                if (!cifOptionalDoc) return;
-                                const def = docDef('cif_optional');
-                                const d = cifOptionalDoc;
-                                q('documentViewTitle').textContent = `${def.label} Details`;
-                                q('viewDocType').textContent = def.label;
-                                q('viewDocCertificateNo').parentElement.classList.toggle('hidden', !def.isCif);
-                                q('viewDocCompanyRegNo').parentElement.classList.toggle('hidden', !def.isCif);
-                                q('viewDocCreatedDate').parentElement.classList.toggle('hidden', !def.isCif);
-                                if ((d.mimeType || '').includes('pdf') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<iframe src="${d.fileUrl}" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
-                                else if ((d.mimeType || '').startsWith('image/') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<img src="${d.fileUrl}" alt="CIF document" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
-                                else q('documentViewPreview').innerHTML = `<div class="text-center"><i class="far fa-file text-6xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${d.fileName || '-'}</p><p class="text-xs text-gray-500">${d.mimeType || 'Document'} | ${fmtBytes(d.size)}</p><a class="mt-2 inline-block text-blue-600 hover:text-blue-700" href="${d.fileUrl || '#'}" target="_blank" rel="noopener noreferrer">Open File</a></div>`;
-                                q('viewDocTitle').textContent = d.title || '-'; q('viewDocCertificateNo').textContent = d.certificateNo || '-'; q('viewDocCompanyRegNo').textContent = d.companyRegNo || '-'; q('viewDocUploadDate').textContent = fmtDate(d.uploadDate); q('viewDocCreatedDate').textContent = fmtDate(d.createdDate); q('viewDocIssuedOn').textContent = fmtDate(d.issuedOn); q('viewDocIssuedBy').textContent = d.issuedBy || '-'; q('viewDocRemarks').textContent = d.remarks || '-'; q('viewDocFileName').textContent = d.fileName || '-';
-                                open(q('documentViewModal'));
+                            q('documentForm').addEventListener('submit', (event) => {
+                                const activeFile = currentDocs[currentIndex] || {};
+                                const hasExistingFile = !!activeFile?.file_name;
+                                const hasReplacementFile = !!q('docFileInput').files?.[0];
+                                const hasTitle = !!q('docTitle').value.trim();
+                                q('docErrorTitle').classList.toggle('hidden', hasTitle);
+                                q('docErrorFile').classList.toggle('hidden', hasExistingFile || hasReplacementFile);
+                                if (!hasTitle || (!hasExistingFile && !hasReplacementFile)) {
+                                    event.preventDefault();
+                                }
+                                if (activeDoc !== 'cif_signed_document') {
+                                    event.preventDefault();
+                                }
                             });
-                            q('cifOptionalRemoveBtn')?.addEventListener('click', () => {
-                                if (!cifOptionalDoc) return;
-                                if (!window.confirm('Are you sure you want to remove this optional CIF document attachment?')) return;
-                                cifOptionalDoc = null;
-                                addLog(`CIF document removed by ${mockUser}`);
-                                render();
-                            });
-
-                            q('submitForVerificationBtn').addEventListener('click', () => {
+                            q('submitKycForVerificationForm').addEventListener('submit', (event) => {
                                 if (!allRequiredUploaded()) {
-                                    q('kycActionWarning').textContent = 'Please complete Two Valid IDs, Specimen Signature Form, and TIN proof before submitting for verification.';
+                                    event.preventDefault();
+                                    q('kycActionWarning').textContent = 'Please complete the signed CIF document, Two Valid IDs, Specimen Signature Form, and TIN proof before submitting for verification.';
                                     q('kycActionWarning').classList.remove('hidden');
                                     setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3400);
                                     return;
                                 }
-                                kyc.status = 'Pending Verification';
-                                kyc.rejectionReason = '';
-                                kyc.submitted = true;
-                                addLog(`Submitted for verification by ${mockUser}`);
-                                render();
                             });
                             q('approveKycBtn').addEventListener('click', () => {
                                 if (!kyc.submitted) {
@@ -667,7 +797,14 @@
                             });
                             render();
                         });
+
+                        window.addEventListener('load', function () {
+                            if (window.location.hash === '#kyc') {
+                                document.getElementById('kyc')?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        });
                     </script>
+                </div>
                 </div>
             @endif
 
