@@ -1,7 +1,20 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full h-full px-6 py-5" x-data="{ showSlideOver: false }">
+<div id="townhall-page" class="w-full h-full px-6 py-5" x-data="{
+    showSlideOver: false,
+    previewRef: 'AUTO-INCREMENT',
+    previewDate: '',
+    previewFrom: '{{ Auth::user()->name }}',
+    previewDepartment: '',
+    previewRecipientLabel: 'To',
+    previewTo: '',
+    previewPriority: 'Low',
+    previewSubject: '',
+    previewBody: '<p style=&quot;color:#9ca3af;&quot;>Write the formal communication here...</p>',
+    previewCc: '',
+    previewAdditional: ''
+}">
 
     @if(session('success'))
         <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -20,181 +33,280 @@
     @endif
 
     @if(Auth::user()->hasPermission('create_townhall'))
-    {{-- SLIDE OVER --}}
+    {{-- FORM + LIVE PREVIEW OVERLAY --}}
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
-        <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute inset-0 bg-black/40" @click="showSlideOver = false"></div>
 
+        <div class="absolute inset-0 flex">
+            {{-- LEFT PREVIEW PANEL --}}
             <div
                 x-show="showSlideOver"
-                @click="showSlideOver = false"
-                class="absolute inset-0 bg-black/40"
-            ></div>
+                x-transition:enter="transform transition ease-in-out duration-300"
+                x-transition:enter-start="-translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="-translate-x-full"
+                class="w-[70%] h-full bg-[#f5f6f8] overflow-y-auto p-6 border-r border-gray-200"
+            >
+                <div class="max-w-[850px] mx-auto">
+                    <div class="bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
 
-            <div class="absolute inset-y-0 right-0 flex max-w-full">
-                <div
-                    x-show="showSlideOver"
-                    x-transition:enter="transform transition ease-in-out duration-300"
-                    x-transition:enter-start="translate-x-full"
-                    x-transition:enter-end="translate-x-0"
-                    x-transition:leave="transform transition ease-in-out duration-300"
-                    x-transition:leave-start="translate-x-0"
-                    x-transition:leave-end="translate-x-full"
-                    class="w-screen max-w-3xl bg-white shadow-2xl h-full flex flex-col"
-                >
-                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-800">Add Communication</h2>
-
-                        <button
-                            type="button"
-                            @click="showSlideOver = false"
-                            class="text-gray-400 hover:text-gray-600 text-lg"
-                        >
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-
-                    <form id="townhall-form" action="{{ route('townhall.store') }}" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-                        @csrf
-
-                        <div class="grid grid-cols-2 gap-4">
+                        {{-- LETTERHEAD --}}
+                        <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Ref #</label>
-                                <input
-                                    type="text"
-                                    value="AUTO-INCREMENT"
-                                    readonly
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600"
-                                >
+                                <h1 class="text-[22px] font-bold tracking-wide text-gray-900">JOHN KELLY &amp; COMPANY</h1>
+                                <p class="text-[12px] text-gray-500 mt-1">Corporate Memo Preview</p>
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Date</label>
-                                <input
-                                    type="date"
-                                    name="communication_date"
-                                    value="{{ old('communication_date') }}"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
+                            <div class="text-right text-[12px] text-gray-600 leading-5">
+                                <p>Ref No: <span class="font-semibold" x-text="previewRef"></span></p>
+                                <p>Date: <span class="font-semibold" x-text="previewDate || '________________'"></span></p>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        {{-- MEMO TITLE --}}
+                        <div class="text-center mb-8">
+                            <h2 class="text-[20px] font-bold tracking-[0.18em] text-gray-900">MEMORANDUM</h2>
+                        </div>
+
+                        {{-- META --}}
+                        <div class="space-y-3 text-[14px] text-gray-800 mb-10">
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide" x-text="previewRecipientLabel"></p>
+                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewTo || '______________________________'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">From</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewFrom || '______________________________'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">Department</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDepartment || '______________________________'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">Priority</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewPriority || 'Low'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">Subject</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 font-semibold" x-text="previewSubject || '______________________________'"></p>
+                            </div>
+                        </div>
+
+                        {{-- BODY --}}
+                        <div class="text-[15px] leading-8 text-gray-900 min-h-[420px]">
+                            <div class="prose prose-sm max-w-none [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4" x-html="previewBody"></div>
+                        </div>
+
+                        {{-- SIGNATURE AREA --}}
+                        <div class="mt-16 space-y-10 text-[14px] text-gray-800">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
+                                <p>Respectfully,</p>
+                                <div class="mt-12 border-b border-gray-400 w-[260px]"></div>
+                                <p class="mt-2 font-semibold" x-text="previewFrom || '________________'"></p>
+                            </div>
+
+                            <div class="pt-6 border-t border-gray-200 space-y-2">
+                                <p><span class="font-semibold">CC:</span> <span x-text="previewCc || '______________________________'"></span></p>
+                                <p><span class="font-semibold">Additional:</span> <span x-text="previewAdditional || '______________________________'"></span></p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            {{-- RIGHT FORM PANEL --}}
+            <div
+                x-show="showSlideOver"
+                x-transition:enter="transform transition ease-in-out duration-300"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="w-[30%] h-full bg-white shadow-2xl flex flex-col"
+            >
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-800">Add Communication</h2>
+
+                    <button
+                        type="button"
+                        @click="showSlideOver = false"
+                        class="text-gray-400 hover:text-gray-600 text-lg"
+                    >
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <form id="townhall-form" action="{{ route('townhall.store') }}" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                    @csrf
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Ref #</label>
+                            <input
+                                type="text"
+                                value="AUTO-INCREMENT"
+                                readonly
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Date</label>
+                            <input
+                                type="date"
+                                name="communication_date"
+                                x-model="previewDate"
+                                value="{{ old('communication_date') }}"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
                             <input
                                 type="text"
                                 value="{{ Auth::user()->name }}"
+                                x-model="previewFrom"
                                 readonly
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
                             >
                             <p class="mt-1 text-xs text-gray-400">Automatically set based on signed-in user</p>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Department / Stakeholder</label>
-                                <input
-                                    type="text"
-                                    name="department_stakeholder"
-                                    value="{{ old('department_stakeholder') }}"
-                                    placeholder="Enter department or stakeholder"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">To / For</label>
-                                <input
-                                    type="text"
-                                    name="to_for"
-                                    value="{{ old('to_for') }}"
-                                    placeholder="Enter recipient"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Status</label>
-                                <select name="priority" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                    <option value="">Select Priority</option>
-                                    <option value="High">High</option>
-                                    <option value="Low">Low</option>
-                                </select>
-                            </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 mb-1">Subject</label>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Department / Stakeholder</label>
                             <input
                                 type="text"
-                                name="subject"
-                                value="{{ old('subject') }}"
-                                placeholder="Enter subject"
+                                name="department_stakeholder"
+                                x-model="previewDepartment"
+                                value="{{ old('department_stakeholder') }}"
+                                placeholder="Enter department or stakeholder"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                            >
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Recipient Label and Value</label>
+
+                        <div class="grid grid-cols-[120px_1fr] gap-3">
+                            <select
+                                x-model="previewRecipientLabel"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                            >
+                                <option value="To">To</option>
+                                <option value="For">For</option>
+                            </select>
+
+                            <input
+                                type="text"
+                                name="to_for"
+                                x-model="previewTo"
+                                value="{{ old('to_for') }}"
+                                placeholder="Enter recipient"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                            >
+                        </div>
+
+                        <input type="hidden" name="recipient_label" :value="previewRecipientLabel">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Priority</label>
+                        <select
+                            name="priority"
+                            x-model="previewPriority"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                            <option value="Low">Low</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Subject</label>
+                        <input
+                            type="text"
+                            name="subject"
+                            x-model="previewSubject"
+                            value="{{ old('subject') }}"
+                            placeholder="Enter subject"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Body</label>
+                        <div id="editor">{!! old('message') !!}</div>
+                        <input type="hidden" name="message" id="message">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">CC</label>
+                            <input
+                                type="text"
+                                name="cc"
+                                x-model="previewCc"
+                                value="{{ old('cc') }}"
+                                placeholder="Enter CC recipients"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                             >
                         </div>
 
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 mb-1">Body</label>
-                            <div id="editor">{!! old('message') !!}</div>
-                            <input type="hidden" name="message" id="message">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">CC</label>
-                                <input
-                                    type="text"
-                                    name="cc"
-                                    value="{{ old('cc') }}"
-                                    placeholder="Enter CC recipients"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Additional</label>
-                                <input
-                                    type="text"
-                                    name="additional"
-                                    value="{{ old('additional') }}"
-                                    placeholder="Optional"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                                >
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-500 mb-1">Attachment</label>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Additional</label>
                             <input
-                                type="file"
-                                name="attachment"
-                                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                                type="text"
+                                name="additional"
+                                x-model="previewAdditional"
+                                value="{{ old('additional') }}"
+                                placeholder="Optional"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                             >
-                            <p class="mt-1 text-xs text-gray-400">
-                                Allowed: JPG, JPEG, PNG, GIF, WEBP, PDF, DOC, DOCX
-                            </p>
                         </div>
+                    </div>
 
-                        <div class="px-0 py-4 border-t border-gray-200 flex items-center gap-3">
-                            <button
-                                type="button"
-                                @click="showSlideOver = false"
-                                class="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50 transition"
-                            >
-                                Cancel
-                            </button>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Attachment</label>
+                        <input
+                            type="file"
+                            name="attachment"
+                            accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                        >
+                        <p class="mt-1 text-xs text-gray-400">
+                            Allowed: JPG, JPEG, PNG, GIF, WEBP, PDF, DOC, DOCX
+                        </p>
+                    </div>
 
-                            <button
-                                type="submit"
-                                class="flex-1 bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 transition"
-                            >
-                                Save
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    <div class="px-0 py-4 border-t border-gray-200 flex items-center gap-3">
+                        <button
+                            type="button"
+                            @click="showSlideOver = false"
+                            class="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50 transition"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="flex-1 bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 transition"
+                        >
+                            Save
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -230,7 +342,7 @@
         </div>
 
         <div class="px-5 pb-4 flex-1 flex flex-col">
-            <div class="border border-gray-200 rounded-md overflow-hidden flex-1">
+            <div class="border border-gray-200 rounded-md overflow-hidden flex-1 overflow-auto">
                 <table class="w-full text-sm text-left border-collapse">
                     <thead class="bg-gray-100 text-gray-700">
                         <tr>
@@ -258,9 +370,11 @@
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->department_stakeholder }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->from_name }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->to_for }}</td>
+                                <td class="px-3 py-3 border-r border-gray-200">
+                                    {{ ($communication->recipient_label ?? 'To') . ': ' . ($communication->to_for ?? '') }}
+                                </td>
 
-                                <td>
+                                <td class="px-3 py-3 border-r border-gray-200">
                                     @php
                                         $priority = $communication->priority ?? 'Low';
                                         $classes = $priority === 'High'
@@ -331,16 +445,20 @@
                         <span class="text-black font-medium">{{ $communications->total() }}</span>
                     </span>
                     <span class="flex items-center gap-1">
-                        Open Task
-                        <span class="text-yellow-500 font-medium">{{ $communications->where('status', 'Open')->count() }}</span>
+                        Pending
+                        <span class="text-yellow-600 font-medium">{{ $communications->where('approval_status', 'Pending')->count() }}</span>
                     </span>
                     <span class="flex items-center gap-1">
-                        Completed
-                        <span class="text-green-500 font-medium">{{ $communications->where('status', 'Completed')->count() }}</span>
+                        Approved
+                        <span class="text-green-600 font-medium">{{ $communications->where('approval_status', 'Approved')->count() }}</span>
                     </span>
                     <span class="flex items-center gap-1">
-                        Overdue
-                        <span class="text-red-500 font-medium">{{ $communications->where('status', 'Overdue')->count() }}</span>
+                        Needs Revision
+                        <span class="text-blue-600 font-medium">{{ $communications->where('approval_status', 'Needs Revision')->count() }}</span>
+                    </span>
+                    <span class="flex items-center gap-1">
+                        Rejected
+                        <span class="text-red-600 font-medium">{{ $communications->where('approval_status', 'Rejected')->count() }}</span>
                     </span>
                 </div>
 
@@ -393,12 +511,36 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const oldMessage = {!! json_encode(old('message')) !!};
+        const rootEl = document.getElementById('townhall-page');
+        const alpineData = rootEl ? Alpine.$data(rootEl) : null;
 
         if (oldMessage) {
             quill.root.innerHTML = oldMessage;
+            hiddenInput.value = oldMessage;
+
+            if (alpineData) {
+                alpineData.previewBody = oldMessage;
+            }
         } else {
-            quill.root.innerHTML = `<p></p>`;
+            const defaultHtml = '<p style="color:#9ca3af;">Write the formal communication here...</p>';
+            quill.root.innerHTML = '';
+            hiddenInput.value = '';
+
+            if (alpineData) {
+                alpineData.previewBody = defaultHtml;
+            }
         }
+
+        quill.on('text-change', function () {
+            const html = quill.root.innerHTML;
+            hiddenInput.value = html;
+
+            if (alpineData) {
+                alpineData.previewBody = quill.getText().trim()
+                    ? html
+                    : '<p style="color:#9ca3af;">Write the formal communication here...</p>';
+            }
+        });
 
         form.addEventListener('submit', function () {
             hiddenInput.value = quill.root.innerHTML;

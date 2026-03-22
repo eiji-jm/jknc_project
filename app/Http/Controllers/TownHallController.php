@@ -36,9 +36,10 @@ class TownHallController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $validated = $request->validate([
+                $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
             'department_stakeholder' => ['nullable', 'string', 'max:255'],
+            'recipient_label' => ['nullable', 'in:To,For'],
             'to_for' => ['nullable', 'string', 'max:255'],
             'priority' => ['nullable', 'in:High,Low'],
             'subject' => ['nullable', 'string', 'max:255'],
