@@ -1,176 +1,141 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $statusClasses = [
+        'Draft' => 'border-slate-200 bg-slate-50 text-slate-700',
+        'Active' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        'Inactive' => 'border-amber-200 bg-amber-50 text-amber-700',
+        'Archived' => 'border-rose-200 bg-rose-50 text-rose-700',
+    ];
+@endphp
+
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4 pb-8">
     <div class="bg-white border border-gray-100 rounded-md overflow-hidden">
         @include('company.partials.company-header', ['company' => $company])
 
         <section class="bg-gray-50 p-4 min-h-[760px]">
-            <div class="rounded-md border border-gray-200 bg-white overflow-hidden shadow-sm">
-                <div class="border-b border-gray-100 px-4 py-4">
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                            <h2 class="text-2xl font-bold tracking-tight text-gray-900">SERVICES</h2>
-                            <p class="mt-1 text-sm text-gray-500">Manage services assigned to this company.</p>
-                        </div>
-
-                        <button type="button" id="openCompanyServiceModalCreate" class="h-9 rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 inline-flex items-center gap-2">
-                            <span class="text-base leading-none">+</span>
-                            <span>Assign Service</span>
-                        </button>
-                    </div>
-
-                    @if (session('services_success'))
-                        <div class="mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-                            {{ session('services_success') }}
-                        </div>
-                    @endif
-
-                    <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
-                        <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Services</p>
-                            <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['active'] }}</p>
-                        </div>
-                        <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Upcoming Renewals</p>
-                            <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['upcoming'] }}</p>
-                        </div>
-                        <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Completed Services</p>
-                            <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['completed'] }}</p>
-                        </div>
-                    </div>
-
-                    <form method="GET" action="{{ route('company.services.index', $company->id) }}" class="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-12">
-                        <div class="relative lg:col-span-4">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                            <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search company services..." class="w-full h-10 rounded border border-gray-200 bg-white pl-11 pr-4 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                        </div>
-
-                        <div class="lg:col-span-2">
-                            <select name="status" class="w-full h-10 rounded border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="all">Status: All</option>
-                                @foreach ($statusOptions as $statusOption)
-                                    <option value="{{ $statusOption }}" @selected($filters['status'] === $statusOption)>{{ $statusOption }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="lg:col-span-2">
-                            <select name="staff" class="w-full h-10 rounded border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="all">Assigned Staff: All</option>
-                                @foreach ($staffOptions as $staffOption)
-                                    <option value="{{ $staffOption }}" @selected($filters['staff'] === $staffOption)>{{ $staffOption }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="lg:col-span-2">
-                            <select name="category" class="w-full h-10 rounded border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
-                                <option value="all">Category: All</option>
-                                @foreach ($categories as $category)
-                                    <option value="{{ $category }}" @selected($filters['category'] === $category)>{{ $category }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="lg:col-span-2 flex items-center gap-2">
-                            <button class="h-10 flex-1 rounded border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Apply</button>
-                            @if ($filters['search'] !== '' || $filters['status'] !== 'all' || $filters['staff'] !== 'all' || $filters['category'] !== 'all')
-                                <a href="{{ route('company.services.index', $company->id) }}" class="h-10 flex-1 rounded border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center">
-                                    Clear
-                                </a>
-                            @endif
-                        </div>
-                    </form>
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-semibold text-gray-900">Services</h2>
+                    <p class="mt-1 text-sm text-gray-500">Manage standardized services assigned to {{ $company->company_name }}.</p>
                 </div>
+                <button type="button" id="openCompanyServiceModalCreate" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
+                    <i class="fas fa-plus mr-1"></i> Service
+                </button>
+            </div>
 
-                <div class="p-4">
-                    <div class="border border-gray-200 rounded-md bg-white overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-50 text-gray-600 border-b border-gray-200">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left font-medium">Service Name</th>
-                                        <th class="px-4 py-3 text-left font-medium">Category</th>
-                                        <th class="px-4 py-3 text-left font-medium">Assigned Staff</th>
-                                        <th class="px-4 py-3 text-left font-medium">Status</th>
-                                        <th class="px-4 py-3 text-left font-medium">Frequency</th>
-                                        <th class="px-4 py-3 text-left font-medium">Start Date</th>
-                                        <th class="px-4 py-3 text-left font-medium">End Date</th>
-                                        <th class="px-4 py-3 text-right font-medium">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-200 bg-white text-gray-700">
-                                    @forelse ($services as $service)
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3">
-                                                <div class="font-medium text-gray-800">{{ $service['name'] }}</div>
-                                                <div class="mt-1 text-xs text-gray-500">
-                                                    {{ $service['priority'] ?: 'Normal' }} priority
-                                                    @if ($service['service_level'])
-                                                        / {{ $service['service_level'] }}
-                                                    @endif
-                                                </div>
-                                            </td>
-                                            <td class="px-4 py-3">{{ $service['category'] }}</td>
-                                            <td class="px-4 py-3">{{ $service['assigned_staff'] }}</td>
-                                            <td class="px-4 py-3">
-                                                @php($statusClasses = match($service['status']) {
-                                                    'Active' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                                                    'Pending' => 'border-amber-200 bg-amber-50 text-amber-700',
-                                                    'Completed' => 'border-blue-200 bg-blue-50 text-blue-700',
-                                                    'On Hold' => 'border-violet-200 bg-violet-50 text-violet-700',
-                                                    default => 'border-red-200 bg-red-50 text-red-700',
-                                                })
-                                                <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium {{ $statusClasses }}">{{ $service['status'] }}</span>
-                                            </td>
-                                            <td class="px-4 py-3">{{ $service['frequency'] }}</td>
-                                            <td class="px-4 py-3">{{ \Illuminate\Support\Carbon::parse($service['start_date'])->format('M d, Y') }}</td>
-                                            <td class="px-4 py-3">{{ $service['end_date'] ? \Illuminate\Support\Carbon::parse($service['end_date'])->format('M d, Y') : '-' }}</td>
-                                            <td class="px-4 py-3">
-                                                <div class="flex items-center justify-end gap-2">
-                                                    <a href="{{ route('company.services.show', [$company->id, $service['id']]) }}" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                                                        View
-                                                    </a>
-                                                    <button type="button" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50" data-company-service-edit='@json($service)'>
-                                                        Edit
-                                                    </button>
-                                                    <form method="POST" action="{{ route('company.services.destroy', [$company->id, $service['id']]) }}" onsubmit="return confirm('Remove this service from the current company?');">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="inline-flex h-8 items-center rounded-full border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50">
-                                                            Remove
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="8" class="px-4 py-12">
-                                                <div class="flex flex-col items-center justify-center text-center">
-                                                    <div class="h-12 w-12 rounded-full bg-blue-50 text-blue-600 inline-flex items-center justify-center">
-                                                        <i class="fas fa-briefcase"></i>
-                                                    </div>
-                                                    <h3 class="mt-4 text-base font-semibold text-gray-900">No services assigned to this company yet.</h3>
-                                                    <p class="mt-1 max-w-md text-sm text-gray-500">Assign the first service engagement for {{ $company->company_name }} to start tracking staff assignments and schedules.</p>
-                                                    <button type="button" id="openFirstCompanyServiceModal" class="mt-4 h-9 rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 inline-flex items-center gap-2">
-                                                        <span class="text-base leading-none">+</span>
-                                                        <span>Assign First Service</span>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            @if (session('services_success'))
+                <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    {{ session('services_success') }}
                 </div>
+            @endif
 
-                <div class="border-t border-gray-100 px-4 py-3 flex flex-wrap items-center justify-end gap-3 text-sm text-gray-500">
-                    <span>{{ $services->count() }} {{ \Illuminate\Support\Str::plural('service', $services->count()) }}</span>
+            <div class="mb-4 grid gap-3 md:grid-cols-3">
+                <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Active Services</p>
+                    <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['active'] }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Recurring Services</p>
+                    <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['recurring'] }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Due In 7 Days</p>
+                    <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['due_soon'] }}</p>
+                </div>
+            </div>
+
+            <form method="GET" action="{{ route('company.services.index', $company->id) }}" class="mb-4 flex flex-wrap items-center gap-3">
+                <div class="relative w-full max-w-md">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
+                    <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search company services..." class="h-10 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                </div>
+                <select name="status" class="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all">Status: All</option>
+                    @foreach ($statusOptions as $option)
+                        <option value="{{ $option }}" @selected($filters['status'] === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="category" class="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all">Category: All</option>
+                    @foreach ($categories as $option)
+                        <option value="{{ $option }}" @selected($filters['category'] === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="assigned_unit" class="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all">Assigned Unit: All</option>
+                    @foreach ($assignedUnitOptions as $option)
+                        <option value="{{ $option }}" @selected($filters['assigned_unit'] === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <button class="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Apply</button>
+            </form>
+
+            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div class="overflow-x-auto overflow-y-visible">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 text-xs text-gray-700">
+                            <tr>
+                                <th class="px-3 py-3 text-left font-medium">Service Name</th>
+                                <th class="px-3 py-3 text-left font-medium">Category</th>
+                                <th class="px-3 py-3 text-left font-medium">Frequency</th>
+                                <th class="px-3 py-3 text-left font-medium">Engagement Type</th>
+                                <th class="px-3 py-3 text-left font-medium">Price / Rate</th>
+                                <th class="px-3 py-3 text-left font-medium">Assigned Unit</th>
+                                <th class="px-3 py-3 text-left font-medium">Status</th>
+                                <th class="px-3 py-3 text-left font-medium">Service Owner</th>
+                                @foreach ($customFields as $field)
+                                    <th class="px-3 py-3 text-left font-medium">{{ $field->field_name }}</th>
+                                @endforeach
+                                <th class="px-3 py-3 text-right font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse ($services as $service)
+                                <tr class="text-gray-700 hover:bg-gray-50">
+                                    <td class="px-3 py-3">
+                                        <a href="{{ route('company.services.show', [$company->id, $service->id]) }}" class="font-medium text-gray-900 hover:text-blue-700">{{ $service->service_name }}</a>
+                                        <div class="mt-1 text-xs text-gray-500">ID {{ $service->service_id }}</div>
+                                    </td>
+                                    <td class="px-3 py-3 text-gray-600">{{ $service->category ?: '-' }}</td>
+                                    <td class="px-3 py-3 text-gray-600">{{ $service->frequency ?: '-' }}</td>
+                                    <td class="px-3 py-3 text-gray-600">{{ implode(', ', $service->engagement_structure ?? []) ?: '-' }}</td>
+                                    <td class="px-3 py-3 text-gray-600">
+                                        @if ($service->rate_per_unit)
+                                            {{ number_format((float) $service->rate_per_unit, 2) }} / {{ $service->unit }}
+                                        @elseif ($service->price_fee)
+                                            {{ number_format((float) $service->price_fee, 2) }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-3 text-gray-600">{{ $service->assigned_unit ?: '-' }}</td>
+                                    <td class="px-3 py-3">
+                                        <span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-medium {{ $statusClasses[$service->status] ?? 'border-gray-200 bg-gray-50 text-gray-700' }}">{{ $service->status }}</span>
+                                    </td>
+                                    <td class="px-3 py-3 text-gray-600">{{ $service->creator?->name ?: '-' }}</td>
+                                    @foreach ($customFields as $field)
+                                        <td class="px-3 py-3 text-gray-600">{{ data_get($service->custom_field_values, $field->field_key, '-') ?: '-' }}</td>
+                                    @endforeach
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-company-service-edit='@json($service)'>Edit</button>
+                                            <form method="POST" action="{{ route('company.services.destroy', [$company->id, $service->id]) }}" onsubmit="return confirm('Remove this service?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Remove</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="{{ 9 + $customFields->count() }}" class="px-3 py-10 text-center text-sm text-gray-500">No company services found.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -181,92 +146,112 @@
     'fieldPrefix' => 'companyService',
     'modalId' => 'companyServiceModal',
     'title' => 'Assign Service',
-    'subtitle' => 'This service engagement will be linked automatically to ' . $company->company_name . '.',
+    'subtitle' => 'This service will be linked to ' . $company->company_name . '.',
     'action' => route('company.services.store', $company->id),
-    'companies' => collect(),
-    'statusOptions' => $statusOptions,
-    'frequencyOptions' => $frequencyOptions,
     'companyLocked' => true,
     'lockedCompany' => $company,
 ])
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const modal = document.getElementById('companyServiceModal');
-        const openButtons = [document.getElementById('openCompanyServiceModalCreate'), document.getElementById('openFirstCompanyServiceModal')].filter(Boolean);
-        const closeButtons = modal.querySelectorAll('[data-close-service-modal]');
-        const editButtons = document.querySelectorAll('[data-company-service-edit]');
-        const form = document.getElementById('companyServiceForm');
-        const methodInput = document.getElementById('companyServiceFormMethod');
-        const title = document.getElementById('companyServiceModalTitle');
-        const submit = document.getElementById('companyServiceFormSubmit');
-        const updateUrlTemplate = @json(route('company.services.update', [$company->id, '__SERVICE__']));
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('companyServiceModal');
+    const form = document.getElementById('companyServiceForm');
+    const openButton = document.getElementById('openCompanyServiceModalCreate');
+    const closeButtons = modal.querySelectorAll('[data-close-service-modal]');
+    const editButtons = document.querySelectorAll('[data-company-service-edit]');
+    const methodInput = document.getElementById('companyServiceFormMethod');
+    const title = document.getElementById('companyServiceModalTitle');
+    const submit = document.getElementById('companyServiceFormSubmit');
+    const updateUrlTemplate = @json(route('company.services.update', [$company->id, '__SERVICE__']));
+    const createUrl = @json(route('company.services.store', $company->id));
 
-        const openModal = () => window.jkncSlideOver.open(modal);
-        const closeModal = () => window.jkncSlideOver.close(modal);
+    const openModal = () => window.jkncSlideOver.open(modal);
+    const closeModal = () => window.jkncSlideOver.close(modal);
 
-        const resetForm = () => {
-            form.reset();
-            form.action = @json(route('company.services.store', $company->id));
-            methodInput.value = 'POST';
-            title.textContent = 'Assign Service';
-            submit.textContent = 'Save';
-            document.getElementById('companyServiceFormAssignedStaff').value = @json($company->owner_name ?? '');
-            document.getElementById('companyServiceFormStatus').value = 'Active';
-            document.getElementById('companyServiceFormFrequency').value = 'Monthly';
-            document.getElementById('companyServiceFormPriority').value = 'Normal';
-        };
+    const formatDateTimeLocal = (value) => {
+        if (!value) return '';
+        return String(value).replace(' ', 'T').slice(0, 16);
+    };
 
-        const fillForm = (service) => {
-            document.getElementById('companyServiceFormName').value = service.name ?? '';
-            document.getElementById('companyServiceFormCategory').value = service.category ?? '';
-            document.getElementById('companyServiceFormAssignedStaff').value = service.assigned_staff ?? '';
-            document.getElementById('companyServiceFormStatus').value = service.status ?? 'Active';
-            document.getElementById('companyServiceFormFrequency').value = service.frequency ?? 'Monthly';
-            document.getElementById('companyServiceFormStartDate').value = service.start_date ?? '';
-            document.getElementById('companyServiceFormEndDate').value = service.end_date ?? '';
-            document.getElementById('companyServiceFormPriority').value = service.priority ?? 'Normal';
-            document.getElementById('companyServiceFormPackage').value = service.service_package ?? '';
-            document.getElementById('companyServiceFormLevel').value = service.service_level ?? '';
-            document.getElementById('companyServiceFormDescription').value = service.description ?? '';
-        };
-
-        openButtons.forEach((button) => button.addEventListener('click', function () {
-            resetForm();
-            openModal();
-        }));
-
-        closeButtons.forEach((button) => button.addEventListener('click', closeModal));
-
-        editButtons.forEach((button) => {
-            button.addEventListener('click', function () {
-                const service = JSON.parse(this.dataset.companyServiceEdit);
-                resetForm();
-                form.action = updateUrlTemplate.replace('__SERVICE__', service.id);
-                methodInput.value = 'PUT';
-                title.textContent = 'Edit Service';
-                submit.textContent = 'Update';
-                fillForm(service);
-                openModal();
-            });
+    const setMultiSelect = (id, values) => {
+        const select = document.getElementById(id);
+        const selected = Array.isArray(values) ? values : [];
+        Array.from(select.options).forEach((option) => {
+            option.selected = selected.includes(option.value);
         });
+        select.dispatchEvent(new Event('change'));
+    };
 
-        modal.addEventListener('click', function (event) {
-            if (event.target === modal || event.target.hasAttribute('data-drawer-overlay')) {
-                closeModal();
+    const resetForm = () => {
+        form.reset();
+        form.action = createUrl;
+        methodInput.value = 'POST';
+        title.textContent = 'Assign Service';
+        submit.textContent = 'Save';
+        document.getElementById('companyServiceFormStatus').value = 'Draft';
+        document.getElementById('companyServiceFormCreatedByLabel').value = '-';
+        document.getElementById('companyServiceFormUpdatedAtLabel').value = '-';
+    };
+
+    const fillForm = (service) => {
+        document.getElementById('companyServiceFormServiceName').value = service.service_name ?? '';
+        document.getElementById('companyServiceFormServiceDescription').value = service.service_description ?? '';
+        document.getElementById('companyServiceFormServiceOutput').value = service.service_activity_output ?? '';
+        setMultiSelect('companyServiceFormServiceArea', service.service_area ?? []);
+        document.getElementById('companyServiceFormServiceAreaOther').value = service.service_area_other ?? '';
+        document.getElementById('companyServiceFormCategory').value = service.category ?? '';
+        document.getElementById('companyServiceFormFrequency').value = service.frequency ?? '';
+        document.getElementById('companyServiceFormFrequency').dispatchEvent(new Event('change'));
+        document.getElementById('companyServiceFormScheduleRule').value = service.schedule_rule ?? '';
+        document.getElementById('companyServiceFormDeadline').value = formatDateTimeLocal(service.deadline ?? '');
+        document.getElementById('companyServiceFormReminder').value = service.reminder_lead_time ?? '';
+        document.getElementById('companyServiceFormRequirementCategory').value = service.requirement_category ?? service.requirements?.category ?? '';
+        document.getElementById('companyServiceFormRequirements').value = Array.isArray(service.requirements?.items) ? service.requirements.items.join('\n') : '';
+        setMultiSelect('companyServiceFormEngagement', service.engagement_structure ?? []);
+        document.getElementById('companyServiceFormUnit').value = service.unit ?? '';
+        document.getElementById('companyServiceFormRatePerUnit').value = service.rate_per_unit ?? '';
+        document.getElementById('companyServiceFormMinUnits').value = service.min_units ?? '';
+        document.getElementById('companyServiceFormMaxCap').value = service.max_cap ?? '';
+        document.getElementById('companyServiceFormPriceFee').value = service.price_fee ?? '';
+        document.getElementById('companyServiceFormCost').value = service.cost_of_service ?? '';
+        document.getElementById('companyServiceFormAssignedUnit').value = service.assigned_unit ?? '';
+        document.getElementById('companyServiceFormStatus').value = service.status ?? 'Draft';
+        document.getElementById('companyServiceFormReviewedBy').value = service.reviewed_by ?? '';
+        document.getElementById('companyServiceFormReviewedAt').value = formatDateTimeLocal(service.reviewed_at ?? '');
+        document.getElementById('companyServiceFormApprovedBy').value = service.approved_by ?? '';
+        document.getElementById('companyServiceFormApprovedAt').value = formatDateTimeLocal(service.approved_at ?? '');
+        document.getElementById('companyServiceFormCreatedByLabel').value = service.creator?.name ?? '-';
+        document.getElementById('companyServiceFormUpdatedAtLabel').value = service.updated_at ?? '-';
+        Object.entries(service.custom_field_values ?? {}).forEach(([key, value]) => {
+            const input = form.querySelector(`[name="custom_fields[${key}]"]`);
+            if (!input) return;
+            if (input.type === 'checkbox') {
+                input.checked = value === '1' || value === 1 || value === true;
+            } else {
+                input.value = value ?? '';
             }
         });
+    };
 
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-                closeModal();
-            }
-        });
-
-        @if ($errors->has('name') || $errors->has('category') || $errors->has('assigned_staff') || $errors->has('status') || $errors->has('frequency') || $errors->has('start_date') || $errors->has('end_date') || $errors->has('description') || $errors->has('priority') || $errors->has('service_package') || $errors->has('service_level'))
-            resetForm();
-            openModal();
-        @endif
+    openButton?.addEventListener('click', function () {
+        resetForm();
+        openModal();
     });
+
+    closeButtons.forEach((button) => button.addEventListener('click', closeModal));
+
+    editButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+            const service = JSON.parse(this.dataset.companyServiceEdit);
+            resetForm();
+            form.action = updateUrlTemplate.replace('__SERVICE__', service.id);
+            methodInput.value = 'PUT';
+            title.textContent = 'Edit Service';
+            submit.textContent = 'Update';
+            fillForm(service);
+            openModal();
+        });
+    });
+});
 </script>
 @endsection

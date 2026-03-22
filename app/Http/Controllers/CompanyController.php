@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\CompanyActivity;
+use App\Models\CompanyBif;
 use App\Models\CompanyConsultationNote;
 use App\Models\CompanyHistoryEntry;
 use App\Models\Contact;
@@ -24,7 +26,7 @@ class CompanyController extends Controller
         $perPage = in_array($perPage, [5, 10, 25, 50], true) ? $perPage : 10;
         $customFields = $this->companyCustomFields($request);
 
-        $allCompanies = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
+        $allCompanies = $this->companyRecords($request)
             ->map(fn (array $company): array => $this->applyCompanyCustomFieldDefaults($company, $customFields))
             ->sortByDesc('created_at')
             ->values();
@@ -48,10 +50,9 @@ class CompanyController extends Controller
                 return $collection->filter(function (array $company) use ($term) {
                     return collect([
                         $company['company_name'] ?? '',
-                        $company['email'] ?? '',
                         $company['phone'] ?? '',
-                        $company['website'] ?? '',
-                        $company['address'] ?? '',
+                        $company['mobile_no'] ?? '',
+                        $company['tin_no'] ?? '',
                         $company['owner_name'] ?? '',
                         $company['company_type'] ?? '',
                         ...collect($company['custom_fields'] ?? [])->values()->all(),
@@ -97,23 +98,34 @@ class CompanyController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateCompany($request);
-        $customFields = $this->companyCustomFields($request);
-
-        $companies = $request->session()->get('mock_companies', $this->defaultCompanies());
-        $nextId = collect($companies)->max('id') + 1;
-
-        $companies[] = [
-            'id' => $nextId,
-            ...$this->makeCompanyPayload($validated, $customFields),
+        $company = Company::query()->create([
+            'company_name' => $validated['business_name'],
+            'phone' => $validated['business_phone'] ?: ($validated['mobile_no'] ?: null),
+            'address' => $validated['business_address'] ?: null,
             'owner_name' => $request->user()?->name ?? 'Owner 1',
-            'created_at' => now()->toDateTimeString(),
-        ];
+        ]);
 
-        $request->session()->put('mock_companies', $companies);
+        $bif = CompanyBif::query()->create([
+            ...$this->makeCompanyPayload($validated),
+            'company_id' => $company->id,
+            'title' => 'Business Information Form - '.$validated['business_name'],
+            'status' => 'approved',
+            'submitted_at' => now(),
+            'approved_at' => now(),
+            'approved_by_name' => $request->user()?->name ?? 'Demo Approval',
+            'created_by' => $request->user()?->id,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        if (blank($bif->bif_no)) {
+            $bif->updateQuietly([
+                'bif_no' => 'BIF-' . now()->format('Ymd') . '-' . str_pad((string) $bif->id, 4, '0', STR_PAD_LEFT),
+            ]);
+        }
 
         return redirect()
-            ->route('company.index')
-            ->with('success', 'Company added successfully.');
+            ->route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Business Information Form saved and linked to the company profile.');
     }
 
     public function update(Request $request, int $company): RedirectResponse
@@ -950,8 +962,7 @@ class CompanyController extends Controller
 
     private function findCompanyOrAbort(Request $request, int $company): array
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
+        $companyData = $this->companyRecords($request)->firstWhere('id', $company);
 
         abort_unless($companyData, 404);
 
@@ -961,30 +972,182 @@ class CompanyController extends Controller
     private function validateCompany(Request $request): array
     {
         return $request->validate([
-            'company_name' => ['required', 'string', 'max:255'],
-            'company_type' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:255'],
-            'website' => ['nullable', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'address' => ['nullable', 'string'],
+            'bif_no' => ['nullable', 'string', 'max:255'],
+            'bif_date' => ['required', 'date'],
+            'client_type' => ['required', 'string', 'in:new_client,existing_client,change_information'],
+            'business_organization' => ['nullable', 'string', 'in:sole_proprietorship,partnership,corporation,cooperative,ngo,other'],
+            'business_organization_other' => ['nullable', 'string', 'max:255'],
+            'nationality_status' => ['nullable', 'string', 'in:filipino,foreign'],
+            'office_type' => ['nullable', 'string', 'in:head_office,branch,regional_headquarter,other'],
+            'office_type_other' => ['nullable', 'string', 'max:255'],
+            'business_name' => ['required', 'string', 'max:255'],
+            'alternative_business_name' => ['nullable', 'string', 'max:255'],
+            'business_address' => ['nullable', 'string'],
+            'zip_code' => ['nullable', 'string', 'max:50'],
+            'business_phone' => ['nullable', 'string', 'max:255'],
+            'mobile_no' => ['nullable', 'string', 'max:255'],
+            'tin_no' => ['nullable', 'string', 'max:255'],
+            'place_of_incorporation' => ['nullable', 'string', 'max:255'],
+            'date_of_incorporation' => ['nullable', 'date'],
+            'industry_types' => ['nullable', 'array'],
+            'industry_types.*' => ['string'],
+            'industry_other_text' => ['nullable', 'string', 'max:255'],
+            'capital_category' => ['nullable', 'string', 'in:micro,small,medium,large'],
+            'employee_male' => ['nullable', 'integer', 'min:0'],
+            'employee_female' => ['nullable', 'integer', 'min:0'],
+            'employee_pwd' => ['nullable', 'integer', 'min:0'],
+            'employee_total' => ['nullable', 'integer', 'min:0'],
+            'source_of_funds' => ['nullable', 'array'],
+            'source_of_funds.*' => ['string'],
+            'source_other_text' => ['nullable', 'string', 'max:255'],
+            'president_name' => ['nullable', 'string', 'max:255'],
+            'treasurer_name' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories' => ['nullable', 'array'],
+            'authorized_signatories.*.full_name' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.address' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.nationality' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.date_of_birth' => ['nullable', 'date'],
+            'authorized_signatories.*.tin' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.position' => ['nullable', 'string', 'max:255'],
+            'ubos' => ['nullable', 'array'],
+            'ubos.*.full_name' => ['nullable', 'string', 'max:255'],
+            'ubos.*.address' => ['nullable', 'string', 'max:255'],
+            'ubos.*.nationality' => ['nullable', 'string', 'max:255'],
+            'ubos.*.date_of_birth' => ['nullable', 'date'],
+            'ubos.*.tin' => ['nullable', 'string', 'max:255'],
+            'ubos.*.position' => ['nullable', 'string', 'max:255'],
+            'authorized_contact_person_name' => ['nullable', 'string', 'max:255'],
+            'authorized_contact_person_position' => ['nullable', 'string', 'max:255'],
+            'authorized_contact_person_email' => ['nullable', 'email', 'max:255'],
+            'authorized_contact_person_phone' => ['nullable', 'string', 'max:255'],
+            'signature_printed_name' => ['nullable', 'string', 'max:255'],
+            'signature_position' => ['nullable', 'string', 'max:255'],
+            'review_signature_printed_name' => ['nullable', 'string', 'max:255'],
+            'review_signature_position' => ['nullable', 'string', 'max:255'],
+            'referred_by' => ['nullable', 'string', 'max:255'],
+            'consultant_lead' => ['nullable', 'string', 'max:255'],
+            'lead_associate' => ['nullable', 'string', 'max:255'],
+            'president_use_only_name' => ['nullable', 'string', 'max:255'],
         ]);
     }
 
-    private function makeCompanyPayload(array $validated, array $customFields = []): array
+    private function makeCompanyPayload(array $validated): array
     {
+        $industries = collect($validated['industry_types'] ?? []);
+        $sources = collect($validated['source_of_funds'] ?? []);
+        $signatories = collect($validated['authorized_signatories'] ?? [])
+            ->filter(fn (array $row) => collect($row)->contains(fn ($value) => filled($value)))
+            ->values()
+            ->all();
+        $ubos = collect($validated['ubos'] ?? [])
+            ->filter(fn (array $row) => collect($row)->contains(fn ($value) => filled($value)))
+            ->values()
+            ->all();
+
         return [
-            'company_name' => $validated['company_name'],
-            'company_type' => $validated['company_type'] ?? 'Corporation',
-            'email' => $validated['email'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'website' => $validated['website'] ?? null,
-            'description' => $validated['description'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'custom_fields' => collect($customFields)
-                ->mapWithKeys(fn (array $field) => [$field['key'] => $field['default_value'] ?? ''])
-                ->all(),
+            'bif_no' => $validated['bif_no'] ?? null,
+            'bif_date' => $validated['bif_date'],
+            'client_type' => $validated['client_type'],
+            'business_organization' => $validated['business_organization'] ?? null,
+            'business_organization_other' => ($validated['business_organization'] ?? null) === 'other' ? ($validated['business_organization_other'] ?? null) : null,
+            'nationality_status' => $validated['nationality_status'] ?? null,
+            'office_type' => $validated['office_type'] ?? null,
+            'office_type_other' => ($validated['office_type'] ?? null) === 'other' ? ($validated['office_type_other'] ?? null) : null,
+            'business_name' => $validated['business_name'],
+            'alternative_business_name' => $validated['alternative_business_name'] ?? null,
+            'business_address' => $validated['business_address'] ?? null,
+            'zip_code' => $validated['zip_code'] ?? null,
+            'business_phone' => $validated['business_phone'] ?? null,
+            'mobile_no' => $validated['mobile_no'] ?? null,
+            'tin_no' => $validated['tin_no'] ?? null,
+            'place_of_incorporation' => $validated['place_of_incorporation'] ?? null,
+            'date_of_incorporation' => $validated['date_of_incorporation'] ?? null,
+            'industry_services' => $industries->contains('services'),
+            'industry_export_import' => $industries->contains('export_import'),
+            'industry_education' => $industries->contains('education'),
+            'industry_financial_services' => $industries->contains('financial_services'),
+            'industry_transportation' => $industries->contains('transportation'),
+            'industry_distribution' => $industries->contains('distribution'),
+            'industry_manufacturing' => $industries->contains('manufacturing'),
+            'industry_government' => $industries->contains('government'),
+            'industry_wholesale_retail_trade' => $industries->contains('wholesale_retail_trade'),
+            'industry_other' => $industries->contains('other'),
+            'industry_other_text' => $industries->contains('other') ? ($validated['industry_other_text'] ?? null) : null,
+            'capital_micro' => ($validated['capital_category'] ?? null) === 'micro',
+            'capital_small' => ($validated['capital_category'] ?? null) === 'small',
+            'capital_medium' => ($validated['capital_category'] ?? null) === 'medium',
+            'capital_large' => ($validated['capital_category'] ?? null) === 'large',
+            'employee_male' => $validated['employee_male'] ?? null,
+            'employee_female' => $validated['employee_female'] ?? null,
+            'employee_pwd' => $validated['employee_pwd'] ?? null,
+            'employee_total' => $validated['employee_total'] ?? (($validated['employee_male'] ?? 0) + ($validated['employee_female'] ?? 0) + ($validated['employee_pwd'] ?? 0)),
+            'source_revenue_income' => $sources->contains('revenue_income'),
+            'source_investments' => $sources->contains('investments'),
+            'source_remittance' => $sources->contains('remittance'),
+            'source_other' => $sources->contains('other'),
+            'source_other_text' => $sources->contains('other') ? ($validated['source_other_text'] ?? null) : null,
+            'source_fees' => $sources->contains('fees'),
+            'president_name' => $validated['president_name'] ?? null,
+            'treasurer_name' => $validated['treasurer_name'] ?? null,
+            'authorized_signatory_name' => $signatories[0]['full_name'] ?? null,
+            'authorized_signatory_address' => $signatories[0]['address'] ?? null,
+            'authorized_signatory_nationality' => $signatories[0]['nationality'] ?? null,
+            'authorized_signatory_date_of_birth' => $signatories[0]['date_of_birth'] ?? null,
+            'authorized_signatory_tin' => $signatories[0]['tin'] ?? null,
+            'authorized_signatory_position' => $signatories[0]['position'] ?? null,
+            'authorized_signatories' => $signatories,
+            'ubo_name' => $ubos[0]['full_name'] ?? null,
+            'ubo_address' => $ubos[0]['address'] ?? null,
+            'ubo_nationality' => $ubos[0]['nationality'] ?? null,
+            'ubo_date_of_birth' => $ubos[0]['date_of_birth'] ?? null,
+            'ubo_tin' => $ubos[0]['tin'] ?? null,
+            'ubo_position' => $ubos[0]['position'] ?? null,
+            'ubos' => $ubos,
+            'authorized_contact_person_name' => $validated['authorized_contact_person_name'] ?? null,
+            'authorized_contact_person_position' => $validated['authorized_contact_person_position'] ?? null,
+            'authorized_contact_person_email' => $validated['authorized_contact_person_email'] ?? null,
+            'authorized_contact_person_phone' => $validated['authorized_contact_person_phone'] ?? null,
+            'signature_printed_name' => $validated['signature_printed_name'] ?? null,
+            'signature_position' => $validated['signature_position'] ?? null,
+            'review_signature_printed_name' => $validated['review_signature_printed_name'] ?? null,
+            'review_signature_position' => $validated['review_signature_position'] ?? null,
+            'referred_by' => $validated['referred_by'] ?? null,
+            'consultant_lead' => $validated['consultant_lead'] ?? null,
+            'lead_associate' => $validated['lead_associate'] ?? null,
+            'president_use_only_name' => $validated['president_use_only_name'] ?? null,
         ];
+    }
+
+    private function companyRecords(Request $request)
+    {
+        if (Schema::hasTable('companies') && Company::query()->count() > 0) {
+            return Company::query()
+                ->with('latestBif')
+                ->get()
+                ->map(function (Company $company) {
+                    $bif = $company->latestBif;
+
+                    return [
+                        'id' => $company->id,
+                        'company_name' => $company->company_name,
+                        'company_type' => $bif?->business_organization ? str_replace('_', ' ', $bif->business_organization) : null,
+                        'bif_no' => $bif?->bif_no,
+                        'email' => $company->email,
+                        'phone' => $bif?->business_phone ?: $company->phone,
+                        'website' => $company->website,
+                        'description' => $company->description,
+                        'address' => $company->address,
+                        'mobile_no' => $bif?->mobile_no,
+                        'tin_no' => $bif?->tin_no,
+                        'status' => $bif?->status,
+                        'owner_name' => $company->owner_name,
+                        'created_at' => optional($company->created_at)->toDateTimeString(),
+                        'custom_fields' => [],
+                    ];
+                });
+        }
+
+        return collect($request->session()->get('mock_companies', $this->defaultCompanies()));
     }
 
     private function companyCustomFields(Request $request): array

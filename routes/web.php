@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BylawController;
@@ -31,6 +32,37 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect()->route('login');
+});
+
+Route::get('/bif/respond/{token}', [CompanyBifController::class, 'clientForm'])->name('company.bif.client.show');
+Route::post('/bif/respond/{token}', [CompanyBifController::class, 'submitClientForm'])->name('company.bif.client.submit');
+
+Route::get('/activities', function () {
+    return view('activities.index');
+})->name('activities');
+
+Route::prefix('api')->group(function () {
+    Route::get('/activities', [ActivityController::class, 'index']);
+    Route::post('/tasks', [ActivityController::class, 'storeTask']);
+    Route::post('/events', [ActivityController::class, 'storeEvent']);
+    Route::post('/calls', [ActivityController::class, 'storeCall']);
+    Route::post('/meetings', [ActivityController::class, 'storeMeeting']);
+
+    Route::put('/tasks/{id}', [ActivityController::class, 'updateTask']);
+    Route::put('/events/{id}', [ActivityController::class, 'updateEvent']);
+    Route::put('/calls/{id}', [ActivityController::class, 'updateCall']);
+    Route::put('/meetings/{id}', [ActivityController::class, 'updateMeeting']);
+
+    Route::delete('/tasks/{id}', [ActivityController::class, 'destroyTask']);
+    Route::delete('/events/{id}', [ActivityController::class, 'destroyEvent']);
+    Route::delete('/calls/{id}', [ActivityController::class, 'destroyCall']);
+    Route::delete('/meetings/{id}', [ActivityController::class, 'destroyMeeting']);
+
+    Route::post('/notes', [ActivityController::class, 'storeNote']);
+    Route::put('/notes/{id}', [ActivityController::class, 'updateNote']);
+    Route::delete('/notes/{id}', [ActivityController::class, 'destroyNote']);
+    Route::post('/meetings/{id}/analyze', [ActivityController::class, 'analyzeMeeting']);
+    Route::post('/meetings/{id}/upload-video', [ActivityController::class, 'uploadVideo']);
 });
 
 Route::middleware('guest')->group(function () {
@@ -71,6 +103,7 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
 
     Route::get('/services', [CompanyServiceController::class, 'globalIndex'])->name('services.index');
     Route::post('/services', [CompanyServiceController::class, 'storeGlobal'])->name('services.store');
+    Route::post('/services/custom-fields', [CompanyServiceController::class, 'storeCustomField'])->name('services.custom-fields.store');
     Route::get('/services/{service}', [CompanyServiceController::class, 'showGlobal'])->name('services.show');
     Route::match(['put', 'patch'], '/services/{service}', [CompanyServiceController::class, 'updateGlobal'])->name('services.update');
     Route::delete('/services/{service}', [CompanyServiceController::class, 'destroyGlobal'])->name('services.destroy');
@@ -149,6 +182,7 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
     Route::match(['put', 'patch'], '/company/{company}/corporate-formation/gis/{record}', [CompanyCorporateFormationController::class, 'updateGis'])->name('company.corporate-formation.gis.update');
     Route::get('/company/{company}/kyc/bif/create', [CompanyBifController::class, 'create'])->name('company.bif.create');
     Route::post('/company/{company}/kyc/bif', [CompanyBifController::class, 'store'])->name('company.bif.store');
+    Route::post('/company/{company}/kyc/bif/send', [CompanyBifController::class, 'sendClientForm'])->name('company.bif.send');
     Route::get('/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'show'])->name('company.bif.show');
     Route::get('/company/{company}/kyc/bif/{bif}/edit', [CompanyBifController::class, 'edit'])->name('company.bif.edit');
     Route::match(['put', 'patch'], '/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'update'])->name('company.bif.update');

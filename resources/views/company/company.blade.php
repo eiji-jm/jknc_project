@@ -27,7 +27,7 @@
 
         <select
             name="type"
-            class="h-10 min-w-[150px] rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            class="h-10 min-w-[180px] rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             onchange="this.form.submit()"
         >
             <option value="All" {{ $typeFilter === 'All' ? 'selected' : '' }}>All</option>
@@ -62,8 +62,9 @@
                     <tr>
                         <th class="w-10 px-3 py-3 text-left"><input id="selectAll" type="checkbox" class="h-4 w-4 rounded border-gray-300"></th>
                         <th class="px-3 py-3 text-left">Company Name</th>
-                        <th class="px-3 py-3 text-left">Phone</th>
-                        <th class="px-3 py-3 text-left">Website</th>
+                        <th class="px-3 py-3 text-left">Phone / Mobile</th>
+                        <th class="px-3 py-3 text-left">TIN</th>
+                        <th class="px-3 py-3 text-left">Status</th>
                         <th class="px-3 py-3 text-left">Company Owner</th>
                         <th class="px-3 py-3 text-left">Actions</th>
                         @foreach ($customFields as $field)
@@ -77,12 +78,18 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($companies as $company)
                         @php
+                            $companyName = data_get($company, 'company_name', '');
+                            $companyPhone = data_get($company, 'phone');
+                            $companyMobile = data_get($company, 'mobile_no');
+                            $companyTin = data_get($company, 'tin_no');
+                            $companyStatus = data_get($company, 'status', 'draft');
+                            $companyOwner = data_get($company, 'owner_name', 'Owner 1');
                             $initials = collect(explode(' ', (string) $company->company_name))
                                 ->filter()
                                 ->take(2)
                                 ->map(fn (string $part) => mb_substr($part, 0, 1))
                                 ->implode('');
-                            $initials = strtoupper($initials !== '' ? $initials : mb_substr((string) $company->company_name, 0, 2));
+                            $initials = strtoupper($initials !== '' ? $initials : mb_substr((string) $companyName, 0, 2));
                         @endphp
                         <tr class="text-gray-700 hover:bg-gray-50">
                             <td class="px-3 py-3"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300"></td>
@@ -90,21 +97,25 @@
                                 <div class="flex items-center gap-2">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">{{ $initials }}</div>
                                     <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information']) }}" class="font-medium text-gray-900 hover:text-blue-700">
-                                        {{ $company->company_name }}
+                                        {{ $companyName }}
                                     </a>
                                 </div>
                             </td>
-                            <td class="px-3 py-3">{{ $company->phone ?: '-' }}</td>
+                            <td class="px-3 py-3">{{ $companyPhone ?: ($companyMobile ?: '-') }}</td>
+                            <td class="px-3 py-3">{{ $companyTin ?: '-' }}</td>
                             <td class="px-3 py-3">
-                                @if ($company->website)
-                                    <a href="{{ $company->website }}" target="_blank" rel="noreferrer" class="inline-block max-w-[220px] truncate text-blue-700 hover:underline">
-                                        {{ $company->website }}
-                                    </a>
-                                @else
-                                    -
-                                @endif
+                                @php
+                                    $statusClasses = match ($companyStatus) {
+                                        'approved' => 'bg-green-100 text-green-700 border border-green-200',
+                                        'pending_approval' => 'bg-amber-100 text-amber-700 border border-amber-200',
+                                        'inactive', 'rejected' => 'bg-red-100 text-red-700 border border-red-200',
+                                        default => 'bg-gray-100 text-gray-700 border border-gray-200',
+                                    };
+                                    $statusLabel = str_replace('_', ' ', ucfirst((string) $companyStatus));
+                                @endphp
+                                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $statusClasses }}">{{ $statusLabel }}</span>
                             </td>
-                            <td class="px-3 py-3">{{ $company->owner_name ?: 'Owner 1' }}</td>
+                            <td class="px-3 py-3">{{ $companyOwner ?: 'Owner 1' }}</td>
                             <td class="px-3 py-3">
                                 <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information']) }}" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
                                     View

@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\CompanyBif;
 use App\Support\CompanyHistoryLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CompanyBifController extends Controller
 {
     private const DEMO_AUTO_APPROVE_ON_SUBMIT = true;
+    private const CLIENT_LINK_TTL_DAYS = 14;
 
     private const CLIENT_TYPES = [
         'new_client' => 'New Client',
@@ -74,6 +78,9 @@ class CompanyBifController extends Controller
             'rejection_reason' => null,
             'created_by' => $request->user()?->id,
             'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
         ]);
 
         if (blank($bif->bif_no)) {
@@ -141,6 +148,9 @@ class CompanyBifController extends Controller
             'rejected_by_name' => null,
             'rejection_reason' => null,
             'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
         ]);
 
         $userName = $request->user()?->name ?? 'System User';
@@ -172,6 +182,129 @@ class CompanyBifController extends Controller
         ]);
     }
 
+    public function sendClientForm(Request $request, int $company): RedirectResponse
+    {
+        $companyData = $this->findCompany($request, $company);
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $bif = $this->latestOrNewBif($request, $company, $companyData);
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $recipientEmail = trim((string) $validated['recipient_email']);
+
+        $bif->update([
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        $clientUrl = route('company.bif.client.show', ['token' => $token]);
+
+        Mail::raw(
+            "Please complete your Business Information Form for {$companyData['company_name']} using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
+            function ($message) use ($recipientEmail, $companyData) {
+                $message
+                    ->to($recipientEmail)
+                    ->subject("Business Information Form for {$companyData['company_name']}");
+            }
+        );
+
+        $userName = $request->user()?->name ?? 'System User';
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'Business Information Form link sent to client',
+            'description' => "Secure BIF link sent to {$recipientEmail}",
+            'extra_label' => 'BIF',
+            'extra_value' => $bif->bif_no ?: 'Draft',
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', "Business Information Form link sent to {$recipientEmail}.")
+            ->with('bif_client_link', $clientUrl);
+    }
+
+    public function clientForm(Request $request, string $token): View
+    {
+        $bif = $this->findBifByClientToken($token);
+
+        abort_if(
+            $bif->client_access_expires_at && $bif->client_access_expires_at->isPast(),
+            403,
+            'This Business Information Form link has expired.'
+        );
+
+        return view('company.bif.client-form', [
+            'bif' => $bif,
+            'company' => $bif->company,
+            'clientTypeOptions' => self::CLIENT_TYPES,
+            'organizationOptions' => self::ORGANIZATION_TYPES,
+            'nationalityOptions' => self::NATIONALITY_TYPES,
+            'officeTypeOptions' => self::OFFICE_TYPES,
+            'documentFields' => $this->clientDocumentDefinitions(),
+            'clientFormAction' => route('company.bif.client.submit', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientForm(Request $request, string $token): RedirectResponse
+    {
+        $bif = $this->findBifByClientToken($token);
+
+        abort_if(
+            $bif->client_access_expires_at && $bif->client_access_expires_at->isPast(),
+            403,
+            'This Business Information Form link has expired.'
+        );
+
+        $payload = $this->validatedPayload($request);
+        $documentPayload = $this->storeClientRequirementDocuments($request, $bif);
+        $status = $this->resolveSubmittedStatus(true);
+
+        $bif->update([
+            ...$payload,
+            'title' => $this->resolveTitle($payload),
+            'status' => $status,
+            'client_requirement_documents' => $documentPayload,
+            'client_submitted_at' => now(),
+            'last_submission_source' => 'client',
+            'submitted_at' => $bif->submitted_at ?? now(),
+            'approved_at' => $this->resolveApprovedAt(true),
+            'approved_by_name' => $this->resolveApprovedByName($request, true),
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+            'updated_by' => null,
+        ]);
+
+        if (blank($bif->bif_no)) {
+            $bif->updateQuietly([
+                'bif_no' => $this->generateBifNumber($bif),
+            ]);
+        }
+
+        CompanyHistoryLogger::log($bif->company_id, [
+            'type' => 'profile',
+            'title' => 'Client submitted Business Information Form',
+            'description' => $bif->title,
+            'extra_label' => 'Source',
+            'extra_value' => 'Client Submission',
+            'user_name' => $bif->authorized_contact_person_name ?: 'Client',
+            'user_initials' => $this->initials($bif->authorized_contact_person_name ?: 'Client'),
+        ]);
+
+        return redirect()
+            ->route('company.bif.client.show', ['token' => $token])
+            ->with('bif_success', 'Your Business Information Form has been submitted successfully.');
+    }
+
     private function buildViewData(Request $request, int $company, ?CompanyBif $bif): array
     {
         return [
@@ -185,8 +318,64 @@ class CompanyBifController extends Controller
         ];
     }
 
+    private function latestOrNewBif(Request $request, int $company, array $companyData): CompanyBif
+    {
+        if (Schema::hasTable('company_bifs')) {
+            $existing = CompanyBif::query()
+                ->where('company_id', $company)
+                ->latest('updated_at')
+                ->latest('id')
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        $bif = CompanyBif::create([
+            'company_id' => $company,
+            'title' => "Business Client Information Form - {$companyData['company_name']}",
+            'bif_date' => now()->toDateString(),
+            'client_type' => 'new_client',
+            'business_name' => $companyData['company_name'],
+            'business_address' => $companyData['address'] ?? null,
+            'authorized_contact_person_email' => $companyData['email'] ?? null,
+            'status' => 'draft',
+            'created_by' => $request->user()?->id,
+            'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
+        ]);
+
+        $bif->updateQuietly([
+            'bif_no' => $this->generateBifNumber($bif),
+        ]);
+
+        return $bif->fresh();
+    }
+
     private function findCompany(Request $request, int $company): array
     {
+        if (Schema::hasTable('companies')) {
+            $record = Company::query()->find($company);
+
+            if ($record) {
+                return [
+                    'id' => $record->id,
+                    'company_name' => $record->company_name,
+                    'company_type' => null,
+                    'email' => $record->email,
+                    'phone' => $record->phone,
+                    'website' => $record->website,
+                    'description' => $record->description,
+                    'address' => $record->address,
+                    'owner_name' => $record->owner_name,
+                    'created_at' => optional($record->created_at)->toDateTimeString(),
+                ];
+            }
+        }
+
         $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
             ->firstWhere('id', $company);
 
@@ -211,6 +400,16 @@ class CompanyBifController extends Controller
         return CompanyBif::query()
             ->where('company_id', $company)
             ->findOrFail($bif);
+    }
+
+    private function findBifByClientToken(string $token): CompanyBif
+    {
+        abort_unless(Schema::hasTable('company_bifs'), 404);
+
+        return CompanyBif::query()
+            ->with('company')
+            ->where('client_access_token', $token)
+            ->firstOrFail();
     }
 
     private function validatedPayload(Request $request): array
@@ -241,12 +440,26 @@ class CompanyBifController extends Controller
             'source_other_text' => ['nullable', 'string', 'max:255'],
             'president_name' => ['nullable', 'string', 'max:255'],
             'treasurer_name' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories' => ['nullable', 'array'],
+            'authorized_signatories.*.full_name' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.address' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.nationality' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.date_of_birth' => ['nullable', 'date'],
+            'authorized_signatories.*.tin' => ['nullable', 'string', 'max:255'],
+            'authorized_signatories.*.position' => ['nullable', 'string', 'max:255'],
             'authorized_signatory_name' => ['nullable', 'string', 'max:255'],
             'authorized_signatory_address' => ['nullable', 'string'],
             'authorized_signatory_nationality' => ['nullable', 'string', 'max:255'],
             'authorized_signatory_date_of_birth' => ['nullable', 'date'],
             'authorized_signatory_tin' => ['nullable', 'string', 'max:255'],
             'authorized_signatory_position' => ['nullable', 'string', 'max:255'],
+            'ubos' => ['nullable', 'array'],
+            'ubos.*.full_name' => ['nullable', 'string', 'max:255'],
+            'ubos.*.address' => ['nullable', 'string', 'max:255'],
+            'ubos.*.nationality' => ['nullable', 'string', 'max:255'],
+            'ubos.*.date_of_birth' => ['nullable', 'date'],
+            'ubos.*.tin' => ['nullable', 'string', 'max:255'],
+            'ubos.*.position' => ['nullable', 'string', 'max:255'],
             'ubo_name' => ['nullable', 'string', 'max:255'],
             'ubo_address' => ['nullable', 'string'],
             'ubo_nationality' => ['nullable', 'string', 'max:255'],
@@ -313,7 +526,84 @@ class CompanyBifController extends Controller
             $validated['source_other_text'] = null;
         }
 
+        $validated['authorized_signatories'] = collect($validated['authorized_signatories'] ?? [])
+            ->filter(fn (array $row) => collect($row)->contains(fn ($value) => filled($value)))
+            ->values()
+            ->all();
+
+        $validated['ubos'] = collect($validated['ubos'] ?? [])
+            ->filter(fn (array $row) => collect($row)->contains(fn ($value) => filled($value)))
+            ->values()
+            ->all();
+
+        $firstSignatory = $validated['authorized_signatories'][0] ?? [];
+        $validated['authorized_signatory_name'] = $firstSignatory['full_name'] ?? ($validated['authorized_signatory_name'] ?? null);
+        $validated['authorized_signatory_address'] = $firstSignatory['address'] ?? ($validated['authorized_signatory_address'] ?? null);
+        $validated['authorized_signatory_nationality'] = $firstSignatory['nationality'] ?? ($validated['authorized_signatory_nationality'] ?? null);
+        $validated['authorized_signatory_date_of_birth'] = $firstSignatory['date_of_birth'] ?? ($validated['authorized_signatory_date_of_birth'] ?? null);
+        $validated['authorized_signatory_tin'] = $firstSignatory['tin'] ?? ($validated['authorized_signatory_tin'] ?? null);
+        $validated['authorized_signatory_position'] = $firstSignatory['position'] ?? ($validated['authorized_signatory_position'] ?? null);
+
+        $firstUbo = $validated['ubos'][0] ?? [];
+        $validated['ubo_name'] = $firstUbo['full_name'] ?? ($validated['ubo_name'] ?? null);
+        $validated['ubo_address'] = $firstUbo['address'] ?? ($validated['ubo_address'] ?? null);
+        $validated['ubo_nationality'] = $firstUbo['nationality'] ?? ($validated['ubo_nationality'] ?? null);
+        $validated['ubo_date_of_birth'] = $firstUbo['date_of_birth'] ?? ($validated['ubo_date_of_birth'] ?? null);
+        $validated['ubo_tin'] = $firstUbo['tin'] ?? ($validated['ubo_tin'] ?? null);
+        $validated['ubo_position'] = $firstUbo['position'] ?? ($validated['ubo_position'] ?? null);
+
         return $validated;
+    }
+
+    private function clientDocumentDefinitions(): array
+    {
+        return [
+            'sole_proprietorship' => [
+                ['key' => 'sole_dti_document', 'label' => 'DTI Certificate of Registration'],
+                ['key' => 'sole_bmbe_document', 'label' => 'BMBE Certificate of Registration'],
+            ],
+            'juridical_entity' => [
+                ['key' => 'entity_sec_cda_document', 'label' => 'SEC / CDA Certificate of Registration'],
+                ['key' => 'entity_business_permit_document', 'label' => 'Business Permit / Mayor\'s Permit'],
+                ['key' => 'entity_bir_cor_document', 'label' => 'BIR Certificate of Registration (COR)'],
+                ['key' => 'entity_articles_document', 'label' => 'Articles of Incorporation / Partnership'],
+                ['key' => 'entity_bylaws_document', 'label' => 'By-Laws'],
+            ],
+            'common' => [
+                ['key' => 'common_proof_of_billing_document', 'label' => 'Proof of Billing'],
+                ['key' => 'common_spa_document', 'label' => 'SPA if applicable'],
+            ],
+        ];
+    }
+
+    private function storeClientRequirementDocuments(Request $request, CompanyBif $bif): array
+    {
+        $rules = [];
+
+        foreach ($this->clientDocumentDefinitions() as $group) {
+            foreach ($group as $document) {
+                $rules[$document['key']] = ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'];
+            }
+        }
+
+        $validated = $request->validate($rules);
+        $stored = $bif->client_requirement_documents ?? [];
+
+        foreach ($validated as $key => $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $path = $file->store("company-bifs/{$bif->id}/client-documents", 'public');
+
+            $stored[$key] = [
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'uploaded_at' => now()->toIso8601String(),
+            ];
+        }
+
+        return $stored;
     }
 
     private function resolveTitle(array $payload): string

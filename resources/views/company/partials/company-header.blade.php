@@ -28,6 +28,9 @@
                                 @if (! empty($company->address))
                                     <p><span class="font-medium text-gray-700">Address:</span> {{ $company->address }}</p>
                                 @endif
+                                @if (! empty($company->bif_no ?? null))
+                                    <p><span class="font-medium text-gray-700">BIF Number:</span> {{ $company->bif_no }}</p>
+                                @endif
                                 @if (! empty($company->phone))
                                     <p><span class="font-medium text-gray-700">Phone:</span> {{ $company->phone }}</p>
                                 @endif
@@ -123,7 +126,7 @@
 
                     <div>
                         <label for="edit_company_email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
-                        <input id="edit_company_email" name="email" type="email" value="{{ old('email', $company->email) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        <input id="edit_company_email" name="email" type="email" value="{{ old('email', $company->email ?? '') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
                         @error('email')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -131,7 +134,7 @@
 
                     <div>
                         <label for="edit_company_phone" class="mb-1 block text-sm font-medium text-gray-700">Phone</label>
-                        <input id="edit_company_phone" name="phone" type="text" value="{{ old('phone', $company->phone) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        <input id="edit_company_phone" name="phone" type="text" value="{{ old('phone', $company->phone ?? '') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
                         @error('phone')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -139,7 +142,7 @@
 
                     <div>
                         <label for="edit_company_website" class="mb-1 block text-sm font-medium text-gray-700">Website</label>
-                        <input id="edit_company_website" name="website" type="text" value="{{ old('website', $company->website) }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        <input id="edit_company_website" name="website" type="text" value="{{ old('website', $company->website ?? '') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
                         @error('website')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -147,7 +150,7 @@
 
                     <div class="md:col-span-2">
                         <label for="edit_company_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label>
-                        <textarea id="edit_company_address" name="address" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('address', $company->address) }}</textarea>
+                        <textarea id="edit_company_address" name="address" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('address', $company->address ?? '') }}</textarea>
                         @error('address')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror
@@ -155,7 +158,7 @@
 
                     <div class="md:col-span-2">
                         <label for="edit_company_description" class="mb-1 block text-sm font-medium text-gray-700">Description</label>
-                        <textarea id="edit_company_description" name="description" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('description', $company->description) }}</textarea>
+                        <textarea id="edit_company_description" name="description" rows="3" class="w-full rounded border border-gray-200 px-4 py-3 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">{{ old('description', $company->description ?? '') }}</textarea>
                         @error('description')
                             <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                         @enderror

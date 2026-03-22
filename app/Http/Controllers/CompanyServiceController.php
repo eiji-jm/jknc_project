@@ -2,188 +2,360 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
+use App\Models\Service;
+use App\Models\ServiceCustomField;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 
 class CompanyServiceController extends Controller
 {
-    private const STATUSES = ['Active', 'Pending', 'Completed', 'On Hold', 'Cancelled'];
-    private const FREQUENCIES = ['One-time', 'Monthly', 'Quarterly', 'Annual'];
+    private const SERVICE_AREA_OPTIONS = [
+        'Corporate & Regulatory Advisory',
+        'Governance & Policy Advisory',
+        'People & Talent Solutions',
+        'Strategic Situations Advisory',
+        'Accounting & Compliance Advisory',
+        'Business Strategy & Process Advisory',
+        'Learning & Capability Development',
+        'Others',
+    ];
+
+    private const CATEGORY_OPTIONS = [
+        'Professional Fees',
+        'Consulting Revenue',
+        'Accountancy Revenue',
+        'Compliance Revenue',
+        'Advisory Revenue',
+    ];
+
+    private const FREQUENCY_OPTIONS = [
+        'One-time',
+        'Daily',
+        'Weekly',
+        'Monthly',
+        'Quarterly',
+        'Annually',
+        'Per Transaction',
+        'Custom',
+    ];
+
+    private const REMINDER_OPTIONS = [
+        'Same day',
+        '1 day before',
+        '3 days before',
+        '7 days before',
+    ];
+
+    private const REQUIREMENT_CATEGORIES = [
+        'SOLE / NATURAL PERSON / INDIVIDUAL',
+        'JURIDICAL ENTITY (Corporation / OPC / Partnership / Cooperative)',
+        'Other',
+    ];
+
+    private const ENGAGEMENT_OPTIONS = [
+        'Project Engagement',
+        'Regular (Retainer)',
+        'Hybrid',
+    ];
+
+    private const UNIT_OPTIONS = [
+        'Hour',
+        'Day',
+        'Week',
+        'Month',
+        'Project',
+        'Fixed',
+    ];
+
+    private const ASSIGNED_UNIT_OPTIONS = [
+        'Operations',
+        'Accounting',
+        'Tax',
+        'Corporate',
+        'Legal',
+        'HR',
+        'Admin',
+        'Sales',
+    ];
+
+    private const STATUS_OPTIONS = [
+        'Draft',
+        'Active',
+        'Inactive',
+        'Archived',
+    ];
 
     public function globalIndex(Request $request): View
     {
         $filters = $this->serviceFilters($request);
-        $services = $this->filteredServices($request, null, $filters);
+        $query = $this->serviceQuery($filters);
+        $summary = $this->serviceSummary((clone $query)->get());
+        $services = $query->paginate($filters['per_page'])->withQueryString();
 
-        return view('services.index', [
-            'services' => $services,
-            'companies' => collect($request->session()->get('mock_companies', $this->defaultCompanies()))->map(fn (array $company) => (object) $company),
-            'categories' => $this->allServices($request)->pluck('category')->filter()->unique()->sort()->values(),
-            'staffOptions' => $this->allServices($request)->pluck('assigned_staff')->filter()->unique()->sort()->values(),
-            'statusOptions' => collect(self::STATUSES),
-            'frequencyOptions' => collect(self::FREQUENCIES),
-            'filters' => $filters,
-            'summary' => $this->serviceSummary($services),
-        ]);
+        return view('services.index', $this->viewData($request, $services, null, $filters, $summary));
     }
 
     public function companyIndex(Request $request, int $company): View
     {
-        $companyData = $this->findCompany($request, $company);
+        $companyModel = Company::query()->findOrFail($company);
         $filters = $this->serviceFilters($request);
-        $services = $this->filteredServices($request, $company, $filters);
+        $query = $this->serviceQuery($filters, $company);
+        $summary = $this->serviceSummary((clone $query)->get());
+        $services = $query->paginate($filters['per_page'])->withQueryString();
 
-        return view('company.services', [
-            'company' => (object) $companyData,
-            'services' => $services,
-            'categories' => $this->allServices($request)->pluck('category')->filter()->unique()->sort()->values(),
-            'staffOptions' => $this->allServices($request)->pluck('assigned_staff')->filter()->unique()->sort()->values(),
-            'statusOptions' => collect(self::STATUSES),
-            'frequencyOptions' => collect(self::FREQUENCIES),
-            'filters' => $filters,
-            'summary' => $this->serviceSummary($services),
-        ]);
+        return view('company.services', $this->viewData($request, $services, $companyModel, $filters, $summary));
     }
 
     public function storeGlobal(Request $request): RedirectResponse
     {
-        $validated = $this->validateService($request, false);
-        $services = $this->allServices($request);
-        $companyData = $this->findCompany($request, (int) $validated['company_id']);
-        $nextId = (int) ($services->max('id') ?? 900) + 1;
-
-        $services->push($this->makeServicePayload($nextId, (int) $validated['company_id'], $companyData['company_name'], $validated));
-        $request->session()->put($this->servicesKey(), $services->values()->all());
+        $service = $this->persistService($request);
 
         return redirect()
             ->route('services.index')
-            ->with('services_success', 'Service engagement created successfully.');
+            ->with('services_success', "Service {$service->service_name} created successfully.");
     }
 
     public function storeForCompany(Request $request, int $company): RedirectResponse
     {
-        $companyData = $this->findCompany($request, $company);
-        $validated = $this->validateService($request, true);
-        $services = $this->allServices($request);
-        $nextId = (int) ($services->max('id') ?? 900) + 1;
-
-        $services->push($this->makeServicePayload($nextId, $company, $companyData['company_name'], $validated));
-        $request->session()->put($this->servicesKey(), $services->values()->all());
+        $companyModel = Company::query()->findOrFail($company);
+        $service = $this->persistService($request, null, $companyModel->id);
 
         return redirect()
-            ->route('company.services.index', $company)
-            ->with('services_success', 'Service assigned to this company successfully.');
+            ->route('company.services.index', $companyModel->id)
+            ->with('services_success', "Service {$service->service_name} created for {$companyModel->company_name}.");
     }
 
-    public function showGlobal(Request $request, int $service): View
+    public function showGlobal(int $service): View
     {
-        $serviceData = $this->findServiceOrAbort($request, $service);
-        $companyData = $this->findCompany($request, (int) $serviceData['company_id']);
+        $serviceModel = $this->serviceWithRelations()->findOrFail($service);
 
         return view('services.show', [
-            'service' => (object) $serviceData,
-            'company' => (object) $companyData,
+            'service' => $serviceModel,
+            'company' => $serviceModel->company,
+            'customFields' => ServiceCustomField::query()->orderBy('sort_order')->orderBy('id')->get(),
         ]);
     }
 
-    public function showForCompany(Request $request, int $company, int $service): View
+    public function showForCompany(int $company, int $service): View
     {
-        $companyData = $this->findCompany($request, $company);
-        $serviceData = $this->findServiceOrAbort($request, $service, $company);
+        $companyModel = Company::query()->findOrFail($company);
+        $serviceModel = $this->serviceWithRelations()
+            ->where('company_id', $companyModel->id)
+            ->findOrFail($service);
 
         return view('company.service-show', [
-            'company' => (object) $companyData,
-            'service' => (object) $serviceData,
+            'company' => $companyModel,
+            'service' => $serviceModel,
+            'customFields' => ServiceCustomField::query()->orderBy('sort_order')->orderBy('id')->get(),
         ]);
     }
 
     public function updateGlobal(Request $request, int $service): RedirectResponse
     {
-        $existingService = $this->findServiceOrAbort($request, $service);
-        $validated = $this->validateService($request, false);
-        $companyData = $this->findCompany($request, (int) $validated['company_id']);
-        $services = $this->allServices($request)
-            ->map(function (array $serviceItem) use ($service, $validated, $companyData, $existingService) {
-                if ((int) $serviceItem['id'] !== $service) {
-                    return $serviceItem;
-                }
-
-                return $this->makeServicePayload(
-                    $service,
-                    (int) $validated['company_id'],
-                    $companyData['company_name'],
-                    $validated,
-                    $existingService
-                );
-            })
-            ->values()
-            ->all();
-
-        $request->session()->put($this->servicesKey(), $services);
+        $serviceModel = Service::query()->findOrFail($service);
+        $serviceModel = $this->persistService($request, $serviceModel);
 
         return redirect()
             ->route('services.index')
-            ->with('services_success', 'Service engagement updated successfully.');
+            ->with('services_success', "Service {$serviceModel->service_name} updated successfully.");
     }
 
     public function updateForCompany(Request $request, int $company, int $service): RedirectResponse
     {
-        $companyData = $this->findCompany($request, $company);
-        $existingService = $this->findServiceOrAbort($request, $service, $company);
-        $validated = $this->validateService($request, true);
+        $companyModel = Company::query()->findOrFail($company);
+        $serviceModel = Service::query()
+            ->where('company_id', $companyModel->id)
+            ->findOrFail($service);
 
-        $services = $this->allServices($request)
-            ->map(function (array $serviceItem) use ($service, $company, $validated, $companyData, $existingService) {
-                if ((int) $serviceItem['id'] !== $service || (int) $serviceItem['company_id'] !== $company) {
-                    return $serviceItem;
-                }
-
-                return $this->makeServicePayload($service, $company, $companyData['company_name'], $validated, $existingService);
-            })
-            ->values()
-            ->all();
-
-        $request->session()->put($this->servicesKey(), $services);
+        $serviceModel = $this->persistService($request, $serviceModel, $companyModel->id);
 
         return redirect()
-            ->route('company.services.index', $company)
-            ->with('services_success', 'Service engagement updated successfully.');
+            ->route('company.services.index', $companyModel->id)
+            ->with('services_success', "Service {$serviceModel->service_name} updated successfully.");
     }
 
-    public function destroyGlobal(Request $request, int $service): RedirectResponse
+    public function destroyGlobal(int $service): RedirectResponse
     {
-        $this->findServiceOrAbort($request, $service);
-
-        $request->session()->put(
-            $this->servicesKey(),
-            $this->allServices($request)
-                ->reject(fn (array $serviceItem) => (int) $serviceItem['id'] === $service)
-                ->values()
-                ->all()
-        );
+        $serviceModel = Service::query()->findOrFail($service);
+        $serviceModel->delete();
 
         return redirect()
             ->route('services.index')
-            ->with('services_success', 'Service engagement removed successfully.');
+            ->with('services_success', 'Service removed successfully.');
     }
 
-    public function destroyForCompany(Request $request, int $company, int $service): RedirectResponse
+    public function destroyForCompany(int $company, int $service): RedirectResponse
     {
-        $this->findServiceOrAbort($request, $service, $company);
+        $serviceModel = Service::query()
+            ->where('company_id', $company)
+            ->findOrFail($service);
 
-        $request->session()->put(
-            $this->servicesKey(),
-            $this->allServices($request)
-                ->reject(fn (array $serviceItem) => (int) $serviceItem['id'] === $service && (int) $serviceItem['company_id'] === $company)
-                ->values()
-                ->all()
-        );
+        $serviceModel->delete();
 
         return redirect()
             ->route('company.services.index', $company)
             ->with('services_success', 'Service removed from this company successfully.');
+    }
+
+    public function storeCustomField(Request $request): RedirectResponse
+    {
+        $allowedTypes = collect($this->fieldTypes())->pluck('value')->all();
+
+        $validated = $request->validate([
+            'field_type' => ['required', 'string', Rule::in($allowedTypes)],
+            'field_name' => ['required', 'string', 'max:80'],
+            'default_value' => ['nullable', 'string', 'max:255'],
+            'required' => ['nullable', 'boolean'],
+            'lookup_module' => ['nullable', 'string', Rule::in(['deals', 'company', 'contacts', 'products'])],
+            'options' => ['nullable', 'array'],
+            'options.*' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $fieldName = trim((string) $validated['field_name']);
+        $fieldType = (string) $validated['field_type'];
+        $nameExists = ServiceCustomField::query()
+            ->whereRaw('LOWER(field_name) = ?', [Str::lower($fieldName)])
+            ->exists();
+
+        if ($nameExists) {
+            return back()->withErrors(['field_name' => 'Field name already exists for Services.'])->withInput();
+        }
+
+        $options = collect($validated['options'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($fieldType === 'picklist' && count($options) === 0) {
+            return back()->withErrors(['options' => 'Picklist fields need at least one option.'])->withInput();
+        }
+
+        $keyBase = Str::slug($fieldName, '_');
+        if ($keyBase === '') {
+            $keyBase = 'custom_field';
+        }
+
+        $fieldKey = 'custom_'.$keyBase;
+        $suffix = 1;
+        while (ServiceCustomField::query()->where('field_key', $fieldKey)->exists()) {
+            $suffix++;
+            $fieldKey = 'custom_'.$keyBase.'_'.$suffix;
+        }
+
+        ServiceCustomField::query()->create([
+            'field_name' => $fieldName,
+            'field_key' => $fieldKey,
+            'field_type' => $fieldType,
+            'is_required' => (bool) ($validated['required'] ?? false),
+            'options' => $fieldType === 'picklist' ? $options : [],
+            'default_value' => $this->normalizedDefaultValue($fieldType, trim((string) ($validated['default_value'] ?? ''))),
+            'lookup_module' => $fieldType === 'lookup' ? ($validated['lookup_module'] ?? null) : null,
+            'sort_order' => ((int) ServiceCustomField::query()->max('sort_order')) + 1,
+        ]);
+
+        return redirect()->back()->with('services_success', 'Service custom field created successfully.');
+    }
+
+    private function viewData(Request $request, $services, ?Company $company, array $filters, array $summary): array
+    {
+        $customFields = ServiceCustomField::query()->orderBy('sort_order')->orderBy('id')->get();
+        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $companies = Company::query()->orderBy('company_name')->get(['id', 'company_name', 'owner_name']);
+
+        return [
+            'services' => $services,
+            'company' => $company,
+            'companies' => $companies,
+            'customFields' => $customFields,
+            'fieldTypes' => collect($this->fieldTypes()),
+            'lookupModules' => $this->lookupModules(),
+            'staffOptions' => $users->pluck('name')->values(),
+            'users' => $users,
+            'categories' => collect(self::CATEGORY_OPTIONS),
+            'statusOptions' => collect(self::STATUS_OPTIONS),
+            'frequencyOptions' => collect(self::FREQUENCY_OPTIONS),
+            'serviceAreaOptions' => collect(self::SERVICE_AREA_OPTIONS),
+            'reminderLeadTimes' => collect(self::REMINDER_OPTIONS),
+            'requirementCategories' => collect(self::REQUIREMENT_CATEGORIES),
+            'engagementOptions' => collect(self::ENGAGEMENT_OPTIONS),
+            'unitOptions' => collect(self::UNIT_OPTIONS),
+            'assignedUnitOptions' => collect(self::ASSIGNED_UNIT_OPTIONS),
+            'filters' => $filters,
+            'summary' => $summary,
+        ];
+    }
+
+    private function serviceQuery(array $filters, ?int $companyId = null)
+    {
+        $query = $this->serviceWithRelations();
+
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+
+        if ($filters['search'] !== '') {
+            $term = '%'.$filters['search'].'%';
+            $query->where(function ($builder) use ($term) {
+                $builder
+                    ->where('service_name', 'like', $term)
+                    ->orWhere('service_id', 'like', $term)
+                    ->orWhere('category', 'like', $term)
+                    ->orWhere('frequency', 'like', $term)
+                    ->orWhere('assigned_unit', 'like', $term)
+                    ->orWhere('status', 'like', $term)
+                    ->orWhereHas('company', fn ($companyQuery) => $companyQuery->where('company_name', 'like', $term))
+                    ->orWhereHas('creator', fn ($userQuery) => $userQuery->where('name', 'like', $term));
+            });
+        }
+
+        if ($filters['status'] !== 'all') {
+            $query->where('status', $filters['status']);
+        }
+
+        if ($filters['category'] !== 'all') {
+            $query->where('category', $filters['category']);
+        }
+
+        if ($filters['frequency'] !== 'all') {
+            $query->where('frequency', $filters['frequency']);
+        }
+
+        if ($filters['assigned_unit'] !== 'all') {
+            $query->where('assigned_unit', $filters['assigned_unit']);
+        }
+
+        if ($filters['engagement_type'] !== 'all') {
+            $query->whereJsonContains('engagement_structure', $filters['engagement_type']);
+        }
+
+        if ($filters['service_area'] !== 'all') {
+            $query->whereJsonContains('service_area', $filters['service_area']);
+        }
+
+        if ($filters['tab'] === 'active') {
+            $query->where('status', 'Active');
+        } elseif ($filters['tab'] === 'recurring') {
+            $query->where('is_recurring', true);
+        } elseif ($filters['tab'] === 'due_soon') {
+            $query->whereNotNull('deadline')
+                ->whereBetween('deadline', [now(), now()->addDays(7)]);
+        }
+
+        return $query->latest('updated_at');
+    }
+
+    private function serviceWithRelations()
+    {
+        return Service::query()->with(['company', 'creator', 'reviewer', 'approver']);
     }
 
     private function serviceFilters(Request $request): array
@@ -191,257 +363,282 @@ class CompanyServiceController extends Controller
         return [
             'search' => trim((string) $request->query('search', '')),
             'status' => trim((string) $request->query('status', 'all')),
-            'staff' => trim((string) $request->query('staff', 'all')),
             'category' => trim((string) $request->query('category', 'all')),
+            'frequency' => trim((string) $request->query('frequency', 'all')),
+            'engagement_type' => trim((string) $request->query('engagement_type', 'all')),
+            'assigned_unit' => trim((string) $request->query('assigned_unit', 'all')),
+            'service_area' => trim((string) $request->query('service_area', 'all')),
+            'tab' => trim((string) $request->query('tab', 'all')),
+            'per_page' => in_array((int) $request->query('per_page', 10), [5, 10, 25, 50], true)
+                ? (int) $request->query('per_page', 10)
+                : 10,
         ];
-    }
-
-    private function filteredServices(Request $request, ?int $companyId, array $filters): Collection
-    {
-        return $this->allServices($request)
-            ->when($companyId !== null, fn (Collection $collection) => $collection->where('company_id', $companyId))
-            ->when($filters['search'] !== '', function (Collection $collection) use ($filters) {
-                $term = strtolower($filters['search']);
-
-                return $collection->filter(function (array $service) use ($term) {
-                    return collect([
-                        $service['name'] ?? '',
-                        $service['company_name'] ?? '',
-                        $service['category'] ?? '',
-                        $service['assigned_staff'] ?? '',
-                        $service['status'] ?? '',
-                        $service['frequency'] ?? '',
-                    ])->contains(fn (?string $value) => str_contains(strtolower((string) $value), $term));
-                });
-            })
-            ->when($filters['status'] !== 'all', fn (Collection $collection) => $collection->where('status', $filters['status']))
-            ->when($filters['staff'] !== 'all', fn (Collection $collection) => $collection->where('assigned_staff', $filters['staff']))
-            ->when($filters['category'] !== 'all', fn (Collection $collection) => $collection->where('category', $filters['category']))
-            ->sortByDesc(fn (array $service) => strtotime((string) ($service['updated_at_raw'] ?? $service['updated_at'])))
-            ->values();
     }
 
     private function serviceSummary(Collection $services): array
     {
         return [
             'active' => $services->where('status', 'Active')->count(),
-            'upcoming' => $services->filter(function (array $service) {
-                if (empty($service['end_date'])) {
-                    return false;
-                }
-
-                $end = strtotime($service['end_date']);
-                $today = strtotime(date('Y-m-d'));
-                $nextThirtyDays = strtotime('+30 days', $today);
-
-                return $end >= $today && $end <= $nextThirtyDays;
+            'recurring' => $services->where('is_recurring', true)->count(),
+            'due_soon' => $services->filter(function (Service $service): bool {
+                return $service->deadline !== null
+                    && $service->deadline->isFuture()
+                    && $service->deadline->lte(now()->addDays(7));
             })->count(),
-            'completed' => $services->where('status', 'Completed')->count(),
         ];
     }
 
-    private function validateService(Request $request, bool $lockCompany): array
+    private function persistService(Request $request, ?Service $service = null, ?int $lockedCompanyId = null): Service
     {
-        $rules = [
-            'name' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:255'],
-            'assigned_staff' => ['required', 'string', 'max:255'],
-            'status' => ['required', 'in:' . implode(',', self::STATUSES)],
-            'frequency' => ['required', 'in:' . implode(',', self::FREQUENCIES)],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'description' => ['nullable', 'string'],
-            'priority' => ['nullable', 'string', 'max:255'],
-            'service_package' => ['nullable', 'string', 'max:255'],
-            'service_level' => ['nullable', 'string', 'max:255'],
-        ];
+        $customFields = ServiceCustomField::query()->orderBy('sort_order')->orderBy('id')->get();
+        $validated = $this->validateService($request, $customFields, $lockedCompanyId !== null);
+        $companyId = $lockedCompanyId ?? (int) $validated['company_id'];
+        $engagementStructure = collect($validated['engagement_structure'] ?? [])->values()->all();
+        $serviceArea = collect($validated['service_area'] ?? [])->values()->all();
+        $requirements = $this->normalizeRequirements(
+            $validated['requirement_category'] ?? null,
+            $validated['requirements'] ?? ''
+        );
+        $customFieldValues = $this->normalizeCustomFieldValues($request, $customFields);
+        $isRecurring = $this->isRecurring($engagementStructure);
+        $userId = $request->user()?->id;
 
-        if (! $lockCompany) {
-            $rules['company_id'] = ['required', 'integer'];
+        if ($service === null) {
+            $service = new Service();
+            $service->service_id = $this->generateServiceId();
+            $service->created_by = $userId;
         }
 
-        return $request->validate($rules);
-    }
-
-    private function makeServicePayload(int $id, int $companyId, string $companyName, array $validated, array $existing = []): array
-    {
-        return [
-            'id' => $id,
-            'company_id' => $companyId,
-            'company_name' => $companyName,
-            'name' => $validated['name'],
-            'category' => $validated['category'],
-            'assigned_staff' => $validated['assigned_staff'],
+        $service->fill([
+            'company_id' => $companyId ?: null,
+            'service_name' => $validated['service_name'],
+            'service_description' => $validated['service_description'],
+            'service_activity_output' => $validated['service_activity_output'],
+            'service_area' => $serviceArea,
+            'service_area_other' => $validated['service_area_other'] ?? null,
+            'category' => $validated['category'] ?? null,
+            'frequency' => $validated['frequency'] ?? null,
+            'schedule_rule' => $validated['schedule_rule'] ?? null,
+            'deadline' => $validated['deadline'] ?? null,
+            'reminder_lead_time' => $validated['reminder_lead_time'] ?? null,
+            'requirements' => $requirements,
+            'requirement_category' => $validated['requirement_category'] ?? null,
+            'engagement_structure' => $engagementStructure,
+            'is_recurring' => $isRecurring,
+            'unit' => $validated['unit'],
+            'rate_per_unit' => $this->nullableDecimal($validated['rate_per_unit'] ?? null),
+            'min_units' => $validated['min_units'] ?? null,
+            'max_cap' => $this->nullableDecimal($validated['max_cap'] ?? null),
+            'price_fee' => $this->nullableDecimal($validated['price_fee'] ?? null),
+            'cost_of_service' => $this->nullableDecimal($validated['cost_of_service'] ?? null),
+            'assigned_unit' => $validated['assigned_unit'] ?? null,
             'status' => $validated['status'],
-            'frequency' => $validated['frequency'],
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'] ?? null,
-            'description' => trim((string) ($validated['description'] ?? '')),
-            'priority' => trim((string) ($validated['priority'] ?? 'Normal')) ?: 'Normal',
-            'service_package' => trim((string) ($validated['service_package'] ?? '')),
-            'service_level' => trim((string) ($validated['service_level'] ?? '')),
-            'created_at' => $existing['created_at'] ?? now()->format('Y-m-d H:i:s'),
-            'updated_at_raw' => now()->format('Y-m-d H:i:s'),
-            'updated_at' => now()->format('M d, Y h:i A'),
+            'reviewed_by' => $validated['reviewed_by'] ?? null,
+            'reviewed_at' => $validated['reviewed_at'] ?? null,
+            'approved_by' => $validated['approved_by'] ?? null,
+            'approved_at' => $validated['approved_at'] ?? null,
+            'custom_field_values' => $customFieldValues,
+        ]);
+
+        $service->save();
+
+        return $service->fresh(['company', 'creator', 'reviewer', 'approver']);
+    }
+
+    private function validateService(Request $request, Collection $customFields, bool $companyLocked): array
+    {
+        $rules = [
+            'service_name' => ['required', 'string', 'max:255'],
+            'service_description' => ['required', 'string'],
+            'service_activity_output' => ['required', 'string'],
+            'service_area' => ['required', 'array', 'min:1'],
+            'service_area.*' => ['string', Rule::in(self::SERVICE_AREA_OPTIONS)],
+            'service_area_other' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', Rule::in(self::CATEGORY_OPTIONS)],
+            'frequency' => ['nullable', 'string', Rule::in(self::FREQUENCY_OPTIONS)],
+            'schedule_rule' => ['nullable', 'string', 'max:255'],
+            'deadline' => ['nullable', 'date'],
+            'reminder_lead_time' => ['nullable', 'string', Rule::in(self::REMINDER_OPTIONS)],
+            'requirement_category' => ['nullable', 'string', Rule::in(self::REQUIREMENT_CATEGORIES)],
+            'requirements' => ['nullable', 'string'],
+            'engagement_structure' => ['required', 'array', 'min:1'],
+            'engagement_structure.*' => ['string', Rule::in(self::ENGAGEMENT_OPTIONS)],
+            'unit' => ['required', 'string', Rule::in(self::UNIT_OPTIONS)],
+            'rate_per_unit' => ['nullable', 'numeric', 'min:0'],
+            'min_units' => ['nullable', 'integer', 'min:1'],
+            'max_cap' => ['nullable', 'numeric', 'min:0'],
+            'price_fee' => ['nullable', 'numeric', 'min:0'],
+            'cost_of_service' => ['nullable', 'numeric', 'min:0'],
+            'assigned_unit' => ['nullable', 'string', Rule::in(self::ASSIGNED_UNIT_OPTIONS)],
+            'status' => ['required', 'string', Rule::in(self::STATUS_OPTIONS)],
+            'reviewed_by' => ['nullable', 'integer', 'exists:users,id'],
+            'reviewed_at' => ['nullable', 'date'],
+            'approved_by' => ['nullable', 'integer', 'exists:users,id'],
+            'approved_at' => ['nullable', 'date'],
         ];
-    }
 
-    private function allServices(Request $request): Collection
-    {
-        return collect($request->session()->get($this->servicesKey(), $this->defaultServices()));
-    }
+        if (! $companyLocked) {
+            $companyRule = Schema::hasTable('companies') ? ['nullable', 'integer', 'exists:companies,id'] : ['nullable', 'integer'];
+            $rules['company_id'] = $companyRule;
+        }
 
-    private function findServiceOrAbort(Request $request, int $service, ?int $companyId = null): array
-    {
-        $serviceData = $this->allServices($request)->first(function (array $serviceItem) use ($service, $companyId) {
-            if ((int) $serviceItem['id'] !== $service) {
-                return false;
+        foreach ($customFields as $field) {
+            $key = 'custom_fields.'.$field->field_key;
+            $fieldRules = [$field->is_required ? 'required' : 'nullable'];
+
+            switch ($field->field_type) {
+                case 'number':
+                case 'currency':
+                    $fieldRules[] = 'numeric';
+                    break;
+                case 'checkbox':
+                    $fieldRules[] = 'nullable';
+                    break;
+                default:
+                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'max:255';
+                    break;
             }
 
-            return $companyId === null || (int) $serviceItem['company_id'] === $companyId;
-        });
+            if ($field->field_type === 'picklist' && filled($field->options)) {
+                $fieldRules[] = Rule::in($field->options);
+            }
 
-        abort_unless($serviceData, 404);
+            $rules[$key] = $fieldRules;
+        }
 
-        return $serviceData;
+        $validated = $request->validate($rules);
+
+        validator($validated, [])->after(function (Validator $validator) use ($validated) {
+            $serviceArea = collect($validated['service_area'] ?? [])->filter()->values();
+            $engagementStructure = collect($validated['engagement_structure'] ?? [])->filter()->values();
+            $isRecurring = $this->isRecurring($engagementStructure->all());
+            $frequency = $validated['frequency'] ?? null;
+            $requirements = trim((string) ($validated['requirements'] ?? ''));
+
+            if ($serviceArea->contains('Others') && blank($validated['service_area_other'] ?? null)) {
+                $validator->errors()->add('service_area_other', 'Other Service Area is required when Others is selected.');
+            }
+
+            if ($isRecurring && blank($validated['schedule_rule'] ?? null)) {
+                $validator->errors()->add('schedule_rule', 'Schedule Rule is required for recurring services.');
+            }
+
+            if ($frequency === 'One-time' && blank($validated['deadline'] ?? null)) {
+                $validator->errors()->add('deadline', 'Deadline is required for one-time services.');
+            }
+
+            if (blank($validated['rate_per_unit'] ?? null) && blank($validated['price_fee'] ?? null)) {
+                $validator->errors()->add('rate_per_unit', 'Either Rate per Unit or Price / Fee is required.');
+            }
+
+            if ($requirements !== '' && blank($validated['requirement_category'] ?? null)) {
+                $validator->errors()->add('requirement_category', 'Requirement Category is required when requirements are provided.');
+            }
+        })->validate();
+
+        return $validated;
     }
 
-    private function findCompany(Request $request, int $company): array
+    private function normalizeRequirements(?string $category, string $requirementsText): ?array
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
+        $lines = collect(preg_split('/\r\n|\r|\n/', $requirementsText) ?: [])
+            ->map(fn ($line) => trim(Str::replaceFirst('•', '', $line)))
+            ->filter()
+            ->values()
+            ->all();
 
-        abort_unless($companyData, 404);
+        if ($category === null && count($lines) === 0) {
+            return null;
+        }
 
-        return $companyData;
-    }
-
-    private function servicesKey(): string
-    {
-        return 'mock_services_catalog';
-    }
-
-    private function defaultServices(): array
-    {
         return [
-            [
-                'id' => 901,
-                'company_id' => 1,
-                'company_name' => 'Company 1',
-                'name' => 'Bookkeeping',
-                'category' => 'Accounting',
-                'assigned_staff' => 'Maria Santos',
-                'status' => 'Active',
-                'frequency' => 'Monthly',
-                'start_date' => '2026-01-10',
-                'end_date' => null,
-                'description' => 'Monthly bookkeeping and reconciliation services.',
-                'priority' => 'High',
-                'service_package' => 'Accounting Core',
-                'service_level' => 'Standard',
-                'created_at' => '2026-01-10 09:00:00',
-                'updated_at_raw' => '2026-03-10 10:30:00',
-                'updated_at' => 'Mar 10, 2026 10:30 AM',
-            ],
-            [
-                'id' => 902,
-                'company_id' => 1,
-                'company_name' => 'Company 1',
-                'name' => 'BIR Filing',
-                'category' => 'Tax',
-                'assigned_staff' => 'John Admin',
-                'status' => 'Pending',
-                'frequency' => 'Quarterly',
-                'start_date' => '2026-02-01',
-                'end_date' => '2026-12-31',
-                'description' => 'Quarterly filing support and submissions.',
-                'priority' => 'Normal',
-                'service_package' => '',
-                'service_level' => 'Standard',
-                'created_at' => '2026-02-01 08:30:00',
-                'updated_at_raw' => '2026-03-05 14:00:00',
-                'updated_at' => 'Mar 05, 2026 02:00 PM',
-            ],
-            [
-                'id' => 903,
-                'company_id' => 2,
-                'company_name' => 'Company 2',
-                'name' => 'Payroll Processing',
-                'category' => 'HR & Payroll',
-                'assigned_staff' => 'Sarah Williams',
-                'status' => 'Active',
-                'frequency' => 'Monthly',
-                'start_date' => '2026-01-15',
-                'end_date' => null,
-                'description' => 'Monthly payroll generation and filing.',
-                'priority' => 'High',
-                'service_package' => 'Operations Plus',
-                'service_level' => 'Premium',
-                'created_at' => '2026-01-15 09:00:00',
-                'updated_at_raw' => '2026-03-08 11:20:00',
-                'updated_at' => 'Mar 08, 2026 11:20 AM',
-            ],
-            [
-                'id' => 904,
-                'company_id' => 3,
-                'company_name' => 'Company 3',
-                'name' => 'Tax Advisory',
-                'category' => 'Advisory',
-                'assigned_staff' => 'David Lee',
-                'status' => 'On Hold',
-                'frequency' => 'One-time',
-                'start_date' => '2026-03-01',
-                'end_date' => '2026-04-15',
-                'description' => 'Special advisory engagement for tax planning.',
-                'priority' => 'Critical',
-                'service_package' => '',
-                'service_level' => 'Advisory',
-                'created_at' => '2026-03-01 13:15:00',
-                'updated_at_raw' => '2026-03-09 15:45:00',
-                'updated_at' => 'Mar 09, 2026 03:45 PM',
-            ],
+            'category' => $category,
+            'items' => $lines,
         ];
     }
 
-    private function defaultCompanies(): array
+    private function normalizeCustomFieldValues(Request $request, Collection $customFields): array
+    {
+        $values = [];
+
+        foreach ($customFields as $field) {
+            $value = data_get($request->input('custom_fields', []), $field->field_key);
+
+            if ($field->field_type === 'checkbox') {
+                $values[$field->field_key] = $request->boolean('custom_fields.'.$field->field_key) ? '1' : '0';
+                continue;
+            }
+
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+
+            if ($value === null || $value === '') {
+                $default = $field->default_value;
+                $values[$field->field_key] = $default === null ? '' : $default;
+                continue;
+            }
+
+            $values[$field->field_key] = $value;
+        }
+
+        return $values;
+    }
+
+    private function nullableDecimal(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (float) $value;
+    }
+
+    private function isRecurring(array $engagementStructure): bool
+    {
+        return collect($engagementStructure)->contains(fn ($value) => in_array($value, ['Regular (Retainer)', 'Hybrid'], true));
+    }
+
+    private function generateServiceId(): string
+    {
+        do {
+            $serviceId = (string) random_int(10000, 99999);
+        } while (Service::query()->where('service_id', $serviceId)->exists());
+
+        return $serviceId;
+    }
+
+    private function fieldTypes(): array
     {
         return [
-            [
-                'id' => 1,
-                'company_name' => 'Company 1',
-                'company_type' => 'Corporation',
-                'email' => 'company1@example.com',
-                'phone' => '09012345678',
-                'website' => 'https://bigin.example',
-                'description' => 'Sample company record',
-                'address' => 'Makati City',
-                'owner_name' => 'Owner 1',
-                'created_at' => '2026-03-01 10:00:00',
-            ],
-            [
-                'id' => 2,
-                'company_name' => 'Company 2',
-                'company_type' => 'Corporation',
-                'email' => 'company2@example.com',
-                'phone' => '09000345678',
-                'website' => 'https://bigin.example',
-                'description' => 'Sample company record',
-                'address' => 'Taguig City',
-                'owner_name' => 'Owner 2',
-                'created_at' => '2026-03-02 10:00:00',
-            ],
-            [
-                'id' => 3,
-                'company_name' => 'Company 3',
-                'company_type' => 'Corporation',
-                'email' => 'company3@example.com',
-                'phone' => '09777345678',
-                'website' => 'https://bigin.example',
-                'description' => 'Sample company record',
-                'address' => 'Pasig City',
-                'owner_name' => 'Owner 3',
-                'created_at' => '2026-03-03 10:00:00',
-            ],
+            ['value' => 'text', 'label' => 'Single Line Text', 'icon' => 'fa-input-text'],
+            ['value' => 'textarea', 'label' => 'Multi Line Text', 'icon' => 'fa-align-left'],
+            ['value' => 'number', 'label' => 'Number', 'icon' => 'fa-hashtag'],
+            ['value' => 'currency', 'label' => 'Currency', 'icon' => 'fa-money-bill-wave'],
+            ['value' => 'picklist', 'label' => 'Picklist', 'icon' => 'fa-caret-square-down'],
+            ['value' => 'checkbox', 'label' => 'Checkbox', 'icon' => 'fa-square-check'],
+            ['value' => 'date', 'label' => 'Date', 'icon' => 'fa-calendar'],
+            ['value' => 'lookup', 'label' => 'Lookup', 'icon' => 'fa-link'],
         ];
+    }
+
+    private function lookupModules(): array
+    {
+        return [
+            ['value' => 'deals', 'label' => 'Deals'],
+            ['value' => 'company', 'label' => 'Company'],
+            ['value' => 'contacts', 'label' => 'Contacts'],
+            ['value' => 'products', 'label' => 'Products'],
+        ];
+    }
+
+    private function normalizedDefaultValue(string $fieldType, string $defaultValue): string
+    {
+        if ($fieldType === 'checkbox') {
+            return in_array(Str::lower($defaultValue), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
+        }
+
+        return $defaultValue;
     }
 }

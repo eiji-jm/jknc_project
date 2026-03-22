@@ -2,6 +2,36 @@
     $logoPath = asset('images/imaglogo.png');
 @endphp
 
+@php
+    $signatories = collect($bif->authorized_signatories ?? [])
+        ->filter(fn ($row) => is_array($row))
+        ->values();
+    if ($signatories->isEmpty() && ($bif->authorized_signatory_name || $bif->authorized_signatory_address || $bif->authorized_signatory_position)) {
+        $signatories = collect([[
+            'full_name' => $bif->authorized_signatory_name,
+            'address' => $bif->authorized_signatory_address,
+            'nationality' => $bif->authorized_signatory_nationality,
+            'date_of_birth' => optional($bif->authorized_signatory_date_of_birth)?->format('m/d/Y'),
+            'tin' => $bif->authorized_signatory_tin,
+            'position' => $bif->authorized_signatory_position,
+        ]]);
+    }
+
+    $ubos = collect($bif->ubos ?? [])
+        ->filter(fn ($row) => is_array($row))
+        ->values();
+    if ($ubos->isEmpty() && ($bif->ubo_name || $bif->ubo_address || $bif->ubo_position)) {
+        $ubos = collect([[
+            'full_name' => $bif->ubo_name,
+            'address' => $bif->ubo_address,
+            'nationality' => $bif->ubo_nationality,
+            'date_of_birth' => optional($bif->ubo_date_of_birth)?->format('m/d/Y'),
+            'tin' => $bif->ubo_tin,
+            'position' => $bif->ubo_position,
+        ]]);
+    }
+@endphp
+
 <style>
     .bif-doc { border: 1px solid #4b5563; background: #fff; font-family: "Times New Roman", Georgia, serif; color: #111827; }
     .bif-doc *, .bif-doc *::before, .bif-doc *::after { box-sizing: border-box; }
@@ -142,23 +172,35 @@
         <div class="bif-doc-cell doc-col-12"><span class="bif-doc-label">Name of Treasurer</span><span class="bif-doc-value">{{ $bif->treasurer_name ?: '-' }}</span></div>
     </div>
     <div class="bif-doc-section">Authorized Signatories</div>
-    <div class="bif-doc-row">
-        <div class="bif-doc-cell doc-col-5"><span class="bif-doc-label">Full Name</span><span class="bif-doc-value">{{ $bif->authorized_signatory_name ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-7"><span class="bif-doc-label">Address</span><span class="bif-doc-value">{{ $bif->authorized_signatory_address ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Nationality</span><span class="bif-doc-value">{{ $bif->authorized_signatory_nationality ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Date of Birth</span><span class="bif-doc-value">{{ $bif->authorized_signatory_date_of_birth ? $bif->authorized_signatory_date_of_birth->format('m/d/Y') : '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">TIN</span><span class="bif-doc-value">{{ $bif->authorized_signatory_tin ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Position</span><span class="bif-doc-value">{{ $bif->authorized_signatory_position ?: '-' }}</span></div>
-    </div>
+    @forelse ($signatories as $row)
+        <div class="bif-doc-row">
+            <div class="bif-doc-cell doc-col-5"><span class="bif-doc-label">Full Name</span><span class="bif-doc-value">{{ $row['full_name'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-7"><span class="bif-doc-label">Address</span><span class="bif-doc-value">{{ $row['address'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Nationality</span><span class="bif-doc-value">{{ $row['nationality'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Date of Birth</span><span class="bif-doc-value">{{ $row['date_of_birth'] ?? '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">TIN</span><span class="bif-doc-value">{{ $row['tin'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Position</span><span class="bif-doc-value">{{ $row['position'] ?: '-' }}</span></div>
+        </div>
+    @empty
+        <div class="bif-doc-row">
+            <div class="bif-doc-cell doc-col-24"><span class="bif-doc-value">No authorized signatories recorded.</span></div>
+        </div>
+    @endforelse
     <div class="bif-doc-section">Ultimate Beneficial Owners with at least 20% shares of stock holdings</div>
-    <div class="bif-doc-row">
-        <div class="bif-doc-cell doc-col-5"><span class="bif-doc-label">Full Name</span><span class="bif-doc-value">{{ $bif->ubo_name ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-7"><span class="bif-doc-label">Address</span><span class="bif-doc-value">{{ $bif->ubo_address ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Nationality</span><span class="bif-doc-value">{{ $bif->ubo_nationality ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Date of Birth</span><span class="bif-doc-value">{{ $bif->ubo_date_of_birth ? $bif->ubo_date_of_birth->format('m/d/Y') : '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">TIN</span><span class="bif-doc-value">{{ $bif->ubo_tin ?: '-' }}</span></div>
-        <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Position</span><span class="bif-doc-value">{{ $bif->ubo_position ?: '-' }}</span></div>
-    </div>
+    @forelse ($ubos as $row)
+        <div class="bif-doc-row">
+            <div class="bif-doc-cell doc-col-5"><span class="bif-doc-label">Full Name</span><span class="bif-doc-value">{{ $row['full_name'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-7"><span class="bif-doc-label">Address</span><span class="bif-doc-value">{{ $row['address'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Nationality</span><span class="bif-doc-value">{{ $row['nationality'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Date of Birth</span><span class="bif-doc-value">{{ $row['date_of_birth'] ?? '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">TIN</span><span class="bif-doc-value">{{ $row['tin'] ?: '-' }}</span></div>
+            <div class="bif-doc-cell doc-col-3"><span class="bif-doc-label">Position</span><span class="bif-doc-value">{{ $row['position'] ?: '-' }}</span></div>
+        </div>
+    @empty
+        <div class="bif-doc-row">
+            <div class="bif-doc-cell doc-col-24"><span class="bif-doc-value">No beneficial owners recorded.</span></div>
+        </div>
+    @endforelse
     <div class="bif-doc-section">Authorized Contact Person</div>
     <div class="bif-doc-row">
         <div class="bif-doc-cell doc-col-8"><span class="bif-doc-label">Name of Authorized Contact Person</span><span class="bif-doc-value">{{ $bif->authorized_contact_person_name ?: '-' }}</span></div>

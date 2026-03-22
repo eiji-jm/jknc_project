@@ -14,7 +14,7 @@
                                 <i class="fas fa-arrow-left text-xs"></i>
                                 <span>Services</span>
                             </a>
-                            <h1 class="mt-3 text-2xl font-bold tracking-tight text-gray-900">{{ $service->name }}</h1>
+                            <h1 class="mt-3 text-2xl font-bold tracking-tight text-gray-900">{{ $service->service_name }}</h1>
                             <p class="mt-1 text-sm text-gray-500">Service engagement details for {{ $company->company_name }}.</p>
                         </div>
                         <a href="{{ route('services.show', $service->id) }}" class="inline-flex h-9 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -27,8 +27,8 @@
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Assigned Staff</p>
-                            <p class="mt-2 text-sm font-semibold text-gray-900">{{ $service->assigned_staff }}</p>
-                            <p class="mt-1 text-sm text-gray-500">{{ $service->frequency }}</p>
+                            <p class="mt-2 text-sm font-semibold text-gray-900">{{ $service->assigned_unit ?: '-' }}</p>
+                            <p class="mt-1 text-sm text-gray-500">{{ $service->frequency ?: '-' }}</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</p>
@@ -40,7 +40,7 @@
                                 default => 'border-red-200 bg-red-50 text-red-700',
                             })
                             <span class="mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium {{ $statusClasses }}">{{ $service->status }}</span>
-                            <p class="mt-2 text-sm text-gray-500">Last updated {{ $service->updated_at }}</p>
+                            <p class="mt-2 text-sm text-gray-500">Last updated {{ optional($service->updated_at)->format('M d, Y h:i A') }}</p>
                         </div>
                         <div class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Company</p>
@@ -56,31 +56,37 @@
                                 <dd class="mt-1 text-gray-900">{{ $service->category }}</dd>
                             </div>
                             <div>
-                                <dt class="font-medium text-gray-500">Priority</dt>
-                                <dd class="mt-1 text-gray-900">{{ $service->priority ?: 'Normal' }}</dd>
+                                <dt class="font-medium text-gray-500">Service ID</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->service_id }}</dd>
                             </div>
                             <div>
-                                <dt class="font-medium text-gray-500">Service Package</dt>
-                                <dd class="mt-1 text-gray-900">{{ $service->service_package ?: '-' }}</dd>
+                                <dt class="font-medium text-gray-500">Service Area</dt>
+                                <dd class="mt-1 text-gray-900">{{ implode(', ', $service->service_area ?? []) ?: '-' }}</dd>
                             </div>
                             <div>
-                                <dt class="font-medium text-gray-500">Service Level</dt>
-                                <dd class="mt-1 text-gray-900">{{ $service->service_level ?: '-' }}</dd>
+                                <dt class="font-medium text-gray-500">Engagement Structure</dt>
+                                <dd class="mt-1 text-gray-900">{{ implode(', ', $service->engagement_structure ?? []) ?: '-' }}</dd>
                             </div>
                             <div>
-                                <dt class="font-medium text-gray-500">Start Date</dt>
-                                <dd class="mt-1 text-gray-900">{{ \Illuminate\Support\Carbon::parse($service->start_date)->format('M d, Y') }}</dd>
+                                <dt class="font-medium text-gray-500">Unit</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->unit ?: '-' }}</dd>
                             </div>
                             <div>
-                                <dt class="font-medium text-gray-500">End Date</dt>
-                                <dd class="mt-1 text-gray-900">{{ $service->end_date ? \Illuminate\Support\Carbon::parse($service->end_date)->format('M d, Y') : '-' }}</dd>
+                                <dt class="font-medium text-gray-500">Rate / Price</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->rate_per_unit ? number_format((float) $service->rate_per_unit, 2) . ' / ' . $service->unit : ($service->price_fee ? number_format((float) $service->price_fee, 2) : '-') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Deadline</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->deadline ? $service->deadline->format('M d, Y h:i A') : '-' }}</dd>
                             </div>
                         </dl>
                     </div>
 
                     <div class="mt-4 rounded-md border border-gray-200 bg-white p-4">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Description / Notes</h2>
-                        <p class="mt-3 text-sm leading-6 text-gray-700">{{ $service->description ?: 'No additional notes for this service engagement.' }}</p>
+                        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Description</h2>
+                        <p class="mt-3 text-sm leading-6 text-gray-700">{{ $service->service_description }}</p>
+                        <h2 class="mt-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity / Output</h2>
+                        <p class="mt-3 text-sm leading-6 text-gray-700">{{ $service->service_activity_output }}</p>
                     </div>
                 </div>
             </div>

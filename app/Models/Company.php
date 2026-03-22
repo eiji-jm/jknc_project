@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 
 class Company extends Model
@@ -18,10 +18,9 @@ class Company extends Model
         'owner_name',
     ];
 
-    public function services(): BelongsToMany
+    public function services(): HasMany
     {
-        return $this->belongsToMany(Service::class, 'company_service')
-            ->withTimestamps();
+        return $this->hasMany(Service::class);
     }
 
     public function cifs(): HasMany
@@ -32,5 +31,10 @@ class Company extends Model
     public function bifs(): HasMany
     {
         return $this->hasMany(CompanyBif::class);
+    }
+
+    public function latestBif(): HasOne
+    {
+        return $this->hasOne(CompanyBif::class)->latestOfMany();
     }
 }

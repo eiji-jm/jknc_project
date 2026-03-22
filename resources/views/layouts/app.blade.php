@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 
 <title>John Kelly & Company | CRM</title>
 
@@ -92,7 +93,9 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <span>Corporate</span>
 </a>
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+<a href="/activities"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ (request()->is('activities*') || request()->is('/')) ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-list-check text-base"></i>
 <span>Activities</span>
 </a>
@@ -176,21 +179,24 @@ KYC
 </div>
 
 </aside>
-@elseif (request()->routeIs('services.*'))
+@elseif (request()->routeIs('activities'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
-<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Services</p>
+<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activities</p>
 </div>
 
 <div class="flex-1 overflow-y-auto p-3">
 <div class="space-y-1 text-sm">
-<a href="{{ route('services.index') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('services.index') || request()->routeIs('services.show') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">All Services</a>
+<a href="{{ route('activities') }}#task" class="block px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 font-semibold">Task</a>
+<a href="{{ route('activities') }}#events" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Events</a>
+<a href="{{ route('activities') }}#call" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Call</a>
+<a href="{{ route('activities') }}#meetings" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">Meetings</a>
 </div>
 </div>
 
 </aside>
-@elseif (!request()->routeIs('company.*') && !request()->routeIs('contacts.*') && !request()->routeIs('deals.*') && !request()->routeIs('products.*'))
+@elseif (!request()->routeIs('company.*') && !request()->routeIs('contacts.*') && !request()->routeIs('deals.*') && !request()->routeIs('products.*') && !request()->routeIs('activities') && !request()->routeIs('services.*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -202,7 +208,7 @@ KYC
 
 <a href="{{ route('corporate') }}"
 class="block px-3 py-2 rounded-lg transition
-{{ request()->routeIs('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+{{ request()->routeIs('corporate') || request()->routeIs('corporate.companyinfo') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 Company General Information
 </a>
 
@@ -262,6 +268,9 @@ class="block px-3 py-2 rounded-lg transition
 
 </aside>
 @endif
+
+
+
 
 <!-- MAIN CONTENT -->
 <main class="flex-1 overflow-y-auto">
