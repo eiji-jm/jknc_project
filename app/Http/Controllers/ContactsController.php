@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\SpecimenSignature;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -76,11 +78,14 @@ class ContactsController extends Controller
     ];
 
     private const LEAD_STAGE_OPTIONS = [
-        'Intake',
-        'Qualified',
-        'Converted',
-        'Lost',
-        'Not Qualified',
+        'Inquiry',
+        'Qualification',
+        'Consultation',
+        'Proposal',
+        'Negotiation',
+        'Payment',
+        'Activation',
+        'Closed Lost',
     ];
 
     private const TABS = [
@@ -164,6 +169,9 @@ class ContactsController extends Controller
         $owners = $this->ownerOptions();
         $defaultOwner = $request->user();
         $defaultOwnerId = old('owner_id', $defaultOwner?->id ?? Arr::first($owners)['id']);
+        $createdByDisplay = old('created_by', $request->user()?->name ?? 'Admin User');
+        $createdAtDisplay = old('created_at_display', now()->format('F j, Y • g:i A'));
+        $defaultBusinessDate = old('business_date', old('intake_date', now()->toDateString()));
 
         return view('contacts.index', [
             'contacts' => $contacts,
@@ -179,6 +187,9 @@ class ContactsController extends Controller
             'kycStatuses' => self::KYC_STATUSES,
             'owners' => $owners,
             'defaultOwnerId' => (int) $defaultOwnerId,
+            'createdByDisplay' => $createdByDisplay,
+            'createdAtDisplay' => $createdAtDisplay,
+            'defaultBusinessDate' => $defaultBusinessDate,
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
             'lookupModules' => $this->lookupModules(),
@@ -190,14 +201,14 @@ class ContactsController extends Controller
         $owners = collect($this->ownerOptions())->keyBy('id');
 
         $validated = $request->validate([
-            'intake_date' => ['nullable', 'date'],
+            'business_date' => ['nullable', 'date'],
             'customer_type' => ['nullable', 'string', 'in:business,individual'],
             'client_status' => ['nullable', 'string', 'in:new,existing'],
             'salutation' => ['nullable', 'string', 'max:30'],
-            'first_name' => ['required', 'string', 'max:100'],
+            'first_name' => ['required', 'string', 'max:255'],
             'middle_initial' => ['nullable', 'string', 'max:20'],
             'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:255'],
             'name_extension' => ['nullable', 'string', 'max:50'],
             'sex' => ['nullable', 'string', 'max:20'],
             'date_of_birth' => ['nullable', 'date'],
@@ -232,23 +243,14 @@ class ContactsController extends Controller
             'lead_source_other' => ['nullable', 'string', 'max:255'],
             'referred_by' => ['nullable', 'string', 'max:150'],
             'lead_stage' => ['nullable', 'string', 'in:'.implode(',', self::LEAD_STAGE_OPTIONS)],
-            'email' => ['nullable', 'email', 'max:255'],
-            'mobile' => ['nullable', 'string', 'max:30'],
+            'email' => ['required', 'email', 'max:255'],
+            'mobile_number' => ['required', 'string', 'max:20'],
             'description' => ['nullable', 'string', 'max:2000'],
             'recommendation' => ['nullable', 'string', 'max:2000'],
-            'owner_id' => ['required', 'integer'],
+            'owner_id' => ['nullable', 'integer'],
         ]);
-
-        validator($validated, [])->after(function (Validator $validator) use ($validated) {
-            if (blank($validated['last_name'] ?? null) && blank($validated['email'] ?? null)) {
-                $validator->errors()->add('last_name', 'Last name or email is required.');
-            }
-        })->validate();
-
-        $owner = $owners->get((int) $validated['owner_id']);
-        if (! $owner) {
-            return back()->withErrors(['owner_id' => 'Please select a valid owner.'])->withInput();
-        }
+        $selectedOwnerId = (int) ($validated['owner_id'] ?? 0);
+        $owner = $owners->get($selectedOwnerId) ?? $owners->first();
 
         $serviceInquiryTypes = collect($validated['service_inquiry_types'] ?? [])
             ->map(fn ($value) => trim((string) $value))
@@ -280,7 +282,8 @@ class ContactsController extends Controller
         ]));
 
         $attributes = [
-            'intake_date' => $validated['intake_date'] ?? now()->toDateString(),
+            'business_date' => $validated['business_date'] ?? now()->toDateString(),
+            'intake_date' => $validated['business_date'] ?? now()->toDateString(),
             'customer_type' => $validated['customer_type'] ?? null,
             'client_status' => $validated['client_status'] ?? null,
             'salutation' => $validated['salutation'] ?? null,
@@ -323,9 +326,10 @@ class ContactsController extends Controller
             'referred_by' => $validated['referred_by'] ?? null,
             'lead_stage' => $validated['lead_stage'] ?? null,
             'email' => $validated['email'] ?? null,
-            'phone' => $validated['mobile'] ?? null,
+            'phone' => $validated['mobile_number'] ?? null,
             'description' => $validated['inquiry'] ?? ($validated['description'] ?? null),
             'kyc_status' => 'Not Submitted',
+            'created_by' => $request->user()?->name ?? ($owner['name'] ?? 'Admin User'),
             'owner_name' => $owner['name'],
         ];
 
@@ -450,6 +454,8 @@ class ContactsController extends Controller
             'cifData' => $this->loadCifData($contactModel),
             'cifDocuments' => $this->loadCifDocuments($contactModel),
             'cifEditMode' => $request->boolean('edit_cif') || $request->session()->has('errors'),
+            'specimenSignature' => $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first(),
+            'kycRequirementState' => $this->kycRequirementState($contactModel, $specimenSignature),
         ]);
     }
 
@@ -573,6 +579,76 @@ class ContactsController extends Controller
             ->with('success', 'Supporting document uploaded successfully.');
     }
 
+    public function uploadKycRequirementDocument(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $validated = $request->validate([
+            'requirement' => ['required', 'string', 'in:two_valid_ids,tin_proof,specimen_signature_upload'],
+            'document_file' => ['required', 'file', 'max:5120'],
+        ]);
+
+        $documents = $this->loadKycRequirementDocuments($contactModel);
+        $requirement = $validated['requirement'];
+        $storedPath = $request->file('document_file')->store('contact-kyc-documents', 'public');
+        $document = [
+            'path' => $storedPath,
+            'file_name' => $request->file('document_file')->getClientOriginalName(),
+            'mime_type' => $request->file('document_file')->getMimeType(),
+            'uploaded_at' => now()->toDateTimeString(),
+            'url' => Storage::disk('public')->url($storedPath),
+        ];
+
+        if ($requirement === 'two_valid_ids') {
+            $existing = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
+            $existing[] = $document;
+            $documents['two_valid_ids'] = $existing;
+        } else {
+            $existing = $documents[$requirement] ?? null;
+            if (is_array($existing) && ! empty($existing['path']) && Storage::disk('public')->exists($existing['path'])) {
+                Storage::disk('public')->delete($existing['path']);
+            }
+            $documents[$requirement] = $document;
+        }
+
+        $this->saveKycRequirementDocuments($contactModel, $documents);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'KYC requirement document uploaded successfully.');
+    }
+
+    public function removeKycRequirementDocument(Request $request, string $contact, string $requirement): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+        abort_unless(in_array($requirement, ['two_valid_ids', 'tin_proof', 'specimen_signature_upload'], true), 404);
+
+        $documents = $this->loadKycRequirementDocuments($contactModel);
+
+        if ($requirement === 'two_valid_ids') {
+            foreach ((array) ($documents['two_valid_ids'] ?? []) as $document) {
+                if (is_array($document) && ! empty($document['path']) && Storage::disk('public')->exists($document['path'])) {
+                    Storage::disk('public')->delete($document['path']);
+                }
+            }
+            $documents['two_valid_ids'] = [];
+        } else {
+            $document = $documents[$requirement] ?? null;
+            if (is_array($document) && ! empty($document['path']) && Storage::disk('public')->exists($document['path'])) {
+                Storage::disk('public')->delete($document['path']);
+            }
+            $documents[$requirement] = null;
+        }
+
+        $this->saveKycRequirementDocuments($contactModel, $documents);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'KYC requirement document removed successfully.');
+    }
+
     public function previewCif(Request $request, string $contact): View
     {
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
@@ -597,6 +673,153 @@ class ContactsController extends Controller
             'cifDocuments' => $this->loadCifDocuments($contactModel),
             'downloadMode' => true,
         ]);
+    }
+
+    public function specimenSignature(Request $request, string $id): View
+    {
+        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
+        $isEditMode = $request->boolean('edit') || ! $specimenSignature;
+
+        return view('contacts.specimen-signature', [
+            'contact' => $contactModel,
+            'specimenSignature' => $specimenSignature,
+            'specimenForm' => $this->specimenFormData($contactModel, $specimenSignature),
+            'isEditMode' => $isEditMode,
+        ]);
+    }
+
+    public function saveSpecimenSignature(Request $request, string $id): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $existing = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
+
+        $validated = $request->validate([
+            'date' => ['nullable', 'date'],
+            'bif_no' => ['nullable', 'string', 'max:100'],
+            'client_type' => ['nullable', 'string', 'in:new,existing,change'],
+            'business_name_left' => ['nullable', 'string', 'max:255'],
+            'business_name_right' => ['nullable', 'string', 'max:255'],
+            'account_number_left' => ['nullable', 'string', 'max:255'],
+            'account_number_right' => ['nullable', 'string', 'max:255'],
+            'signature_combination' => ['nullable', 'string', 'max:255'],
+            'signature_class' => ['nullable', 'string', 'max:255'],
+            'left_client_name' => ['nullable', 'string', 'max:255'],
+            'left_cif_no' => ['nullable', 'string', 'max:100'],
+            'left_cif_dated' => ['nullable', 'date'],
+            'right_client_name' => ['nullable', 'string', 'max:255'],
+            'right_cif_no' => ['nullable', 'string', 'max:100'],
+            'right_cif_dated' => ['nullable', 'date'],
+            'signatory_names' => ['nullable', 'array'],
+            'signatory_names.*' => ['nullable', 'string', 'max:255'],
+            'authenticated_by' => ['nullable', 'string', 'max:255'],
+            'board_resolution_spa_no' => ['nullable', 'string', 'max:255'],
+            'board_resolution_spa_date' => ['nullable', 'date'],
+            'signature_over_printed_name' => ['nullable', 'string', 'max:255'],
+            'authorized_signatory_signature' => ['nullable', 'string', 'max:255'],
+            'authorized_signatory_date' => ['nullable', 'date'],
+            'remarks' => ['nullable', 'string', 'max:5000'],
+            'processing_instruction' => ['nullable', 'string', 'max:5000'],
+            'sales_marketing' => ['nullable', 'string', 'max:255'],
+            'processed_by' => ['nullable', 'string', 'max:255'],
+            'processed_date' => ['nullable', 'date'],
+            'finance' => ['nullable', 'string', 'max:255'],
+            'scanned_by' => ['nullable', 'string', 'max:255'],
+            'scanned_date' => ['nullable', 'date'],
+        ]);
+
+        validator($validated, [])->after(function (Validator $validator) use ($validated) {
+            if (blank($validated['business_name_left'] ?? null) && blank($validated['business_name_right'] ?? null)) {
+                $validator->errors()->add('business_name_left', 'Business Name is required.');
+            }
+
+            $hasSignatory = collect($validated['signatory_names'] ?? [])
+                ->map(fn ($name) => trim((string) $name))
+                ->filter()
+                ->isNotEmpty();
+
+            if (! $hasSignatory) {
+                $validator->errors()->add('signatory_names', 'At least 1 signatory is required.');
+            }
+        })->validate();
+
+        $signatories = collect($validated['signatory_names'] ?? [])
+            ->pad(6, null)
+            ->take(6)
+            ->map(function ($name): array {
+                $cleanName = trim((string) $name);
+
+                return [
+                    'name' => $cleanName !== '' ? $cleanName : null,
+                    'signature' => null,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $authenticationData = [
+            'left_client_name' => $validated['left_client_name'] ?? null,
+            'left_cif_no' => $validated['left_cif_no'] ?? null,
+            'left_cif_dated' => $validated['left_cif_dated'] ?? null,
+            'right_client_name' => $validated['right_client_name'] ?? null,
+            'right_cif_no' => $validated['right_cif_no'] ?? null,
+            'right_cif_dated' => $validated['right_cif_dated'] ?? null,
+            'signature_combination' => $validated['signature_combination'] ?? null,
+            'signature_class' => $validated['signature_class'] ?? null,
+            'authenticated_by' => $validated['authenticated_by'] ?? null,
+            'board_resolution_spa_no' => $validated['board_resolution_spa_no'] ?? null,
+            'board_resolution_spa_date' => $validated['board_resolution_spa_date'] ?? null,
+            'signature_over_printed_name' => $validated['signature_over_printed_name'] ?? null,
+            'authorized_signatory_signature' => $validated['authorized_signatory_signature'] ?? null,
+            'authorized_signatory_date' => $validated['authorized_signatory_date'] ?? null,
+            'processing_instruction' => $validated['processing_instruction'] ?? null,
+            'sales_marketing' => $validated['sales_marketing'] ?? null,
+            'processed_by' => $validated['processed_by'] ?? null,
+            'processed_date' => $validated['processed_date'] ?? null,
+            'finance' => $validated['finance'] ?? null,
+            'scanned_by' => $validated['scanned_by'] ?? null,
+            'scanned_date' => $validated['scanned_date'] ?? null,
+        ];
+
+        SpecimenSignature::query()->updateOrCreate(
+            ['contact_id' => $contactModel->id],
+            [
+                'bif_no' => $validated['bif_no'] ?? null,
+                'date' => $validated['date'] ?? now()->toDateString(),
+                'client_type' => $validated['client_type'] ?? null,
+                'business_name_left' => $validated['business_name_left'] ?? null,
+                'business_name_right' => $validated['business_name_right'] ?? null,
+                'account_number_left' => $validated['account_number_left'] ?? null,
+                'account_number_right' => $validated['account_number_right'] ?? null,
+                'signatories' => $signatories,
+                'authentication_data' => $authenticationData,
+                'remarks' => $validated['remarks'] ?? null,
+                'created_by' => $existing?->created_by ?: ($request->user()?->name ?? 'Admin User'),
+            ]
+        );
+
+        return redirect()
+            ->route('contacts.specimen-signature', ['id' => $contactModel->id])
+            ->with('success', 'Specimen Signature Form saved successfully.');
+    }
+
+    public function downloadSpecimenSignature(Request $request, string $id)
+    {
+        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $data = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
+        abort_unless($data, 404);
+
+        $pdf = Pdf::loadView('contacts.specimen-signature-print', compact('data'))
+            ->setPaper('A4', 'portrait')
+            ->setOptions(['dpi' => 150]);
+
+        return $pdf->download('specimen-signature.pdf');
     }
 
     private function ownerOptions(): array
@@ -769,6 +992,64 @@ class ContactsController extends Controller
         Storage::disk('local')->put($this->cifDocumentsPath($contact), json_encode($documents, JSON_PRETTY_PRINT));
     }
 
+    private function loadKycRequirementDocuments(Contact $contact): array
+    {
+        $path = $this->kycRequirementDocumentsPath($contact);
+        if (Storage::disk('local')->exists($path)) {
+            $stored = json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+        } else {
+            $stored = [];
+        }
+
+        $cifDocuments = $this->loadCifDocuments($contact);
+        $stored['two_valid_ids'] = array_values(array_filter(
+            ! empty($stored['two_valid_ids'])
+                ? (array) $stored['two_valid_ids']
+                : (isset($cifDocuments['valid_id']) ? [$cifDocuments['valid_id']] : []),
+            fn ($item) => is_array($item) && ! empty($item['file_name'] ?? $item['path'] ?? null)
+        ));
+        $stored['tin_proof'] = array_key_exists('tin_proof', $stored) ? $stored['tin_proof'] : ($cifDocuments['tin_document'] ?? null);
+        $stored['specimen_signature_upload'] = array_key_exists('specimen_signature_upload', $stored) ? $stored['specimen_signature_upload'] : null;
+
+        return $stored;
+    }
+
+    private function saveKycRequirementDocuments(Contact $contact, array $documents): void
+    {
+        Storage::disk('local')->put($this->kycRequirementDocumentsPath($contact), json_encode($documents, JSON_PRETTY_PRINT));
+    }
+
+    private function kycRequirementDocumentsPath(Contact $contact): string
+    {
+        return 'contact-kyc-data/'.$contact->id.'-requirements.json';
+    }
+
+    private function kycRequirementState(Contact $contact, ?SpecimenSignature $specimenSignature): array
+    {
+        $documents = $this->loadKycRequirementDocuments($contact);
+        $twoValidIds = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
+        $tinProof = is_array($documents['tin_proof'] ?? null) ? $documents['tin_proof'] : null;
+        $specimenUpload = is_array($documents['specimen_signature_upload'] ?? null) ? $documents['specimen_signature_upload'] : null;
+        $specimenFormExists = $specimenSignature !== null;
+
+        return [
+            'two_valid_ids' => [
+                'count' => count($twoValidIds),
+                'files' => $twoValidIds,
+                'complete' => count($twoValidIds) >= 2,
+            ],
+            'specimen_signature_form' => [
+                'form_exists' => $specimenFormExists,
+                'file' => $specimenUpload,
+                'complete' => $specimenFormExists || $specimenUpload !== null,
+            ],
+            'tin_proof' => [
+                'file' => $tinProof,
+                'complete' => $tinProof !== null,
+            ],
+        ];
+    }
+
     private function cifDataPath(Contact $contact): string
     {
         return 'contact-cif-data/'.$contact->id.'.json';
@@ -787,6 +1068,51 @@ class ContactsController extends Controller
             'tin_document' => 'TIN Document',
             'registration_document' => 'Supporting Registration Document',
             'other' => 'Other Related File',
+        ];
+    }
+
+    private function specimenFormData(Contact $contact, ?SpecimenSignature $specimenSignature): array
+    {
+        $authenticationData = (array) ($specimenSignature?->authentication_data ?? []);
+        $signatories = collect((array) ($specimenSignature?->signatories ?? []))
+            ->map(fn ($entry) => is_array($entry) ? $entry : ['name' => null, 'signature' => null])
+            ->pad(6, ['name' => null, 'signature' => null])
+            ->take(6)
+            ->values()
+            ->all();
+
+        return [
+            'date' => old('date', optional($specimenSignature?->date)->toDateString() ?? now()->toDateString()),
+            'bif_no' => old('bif_no', $specimenSignature?->bif_no ?? ''),
+            'client_type' => old('client_type', $specimenSignature?->client_type ?? 'new'),
+            'business_name_left' => old('business_name_left', $specimenSignature?->business_name_left ?? $contact->company_name ?? ''),
+            'business_name_right' => old('business_name_right', $specimenSignature?->business_name_right ?? $contact->company_name ?? ''),
+            'account_number_left' => old('account_number_left', $specimenSignature?->account_number_left ?? ''),
+            'account_number_right' => old('account_number_right', $specimenSignature?->account_number_right ?? ''),
+            'signature_combination' => old('signature_combination', (string) ($authenticationData['signature_combination'] ?? '')),
+            'signature_class' => old('signature_class', (string) ($authenticationData['signature_class'] ?? '')),
+            'left_client_name' => old('left_client_name', (string) ($authenticationData['left_client_name'] ?? trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))),
+            'left_cif_no' => old('left_cif_no', (string) ($authenticationData['left_cif_no'] ?? ($contact->id ? 'CIF-'.$contact->id : ''))),
+            'left_cif_dated' => old('left_cif_dated', (string) ($authenticationData['left_cif_dated'] ?? '')),
+            'right_client_name' => old('right_client_name', (string) ($authenticationData['right_client_name'] ?? trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))),
+            'right_cif_no' => old('right_cif_no', (string) ($authenticationData['right_cif_no'] ?? ($contact->id ? 'CIF-'.$contact->id : ''))),
+            'right_cif_dated' => old('right_cif_dated', (string) ($authenticationData['right_cif_dated'] ?? '')),
+            'signatories' => old('signatory_names', collect($signatories)->pluck('name')->all()),
+            'authenticated_by' => old('authenticated_by', (string) ($authenticationData['authenticated_by'] ?? '')),
+            'board_resolution_spa_no' => old('board_resolution_spa_no', (string) ($authenticationData['board_resolution_spa_no'] ?? '')),
+            'board_resolution_spa_date' => old('board_resolution_spa_date', (string) ($authenticationData['board_resolution_spa_date'] ?? '')),
+            'signature_over_printed_name' => old('signature_over_printed_name', (string) ($authenticationData['signature_over_printed_name'] ?? '')),
+            'authorized_signatory_signature' => old('authorized_signatory_signature', (string) ($authenticationData['authorized_signatory_signature'] ?? '')),
+            'authorized_signatory_date' => old('authorized_signatory_date', (string) ($authenticationData['authorized_signatory_date'] ?? '')),
+            'remarks' => old('remarks', $specimenSignature?->remarks ?? ''),
+            'processing_instruction' => old('processing_instruction', (string) ($authenticationData['processing_instruction'] ?? 'The officer processing this document must verify the authorized signatory/ies, obtain a copy of the Board Resolution, Secretary\'s Certificate, or Special Power of Attorney (SPA) if applicable, and ensure the document number.')),
+            'sales_marketing' => old('sales_marketing', (string) ($authenticationData['sales_marketing'] ?? '')),
+            'processed_by' => old('processed_by', (string) ($authenticationData['processed_by'] ?? '')),
+            'processed_date' => old('processed_date', (string) ($authenticationData['processed_date'] ?? '')),
+            'finance' => old('finance', (string) ($authenticationData['finance'] ?? '')),
+            'scanned_by' => old('scanned_by', (string) ($authenticationData['scanned_by'] ?? '')),
+            'scanned_date' => old('scanned_date', (string) ($authenticationData['scanned_date'] ?? '')),
+            'created_by' => $specimenSignature?->created_by ?? ($contact->owner_name ?: 'Admin User'),
         ];
     }
 

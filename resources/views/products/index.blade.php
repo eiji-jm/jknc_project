@@ -5,13 +5,15 @@
     $activePillClasses = [
         'Active' => 'border border-green-200 bg-green-100 text-green-700',
         'Inactive' => 'border border-gray-300 bg-gray-100 text-gray-600',
+        'Draft' => 'border border-amber-200 bg-amber-100 text-amber-700',
+        'Archived' => 'border border-gray-300 bg-gray-100 text-gray-500',
     ];
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
     <div class="mb-5">
         <h1 class="text-3xl font-semibold text-gray-900">Products</h1>
-        <p class="mt-1 text-sm text-gray-500">Manage your client contacts and deal relationships</p>
+        <p class="mt-1 text-sm text-gray-500">Manage product records, pricing, ownership, and configuration.</p>
     </div>
 
     @if (session('success'))
@@ -27,7 +29,7 @@
                 type="text"
                 name="search"
                 value="{{ $search }}"
-                placeholder="Search Contacts..."
+                placeholder="Search Products..."
                 class="h-10 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
         </div>
@@ -42,6 +44,8 @@
                 <option value="All" {{ $activeFilter === 'All' ? 'selected' : '' }}>All</option>
                 <option value="Active" {{ $activeFilter === 'Active' ? 'selected' : '' }}>Active</option>
                 <option value="Inactive" {{ $activeFilter === 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                <option value="Draft" {{ $activeFilter === 'Draft' ? 'selected' : '' }}>Draft</option>
+                <option value="Archived" {{ $activeFilter === 'Archived' ? 'selected' : '' }}>Archived</option>
             </select>
         </div>
 
@@ -52,7 +56,7 @@
             id="openCreateProductModal"
             class="ml-auto h-10 min-w-[120px] rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
         >
-            <i class="fas fa-plus mr-1"></i> Products
+            <i class="fas fa-plus mr-1"></i> Product
         </button>
     </form>
 
@@ -85,18 +89,42 @@
                                 </button>
                             </div>
                         </th>
-                        <th data-column-key="product_code" data-column-type="base" class="group px-3 py-3 text-left font-medium">
+                        <th data-column-key="sku" data-column-type="base" class="group px-3 py-3 text-left font-medium">
                             <div class="inline-flex items-center gap-1">
-                                <span>Product Code</span>
-                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="product_code" data-column-type="base">
+                                <span>SKU</span>
+                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="sku" data-column-type="base">
                                     <i class="fas fa-ellipsis-v text-[10px]"></i>
                                 </button>
                             </div>
                         </th>
-                        <th data-column-key="product_active" data-column-type="base" class="group px-3 py-3 text-left font-medium">
+                        <th data-column-key="product_type" data-column-type="base" class="group px-3 py-3 text-left font-medium">
                             <div class="inline-flex items-center gap-1">
-                                <span>Product Active</span>
-                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="product_active" data-column-type="base">
+                                <span>Product Type</span>
+                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="product_type" data-column-type="base">
+                                    <i class="fas fa-ellipsis-v text-[10px]"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th data-column-key="category" data-column-type="base" class="group px-3 py-3 text-left font-medium">
+                            <div class="inline-flex items-center gap-1">
+                                <span>Category</span>
+                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="category" data-column-type="base">
+                                    <i class="fas fa-ellipsis-v text-[10px]"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th data-column-key="price" data-column-type="base" class="group px-3 py-3 text-left font-medium">
+                            <div class="inline-flex items-center gap-1">
+                                <span>Price</span>
+                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="price" data-column-type="base">
+                                    <i class="fas fa-ellipsis-v text-[10px]"></i>
+                                </button>
+                            </div>
+                        </th>
+                        <th data-column-key="status" data-column-type="base" class="group px-3 py-3 text-left font-medium">
+                            <div class="inline-flex items-center gap-1">
+                                <span>Status</span>
+                                <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="status" data-column-type="base">
                                     <i class="fas fa-ellipsis-v text-[10px]"></i>
                                 </button>
                             </div>
@@ -110,10 +138,10 @@
                             </div>
                         </th>
                         @foreach ($customFields as $field)
-                            <th data-column-key="{{ $field['key'] }}" data-column-type="custom" class="group px-3 py-3 text-left font-medium">
+                            <th data-column-key="{{ $field->field_key }}" data-column-type="custom" class="group px-3 py-3 text-left font-medium">
                                 <div class="inline-flex items-center gap-1">
-                                    <span>{{ $field['name'] }}</span>
-                                    <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="{{ $field['key'] }}" data-column-type="custom">
+                                    <span>{{ $field->field_name }}</span>
+                                    <button type="button" class="field-header-trigger invisible inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition group-hover:visible hover:bg-gray-100 hover:text-gray-600" data-column-key="{{ $field->field_key }}" data-column-type="custom">
                                         <i class="fas fa-ellipsis-v text-[10px]"></i>
                                     </button>
                                 </div>
@@ -125,32 +153,36 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    @forelse ($products as $index => $product)
-                        <tr class="product-row text-gray-700" data-row-index="{{ $index }}" data-product-url="{{ route('products.show', $product['product_id']) }}">
-                            <td class="px-3 py-3">
-                                <input type="checkbox" value="{{ $product['product_id'] ?? '' }}" class="product-row-checkbox h-4 w-4 rounded border-gray-300">
-                            </td>
+                        @forelse ($products as $index => $product)
+                            <tr class="product-row text-gray-700" data-row-index="{{ $index }}" data-product-url="{{ route('products.show', $product->product_id) }}">
+                                <td class="px-3 py-3">
+                                    <input type="checkbox" value="{{ $product->product_id }}" class="product-row-checkbox h-4 w-4 rounded border-gray-300">
+                                </td>
                             <td data-column-key="product_name" class="px-3 py-3 font-medium text-gray-900">
-                                <a href="{{ route('products.show', $product['product_id']) }}" class="hover:text-blue-700">
-                                    {{ $product['product_name'] }}
+                                <a href="{{ route('products.show', $product->product_id) }}" class="hover:text-blue-700">
+                                    {{ $product->product_name }}
                                 </a>
                             </td>
-                            <td data-column-key="product_code" class="px-3 py-3 text-gray-600">{{ $product['product_code'] }}</td>
-                            <td data-column-key="product_active" class="px-3 py-3">
-                                <select class="h-6 rounded-full px-2 text-xs outline-none {{ $activePillClasses[$product['product_active']] ?? $activePillClasses['Inactive'] }}">
-                                    <option value="Active" {{ $product['product_active'] === 'Active' ? 'selected' : '' }}>Active</option>
-                                    <option value="Inactive" {{ $product['product_active'] === 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                            <td data-column-key="sku" class="px-3 py-3 text-gray-600">{{ $product->sku ?: '-' }}</td>
+                            <td data-column-key="product_type" class="px-3 py-3 text-gray-600">{{ $product->product_type }}</td>
+                            <td data-column-key="category" class="px-3 py-3 text-gray-600">{{ $product->category }}</td>
+                            <td data-column-key="price" class="px-3 py-3 text-gray-600">P{{ number_format((float) $product->price, 2) }}</td>
+                            <td data-column-key="status" class="px-3 py-3">
+                                <select class="h-6 rounded-full px-2 text-xs outline-none {{ $activePillClasses[$product->status] ?? $activePillClasses['Inactive'] }}">
+                                    @foreach (['Active', 'Inactive', 'Draft', 'Archived'] as $statusOption)
+                                        <option value="{{ $statusOption }}" {{ $product->status === $statusOption ? 'selected' : '' }}>{{ $statusOption }}</option>
+                                    @endforeach
                                 </select>
                             </td>
-                            <td data-column-key="product_owner" class="product-owner-cell px-3 py-3 text-gray-600">{{ $product['product_owner'] }}</td>
+                            <td data-column-key="product_owner" class="product-owner-cell px-3 py-3 text-gray-600">{{ $product->owner_name ?: '-' }}</td>
                             @foreach ($customFields as $field)
                                 @php
-                                    $customValue = $product[$field['key']] ?? '';
+                                    $customValue = data_get($product->custom_field_values, $field->field_key, '');
                                 @endphp
-                                <td data-column-key="{{ $field['key'] }}" class="px-3 py-3 text-gray-600">
-                                    @if (($field['type'] ?? '') === 'checkbox')
+                                <td data-column-key="{{ $field->field_key }}" class="px-3 py-3 text-gray-600">
+                                    @if (($field->field_type ?? '') === 'checkbox')
                                         {{ $customValue === '1' ? 'Yes' : 'No' }}
-                                    @elseif (($field['type'] ?? '') === 'currency' && $customValue !== '')
+                                    @elseif (($field->field_type ?? '') === 'currency' && $customValue !== '')
                                         P{{ number_format((float) $customValue, 2) }}
                                     @else
                                         {{ $customValue !== '' ? $customValue : '-' }}
@@ -191,6 +223,16 @@
     'owners' => $owners,
     'defaultOwnerId' => $defaultOwnerId,
     'categoryOptions' => $categoryOptions,
+    'productTypeOptions' => $productTypeOptions,
+    'productAreaOptions' => $productAreaOptions,
+    'pricingTypeOptions' => $pricingTypeOptions,
+    'taxTypeOptions' => $taxTypeOptions,
+    'inventoryTypeOptions' => $inventoryTypeOptions,
+    'statusOptions' => $statusOptions,
+    'unitOptions' => $unitOptions,
+    'serviceOptions' => $serviceOptions,
+    'customFields' => $customFields,
+    'drawerMeta' => $drawerMeta,
 ])
 @include('products.partials.create-field-dropdown', ['fieldTypes' => $fieldTypes])
 @include('products.partials.field-actions-dropdown')
@@ -210,6 +252,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const productOwnerSearch = document.getElementById('productOwnerSearch');
     const productOwnerIdInput = document.getElementById('product_owner_id');
     const productOwnerSelectedLabel = document.getElementById('productOwnerSelectedLabel');
+    const productCreatedAtLiveValue = document.getElementById('productCreatedAtLiveValue');
+    const productCreatedAtMetaValue = document.getElementById('productCreatedAtMetaValue');
+    const inventoryTypeInput = document.getElementById('inventory_type');
+    const stockQtyWrap = document.getElementById('stockQtyWrap');
+    const productAreaOtherWrap = document.getElementById('productAreaOtherWrap');
+    const productAreaCheckboxes = Array.from(document.querySelectorAll('.product-area-checkbox'));
+    const linkedServiceInput = document.getElementById('linked_service_id');
     const productOwnerOptions = Array.from(document.querySelectorAll('.product-owner-option'));
     const selectionBar = document.getElementById('productSelectionBar');
     const selectedProductText = document.getElementById('selectedProductText');
@@ -265,6 +314,75 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const createProductPanel = document.getElementById('createProductPanel');
     const createProductModalOverlay = document.getElementById('createProductModalOverlay');
+    let productCreatedAtIntervalId = null;
+
+    const formatCreatedAt = (date) => new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+    }).format(date);
+
+    const renderProductCreatedAtClock = () => {
+        const label = formatCreatedAt(new Date());
+        if (productCreatedAtLiveValue) {
+            productCreatedAtLiveValue.textContent = label;
+        }
+        if (productCreatedAtMetaValue) {
+            productCreatedAtMetaValue.textContent = label;
+        }
+    };
+
+    const stopProductCreatedAtClock = () => {
+        if (productCreatedAtIntervalId) {
+            window.clearInterval(productCreatedAtIntervalId);
+            productCreatedAtIntervalId = null;
+        }
+    };
+
+    const startProductCreatedAtClock = () => {
+        stopProductCreatedAtClock();
+        renderProductCreatedAtClock();
+        productCreatedAtIntervalId = window.setInterval(renderProductCreatedAtClock, 1000);
+    };
+
+    const syncInventoryFields = () => {
+        const showStock = inventoryTypeInput?.value === 'Inventory';
+        stockQtyWrap?.classList.toggle('hidden', !showStock);
+    };
+
+    const syncProductAreaOther = () => {
+        const hasOther = productAreaCheckboxes.some((checkbox) => checkbox.checked && checkbox.value === 'Others');
+        productAreaOtherWrap?.classList.toggle('hidden', !hasOther);
+    };
+
+    const syncProductAreaSelection = (changedCheckbox = null) => {
+        const noneCheckbox = productAreaCheckboxes.find((checkbox) => checkbox.value === 'None');
+        const nonNoneCheckboxes = productAreaCheckboxes.filter((checkbox) => checkbox.value !== 'None');
+
+        if (changedCheckbox?.value === 'None' && changedCheckbox.checked) {
+            nonNoneCheckboxes.forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+        }
+
+        if (changedCheckbox && changedCheckbox.value !== 'None' && changedCheckbox.checked && noneCheckbox) {
+            noneCheckbox.checked = false;
+        }
+
+        const anyNonNoneChecked = nonNoneCheckboxes.some((checkbox) => checkbox.checked);
+        if (!anyNonNoneChecked && noneCheckbox && !noneCheckbox.checked) {
+            noneCheckbox.checked = true;
+        }
+
+        if (linkedServiceInput?.value === '' && !anyNonNoneChecked && noneCheckbox) {
+            noneCheckbox.checked = true;
+        }
+
+        syncProductAreaOther();
+    };
 
     const openCreateModal = () => {
         if (!createProductModal || !createProductPanel) {
@@ -279,6 +397,10 @@ document.addEventListener('DOMContentLoaded', function () {
             createProductModalOverlay?.classList.remove('opacity-0');
             createProductPanel.classList.remove('translate-x-full');
         });
+
+        startProductCreatedAtClock();
+        syncInventoryFields();
+        syncProductAreaOther();
     };
 
     const closeProductOwnerDropdown = () => {
@@ -291,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         closeProductOwnerDropdown();
+        stopProductCreatedAtClock();
         createProductModalOverlay?.classList.add('opacity-0');
         createProductPanel.classList.add('translate-x-full');
         document.body.classList.remove('overflow-hidden');
@@ -678,6 +801,9 @@ document.addEventListener('DOMContentLoaded', function () {
             'border-green-200',
             'bg-green-100',
             'text-green-700',
+            'border-amber-200',
+            'bg-amber-100',
+            'text-amber-700',
             'border-gray-300',
             'bg-gray-100',
             'text-gray-600'
@@ -685,6 +811,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (select.value === 'Active') {
             select.classList.add('border-green-200', 'bg-green-100', 'text-green-700');
+        } else if (select.value === 'Draft') {
+            select.classList.add('border-amber-200', 'bg-amber-100', 'text-amber-700');
         } else {
             select.classList.add('border-gray-300', 'bg-gray-100', 'text-gray-600');
         }
@@ -723,6 +851,10 @@ document.addEventListener('DOMContentLoaded', function () {
             closeProductOwnerDropdown();
         });
     });
+
+    inventoryTypeInput?.addEventListener('change', syncInventoryFields);
+    productAreaCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', () => syncProductAreaSelection(checkbox)));
+    linkedServiceInput?.addEventListener('change', () => syncProductAreaSelection());
 
     openChangeOwnerModalButton?.addEventListener('click', openChangeOwnerModal);
     cancelChangeOwnerModal?.addEventListener('click', closeChangeOwnerModalFn);
@@ -995,11 +1127,14 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshStatusPill(select);
     });
 
+    syncInventoryFields();
+    syncProductAreaSelection();
+
     const initialFieldType = createFieldTypeInput ? createFieldTypeInput.value : 'picklist';
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
 
-    @if ($errors->any() && (old('product_name') !== null || old('product_code') !== null || old('owner_id') !== null || $errors->has('owner_id')))
+    @if ($errors->any() && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id')))
         openCreateModal();
     @endif
 

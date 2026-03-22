@@ -2,74 +2,75 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
+use App\Models\ProductCustomField;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProductController extends Controller
 {
     public function index(Request $request): View
     {
+        $this->ensureSeededProducts();
+
         $search = trim((string) $request->query('search', ''));
-        $activeFilter = (string) $request->query('active', 'All');
+        $statusFilter = (string) $request->query('active', 'All');
         $perPage = (int) $request->query('per_page', 10);
         $perPage = in_array($perPage, [5, 10, 25, 50], true) ? $perPage : 10;
-        $customFields = collect($request->session()->get('products.custom_fields', []))
-            ->values();
 
-        $products = collect($request->session()->get('products.items', $this->defaultProducts()))
-            ->map(function (array $product, int $index): array {
-                if (blank($product['product_id'] ?? null)) {
-                    $product['product_id'] = 'prd-legacy-'.($index + 1);
-                }
-                if (blank($product['product_owner_email'] ?? null) && ! blank($product['product_owner'] ?? null)) {
-                    $product['product_owner_email'] = strtolower(str_replace(' ', '.', (string) $product['product_owner'])).'@example.com';
-                }
+        $ownerMap = collect($this->ownerOptions())->keyBy('id');
 
-                return $product;
-            })
-            ->map(fn (array $product): array => $this->applyCustomFieldDefaults($product, $customFields->all()))
-            ->values();
+        $customFields = ProductCustomField::query()
+            ->orderBy('sort_order')
+            ->orderBy('field_name')
+            ->get();
 
-        $request->session()->put('products.items', $products->all());
+        $productsQuery = Product::query()->orderByDesc('created_at');
 
         if ($search !== '') {
-            $products = $products->filter(function (array $product) use ($search): bool {
-                $needle = mb_strtolower($search);
-                $name = mb_strtolower((string) ($product['product_name'] ?? ''));
-                $code = mb_strtolower((string) ($product['product_code'] ?? ''));
-                $owner = mb_strtolower((string) ($product['product_owner'] ?? ''));
-
-                return str_contains($name, $needle)
-                    || str_contains($code, $needle)
-                    || str_contains($owner, $needle);
+            $productsQuery->where(function ($query) use ($search) {
+                $query
+                    ->where('product_name', 'like', '%'.$search.'%')
+                    ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhere('product_type', 'like', '%'.$search.'%')
+                    ->orWhere('category', 'like', '%'.$search.'%')
+                    ->orWhere('created_by', 'like', '%'.$search.'%');
             });
         }
 
-        if (in_array($activeFilter, ['Active', 'Inactive'], true)) {
-            $products = $products
-                ->filter(fn (array $product): bool => ($product['product_active'] ?? 'Inactive') === $activeFilter)
-                ->values();
+        if (in_array($statusFilter, ['Active', 'Inactive', 'Draft', 'Archived'], true)) {
+            $productsQuery->where('status', $statusFilter);
         } else {
-            $activeFilter = 'All';
+            $statusFilter = 'All';
         }
 
-        $totalProducts = $products->count();
-        $totalPages = max((int) ceil($totalProducts / $perPage), 1);
+        $totalProducts = (clone $productsQuery)->count();
+        $totalPages = max((int) ceil(max($totalProducts, 1) / $perPage), 1);
         $currentPage = min(max((int) $request->query('page', 1), 1), $totalPages);
-        $offset = ($currentPage - 1) * $perPage;
-        $paginatedProducts = $products->slice($offset, $perPage)->values();
-        $from = $totalProducts > 0 ? $offset + 1 : 0;
-        $to = min($offset + $perPage, $totalProducts);
+        $products = $productsQuery
+            ->forPage($currentPage, $perPage)
+            ->get()
+            ->map(function (Product $product) use ($ownerMap) {
+                $product->owner_name = data_get($ownerMap->get($product->owner_id), 'name', $product->created_by);
+                return $product;
+            });
+
+        $from = $totalProducts > 0 ? (($currentPage - 1) * $perPage) + 1 : 0;
+        $to = min($from + $perPage - 1, $totalProducts);
         $owners = $this->ownerOptions();
         $defaultOwnerId = (int) old('owner_id', ($owners[0]['id'] ?? 1001));
 
         return view('products.index', [
-            'products' => $paginatedProducts,
+            'products' => $products,
             'search' => $search,
-            'activeFilter' => $activeFilter,
+            'activeFilter' => $statusFilter,
             'totalProducts' => $totalProducts,
             'perPage' => $perPage,
             'from' => $from,
@@ -80,91 +81,87 @@ class ProductController extends Controller
             'defaultOwnerId' => $defaultOwnerId,
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
-            'categoryOptions' => [
-                '-None-',
-                'Hardware',
-                'Software',
-                'Service Package',
-                'Subscription',
-                'Compliance',
-                'Other',
+            'categoryOptions' => $this->categoryOptions(),
+            'productTypeOptions' => $this->productTypeOptions(),
+            'productAreaOptions' => $this->productAreaOptions(),
+            'pricingTypeOptions' => $this->pricingTypeOptions(),
+            'taxTypeOptions' => $this->taxTypeOptions(),
+            'inventoryTypeOptions' => $this->inventoryTypeOptions(),
+            'statusOptions' => $this->statusOptions(),
+            'unitOptions' => $this->unitOptions(),
+            'serviceOptions' => [],
+            'drawerMeta' => [
+                'createdBy' => $this->currentUserDisplay(),
+                'createdAtDisplay' => now()->format('F j, Y g:i A'),
             ],
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $ownerOptions = collect($this->ownerOptions())->keyBy('id');
+        $customFields = ProductCustomField::query()
+            ->orderBy('sort_order')
+            ->orderBy('field_name')
+            ->get();
 
-        $validated = $request->validate([
-            'product_name' => ['required', 'string', 'max:150'],
-            'product_code' => ['required', 'string', 'max:100'],
-            'product_category' => ['nullable', 'string', 'max:100'],
-            'unit_price' => ['nullable', 'numeric', 'min:0'],
-            'description' => ['nullable', 'string', 'max:2000'],
-            'product_active' => ['nullable', 'boolean'],
-            'owner_id' => ['required', 'integer'],
-        ]);
-
-        $owner = $ownerOptions->get((int) $validated['owner_id']);
+        $owner = collect($this->ownerOptions())->firstWhere('id', (int) $request->input('owner_id'));
         if (! $owner) {
             return back()->withErrors(['owner_id' => 'Please select a valid owner.'])->withInput();
         }
 
-        $customFields = $request->session()->get('products.custom_fields', []);
-        $items = collect($request->session()->get('products.items', $this->defaultProducts()));
-        $items->prepend([
-            'product_id' => 'prd-'.now()->format('YmdHisv').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+        $validated = $request->validate($this->validationRules($customFields));
+
+        Validator::make([], [])->after(function ($validator) use ($validated) {
+            if (in_array('Others', $validated['product_area'] ?? [], true) && blank($validated['product_area_other'] ?? null)) {
+                $validator->errors()->add('product_area_other', 'Other Product Area is required when Others is selected.');
+            }
+
+            if (($validated['inventory_type'] ?? null) === 'Inventory' && blank($validated['stock_qty'] ?? null)) {
+                $validator->errors()->add('stock_qty', 'Stock Quantity is required for inventory-managed products.');
+            }
+        })->validate();
+
+        $product = Product::create([
+            'product_id' => $this->generateProductId(),
             'product_name' => $validated['product_name'],
-            'product_code' => $validated['product_code'],
-            'product_active' => ($validated['product_active'] ?? false) ? 'Active' : 'Inactive',
-            'product_owner' => $owner['name'],
-            'product_owner_email' => $owner['email'],
-            'product_category' => $validated['product_category'] ?: '-None-',
-            'unit_price' => isset($validated['unit_price']) ? (float) $validated['unit_price'] : null,
-            'description' => $validated['description'] ?? null,
+            'product_type' => $validated['product_type'],
+            'linked_service_id' => $validated['linked_service_id'] ?? null,
+            'product_area' => array_values($validated['product_area']),
+            'product_area_other' => in_array('Others', $validated['product_area'], true) ? ($validated['product_area_other'] ?? null) : null,
+            'product_description' => $validated['product_description'],
+            'product_inclusions' => $this->normalizeBulletLines($validated['product_inclusions'] ?? null),
+            'category' => $validated['category'],
+            'pricing_type' => $validated['pricing_type'],
+            'price' => $validated['price'],
+            'cost' => $validated['cost'] ?? null,
+            'is_discountable' => $request->boolean('is_discountable'),
+            'tax_type' => $validated['tax_type'],
+            'sku' => $validated['sku'] ?? null,
+            'inventory_type' => $validated['inventory_type'],
+            'stock_qty' => $validated['inventory_type'] === 'Inventory' ? ($validated['stock_qty'] ?? null) : null,
+            'unit' => $validated['unit'] ?? null,
+            'status' => $validated['status'],
+            'owner_id' => (int) $validated['owner_id'],
+            'created_by' => $this->currentUserDisplay(),
+            'custom_field_values' => $this->extractCustomFieldValues($request, $customFields),
         ]);
 
-        $request->session()->put(
-            'products.items',
-            $items
-                ->map(fn (array $product): array => $this->applyCustomFieldDefaults($product, $customFields))
-                ->values()
-                ->all()
-        );
-
-        return redirect()->route('products.index')->with('success', 'Product created successfully.');
+        return redirect()
+            ->route('products.index')
+            ->with('success', 'Product created successfully.');
     }
 
     public function show(Request $request, string $id): View
     {
-        $products = collect($request->session()->get('products.items', $this->defaultProducts()))
-            ->map(function (array $product, int $index): array {
-                if (blank($product['product_id'] ?? null)) {
-                    $product['product_id'] = 'prd-legacy-'.($index + 1);
-                }
-                if (blank($product['product_owner_email'] ?? null) && ! blank($product['product_owner'] ?? null)) {
-                    $product['product_owner_email'] = strtolower(str_replace(' ', '.', (string) $product['product_owner'])).'@example.com';
-                }
-                return $product;
-            })
-            ->values();
-
-        $product = $products->firstWhere('product_id', $id);
-        if (! $product) {
-            abort(404);
-        }
+        $ownerMap = collect($this->ownerOptions())->keyBy('id');
+        $product = Product::query()->where('product_id', $id)->firstOrFail();
+        $product->owner_name = data_get($ownerMap->get($product->owner_id), 'name', $product->created_by);
 
         $tab = strtolower((string) $request->query('tab', 'timeline'));
         $allowedTabs = ['timeline', 'pipelines', 'files', 'tasks'];
         if (! in_array($tab, $allowedTabs, true)) {
             $tab = 'timeline';
         }
-
-        $timeline = $this->mockTimeline($product);
-        $pipelines = $this->mockPipelines($product);
-        $files = [];
-        $tasks = [];
 
         return view('products.show', [
             'product' => $product,
@@ -175,50 +172,36 @@ class ProductController extends Controller
                 'files' => 'Files',
                 'tasks' => 'Tasks',
             ],
-            'timeline' => $timeline,
-            'pipelines' => $pipelines,
-            'files' => $files,
-            'tasks' => $tasks,
-            'lastModifiedLabel' => 'Last Modified on '.now()->format('M d, h:i A'),
+            'timeline' => $this->mockTimeline($product),
+            'pipelines' => [],
+            'files' => [],
+            'tasks' => [],
+            'lastModifiedLabel' => 'Last Modified on '.$product->updated_at?->format('M d, h:i A'),
+            'customFields' => ProductCustomField::query()->orderBy('sort_order')->orderBy('field_name')->get(),
         ]);
     }
 
     public function changeOwner(Request $request): RedirectResponse
     {
-        $ownerOptions = collect($this->ownerOptions());
-
         $validated = $request->validate([
             'selected_products' => ['required', 'array', 'min:1'],
             'selected_products.*' => ['required', 'string'],
             'owner_id' => ['required', 'integer'],
         ]);
 
-        $owner = $ownerOptions->firstWhere('id', (int) $validated['owner_id']);
+        $owner = collect($this->ownerOptions())->firstWhere('id', (int) $validated['owner_id']);
         if (! $owner) {
             return redirect()
                 ->route('products.index')
                 ->withErrors(['owner_id' => 'Please select a valid owner.']);
         }
 
-        $selected = collect($validated['selected_products'])
-            ->filter()
-            ->values()
-            ->all();
-
-        $items = collect($request->session()->get('products.items', $this->defaultProducts()))
-            ->map(function (array $product) use ($selected, $owner): array {
-                $productId = (string) ($product['product_id'] ?? '');
-                if (in_array($productId, $selected, true)) {
-                    $product['product_owner'] = $owner['name'];
-                    $product['product_owner_email'] = $owner['email'];
-                }
-
-                return $product;
-            })
-            ->values()
-            ->all();
-
-        $request->session()->put('products.items', $items);
+        Product::query()
+            ->whereIn('product_id', $validated['selected_products'])
+            ->update([
+                'owner_id' => $owner['id'],
+                'updated_at' => now(),
+            ]);
 
         return redirect()->route('products.index')->with('success', 'Product owner updated successfully.');
     }
@@ -232,34 +215,19 @@ class ProductController extends Controller
             'field_name' => ['required', 'string', 'max:80'],
             'default_value' => ['nullable', 'string', 'max:255'],
             'required' => ['nullable', 'boolean'],
-            'lookup_module' => ['nullable', 'string', 'in:deals,company,contacts'],
+            'lookup_module' => ['nullable', 'string', 'in:deals,company,contacts,products'],
             'options' => ['nullable', 'array'],
             'options.*' => ['nullable', 'string', 'max:100'],
         ]);
 
         $fieldName = trim((string) $validated['field_name']);
         $fieldType = (string) $validated['field_type'];
-        $customFields = collect($request->session()->get('products.custom_fields', []))->values();
 
-        $nameExists = $customFields->contains(function (array $field) use ($fieldName): bool {
-            return Str::lower((string) ($field['name'] ?? '')) === Str::lower($fieldName);
-        });
-        if ($nameExists) {
+        if (ProductCustomField::query()->whereRaw('LOWER(field_name) = ?', [Str::lower($fieldName)])->exists()) {
             return back()->withErrors(['field_name' => 'Field name already exists for Products.'])->withInput();
         }
 
-        $keyBase = Str::slug($fieldName, '_');
-        if ($keyBase === '') {
-            $keyBase = 'custom_field';
-        }
-        $key = 'custom_'.$keyBase;
-        $suffix = 1;
-        $usedKeys = $customFields->pluck('key')->all();
-        while (in_array($key, $usedKeys, true)) {
-            $suffix++;
-            $key = 'custom_'.$keyBase.'_'.$suffix;
-        }
-
+        $fieldKey = $this->uniqueCustomFieldKey($fieldName);
         $options = collect($validated['options'] ?? [])
             ->map(fn ($option) => trim((string) $option))
             ->filter()
@@ -270,67 +238,76 @@ class ProductController extends Controller
             return back()->withErrors(['options' => 'Picklist fields need at least one option.'])->withInput();
         }
 
-        if ($fieldType !== 'lookup') {
-            $validated['lookup_module'] = null;
-        }
-
-        $defaultValue = trim((string) ($validated['default_value'] ?? ''));
-        if ($fieldType === 'checkbox') {
-            $defaultValue = in_array(Str::lower($defaultValue), ['1', 'yes', 'true', 'checked'], true) ? '1' : '0';
-        }
-        if ($fieldType === 'picklist' && $defaultValue !== '' && ! in_array($defaultValue, $options, true)) {
-            return back()->withErrors(['default_value' => 'Default value must match one of the options.'])->withInput();
-        }
-
-        $field = [
-            'id' => 'fld-'.now()->format('YmdHisv').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
-            'type' => $fieldType,
-            'name' => $fieldName,
-            'key' => $key,
-            'required' => (bool) ($validated['required'] ?? false),
+        ProductCustomField::create([
+            'field_type' => $fieldType,
+            'field_name' => $fieldName,
+            'field_key' => $fieldKey,
+            'is_required' => (bool) ($validated['required'] ?? false),
             'options' => $fieldType === 'picklist' ? $options : [],
-            'lookup_module' => $fieldType === 'lookup' ? (string) ($validated['lookup_module'] ?? '') : null,
-            'default_value' => $this->normalizedDefaultValue($fieldType, $defaultValue),
-        ];
-
-        $customFields->push($field);
-        $request->session()->put('products.custom_fields', $customFields->values()->all());
-
-        $items = collect($request->session()->get('products.items', $this->defaultProducts()))
-            ->map(fn (array $product): array => $this->applyCustomFieldDefaults($product, $customFields->all()))
-            ->values()
-            ->all();
-        $request->session()->put('products.items', $items);
+            'lookup_module' => $fieldType === 'lookup' ? ($validated['lookup_module'] ?? null) : null,
+            'default_value' => $this->normalizedDefaultValue($fieldType, $validated['default_value'] ?? null),
+            'sort_order' => ((int) ProductCustomField::query()->max('sort_order')) + 1,
+        ]);
 
         return redirect()->route('products.index')->with('success', 'Custom field created successfully.');
     }
 
-    private function defaultProducts(): array
+    private function validationRules(Collection $customFields): array
     {
-        return [
-            [
-                'product_id' => 'prd-1001',
-                'product_name' => 'Name of the product',
-                'product_code' => 'Product32',
-                'product_active' => 'Active',
-                'product_owner' => 'John Admin',
-                'product_owner_email' => 'john.admin@example.com',
-                'product_category' => 'Software',
-                'unit_price' => 5000,
-                'description' => null,
-            ],
-            [
-                'product_id' => 'prd-1002',
-                'product_name' => 'Name of the product2',
-                'product_code' => 'Product32',
-                'product_active' => 'Inactive',
-                'product_owner' => 'John Admin',
-                'product_owner_email' => 'john.admin@example.com',
-                'product_category' => 'Hardware',
-                'unit_price' => 2500,
-                'description' => null,
-            ],
+        $productTypeOptions = $this->productTypeOptions();
+        $productAreaOptions = $this->productAreaOptions();
+        $categoryOptions = $this->categoryOptions();
+        $pricingTypeOptions = $this->pricingTypeOptions();
+        $taxTypeOptions = $this->taxTypeOptions();
+        $inventoryTypeOptions = $this->inventoryTypeOptions();
+        $statusOptions = $this->statusOptions();
+        $unitOptions = $this->unitOptions();
+
+        $rules = [
+            'product_name' => ['required', 'string', 'max:150'],
+            'product_type' => ['required', 'string', Rule::in($productTypeOptions)],
+            'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')],
+            'linked_service_id' => ['nullable', 'integer'],
+            'product_area' => ['required', 'array', 'min:1'],
+            'product_area.*' => ['required', 'string', Rule::in($productAreaOptions)],
+            'product_area_other' => ['nullable', 'string', 'max:150'],
+            'product_description' => ['required', 'string', 'max:5000'],
+            'product_inclusions' => ['nullable', 'string', 'max:5000'],
+            'category' => ['required', 'string', Rule::in($categoryOptions)],
+            'pricing_type' => ['required', 'string', Rule::in($pricingTypeOptions)],
+            'price' => ['required', 'numeric', 'min:0'],
+            'cost' => ['nullable', 'numeric', 'min:0'],
+            'is_discountable' => ['nullable', 'boolean'],
+            'tax_type' => ['required', 'string', Rule::in($taxTypeOptions)],
+            'inventory_type' => ['required', 'string', Rule::in($inventoryTypeOptions)],
+            'stock_qty' => ['nullable', 'integer', 'min:0'],
+            'unit' => ['nullable', 'string', Rule::in($unitOptions)],
+            'status' => ['required', 'string', Rule::in($statusOptions)],
+            'owner_id' => ['required', 'integer'],
         ];
+
+        foreach ($customFields as $field) {
+            $fieldKey = 'custom_fields.'.$field->field_key;
+            $fieldRules = [$field->is_required ? 'required' : 'nullable'];
+
+            switch ($field->field_type) {
+                case 'numerical':
+                case 'currency':
+                    $fieldRules[] = 'numeric';
+                    break;
+                case 'date':
+                    $fieldRules[] = 'date';
+                    break;
+                default:
+                    $fieldRules[] = 'string';
+                    $fieldRules[] = 'max:255';
+                    break;
+            }
+
+            $rules[$fieldKey] = $fieldRules;
+        }
+
+        return $rules;
     }
 
     private function ownerOptions(): array
@@ -373,23 +350,7 @@ class ProductController extends Controller
         ];
     }
 
-    private function applyCustomFieldDefaults(array $product, array $customFields): array
-    {
-        foreach ($customFields as $field) {
-            $key = (string) ($field['key'] ?? '');
-            if ($key === '') {
-                continue;
-            }
-
-            if (! array_key_exists($key, $product)) {
-                $product[$key] = $field['default_value'] ?? $this->normalizedDefaultValue((string) ($field['type'] ?? 'text'), null);
-            }
-        }
-
-        return $product;
-    }
-
-    private function normalizedDefaultValue(string $fieldType, ?string $defaultValue): string
+    private function normalizedDefaultValue(string $fieldType, mixed $defaultValue): string
     {
         $value = trim((string) ($defaultValue ?? ''));
 
@@ -400,53 +361,202 @@ class ProductController extends Controller
         return $value;
     }
 
-    private function mockTimeline(array $product): array
+    private function extractCustomFieldValues(Request $request, Collection $customFields): array
     {
-        $owner = $product['product_owner'] ?? 'John Admin';
-        $productName = $product['product_name'] ?? 'Product';
-        $isActive = ($product['product_active'] ?? 'Inactive') === 'Active';
+        $values = [];
+        $submitted = (array) $request->input('custom_fields', []);
+
+        foreach ($customFields as $field) {
+            $value = $submitted[$field->field_key] ?? $field->default_value;
+            if ($field->field_type === 'checkbox') {
+                $value = in_array((string) $value, ['1', 'true', 'yes', 'on'], true) ? '1' : '0';
+            }
+            $values[$field->field_key] = $value;
+        }
+
+        return $values;
+    }
+
+    private function generateProductId(): string
+    {
+        do {
+            $productId = (string) random_int(10000, 99999);
+        } while (Product::query()->where('product_id', $productId)->exists());
+
+        return $productId;
+    }
+
+    private function uniqueCustomFieldKey(string $fieldName): string
+    {
+        $keyBase = Str::slug($fieldName, '_');
+        if ($keyBase === '') {
+            $keyBase = 'custom_field';
+        }
+
+        $key = 'custom_'.$keyBase;
+        $suffix = 1;
+
+        while (ProductCustomField::query()->where('field_key', $key)->exists()) {
+            $suffix++;
+            $key = 'custom_'.$keyBase.'_'.$suffix;
+        }
+
+        return $key;
+    }
+
+    private function normalizeBulletLines(?string $value): ?string
+    {
+        $lines = collect(preg_split('/\r\n|\r|\n/', (string) $value))
+            ->map(fn ($line) => trim((string) $line))
+            ->filter()
+            ->map(fn ($line) => Str::startsWith($line, '•') ? $line : '• '.$line)
+            ->values();
+
+        return $lines->isEmpty() ? null : $lines->implode(PHP_EOL);
+    }
+
+    private function productTypeOptions(): array
+    {
+        return ['Service', 'Bundle', 'Package', 'Physical Product', 'Digital Product'];
+    }
+
+    private function productAreaOptions(): array
+    {
+        return [
+            'Corporate & Regulatory Advisory',
+            'Governance & Policy Advisory',
+            'People & Talent Solutions',
+            'Strategic Situations Advisory',
+            'Accounting & Compliance Advisory',
+            'Business Strategy & Process Advisory',
+            'Learning & Capability Development',
+            'Others',
+            'None',
+        ];
+    }
+
+    private function categoryOptions(): array
+    {
+        return [
+            'Professional Fees',
+            'Consulting Revenue',
+            'Accounting Services',
+            'Tax Services',
+            'Corporate Services',
+            'HR Services',
+            'Training & Development',
+            'Other Income',
+        ];
+    }
+
+    private function pricingTypeOptions(): array
+    {
+        return ['Fixed', 'Variable', 'Tiered', 'Subscription'];
+    }
+
+    private function taxTypeOptions(): array
+    {
+        return ['VAT', 'Non-VAT', 'Zero-rated', 'Exempt'];
+    }
+
+    private function inventoryTypeOptions(): array
+    {
+        return ['Non-Inventory', 'Inventory', 'Service'];
+    }
+
+    private function statusOptions(): array
+    {
+        return ['Draft', 'Active', 'Inactive', 'Archived'];
+    }
+
+    private function unitOptions(): array
+    {
+        return ['Unit', 'Package', 'Set', 'Hour', 'Project'];
+    }
+
+    private function currentUserDisplay(): string
+    {
+        return User::query()->orderBy('id')->value('name') ?: 'Admin User';
+    }
+
+    private function ensureSeededProducts(): void
+    {
+        if (! Schema::hasTable('products') || Product::query()->exists()) {
+            return;
+        }
+
+        $owner = collect($this->ownerOptions())->first();
+
+        Product::query()->create([
+            'product_id' => $this->generateProductId(),
+            'product_name' => 'Business Registration Package',
+            'product_type' => 'Service',
+            'linked_service_id' => null,
+            'product_area' => ['None'],
+            'product_area_other' => null,
+            'product_description' => 'End-to-end business registration service for new clients.',
+            'product_inclusions' => "• SEC/DTI filing assistance\n• Basic compliance checklist",
+            'category' => 'Corporate Services',
+            'pricing_type' => 'Fixed',
+            'price' => 5000,
+            'cost' => 2500,
+            'is_discountable' => true,
+            'tax_type' => 'VAT',
+            'sku' => 'PRD-1001',
+            'inventory_type' => 'Service',
+            'stock_qty' => null,
+            'unit' => 'Project',
+            'status' => 'Active',
+            'owner_id' => $owner['id'] ?? null,
+            'created_by' => $owner['name'] ?? 'John Admin',
+            'custom_field_values' => [],
+        ]);
+
+        Product::query()->create([
+            'product_id' => $this->generateProductId(),
+            'product_name' => 'Accounting Cleanup Package',
+            'product_type' => 'Service',
+            'linked_service_id' => null,
+            'product_area' => ['Accounting & Compliance Advisory'],
+            'product_area_other' => null,
+            'product_description' => 'Accounting records cleanup and reconciliation support.',
+            'product_inclusions' => "• Ledger review\n• Reconciliation summary",
+            'category' => 'Accounting Services',
+            'pricing_type' => 'Fixed',
+            'price' => 2500,
+            'cost' => 1200,
+            'is_discountable' => false,
+            'tax_type' => 'VAT',
+            'sku' => 'PRD-1002',
+            'inventory_type' => 'Service',
+            'stock_qty' => null,
+            'unit' => 'Project',
+            'status' => 'Inactive',
+            'owner_id' => $owner['id'] ?? null,
+            'created_by' => $owner['name'] ?? 'John Admin',
+            'custom_field_values' => [],
+        ]);
+    }
+
+    private function mockTimeline(Product $product): array
+    {
+        $owner = $product->created_by ?: 'John Admin';
 
         return [
             [
                 'icon' => 'fa-box-open',
                 'title' => 'Product added',
-                'description' => $productName,
+                'description' => $product->product_name,
                 'user_name' => $owner,
-                'created_at' => 'Mar 04, 2026 02:20 PM',
-            ],
-            [
-                'icon' => 'fa-toggle-on',
-                'title' => 'Product Active updated',
-                'description' => $isActive ? "'false' to 'true'" : "'true' to 'false'",
-                'user_name' => $owner,
-                'created_at' => 'Mar 04, 2026 05:46 PM',
-            ],
-            [
-                'icon' => 'fa-tag',
-                'title' => 'Tag added',
-                'description' => 'featured',
-                'user_name' => $owner,
-                'created_at' => 'Mar 04, 2026 05:54 PM',
+                'created_at' => optional($product->created_at)->format('M d, Y h:i A'),
             ],
             [
                 'icon' => 'fa-pen',
-                'title' => 'Product edited',
-                'description' => 'Updated product details',
+                'title' => 'Product updated',
+                'description' => 'Latest product configuration saved.',
                 'user_name' => $owner,
-                'created_at' => 'Mar 05, 2026 10:08 AM',
-            ],
-            [
-                'icon' => 'fa-user-pen',
-                'title' => 'Owner changed',
-                'description' => 'Assigned to '.$owner,
-                'user_name' => $owner,
-                'created_at' => 'Mar 06, 2026 09:10 AM',
+                'created_at' => optional($product->updated_at)->format('M d, Y h:i A'),
             ],
         ];
-    }
-
-    private function mockPipelines(array $product): array
-    {
-        return [];
     }
 }

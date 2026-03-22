@@ -14,6 +14,11 @@
     $status = $contact->kyc_status ?: 'Not Submitted';
     $name = trim($contact->first_name.' '.$contact->last_name);
     $initials = strtoupper(mb_substr($contact->first_name ?? '', 0, 1).mb_substr($contact->last_name ?? '', 0, 1));
+    $kycRequirements = $kycRequirementState ?? [
+        'two_valid_ids' => ['count' => 0, 'files' => [], 'complete' => false],
+        'specimen_signature_form' => ['form_exists' => false, 'file' => null, 'complete' => false],
+        'tin_proof' => ['file' => null, 'complete' => false],
+    ];
 @endphp
 
 <div class="bg-white">
@@ -177,9 +182,124 @@
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                             <div class="border-b border-gray-100 px-4 py-3">
                                 <h2 class="text-base font-semibold text-gray-900">KYC Requirements</h2>
-                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: Two Valid IDs, Specimen Signatures, and TIN.</p>
+                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: Two Valid IDs, Specimen Signature Form, and TIN.</p>
                             </div>
-                            <div id="kycDocumentsList" class="max-h-[520px] space-y-3 overflow-y-auto p-4"></div>
+                            <div class="max-h-[520px] space-y-3 overflow-y-auto p-4">
+                                @php
+                                    $twoValidIds = $kycRequirements['two_valid_ids'];
+                                    $specimenRequirement = $kycRequirements['specimen_signature_form'];
+                                    $tinRequirement = $kycRequirements['tin_proof'];
+                                    $actionBtn = 'rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50';
+                                    $primaryBtn = 'rounded-md border border-blue-200 px-2 py-1 text-blue-700 hover:bg-blue-50';
+                                    $dangerBtn = 'rounded-md border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50';
+                                    $disabledBtn = 'opacity-40 pointer-events-none';
+                                @endphp
+
+                                <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">Two Valid IDs</p>
+                                            <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $twoValidIds['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
+                                                {{ $twoValidIds['complete'] ? 'Complete' : 'Missing' }}
+                                            </span>
+                                            <p class="mt-1 text-xs text-gray-500">
+                                                {{ $twoValidIds['count'] > 0 ? $twoValidIds['count'].' file'.($twoValidIds['count'] === 1 ? '' : 's').' uploaded' : 'Upload at least 2 valid IDs.' }}
+                                            </p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                @csrf
+                                                <input type="hidden" name="requirement" value="two_valid_ids">
+                                                <label class="{{ $actionBtn }} cursor-pointer">
+                                                    Upload
+                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                </label>
+                                            </form>
+                                            @php $twoValidFirstFile = $twoValidIds['files'][0] ?? null; @endphp
+                                            <a href="{{ $twoValidFirstFile['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $twoValidFirstFile ? '' : $disabledBtn }}">View</a>
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'two_valid_ids']) }}" class="inline-flex" onsubmit="return confirm('Remove all uploaded valid IDs for this requirement?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="{{ $dangerBtn }} {{ $twoValidIds['count'] > 0 ? '' : $disabledBtn }}">Remove</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">Specimen Signature Form</p>
+                                            <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $specimenRequirement['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
+                                                {{ $specimenRequirement['complete'] ? 'Complete' : 'Missing' }}
+                                            </span>
+                                            <p class="mt-1 text-xs text-gray-500">
+                                                @if ($specimenRequirement['form_exists'] && $specimenRequirement['file'])
+                                                    System form created and scanned file uploaded.
+                                                @elseif ($specimenRequirement['form_exists'])
+                                                    System form already created.
+                                                @elseif ($specimenRequirement['file'])
+                                                    Scanned document uploaded.
+                                                @else
+                                                    Create the system form or upload a scanned document.
+                                                @endif
+                                            </p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+                                            @if ($specimenRequirement['form_exists'])
+                                                <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id]) }}" class="{{ $actionBtn }}">View Form</a>
+                                                <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1]) }}" class="{{ $actionBtn }}">Edit Form</a>
+                                            @else
+                                                <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id]) }}" class="{{ $primaryBtn }}">Create Form</a>
+                                            @endif
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                @csrf
+                                                <input type="hidden" name="requirement" value="specimen_signature_upload">
+                                                <label class="{{ $actionBtn }} cursor-pointer">
+                                                    Upload
+                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                </label>
+                                            </form>
+                                            <a href="{{ $specimenRequirement['file']['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}">View</a>
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'specimen_signature_upload']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded specimen signature file?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="{{ $dangerBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">TIN</p>
+                                            <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $tinRequirement['complete'] ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
+                                                {{ $tinRequirement['complete'] ? 'Complete' : 'Missing' }}
+                                            </span>
+                                            <p class="mt-1 text-xs text-gray-500">
+                                                {{ $tinRequirement['file'] ? ($tinRequirement['file']['file_name'] ?? 'TIN document uploaded') : 'Upload a TIN document.' }}
+                                            </p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                @csrf
+                                                <input type="hidden" name="requirement" value="tin_proof">
+                                                <label class="{{ $actionBtn }} cursor-pointer">
+                                                    Upload
+                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                </label>
+                                            </form>
+                                            <a href="{{ $tinRequirement['file']['url'] ?? '#' }}" target="_blank" rel="noopener noreferrer" class="{{ $actionBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}">View</a>
+                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'tin_proof']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded TIN document?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="{{ $dangerBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </article>
+                            </div>
                         </div>
                     </div>
 
@@ -307,15 +427,17 @@
                             const statusStyles = {'Not Submitted':'bg-gray-100 text-gray-600 border border-gray-200','Pending Verification':'bg-amber-100 text-amber-700 border border-amber-200','For Review':'bg-amber-100 text-amber-700 border border-amber-200','Approved':'bg-green-100 text-green-700 border border-green-200','Rejected':'bg-red-100 text-red-700 border border-red-200'};
                             const statusRaw = @json($status);
                             const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
+                            const specimenSignatureExists = @json((bool) $specimenSignature);
+                            const kycRequirementState = @json($kycRequirements);
+                            const specimenSignatureRoutes = {
+                                create: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
+                                view: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
+                                edit: @json(route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1])),
+                                download: @json(route('contacts.specimen-signature.download', ['id' => $contact->id])),
+                            };
                             const cifHasFormData = @json(filled($cifData['first_name'] ?? null) || filled($cifData['last_name'] ?? null) || filled($cifData['cif_no'] ?? null));
-                            const requiredDocs = [
-                                { key: 'two_valid_ids', label: 'Two Valid IDs', isCif: false },
-                                { key: 'specimen_signatures', label: 'Specimen Signatures', isCif: false },
-                                { key: 'tin_proof', label: 'TIN', isCif: false },
-                            ];
                             let kyc = { cif:'123456', tin:'123-456-789', status:statusInit || 'Not Submitted', dateVerified: statusInit === 'Approved' ? '2026-02-26' : '', verifiedBy: statusInit === 'Approved' ? mockUser : '', rejectionReason:'', submitted:['Pending Verification','For Review','Approved','Rejected'].includes(statusInit) };
                             let logs = [`KYC profile loaded by ${mockUser}`];
-                            let docs = { two_valid_ids: null, specimen_signatures: null, tin_proof: null };
                             let cifOptionalDoc = null;
                             let activeDoc = null; let file = null; let fileUrl = '';
 
@@ -345,21 +467,18 @@
                             };
                             const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
                             const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
-                            const docDef = (key) => {
-                                if (key === 'cif_optional') {
-                                    return { key: 'cif_optional', label: 'CIF Document', isCif: true };
-                                }
-                                return requiredDocs.find((d) => d.key === key);
-                            };
-                            const getDocByKey = (key) => key === 'cif_optional' ? cifOptionalDoc : docs[key];
+                            const docDef = (key) => key === 'cif_optional' ? { key: 'cif_optional', label: 'CIF Document', isCif: true } : null;
+                            const getDocByKey = (key) => key === 'cif_optional' ? cifOptionalDoc : null;
                             const setDocByKey = (key, value) => {
                                 if (key === 'cif_optional') {
                                     cifOptionalDoc = value;
-                                    return;
                                 }
-                                docs[key] = value;
                             };
-                            const allRequiredUploaded = () => requiredDocs.every((d) => !!docs[d.key]);
+                            const allRequiredUploaded = () => !!(
+                                kycRequirementState.two_valid_ids?.complete &&
+                                kycRequirementState.specimen_signature_form?.complete &&
+                                kycRequirementState.tin_proof?.complete
+                            );
 
                             const render = () => {
                                 q('kycCifValue').textContent = kyc.cif || '-';
@@ -396,26 +515,6 @@
                                 q('cifOptionalViewBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
                                 q('cifOptionalRemoveBtn')?.classList.toggle('opacity-40', !cifOptionalUploaded);
                                 q('cifOptionalRemoveBtn')?.classList.toggle('pointer-events-none', !cifOptionalUploaded);
-                                q('kycDocumentsList').innerHTML = requiredDocs.map((req) => {
-                                    const d = docs[req.key];
-                                    const uploaded = !!d;
-                                    return `
-                                        <article class="rounded-xl border border-gray-200 bg-white p-3">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p class="text-sm font-semibold text-gray-900">${req.label}</p>
-                                                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${uploaded ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}">${uploaded ? 'Uploaded' : 'Missing'}</span>
-                                                    <p class="mt-1 text-xs text-gray-500">${uploaded ? `${d.fileName || '-'} | Upload: ${fmtDate(d.uploadDate)}` : 'No file uploaded yet'}</p>
-                                                </div>
-                                                <div class="flex items-center gap-2 text-xs">
-                                                    <button data-doc-upload="${req.key}" type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">${uploaded ? 'Replace' : 'Upload'}</button>
-                                                    <button data-doc-view="${req.key}" type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 ${uploaded ? '' : 'opacity-40 pointer-events-none'}">View</button>
-                                                    <button data-doc-remove="${req.key}" type="button" class="rounded-md border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50 ${uploaded ? '' : 'opacity-40 pointer-events-none'}">Remove</button>
-                                                </div>
-                                            </div>
-                                        </article>
-                                    `;
-                                }).join('');
                             };
 
                             const renderPreview = (name, url, mime) => {
@@ -501,35 +600,6 @@
                                 render(); close(q('documentModal'));
                             });
 
-                            q('kycDocumentsList').addEventListener('click', (e) => {
-                                const uploadKey = e.target.closest('[data-doc-upload]')?.dataset.docUpload;
-                                const viewId = e.target.closest('[data-doc-view]')?.dataset.docView;
-                                const removeId = e.target.closest('[data-doc-remove]')?.dataset.docRemove;
-                                if (uploadKey) {
-                                    openDocModal(uploadKey);
-                                }
-                                if (viewId) {
-                                    const def = docDef(viewId);
-                                    const d = getDocByKey(viewId); if (!d) return;
-                                    q('documentViewTitle').textContent = `${def.label} Details`;
-                                    q('viewDocType').textContent = def.label;
-                                    q('viewDocCertificateNo').parentElement.classList.toggle('hidden', !def.isCif);
-                                    q('viewDocCompanyRegNo').parentElement.classList.toggle('hidden', !def.isCif);
-                                    q('viewDocCreatedDate').parentElement.classList.toggle('hidden', !def.isCif);
-                                    if ((d.mimeType || '').includes('pdf') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<iframe src="${d.fileUrl}" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
-                                    else if ((d.mimeType || '').startsWith('image/') && d.fileUrl && d.fileUrl !== '#') q('documentViewPreview').innerHTML = `<img src="${d.fileUrl}" alt="CIF document" class="h-[430px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
-                                    else q('documentViewPreview').innerHTML = `<div class="text-center"><i class="far fa-file text-6xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${d.fileName || '-'}</p><p class="text-xs text-gray-500">${d.mimeType || 'Document'} | ${fmtBytes(d.size)}</p><a class="mt-2 inline-block text-blue-600 hover:text-blue-700" href="${d.fileUrl || '#'}" target="_blank" rel="noopener noreferrer">Open File</a></div>`;
-                                    q('viewDocTitle').textContent = d.title || '-'; q('viewDocCertificateNo').textContent = d.certificateNo || '-'; q('viewDocCompanyRegNo').textContent = d.companyRegNo || '-'; q('viewDocUploadDate').textContent = fmtDate(d.uploadDate); q('viewDocCreatedDate').textContent = fmtDate(d.createdDate); q('viewDocIssuedOn').textContent = fmtDate(d.issuedOn); q('viewDocIssuedBy').textContent = d.issuedBy || '-'; q('viewDocRemarks').textContent = d.remarks || '-'; q('viewDocFileName').textContent = d.fileName || '-';
-                                    open(q('documentViewModal'));
-                                }
-                                if (removeId) {
-                                    const def = docDef(removeId);
-                                    const d = getDocByKey(removeId); if (!d) return;
-                                    if (!window.confirm(`Are you sure you want to remove this ${def.label.toLowerCase()}?`)) return;
-                                    setDocByKey(removeId, null); addLog(`${def.label} removed by ${mockUser}`); render();
-                                }
-                            });
-
                             q('cifOptionalUploadBtn')?.addEventListener('click', () => openDocModal('cif_optional'));
                             q('cifOptionalViewBtn')?.addEventListener('click', () => {
                                 if (!cifOptionalDoc) return;
@@ -556,7 +626,7 @@
 
                             q('submitForVerificationBtn').addEventListener('click', () => {
                                 if (!allRequiredUploaded()) {
-                                    q('kycActionWarning').textContent = 'Please upload Two Valid IDs, Specimen Signatures, and TIN proof before submitting for verification.';
+                                    q('kycActionWarning').textContent = 'Please complete Two Valid IDs, Specimen Signature Form, and TIN proof before submitting for verification.';
                                     q('kycActionWarning').classList.remove('hidden');
                                     setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3400);
                                     return;

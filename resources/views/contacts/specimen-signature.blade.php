@@ -1,0 +1,305 @@
+@extends('layouts.app')
+
+@section('content')
+@php
+    $form = $specimenForm ?? [];
+    $signatories = array_pad($form['signatories'] ?? [], 6, '');
+    $clientType = old('client_type', $form['client_type'] ?? 'new');
+    $contactName = trim(($contact->first_name ?? '').' '.($contact->last_name ?? ''));
+    $contactDisplayName = $contact->name ?? ($contactName !== '' ? $contactName : ('Contact #'.$contact->id));
+    $lineInput = 'width:100%; height:18px; border:0; border-bottom:1px solid #000; padding:0 2px; box-sizing:border-box; font-family:\'Times New Roman\', serif; font-size:12px; background:transparent;';
+    $boxInput = 'width:100%; height:18px; border:0; padding:0 2px; box-sizing:border-box; font-family:\'Times New Roman\', serif; font-size:12px; background:transparent;';
+    $boxTextarea = 'width:100%; height:78px; border:0; padding:0 2px; box-sizing:border-box; font-family:\'Times New Roman\', serif; font-size:12px; line-height:1.15; resize:none; overflow:hidden; background:transparent;';
+@endphp
+
+<div class="max-w-5xl mx-auto bg-white p-6 border border-gray-300">
+    <div class="mb-4 text-sm text-gray-500">
+        <a href="{{ route('contacts.show', $contact->id) }}" class="hover:underline"><span aria-hidden="true">&larr;</span> Contacts</a>
+        / {{ $contactDisplayName }}
+    </div>
+
+    <h1 class="text-xl font-semibold mb-4">Specimen Signature Form</h1>
+
+    @if (session('success'))
+        <div class="mb-3 border border-green-300 bg-green-50 px-3 py-2 text-sm">{{ session('success') }}</div>
+    @endif
+
+    @if ($errors->any())
+        <div class="mb-3 border border-red-300 bg-red-50 px-3 py-2 text-sm">{{ $errors->first() }}</div>
+    @endif
+
+    <div class="flex justify-end gap-2 mb-4">
+        <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="inline-flex items-center rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Back to KYC</a>
+        <a href="{{ route('contacts.specimen-signature.download', ['id' => $contact->id]) }}" class="inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">Download PDF</a>
+    </div>
+
+    <div style="max-width:850px; margin:auto; border:1px solid #000; padding:0; background:#fff; font-family:'Times New Roman', serif; font-size:12px;">
+        <form id="specimen-signature-form" method="POST" action="{{ route('contacts.specimen-signature.save', ['id' => $contact->id]) }}" style="margin:0;">
+            @csrf
+
+            <table width="100%" border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed; border-color:#000;">
+                <tr>
+                    <td width="20%" style="border-right:0; border-bottom:0; padding:4px 4px 2px 4px;">
+                        <img src="/images/jk-logo.png" style="height:54px;" alt="JK Logo">
+                    </td>
+                    <td width="46%" style="border-left:0; border-right:0; border-bottom:0;">&nbsp;</td>
+                    <td width="34%" style="border-left:0; border-bottom:0; text-align:right; line-height:1.2; font-weight:bold;">
+                        AUTHORIZED SIGNATORY/SIGNATORY<br>
+                        (Sole / OPC / INDIVIDUAL)<br>
+                        SPECIMEN SIGNATURE CARD
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="border-top:0; border-right:0; padding-top:14px;">
+                        <div style="font-weight:bold;">BIF NO.</div>
+                        <input type="text" name="bif_no" value="{{ old('bif_no', $form['bif_no'] ?? '') }}" style="{{ $lineInput }}">
+                    </td>
+                    <td style="border-top:0; border-left:0; border-right:0;">&nbsp;</td>
+                    <td style="border-top:0; border-left:0; padding-top:14px;">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                            <tr>
+                                <td width="24%" style="border:0; font-weight:bold;">DATE:</td>
+                                <td width="76%" style="border:0;"><input type="date" name="date" value="{{ old('date', $form['date'] ?? '') }}" style="{{ $lineInput }}"></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="3" style="padding-top:8px; padding-bottom:8px;">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                            <tr>
+                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'new') onclick="return false;"></td>
+                                <td width="16%" style="border:0;">New Client</td>
+                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'existing') onclick="return false;"></td>
+                                <td width="17%" style="border:0;">Existing Client</td>
+                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'change') onclick="return false;"></td>
+                                <td width="25%" style="border:0;">Change Information</td>
+                                <td width="30%" style="border:0;">&nbsp;</td>
+                            </tr>
+                        </table>
+                        <input type="hidden" name="client_type" value="{{ $clientType }}">
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="3" style="padding:0;">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed;">
+                            <tr>
+                                <td width="50%" style="border:0; border-right:1px solid #000; padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="2" style="border-collapse:collapse;">
+                                        <tr><td style="border:0;">BUSINESS NAME</td></tr>
+                                        <tr><td style="border:0;"><input type="text" name="business_name_left" value="{{ old('business_name_left', $form['business_name_left'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr><td style="border:0;">BUSINESS ACCOUNT NUMBER</td></tr>
+                                        <tr><td style="border:0;"><input type="text" name="account_number_left" value="{{ old('account_number_left', $form['account_number_left'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr>
+                                            <td style="border:0; padding:0;">
+                                                <table width="100%" border="0" cellspacing="0" cellpadding="2" style="border-collapse:collapse;">
+                                                    <tr>
+                                                        <td width="56%" style="border:0;">SIGNATURE COMBINATION</td>
+                                                        <td width="44%" style="border:0;">SIGNATURE CLASS</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="border:0;"><input type="text" name="signature_combination" value="{{ old('signature_combination', $form['signature_combination'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                                        <td style="border:0;"><input type="text" value="{{ old('signature_class', $form['signature_class'] ?? '') }}" style="{{ $lineInput }}" readonly></td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td width="50%" style="border:0; padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="2" style="border-collapse:collapse;">
+                                        <tr><td style="border:0;">BUSINESS NAME</td></tr>
+                                        <tr><td style="border:0;"><input type="text" name="business_name_right" value="{{ old('business_name_right', $form['business_name_right'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr><td style="border:0;">BUSINESS ACCOUNT NUMBER</td></tr>
+                                        <tr><td style="border:0;"><input type="text" name="account_number_right" value="{{ old('account_number_right', $form['account_number_right'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr>
+                                            <td style="border:0; padding:0;">
+                                                <table width="100%" border="0" cellspacing="0" cellpadding="2" style="border-collapse:collapse;">
+                                                    <tr>
+                                                        <td width="56%" style="border:0;">SIGNATURE COMBINATION</td>
+                                                        <td width="44%" style="border:0;">SIGNATURE CLASS</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="border:0;"><input type="text" value="{{ old('signature_combination', $form['signature_combination'] ?? '') }}" style="{{ $lineInput }}" readonly></td>
+                                                        <td style="border:0;"><input type="text" name="signature_class" value="{{ old('signature_class', $form['signature_class'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="3" style="text-align:center; font-weight:bold; font-size:14px; padding-top:2px; padding-bottom:2px;">AUTHORIZE SIGNATORIES</td>
+                </tr>
+
+                <tr>
+                    <td colspan="3" style="padding:0;">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                            <tr>
+                                <td width="50%" style="border:0; border-right:1px solid #000; vertical-align:top; padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="3" style="border-collapse:collapse; table-layout:fixed;">
+                                        <tr><td colspan="2" style="border:0;">CLIENT NAME:</td></tr>
+                                        <tr><td colspan="2" style="border:0;"><input type="text" name="left_client_name" value="{{ old('left_client_name', $form['left_client_name'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr>
+                                            <td width="45%" style="border:0;">CIF NO.:</td>
+                                            <td width="55%" style="border:0;">CIF Dated:</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0;"><input type="text" name="left_cif_no" value="{{ old('left_cif_no', $form['left_cif_no'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                            <td style="border:0;"><input type="date" name="left_cif_dated" value="{{ old('left_cif_dated', $form['left_cif_dated'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                        </tr>
+                                        @for ($i = 0; $i < 3; $i++)
+                                            <tr><td colspan="2" style="border:0; padding-top:18px;">{{ $i + 1 }}</td></tr>
+                                            <tr><td colspan="2" style="border:0;"><input type="text" name="signatory_names[]" value="{{ old('signatory_names.'.$i, $signatories[$i] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        @endfor
+                                    </table>
+                                </td>
+                                <td width="50%" style="border:0; vertical-align:top; padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="3" style="border-collapse:collapse; table-layout:fixed;">
+                                        <tr><td colspan="2" style="border:0;">CLIENT NAME:</td></tr>
+                                        <tr><td colspan="2" style="border:0;"><input type="text" name="right_client_name" value="{{ old('right_client_name', $form['right_client_name'] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        <tr>
+                                            <td width="45%" style="border:0;">CIF NO.:</td>
+                                            <td width="55%" style="border:0;">CIF Dated:</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0;"><input type="text" name="right_cif_no" value="{{ old('right_cif_no', $form['right_cif_no'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                            <td style="border:0;"><input type="date" name="right_cif_dated" value="{{ old('right_cif_dated', $form['right_cif_dated'] ?? '') }}" style="{{ $lineInput }}"></td>
+                                        </tr>
+                                        @for ($i = 3; $i < 6; $i++)
+                                            <tr><td colspan="2" style="border:0; padding-top:18px;">{{ $i - 2 }}</td></tr>
+                                            <tr><td colspan="2" style="border:0;"><input type="text" name="signatory_names[]" value="{{ old('signatory_names.'.$i, $signatories[$i] ?? '') }}" style="{{ $lineInput }}"></td></tr>
+                                        @endfor
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="3" style="padding:0;">
+                        <table width="100%" border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed; border:1px solid #000;">
+                            <tr>
+                                <td width="60%" style="vertical-align:top; font-size:11px; line-height:1.18; text-align:justify; border-right:1px solid #000;">
+                                    By my/our signature(s) herein, I/we certify that the information and specimen signatures provided are true, correct, and duly authorized for use by JK&amp;C Inc. The above-listed individual(s) are the authorized signatory/ies of the business entity or the individual client, and JK&amp;C Inc. may rely on these specimen signatures for verification, documentation, and official transactions. I/we undertake to notify JK&amp;C Inc. in writing of any change to the authorized signatory/ies or their authority. In the absence of a Board Resolution, Secretary's Certificate, or Special Power of Attorney (SPA), the signature(s) appearing herein shall be presumed to be the true and rightful authorized signatory/ies of the business entity or individual client, unless otherwise notified in writing.
+                                </td>
+                                <td width="40%" style="vertical-align:top; padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed;">
+                                        <tr>
+                                            <td style="border:0; text-align:center; font-weight:bold; line-height:1.2; padding-top:4px;">
+                                                AUTHENTICATED BY CORPORATE SECRETARY / AUTHORIZED REPRESENTATIVE
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0; padding-top:10px;">
+                                                Board Resolution / Secretary's Certificate / Special Power of Attorney (SPA) No.
+                                                <input type="text" name="board_resolution_spa_no" value="{{ old('board_resolution_spa_no', $form['board_resolution_spa_no'] ?? '') }}" style="{{ $lineInput }}">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0; padding-top:8px;">
+                                                Board Resolution / Secretary's Certificate / Special Power of Attorney (SPA) Date
+                                                <input type="date" name="board_resolution_spa_date" value="{{ old('board_resolution_spa_date', $form['board_resolution_spa_date'] ?? '') }}" style="{{ $lineInput }}">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0; text-align:center; padding-top:8px;">
+                                                <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                                Signature over Printed Name
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border:0; text-align:center; padding-top:2px;">
+                                                <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                                Date
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:0;">
+                                    <table width="100%" border="0" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed;">
+                                        <tr>
+                                            <td width="68%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
+                                                <div style="margin:0 auto 4px auto; width:70%; border-bottom:1px solid #000;"></div>
+                                                Authorized Signatory's Signature over Printed Name
+                                            </td>
+                                            <td width="32%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
+                                                <div style="margin:0 auto 4px auto; width:78%; border-bottom:1px solid #000;"></div>
+                                                Date
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td style="padding:0; border-left:1px solid #000; border-top:1px solid #000;">&nbsp;</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="text-align:center; font-weight:bold; padding-top:3px; padding-bottom:3px; border-top:1px solid #000; border-bottom:1px solid #000;">FOR JKNC USE ONLY</td>
+                            </tr>
+                            <tr>
+                                <td width="36%" style="vertical-align:top; border-right:1px solid #000;">
+                                    <div style="font-weight:bold;">PROCESSING INSTRUCTION (FOR JK&amp;C USE ONLY)</div>
+                                    <textarea name="processing_instruction" rows="6" style="{{ $boxTextarea }}">{{ old('processing_instruction', $form['processing_instruction'] ?? '') }}</textarea>
+                                </td>
+                                <td width="64%" style="vertical-align:top;">
+                                    <div style="font-weight:bold;">REMARKS:</div>
+                                    <textarea name="remarks" rows="6" style="{{ $boxTextarea }}">{{ old('remarks', $form['remarks'] ?? '') }}</textarea>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="padding:0; border-top:1px solid #000; border-bottom:1px solid #000;">
+                                    <table width="100%" border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed; border-left:0; border-right:0; border-bottom:1px solid #000;">
+                                        <tr>
+                                            <td width="25%" style="text-align:center; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">SALES &amp; MARKETING</td>
+                                            <td width="25%" style="text-align:center; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">PROCESSED BY / DATE</td>
+                                            <td width="25%" style="text-align:center; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">FINANCE</td>
+                                            <td width="25%" style="text-align:center; border-top:0; border-bottom:0; border-left:0; border-right:0;">SCANNED BY / DATE</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:1px solid #000;">
+                                                <div style="margin:0 auto 4px auto; width:68%; border-bottom:1px solid #000;"></div>
+                                                <input type="text" name="sales_marketing" value="{{ old('sales_marketing', $form['sales_marketing'] ?? '') }}" style="{{ $boxInput }}">
+                                                Signature over Printed Name
+                                            </td>
+                                            <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:1px solid #000;">
+                                                <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                                <input type="text" name="processed_by" value="{{ old('processed_by', $form['processed_by'] ?? '') }}" style="{{ $boxInput }}">
+                                                Signature over Printed Name
+                                            </td>
+                                            <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:1px solid #000;">
+                                                <div style="margin:0 auto 4px auto; width:68%; border-bottom:1px solid #000;"></div>
+                                                <input type="text" name="finance" value="{{ old('finance', $form['finance'] ?? '') }}" style="{{ $boxInput }}">
+                                                Signature over Printed Name
+                                            </td>
+                                            <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:0;">
+                                                <div style="margin:0 auto 4px auto; width:68%; border-bottom:1px solid #000;"></div>
+                                                <input type="text" name="scanned_by" value="{{ old('scanned_by', $form['scanned_by'] ?? '') }}" style="{{ $boxInput }}">
+                                                Signature over Printed Name
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-6 pt-2" style="max-width:850px; margin:0 auto;">
+        <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="inline-flex items-center rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Cancel</a>
+        <button type="submit" form="specimen-signature-form" class="inline-flex items-center rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700">Save Form</button>
+    </div>
+</div>
+@endsection

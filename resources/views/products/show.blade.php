@@ -2,9 +2,10 @@
 
 @section('content')
 @php
-    $priceLabel = isset($product['unit_price']) && $product['unit_price'] !== null
-        ? 'P'.number_format((float) $product['unit_price'], 2).' / Unit'
+    $priceLabel = $product->price !== null
+        ? 'P'.number_format((float) $product->price, 2).($product->unit ? ' / '.$product->unit : '')
         : null;
+    $customFieldValues = $product->custom_field_values ?? [];
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
@@ -15,12 +16,12 @@
                 <span>Back to Products</span>
             </a>
             <h1 class="text-3xl font-semibold text-gray-900">
-                {{ $product['product_name'] }}
+                {{ $product->product_name }}
                 @if ($priceLabel)
                     <span class="text-2xl font-semibold text-gray-700"> &middot; {{ $priceLabel }}</span>
                 @endif
             </h1>
-            <p class="mt-1 text-sm text-gray-500">{{ $product['product_owner'] ?? 'John Admin' }}</p>
+            <p class="mt-1 text-sm text-gray-500">{{ $product->owner_name ?: 'Admin User' }}</p>
         </div>
 
         <div class="flex items-center gap-2">
@@ -33,27 +34,52 @@
         </div>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
+    <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
         <aside class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-2xl font-semibold text-gray-900">Basic Info</h2>
             <dl class="space-y-3 text-sm">
                 <div class="grid grid-cols-[120px_1fr] gap-2">
-                    <dt class="text-gray-500">Product Code</dt>
-                    <dd class="text-gray-800">{{ $product['product_code'] ?? '-' }}</dd>
+                    <dt class="text-gray-500">Product ID</dt>
+                    <dd class="text-gray-800">{{ $product->product_id }}</dd>
                 </div>
                 <div class="grid grid-cols-[120px_1fr] gap-2">
-                    <dt class="text-gray-500">Product Category</dt>
-                    <dd class="text-gray-800">{{ $product['product_category'] ?? '-' }}</dd>
+                    <dt class="text-gray-500">SKU</dt>
+                    <dd class="text-gray-800">{{ $product->sku ?: '-' }}</dd>
                 </div>
                 <div class="grid grid-cols-[120px_1fr] gap-2">
-                    <dt class="text-gray-500">Product Active</dt>
-                    <dd class="text-gray-800">{{ $product['product_active'] ?? 'Inactive' }}</dd>
+                    <dt class="text-gray-500">Type</dt>
+                    <dd class="text-gray-800">{{ $product->product_type }}</dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Category</dt>
+                    <dd class="text-gray-800">{{ $product->category }}</dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Status</dt>
+                    <dd class="text-gray-800">{{ $product->status }}</dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Tax Type</dt>
+                    <dd class="text-gray-800">{{ $product->tax_type }}</dd>
                 </div>
             </dl>
 
             <div class="mt-6">
                 <h3 class="mb-2 text-lg font-semibold text-gray-900">Description</h3>
-                <p class="text-sm text-gray-600">{{ $product['description'] ?: '-' }}</p>
+                <p class="text-sm text-gray-600">{{ $product->product_description ?: '-' }}</p>
+            </div>
+
+            <div class="mt-6">
+                <h3 class="mb-2 text-lg font-semibold text-gray-900">Inclusions</h3>
+                <div class="space-y-1 text-sm text-gray-600">
+                    @forelse (preg_split('/\r\n|\r|\n/', (string) $product->product_inclusions) as $line)
+                        @if (trim((string) $line) !== '')
+                            <p>{{ $line }}</p>
+                        @endif
+                    @empty
+                        <p>-</p>
+                    @endforelse
+                </div>
             </div>
 
             <div class="mt-6 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
@@ -66,7 +92,7 @@
                 <nav class="flex items-center gap-5 text-sm">
                     @foreach ($tabs as $tabKey => $tabLabel)
                         <a
-                            href="{{ route('products.show', ['id' => $product['product_id'], 'tab' => $tabKey]) }}"
+                            href="{{ route('products.show', ['id' => $product->product_id, 'tab' => $tabKey]) }}"
                             class="border-b-2 pb-3 {{ $tab === $tabKey ? 'border-blue-600 text-blue-700 font-medium' : 'border-transparent text-gray-600 hover:text-gray-800' }}"
                         >
                             {{ $tabLabel }}
@@ -94,6 +120,43 @@
                             </article>
                         @endforeach
                     </div>
+
+                    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                        <div class="rounded-lg border border-gray-200 p-4">
+                            <h4 class="text-sm font-semibold text-gray-900">Pricing Snapshot</h4>
+                            <div class="mt-3 space-y-2 text-sm text-gray-600">
+                                <p>Pricing Type: <span class="font-medium text-gray-800">{{ $product->pricing_type }}</span></p>
+                                <p>Price: <span class="font-medium text-gray-800">P{{ number_format((float) $product->price, 2) }}</span></p>
+                                <p>Cost: <span class="font-medium text-gray-800">{{ $product->cost !== null ? 'P'.number_format((float) $product->cost, 2) : '-' }}</span></p>
+                                <p>Discountable: <span class="font-medium text-gray-800">{{ $product->is_discountable ? 'Yes' : 'No' }}</span></p>
+                            </div>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 p-4">
+                            <h4 class="text-sm font-semibold text-gray-900">System Info</h4>
+                            <div class="mt-3 space-y-2 text-sm text-gray-600">
+                                <p>Created By: <span class="font-medium text-gray-800">{{ $product->created_by ?: '-' }}</span></p>
+                                <p>Created At: <span class="font-medium text-gray-800">{{ $product->created_at?->format('M d, Y h:i A') ?: '-' }}</span></p>
+                                <p>Reviewed By: <span class="font-medium text-gray-800">{{ $product->reviewed_by ?: '-' }}</span></p>
+                                <p>Approved By: <span class="font-medium text-gray-800">{{ $product->approved_by ?: '-' }}</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if ($customFields->count() > 0)
+                        <div class="mt-6 rounded-lg border border-gray-200">
+                            <div class="border-b border-gray-100 px-4 py-3">
+                                <h4 class="text-sm font-semibold text-gray-900">Custom Fields</h4>
+                            </div>
+                            <div class="grid gap-4 px-4 py-4 sm:grid-cols-2">
+                                @foreach ($customFields as $field)
+                                    <div>
+                                        <p class="text-xs uppercase tracking-wide text-gray-500">{{ $field->field_name }}</p>
+                                        <p class="mt-1 text-sm font-medium text-gray-900">{{ data_get($customFieldValues, $field->field_key, '-') ?: '-' }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 @elseif ($tab === 'pipelines')
                     <div class="mb-4 flex items-center justify-between">
                         <p class="text-sm text-gray-600">Team Pipeline: <span class="font-medium text-gray-800">Sales Pipeline</span></p>
@@ -101,7 +164,6 @@
                             + Deal
                         </button>
                     </div>
-
                     <div class="overflow-hidden rounded-lg border border-gray-200">
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50 text-xs text-gray-700">
@@ -113,18 +175,9 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                @forelse ($pipelines as $pipeline)
-                                    <tr>
-                                        <td class="px-3 py-2 text-gray-800">{{ $pipeline['deal_name'] }}</td>
-                                        <td class="px-3 py-2 text-gray-600">P{{ number_format((float) $pipeline['amount'], 2) }}</td>
-                                        <td class="px-3 py-2 text-gray-600">{{ $pipeline['stage'] }}</td>
-                                        <td class="px-3 py-2 text-gray-600">{{ $pipeline['closing_date'] }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="px-3 py-10 text-center text-sm text-gray-500">This record doesn't have any deals.</td>
-                                    </tr>
-                                @endforelse
+                                <tr>
+                                    <td colspan="4" class="px-3 py-10 text-center text-sm text-gray-500">This record doesn't have any deals.</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -137,26 +190,13 @@
                             for a file to upload
                         </p>
                     </div>
-
-                    @if (count($files) > 0)
-                        <div class="mt-4 space-y-2">
-                            @foreach ($files as $file)
-                                <div class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
-                                    <span class="text-gray-700">{{ $file['name'] }}</span>
-                                    <span class="text-xs text-gray-500">{{ $file['size'] ?? '' }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="py-16 text-center text-sm text-gray-500">This record doesn't have any files.</p>
-                    @endif
+                    <p class="py-16 text-center text-sm text-gray-500">This record doesn't have any files.</p>
                 @elseif ($tab === 'tasks')
                     <div class="mb-4">
                         <select class="h-9 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                             <option>All Tasks</option>
                         </select>
                     </div>
-
                     <div class="overflow-hidden rounded-lg border border-gray-200">
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50 text-xs text-gray-700">
@@ -168,18 +208,9 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                @forelse ($tasks as $task)
-                                    <tr>
-                                        <td class="px-3 py-2 text-gray-800">{{ $task['task_name'] }}</td>
-                                        <td class="px-3 py-2 text-gray-600">{{ $task['due_date'] }}</td>
-                                        <td class="px-3 py-2 text-gray-600">{{ $task['status'] }}</td>
-                                        <td class="px-3 py-2 text-gray-600">{{ $task['owner_name'] }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="px-3 py-10 text-center text-sm text-gray-500">This record doesn't have any tasks.</td>
-                                    </tr>
-                                @endforelse
+                                <tr>
+                                    <td colspan="4" class="px-3 py-10 text-center text-sm text-gray-500">This record doesn't have any tasks.</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -189,4 +220,3 @@
     </div>
 </div>
 @endsection
-
