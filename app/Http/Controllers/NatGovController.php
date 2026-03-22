@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
+use App\Models\GisRecord;
 use App\Models\NatGov;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class NatGovController extends Controller
 {
@@ -120,6 +122,17 @@ class NatGovController extends Controller
 
     private function companyDefaults(): array
     {
+        if (Schema::hasTable('gis_records')) {
+            $gis = GisRecord::where('approval_status', 'Approved')->latest()->first();
+
+            if ($gis) {
+                return [
+                    'client' => $gis->corporation_name ?: 'JK&C Group of Companies',
+                    'tin' => $gis->tin ?: '000-000-000-000',
+                ];
+            }
+        }
+
         return [
             'client' => 'JK&C Group of Companies',
             'tin' => '000-000-000-000',

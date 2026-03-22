@@ -102,6 +102,14 @@
                         <input type="text" data-contact-search class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Search contacts...">
                     </div>
 
+                    <div class="rounded-xl border border-gray-200 bg-white overflow-hidden" data-contact-list-wrap>
+                        <div class="px-4 py-3 border-b border-gray-100">
+                            <div class="text-sm font-semibold text-gray-900">Existing Contacts</div>
+                            <div class="text-xs text-gray-500">Select a contact first before creating the index entry.</div>
+                        </div>
+                        <div class="h-56 overflow-y-auto overscroll-contain divide-y divide-gray-100" data-contact-list></div>
+                    </div>
+
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4" data-contact-empty>
                         <div class="text-sm text-gray-500">No contact selected.</div>
                         <a href="{{ route('contacts') }}" class="mt-3 inline-flex items-center rounded-lg border border-blue-600 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">
@@ -237,6 +245,7 @@
         const addressInput = container.querySelector('[name="address"]');
         const tinInput = container.querySelector('[name="tin"]');
         const addPanel = container.querySelector('[data-add-panel]');
+        const contactList = container.querySelector('[data-contact-list]');
 
         const splitName = (name) => {
             if (!name) return { first: '', middle: '', last: '' };
@@ -253,70 +262,70 @@
             };
         };
 
-        const list = document.createElement('div');
-        list.className = 'max-h-48 overflow-auto rounded-xl border border-gray-200 bg-white';
-        list.style.display = 'none';
-        searchInput?.parentElement?.appendChild(list);
+        const selectContact = (contact) => {
+            const nameParts = splitName(contact.name);
+            firstInput.value = nameParts.first;
+            middleInput.value = nameParts.middle;
+            emailInput.value = contact.email || '';
+            if (familyNameInput && !familyNameInput.value) {
+                familyNameInput.value = nameParts.last;
+            }
+            if (firstNameDisplay) {
+                firstNameDisplay.value = nameParts.first;
+            }
+            if (middleNameDisplay) {
+                middleNameDisplay.value = nameParts.middle;
+            }
+            if (emailDisplay) {
+                emailDisplay.value = contact.email || '';
+            }
+            if (nationalityInput && !nationalityInput.value) {
+                nationalityInput.value = contact.nationality || '';
+            }
+            if (addressInput && !addressInput.value) {
+                addressInput.value = contact.address || '';
+            }
+            if (tinInput && !tinInput.value) {
+                tinInput.value = contact.tax_id || '';
+            }
+            cardName.textContent = contact.name;
+            cardEmail.textContent = contact.email || '';
+            card.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+        };
 
         const renderList = (items) => {
-            list.innerHTML = '';
+            if (!contactList) return;
+            contactList.innerHTML = '';
             if (!items.length) {
-                list.style.display = 'none';
+                contactList.innerHTML = '<div class="px-4 py-4 text-sm text-gray-500">No matching contacts found.</div>';
                 return;
             }
             items.forEach((contact) => {
                 const row = document.createElement('button');
                 row.type = 'button';
-                row.className = 'w-full border-b border-gray-100 px-3 py-2 text-left last:border-b-0 hover:bg-gray-50';
+                row.className = 'w-full px-4 py-3 text-left hover:bg-gray-50';
                 row.innerHTML = `<div class="text-sm font-medium text-gray-900">${contact.name}</div><div class="text-xs text-gray-500">${contact.email || ''}</div>`;
                 row.addEventListener('click', () => {
-                    const nameParts = splitName(contact.name);
-                    firstInput.value = nameParts.first;
-                    middleInput.value = nameParts.middle;
-                    emailInput.value = contact.email || '';
-                    if (familyNameInput && !familyNameInput.value) {
-                        familyNameInput.value = nameParts.last;
-                    }
-                    if (firstNameDisplay) {
-                        firstNameDisplay.value = nameParts.first;
-                    }
-                    if (middleNameDisplay) {
-                        middleNameDisplay.value = nameParts.middle;
-                    }
-                    if (emailDisplay) {
-                        emailDisplay.value = contact.email || '';
-                    }
-                    if (nationalityInput && !nationalityInput.value) {
-                        nationalityInput.value = contact.nationality || '';
-                    }
-                    if (addressInput && !addressInput.value) {
-                        addressInput.value = contact.address || '';
-                    }
-                    if (tinInput && !tinInput.value) {
-                        tinInput.value = contact.tax_id || '';
-                    }
-                    cardName.textContent = contact.name;
-                    cardEmail.textContent = contact.email || '';
-                    card.classList.remove('hidden');
-                    emptyState.classList.add('hidden');
-                    list.style.display = 'none';
+                    selectContact(contact);
                 });
-                list.appendChild(row);
+                contactList.appendChild(row);
             });
-            list.style.display = 'block';
         };
 
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 const term = searchInput.value.toLowerCase().trim();
                 if (!term) {
-                    list.style.display = 'none';
+                    renderList(contacts);
                     return;
                 }
                 const matches = contacts.filter((contact) => (contact.name || '').toLowerCase().includes(term));
                 renderList(matches);
             });
         }
+
+        renderList(contacts);
 
         const defaultsButton = container.querySelector('[data-open-add-panel]');
         if (defaultsButton && addPanel) {

@@ -139,22 +139,31 @@
                     </div>
                 </div>
 
-                <div x-show="activeVersion === 'original'" class="bg-gray-900 rounded-xl overflow-hidden">
-                    <div class="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center gap-2">
-                        <span class="text-gray-300 text-sm font-medium">Uploaded Original Certificate</span>
+                <div x-show="activeVersion === 'original'" class="document-frame">
+                    <div class="document-frame__toolbar">
+                        <div class="document-frame__tools">
+                            <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Original Certificate</span>
+                            <span class="document-frame__chip">{{ $certificate->certificate_no ?: 'Draft' }}</span>
+                        </div>
+                        <div class="document-frame__actions">
+                            <i class="fas fa-search"></i>
+                            <i class="far fa-copy"></i>
+                            <i class="fas fa-print"></i>
+                        </div>
                         <div class="flex-1"></div>
                         @if ($documentUrl)
                             <a href="{{ $documentUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
                         @endif
                     </div>
-
-                    <div class="bg-gray-900 rounded-xl overflow-hidden">
+                    <div class="document-frame__body">
                         @if ($documentUrl)
-                            <iframe src="{{ $documentUrl }}" class="w-full h-[860px] bg-white"></iframe>
+                            <iframe src="{{ $documentUrl }}" class="document-frame__embed"></iframe>
                         @else
-                            <div class="p-10 text-center text-gray-300">
-                                <div class="text-lg font-semibold">Original certificate not uploaded yet</div>
-                                <div class="text-sm text-gray-400 mt-2">Use the sidebar form to upload the signed original scan once it is available.</div>
+                            <div class="document-frame__empty">
+                                <div>
+                                    <div class="text-lg font-semibold">Original certificate not uploaded yet</div>
+                                    <div class="text-sm text-gray-400 mt-2">Use the sidebar form to upload the signed original scan once it is available.</div>
+                                </div>
                             </div>
                         @endif
                     </div>

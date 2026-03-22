@@ -73,6 +73,10 @@ class StockTransferJournal extends Model
             return;
         }
 
+        if (!in_array($this->transaction_type, ['Issuance', 'Cancellation'], true)) {
+            return;
+        }
+
         if (!$this->shareholder && !$this->certificate_no) {
             return;
         }

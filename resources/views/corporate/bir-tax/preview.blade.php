@@ -46,12 +46,25 @@
                             <a href="{{ $draftDownloadUrl }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Download Draft</a>
                         @endif
                     </div>
-                    <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                    <div class="mt-4 document-frame">
+                        <div class="document-frame__toolbar">
+                            <div class="document-frame__tools">
+                                <span class="document-frame__chip"><i class="fas fa-file-pdf"></i> Draft Preview</span>
+                                <span class="document-frame__chip">{{ $tax->tax_payer ?? 'BIR & Tax File' }}</span>
+                            </div>
+                            <div class="document-frame__actions">
+                                <i class="fas fa-search"></i>
+                                <i class="far fa-copy"></i>
+                                <i class="fas fa-print"></i>
+                            </div>
+                        </div>
+                        <div class="document-frame__body">
                         @if ($draftUrl)
-                            <iframe src="{{ $draftUrl }}" class="h-[720px] w-full rounded-lg bg-white"></iframe>
+                            <iframe src="{{ $draftUrl }}" class="document-frame__embed"></iframe>
                         @else
-                            <div class="text-sm text-slate-500">No draft file uploaded yet.</div>
+                            <div class="document-frame__empty">No draft file uploaded yet.</div>
                         @endif
+                        </div>
                     </div>
                 </div>
 
@@ -65,12 +78,25 @@
                             <a href="{{ $approvedDownloadUrl }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Download Approved</a>
                         @endif
                     </div>
-                    <div class="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                    <div class="mt-4 document-frame">
+                        <div class="document-frame__toolbar">
+                            <div class="document-frame__tools">
+                                <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Approved Preview</span>
+                                <span class="document-frame__chip">{{ $tax->tax_payer ?? 'Approved File' }}</span>
+                            </div>
+                            <div class="document-frame__actions">
+                                <i class="fas fa-search"></i>
+                                <i class="far fa-copy"></i>
+                                <i class="fas fa-print"></i>
+                            </div>
+                        </div>
+                        <div class="document-frame__body">
                         @if ($approvedUrl)
-                            <iframe src="{{ $approvedUrl }}" class="h-[720px] w-full rounded-lg bg-white"></iframe>
+                            <iframe src="{{ $approvedUrl }}" class="document-frame__embed"></iframe>
                         @else
-                            <div class="text-sm text-slate-500">No approved file uploaded yet.</div>
+                            <div class="document-frame__empty">No approved file uploaded yet.</div>
                         @endif
+                        </div>
                     </div>
                 </div>
             </div>

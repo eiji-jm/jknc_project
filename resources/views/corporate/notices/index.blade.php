@@ -4,6 +4,21 @@
 @php
     $today = now()->toDateString();
     $currentUser = auth()->user()?->name ?? '';
+    $defaultNoticeBody = <<<'HTML'
+<p><strong>Agenda:</strong></p>
+<ol>
+    <li>Invocation</li>
+    <li>Call to Order</li>
+    <li>Proof of Notice</li>
+    <li>Determination of Quorum</li>
+    <li>Reading and Approval of the Previous Minutes</li>
+    <li>Matters for Discussion and Approval</li>
+    <li>Other Business</li>
+    <li>Adjournment</li>
+</ol>
+<p>In the instance that the meeting shall be conducted in-person, the minutes of the meeting shall be properly documented and securely stored as part of the official corporate records in accordance with applicable corporate governance requirements.</p>
+<p>Directors or stockholders intending to participate via video conferencing are requested to inform the Presiding Officer and the Corporate Secretary in advance so the quorum and participation records may be properly documented.</p>
+HTML;
 @endphp
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="noticeComposer()" @keydown.escape.window="showAddPanel = false">
@@ -212,9 +227,7 @@
                         <button type="button" class="px-2 py-1 rounded border border-gray-300 text-xs" @click="exec('createLink', prompt('Enter link URL'))">Link</button>
                     </div>
                     <div x-ref="editor" contenteditable="true" class="min-h-[280px] p-4 text-sm outline-none bg-white" @input="bodyMode = 'builder'">
-                        <p>Write the formal communication here.</p>
-                        <p><br></p>
-                        <p>Additional</p>
+                        {!! $defaultNoticeBody !!}
                     </div>
                     <textarea x-ref="bodyField" name="body_html" class="hidden"></textarea>
                 </div>
@@ -248,9 +261,13 @@
                 country: 'Philippines',
             },
             locationPreview: '',
+            defaultBodyHtml: @js($defaultNoticeBody),
             openPanel() {
                 this.showAddPanel = true;
                 this.$nextTick(() => {
+                    if (this.$refs.editor) {
+                        this.$refs.editor.innerHTML = this.defaultBodyHtml;
+                    }
                     this.syncBody();
                     this.syncLocation();
                 });

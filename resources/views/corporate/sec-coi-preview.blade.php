@@ -49,12 +49,24 @@
 
             <div x-show="fileTab === 'draft'">
                 @if($draftUrl)
-                    <iframe
-                        src="{{ $draftUrl }}"
-                        class="w-full h-[700px] border rounded">
-                    </iframe>
+                    <div class="document-frame">
+                        <div class="document-frame__toolbar">
+                            <div class="document-frame__tools">
+                                <span class="document-frame__chip"><i class="fas fa-file-pdf"></i> Draft Preview</span>
+                                <span class="document-frame__chip">{{ $record->corporate_name }}</span>
+                            </div>
+                            <div class="document-frame__actions">
+                                <i class="fas fa-search"></i>
+                                <i class="far fa-copy"></i>
+                                <i class="fas fa-print"></i>
+                            </div>
+                        </div>
+                        <div class="document-frame__body">
+                            <iframe src="{{ $draftUrl }}" class="document-frame__embed"></iframe>
+                        </div>
+                    </div>
                 @else
-                    <div class="w-full h-[700px] border rounded flex items-center justify-center bg-gray-50 text-gray-400 text-sm">
+                    <div class="document-frame__empty">
                         No draft file attached for this SEC-COI record.
                     </div>
                 @endif
@@ -62,12 +74,24 @@
 
             <div x-show="fileTab === 'notary'" x-cloak>
                 @if($notaryUrl)
-                    <iframe
-                        src="{{ $notaryUrl }}"
-                        class="w-full h-[700px] border rounded">
-                    </iframe>
+                    <div class="document-frame">
+                        <div class="document-frame__toolbar">
+                            <div class="document-frame__tools">
+                                <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Notary Preview</span>
+                                <span class="document-frame__chip">{{ $record->company_reg_no }}</span>
+                            </div>
+                            <div class="document-frame__actions">
+                                <i class="fas fa-search"></i>
+                                <i class="far fa-copy"></i>
+                                <i class="fas fa-print"></i>
+                            </div>
+                        </div>
+                        <div class="document-frame__body">
+                            <iframe src="{{ $notaryUrl }}" class="document-frame__embed"></iframe>
+                        </div>
+                    </div>
                 @else
-                    <div class="w-full h-[700px] border rounded flex flex-col items-center justify-center bg-gray-50 text-gray-400 text-sm px-6 text-center">
+                    <div class="document-frame__empty flex-col">
                         <i class="far fa-file-alt text-4xl mb-4"></i>
                         <p class="font-medium text-gray-500 mb-1">No notarized file attached yet.</p>
                         <p class="text-gray-400">This section is reserved for the final notarized document.</p>

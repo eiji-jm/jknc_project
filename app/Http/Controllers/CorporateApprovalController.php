@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
@@ -105,100 +106,108 @@ class CorporateApprovalController extends Controller
 
         $items = collect();
 
-        foreach (SecCoi::latest()->get() as $row) {
-            $workflow = $this->normalizeWorkflow($row);
+        if (Schema::hasTable('sec_coi')) {
+            foreach (SecCoi::latest()->get() as $row) {
+                $workflow = $this->normalizeWorkflow($row);
 
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
+                if (!$this->canAppearInAdminDashboard($workflow)) {
+                    continue;
+                }
+
+                $items->push((object) [
+                    'id' => $row->id,
+                    'module' => 'SEC-COI',
+                    'title' => $row->corporate_name,
+                    'company_reg_no' => $row->company_reg_no,
+                    'uploaded_by' => $row->submitted_by,
+                    'date_uploaded' => $row->date_upload,
+                    'status' => $workflow,
+                    'approval_status' => $row->approval_status,
+                    'show_route' => route('corporate.formation.show', $row->id),
+                    'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-coi', 'id' => $row->id]),
+                    'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-coi', 'id' => $row->id]),
+                    'revise_route' => route('corporate.approvals.revise', ['module' => 'sec-coi', 'id' => $row->id]),
+                    'archive_route' => route('corporate.approvals.archive', ['module' => 'sec-coi', 'id' => $row->id]),
+                ]);
             }
-
-            $items->push((object) [
-                'id' => $row->id,
-                'module' => 'SEC-COI',
-                'title' => $row->corporate_name,
-                'company_reg_no' => $row->company_reg_no,
-                'uploaded_by' => $row->submitted_by,
-                'date_uploaded' => $row->date_upload,
-                'status' => $workflow,
-                'approval_status' => $row->approval_status,
-                'show_route' => route('corporate.formation.show', $row->id),
-                'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-coi', 'id' => $row->id]),
-                'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-coi', 'id' => $row->id]),
-                'revise_route' => route('corporate.approvals.revise', ['module' => 'sec-coi', 'id' => $row->id]),
-                'archive_route' => route('corporate.approvals.archive', ['module' => 'sec-coi', 'id' => $row->id]),
-            ]);
         }
 
-        foreach (SecAoi::latest()->get() as $row) {
-            $workflow = $this->normalizeWorkflow($row);
+        if (Schema::hasTable('sec_aois')) {
+            foreach (SecAoi::latest()->get() as $row) {
+                $workflow = $this->normalizeWorkflow($row);
 
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
+                if (!$this->canAppearInAdminDashboard($workflow)) {
+                    continue;
+                }
+
+                $items->push((object) [
+                    'id' => $row->id,
+                    'module' => 'SEC-AOI',
+                    'title' => $row->corporation_name,
+                    'company_reg_no' => $row->company_reg_no,
+                    'uploaded_by' => $row->uploaded_by,
+                    'date_uploaded' => $row->date_upload,
+                    'status' => $workflow,
+                    'approval_status' => $row->approval_status,
+                    'show_route' => route('corporate.sec_aoi.show', $row->id),
+                    'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-aoi', 'id' => $row->id]),
+                    'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-aoi', 'id' => $row->id]),
+                    'revise_route' => route('corporate.approvals.revise', ['module' => 'sec-aoi', 'id' => $row->id]),
+                    'archive_route' => route('corporate.approvals.archive', ['module' => 'sec-aoi', 'id' => $row->id]),
+                ]);
             }
-
-            $items->push((object) [
-                'id' => $row->id,
-                'module' => 'SEC-AOI',
-                'title' => $row->corporation_name,
-                'company_reg_no' => $row->company_reg_no,
-                'uploaded_by' => $row->uploaded_by,
-                'date_uploaded' => $row->date_upload,
-                'status' => $workflow,
-                'approval_status' => $row->approval_status,
-                'show_route' => route('corporate.sec_aoi.show', $row->id),
-                'approve_route' => route('corporate.approvals.approve', ['module' => 'sec-aoi', 'id' => $row->id]),
-                'reject_route' => route('corporate.approvals.reject', ['module' => 'sec-aoi', 'id' => $row->id]),
-                'revise_route' => route('corporate.approvals.revise', ['module' => 'sec-aoi', 'id' => $row->id]),
-                'archive_route' => route('corporate.approvals.archive', ['module' => 'sec-aoi', 'id' => $row->id]),
-            ]);
         }
 
-        foreach (Bylaw::latest()->get() as $row) {
-            $workflow = $this->normalizeWorkflow($row);
+        if (Schema::hasTable('bylaws')) {
+            foreach (Bylaw::latest()->get() as $row) {
+                $workflow = $this->normalizeWorkflow($row);
 
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
+                if (!$this->canAppearInAdminDashboard($workflow)) {
+                    continue;
+                }
+
+                $items->push((object) [
+                    'id' => $row->id,
+                    'module' => 'Bylaws',
+                    'title' => $row->corporation_name,
+                    'company_reg_no' => $row->company_reg_no,
+                    'uploaded_by' => $row->uploaded_by,
+                    'date_uploaded' => $row->date_upload,
+                    'status' => $workflow,
+                    'approval_status' => $row->approval_status,
+                    'show_route' => route('corporate.bylaws.show', $row->id),
+                    'approve_route' => route('corporate.approvals.approve', ['module' => 'bylaws', 'id' => $row->id]),
+                    'reject_route' => route('corporate.approvals.reject', ['module' => 'bylaws', 'id' => $row->id]),
+                    'revise_route' => route('corporate.approvals.revise', ['module' => 'bylaws', 'id' => $row->id]),
+                    'archive_route' => route('corporate.approvals.archive', ['module' => 'bylaws', 'id' => $row->id]),
+                ]);
             }
-
-            $items->push((object) [
-                'id' => $row->id,
-                'module' => 'Bylaws',
-                'title' => $row->corporation_name,
-                'company_reg_no' => $row->company_reg_no,
-                'uploaded_by' => $row->uploaded_by,
-                'date_uploaded' => $row->date_upload,
-                'status' => $workflow,
-                'approval_status' => $row->approval_status,
-                'show_route' => route('corporate.bylaws.show', $row->id),
-                'approve_route' => route('corporate.approvals.approve', ['module' => 'bylaws', 'id' => $row->id]),
-                'reject_route' => route('corporate.approvals.reject', ['module' => 'bylaws', 'id' => $row->id]),
-                'revise_route' => route('corporate.approvals.revise', ['module' => 'bylaws', 'id' => $row->id]),
-                'archive_route' => route('corporate.approvals.archive', ['module' => 'bylaws', 'id' => $row->id]),
-            ]);
         }
 
-        foreach (GisRecord::latest()->get() as $row) {
-            $workflow = $this->normalizeWorkflow($row);
+        if (Schema::hasTable('gis_records')) {
+            foreach (GisRecord::latest()->get() as $row) {
+                $workflow = $this->normalizeWorkflow($row);
 
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
+                if (!$this->canAppearInAdminDashboard($workflow)) {
+                    continue;
+                }
+
+                $items->push((object) [
+                    'id' => $row->id,
+                    'module' => 'GIS',
+                    'title' => $row->corporation_name,
+                    'company_reg_no' => $row->company_reg_no,
+                    'uploaded_by' => $row->uploaded_by,
+                    'date_uploaded' => $row->created_at ? $row->created_at->format('Y-m-d') : '',
+                    'status' => $workflow,
+                    'approval_status' => $row->approval_status,
+                    'show_route' => route('gis.show', $row->id),
+                    'approve_route' => route('corporate.approvals.approve', ['module' => 'gis', 'id' => $row->id]),
+                    'reject_route' => route('corporate.approvals.reject', ['module' => 'gis', 'id' => $row->id]),
+                    'revise_route' => route('corporate.approvals.revise', ['module' => 'gis', 'id' => $row->id]),
+                    'archive_route' => route('corporate.approvals.archive', ['module' => 'gis', 'id' => $row->id]),
+                ]);
             }
-
-            $items->push((object) [
-                'id' => $row->id,
-                'module' => 'GIS',
-                'title' => $row->corporation_name,
-                'company_reg_no' => $row->company_reg_no,
-                'uploaded_by' => $row->uploaded_by,
-                'date_uploaded' => $row->created_at ? $row->created_at->format('Y-m-d') : '',
-                'status' => $workflow,
-                'approval_status' => $row->approval_status,
-                'show_route' => route('gis.show', $row->id),
-                'approve_route' => route('corporate.approvals.approve', ['module' => 'gis', 'id' => $row->id]),
-                'reject_route' => route('corporate.approvals.reject', ['module' => 'gis', 'id' => $row->id]),
-                'revise_route' => route('corporate.approvals.revise', ['module' => 'gis', 'id' => $row->id]),
-                'archive_route' => route('corporate.approvals.archive', ['module' => 'gis', 'id' => $row->id]),
-            ]);
         }
 
         $items = $items->sortByDesc('id')->values();
@@ -220,10 +229,10 @@ class CorporateApprovalController extends Controller
     private function resolveModel($module, $id)
     {
         return match ($module) {
-            'sec-coi' => SecCoi::findOrFail($id),
-            'sec-aoi' => SecAoi::findOrFail($id),
-            'bylaws'  => Bylaw::findOrFail($id),
-            'gis'     => GisRecord::findOrFail($id),
+            'sec-coi' => Schema::hasTable('sec_coi') ? SecCoi::findOrFail($id) : abort(404),
+            'sec-aoi' => Schema::hasTable('sec_aois') ? SecAoi::findOrFail($id) : abort(404),
+            'bylaws'  => Schema::hasTable('bylaws') ? Bylaw::findOrFail($id) : abort(404),
+            'gis'     => Schema::hasTable('gis_records') ? GisRecord::findOrFail($id) : abort(404),
             default   => abort(404),
         };
     }

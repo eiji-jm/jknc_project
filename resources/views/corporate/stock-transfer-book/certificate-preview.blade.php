@@ -367,7 +367,49 @@
     }
 </style>
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showVoidModal: false }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
+     x-data="{
+        showVoidModal: false,
+        showEditPanel: false,
+        form: {
+            certificate_type: @js($certificate->certificate_type ?: 'COS'),
+            stock_number: @js($certificate->stock_number),
+            stockholder_name: @js($certificate->stockholder_name),
+            corporation_name: @js($certificate->corporation_name),
+            company_reg_no: @js($certificate->company_reg_no),
+            par_value: @js((string) ($certificate->par_value ?? '')),
+            number: @js((string) ($certificate->number ?? '')),
+            amount: @js((string) ($certificate->amount ?? '')),
+            amount_in_words: @js($certificate->amount_in_words),
+            date_issued: @js(optional($certificate->date_issued)->toDateString()),
+            president: @js($certificate->president),
+            corporate_secretary: @js($certificate->corporate_secretary),
+        },
+        formatDate(value) {
+            if (!value) return '-';
+            const date = new Date(value + 'T00:00:00');
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        },
+        issueDay() {
+            if (!this.form.date_issued) return '-';
+            const date = new Date(this.form.date_issued + 'T00:00:00');
+            if (Number.isNaN(date.getTime())) return '-';
+            return String(date.getDate()).padStart(2, '0');
+        },
+        issueMonthYear() {
+            if (!this.form.date_issued) return '-';
+            const date = new Date(this.form.date_issued + 'T00:00:00');
+            if (Number.isNaN(date.getTime())) return '-';
+            return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        },
+        displayValue(value, fallback = '-') {
+            return value === null || value === undefined || value === '' ? fallback : value;
+        },
+        displayAmount(value) {
+            return value === null || value === undefined || value === '' ? '-' : value;
+        }
+     }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <a href="{{ $backRoute }}" class="text-gray-500 hover:text-gray-700">
@@ -379,9 +421,9 @@
             </div>
             <div class="flex-1"></div>
             @if (!empty($editRoute))
-                <a href="{{ $editRoute }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                <button type="button" @click="showEditPanel = true" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
                     Edit
-                </a>
+                </button>
             @endif
         </div>
 
@@ -404,14 +446,14 @@
                                 <div class="certificate-top">
                                     <div class="certificate-box">
                                         <div class="certificate-box-label">Number</div>
-                                        <div class="certificate-box-value">{{ $certificateNo }}</div>
+                                        <div class="certificate-box-value" x-text="displayValue(form.stock_number)"></div>
                                     </div>
                                     <div class="certificate-oval">
-                                        <div class="certificate-corp">{{ $corporation }}</div>
+                                        <div class="certificate-corp" x-text="displayValue(form.corporation_name, 'Stock Certificate')"></div>
                                     </div>
                                     <div class="certificate-box">
                                         <div class="certificate-box-label">No. Shares</div>
-                                        <div class="certificate-box-value">{{ $shares }}</div>
+                                        <div class="certificate-box-value" x-text="displayValue(form.number)"></div>
                                     </div>
                                 </div>
 
@@ -420,11 +462,11 @@
                                 <div class="certificate-text-block">
                                     <div class="certificate-lead">This Certifies That</div>
                                     <p class="certificate-text">
-                                        <span class="certificate-fill">{{ $stockholder }}</span>
+                                        <span class="certificate-fill" x-text="displayValue(form.stockholder_name)"></span>
                                         is the owner of
-                                        <span class="certificate-fill">{{ $shares }}</span>
+                                        <span class="certificate-fill" x-text="displayValue(form.number)"></span>
                                         shares of the capital stock of
-                                        <span class="certificate-fill">{{ $corporation }}</span>
+                                        <span class="certificate-fill" x-text="displayValue(form.corporation_name, 'Stock Certificate')"></span>
                                         transferable only on the books of the Corporation by the holder hereof in person or by Attorney upon surrender of this certificate properly endorsed.
                                     </p>
 
@@ -432,9 +474,9 @@
                                         <div class="certificate-seal"></div>
                                         <p class="certificate-text">
                                             In Witness Whereof, the said Corporation has caused this certificate to be signed by its duly authorized officers and sealed this
-                                            <span class="certificate-fill">{{ $issueDay }}</span>
+                                            <span class="certificate-fill" x-text="issueDay()"></span>
                                             day of
-                                            <span class="certificate-fill">{{ $issueMonthYear }}</span>.
+                                            <span class="certificate-fill" x-text="issueMonthYear()"></span>.
                                         </p>
                                     </div>
                                 </div>
@@ -442,21 +484,21 @@
                                 <div class="certificate-signatures">
                                     <div class="certificate-signature">
                                         <div class="certificate-signature-line">
-                                            <div class="certificate-signature-name">{{ $certificate->president ?? '-' }}</div>
+                                            <div class="certificate-signature-name" x-text="displayValue(form.president)"></div>
                                             <div class="certificate-signature-role">President</div>
                                         </div>
                                     </div>
                                     <div class="certificate-signature">
                                         <div class="certificate-signature-line">
-                                            <div class="certificate-signature-name">{{ $certificate->corporate_secretary ?? '-' }}</div>
+                                            <div class="certificate-signature-name" x-text="displayValue(form.corporate_secretary)"></div>
                                             <div class="certificate-signature-role">Corporate Secretary</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="certificate-footer">
-                                    <div class="certificate-footer-box">{{ $certificate->amount_in_words ?? 'Amount in Words' }}</div>
-                                    <div class="certificate-footer-box">{{ $certificate->par_value ?? '-' }} Par</div>
+                                    <div class="certificate-footer-box" x-text="displayValue(form.amount_in_words, 'Amount in Words')"></div>
+                                    <div class="certificate-footer-box"><span x-text="displayValue(form.par_value)"></span> Par</div>
                                     <div class="certificate-footer-box">Each</div>
                                 </div>
                             </div>
@@ -469,13 +511,13 @@
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Certificate Information</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Certificate No.</span><div class="font-medium text-gray-900">{{ $certificateNo }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Stockholder</span><div class="font-medium text-gray-900">{{ $stockholder }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Stock Number</span><div class="font-medium text-gray-900">{{ $certificate->stock_number ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Par Value</span><div class="font-medium text-gray-900">{{ $certificate->par_value ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Number</span><div class="font-medium text-gray-900">{{ $shares }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Amount</span><div class="font-medium text-gray-900">{{ $certificate->amount ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Issued</span><div class="font-medium text-gray-900">{{ optional($certificate->date_issued)->format('M d, Y') ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Certificate No.</span><div class="font-medium text-gray-900" x-text="displayValue(form.stock_number)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Stockholder</span><div class="font-medium text-gray-900" x-text="displayValue(form.stockholder_name)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Stock Number</span><div class="font-medium text-gray-900" x-text="displayValue(form.stock_number)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Par Value</span><div class="font-medium text-gray-900" x-text="displayValue(form.par_value)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Number</span><div class="font-medium text-gray-900" x-text="displayValue(form.number)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Amount</span><div class="font-medium text-gray-900" x-text="displayAmount(form.amount)"></div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Issued</span><div class="font-medium text-gray-900" x-text="formatDate(form.date_issued)"></div></div>
                     </div>
                 </div>
 
@@ -514,6 +556,98 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div x-cloak>
+        <div x-show="showEditPanel" class="fixed inset-0 bg-black/40 z-40" @click="showEditPanel = false"></div>
+        <div x-show="showEditPanel"
+             class="fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col"
+             x-transition:enter="transform transition ease-in-out duration-200"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transform transition ease-in-out duration-200"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             @click.stop>
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div class="text-lg font-semibold">Edit Certificate</div>
+                <div class="flex-1"></div>
+                <button class="text-gray-500 hover:text-gray-700" @click="showEditPanel = false" type="button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('stock-transfer-book.certificates.update', $certificate) }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
+                @csrf
+                @method('PUT')
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-600">Certificate Type</label>
+                        <select name="certificate_type" x-model="form.certificate_type" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option value="COS">COS</option>
+                            <option value="CV">CV</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Stock Number</label>
+                        <input type="text" name="stock_number" x-model="form.stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Stockholder</label>
+                        <input type="text" name="stockholder_name" x-model="form.stockholder_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Corporation Name</label>
+                        <input type="text" name="corporation_name" x-model="form.corporation_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Company Reg. No.</label>
+                        <input type="text" name="company_reg_no" x-model="form.company_reg_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">PAR Value</label>
+                        <input type="number" step="0.01" name="par_value" x-model="form.par_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Number</label>
+                        <input type="number" name="number" x-model="form.number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Amount</label>
+                        <input type="number" step="0.01" name="amount" x-model="form.amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Amount in Words</label>
+                        <input type="text" name="amount_in_words" x-model="form.amount_in_words" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Date Issued</label>
+                        <input type="date" name="date_issued" x-model="form.date_issued" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">President</label>
+                        <input type="text" name="president" x-model="form.president" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Corporate Secretary</label>
+                        <input type="text" name="corporate_secretary" x-model="form.corporate_secretary" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Replace Document (PDF)</label>
+                        <input type="file" name="document_path" class="mt-1 block w-full text-sm text-gray-600">
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2 -mx-6 -mb-6">
+                    <button type="button" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showEditPanel = false">
+                        Close
+                    </button>
+                    <div class="flex-1"></div>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

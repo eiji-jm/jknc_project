@@ -4,6 +4,7 @@
 @php
     $selected = $notice;
     $documentUrl = $selected->document_path ? route('uploads.show', ['path' => $selected->document_path]) : null;
+    $documentPaneUrl = $selected->document_path ? asset('storage/' . ltrim($selected->document_path, '/')) : null;
     $documentDownloadUrl = $selected->document_path ? route('uploads.show', ['path' => $selected->document_path, 'download' => 1]) : null;
     $meetingTitle = strtoupper(trim(($selected->type_of_meeting ?: 'Special') . ' ' . ($selected->governing_body ?: 'Board of Directors') . ' Meeting'));
     $noticeDate = optional($selected->date_of_notice)->format('F d, Y') ?: optional($selected->created_at)->format('F d, Y') ?: now()->format('F d, Y');
@@ -17,6 +18,146 @@
     $companyName = strtoupper($selected->corporation_name ?: 'JOHN KELLY & COMPANY');
     $companyRegNo = $selected->company_reg_no ?: '2025120230900-02';
     $companyAddress = $selected->company_address ?: '3RD FLOOR, UNIT 305 CEBU HOLDINGS CENTER CARDINAL ROSALES AVE., CEBU BUSINESS PARK HIPPODROMO, CEBU CITY, 6000';
+    $meetingTypeLabel = $selected->type_of_meeting ?: 'Special';
+    $governingBodyLabel = $selected->governing_body ?: 'Board of Directors';
+    $meetingLocation = $selected->location ?: '________________';
+    $secretaryName = $selected->secretary ?: 'Corporate Secretary';
+    $agendaHtml = $selected->body_html ?: '
+        <ol>
+            <li>Invocation</li>
+            <li>Call to Order</li>
+            <li>Proof of Notice</li>
+            <li>Determination of Quorum</li>
+            <li>Reading and Approval of the Previous Minutes</li>
+            <li>Matters for Discussion and Approval</li>
+            <li>Other Business</li>
+            <li>Adjournment</li>
+        </ol>
+    ';
+    $generatedNoticePane = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated Notice Draft</title>
+    <style>
+        body {
+            margin: 0;
+            background: #f3f4f6;
+            font-family: Georgia, "Times New Roman", serif;
+            color: #000;
+        }
+        .page {
+            width: 840px;
+            min-height: 1188px;
+            margin: 24px auto;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            box-sizing: border-box;
+            padding: 48px;
+            font-size: 15px;
+            line-height: 1.85;
+        }
+        .center {
+            text-align: center;
+            line-height: 1.4;
+        }
+        .title {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .meta {
+            margin-top: 48px;
+        }
+        .meta-row {
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        .body {
+            margin-top: 40px;
+            text-align: justify;
+        }
+        .body p {
+            margin: 0 0 24px;
+        }
+        .agenda {
+            margin-top: 24px;
+        }
+        .agenda ol,
+        .agenda ul {
+            margin: 12px 0 0 24px;
+            padding: 0;
+        }
+        .agenda li {
+            margin: 6px 0;
+        }
+        .footer {
+            margin-top: 64px;
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .signature {
+            margin-top: 64px;
+        }
+        .signature .name {
+            margin-top: 48px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="center">
+            <div style="font-size:1.1rem;font-weight:700;text-transform:uppercase;">{$companyName}</div>
+            <div style="font-size:0.95rem;font-weight:700;">COMPANY REG. NO.: {$companyRegNo}</div>
+            <div style="margin-top:4px;font-size:0.95rem;">{$companyAddress}</div>
+        </div>
+
+        <div class="title">Notice and Agenda of the {$meetingTitle}</div>
+
+        <div class="meta">
+            <div class="meta-row">To: <span style="margin-left:12px;">{$recipientLabel}</span></div>
+            <div class="meta-row">Date: <span style="margin-left:12px;">{$noticeDate}</span></div>
+        </div>
+
+        <div class="body">
+            <p><strong>NOTICE is hereby given that a {$meetingTypeLabel} {$governingBodyLabel} Meeting of {$companyName} will be held at {$meetingLocation} on {$meetingDate} at {$meetingTime}.</strong></p>
+            <div class="agenda">
+                <div><strong>Agenda:</strong></div>
+                {$agendaHtml}
+            </div>
+            <p>In the instance that the meeting shall be conducted in-person, the minutes of the meeting shall be properly documented and securely stored as part of the official corporate records in accordance with applicable corporate governance requirements.</p>
+            <p>Directors or stockholders intending to participate via video conferencing are requested to inform the Presiding Officer and the Corporate Secretary in advance so the quorum and participation records may be properly documented.</p>
+        </div>
+
+        <div class="signature">
+            <div>Very truly yours,</div>
+            <div class="name">{$secretaryName}</div>
+            <div>Corporate Secretary</div>
+        </div>
+
+        <div class="footer">
+            <div>
+                <div style="font-weight:700;text-transform:uppercase;">Notice for {$meetingTitle}</div>
+                <div>{$companyName}</div>
+                <div>Company Reg. No.: {$companyRegNo}</div>
+                <div>{$companyAddress}</div>
+            </div>
+            <div style="font-weight:700;">Page 1 of 1</div>
+        </div>
+    </div>
+</body>
+</html>
+HTML;
+    $generatedNoticePaneUrl = 'data:text/html;charset=UTF-8,' . rawurlencode($generatedNoticePane);
 @endphp
 
 <style>
@@ -58,94 +199,9 @@
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3 space-y-4">
                 @if ($documentUrl)
-                    <div class="bg-gray-900 rounded-xl overflow-hidden">
-                        <div class="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center gap-2">
-                            <span class="text-gray-300 text-sm font-medium">Uploaded Notice PDF</span>
-                            <div class="flex-1"></div>
-                            <a href="{{ $documentUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
-                        </div>
-                        <iframe src="{{ $documentUrl }}" class="w-full h-[820px] bg-white"></iframe>
-                    </div>
+                    <iframe src="{{ $documentPaneUrl }}" class="w-full h-[700px] border rounded"></iframe>
                 @else
-                    <div class="bg-gray-900 rounded-xl overflow-hidden">
-                        <div class="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                            <span class="text-gray-300 text-sm font-medium">Generated Notice Draft</span>
-                        </div>
-                        <div class="p-8 bg-[#f7f1e3]">
-                            <div id="notice-print" class="mx-auto max-w-3xl bg-white shadow-xl rounded-sm p-12 min-h-[820px] text-[15px] leading-7 text-black" style="font-family: Georgia, 'Times New Roman', serif;">
-                                <div class="text-center leading-tight text-red-600">
-                                    <div class="text-[1.1rem] font-bold uppercase">{{ $companyName }}</div>
-                                    <div class="text-sm font-semibold">COMPANY REG. NO.: {{ $companyRegNo }}</div>
-                                    <div class="mt-1 text-sm">{{ $companyAddress }}</div>
-                                </div>
-
-                                <div class="mt-10 text-center text-[1.05rem] font-bold uppercase tracking-tight text-red-600">
-                                    Notice and Agenda of the {{ $meetingTitle }}
-                                </div>
-
-                                <div class="mt-12 space-y-5">
-                                    <div class="font-bold">To: <span class="ml-2">{{ $recipientLabel }}</span></div>
-                                    <div class="font-bold">Date: <span class="ml-2 text-red-600">{{ $noticeDate }}</span></div>
-                                </div>
-
-                                <div class="mt-10 space-y-6 text-justify">
-                                    <p class="font-semibold">
-                                        NOTICE is hereby given that a <span class="text-red-600">{{ $selected->type_of_meeting ?: 'Special' }} {{ $selected->governing_body ?: 'Board of Directors' }} Meeting</span>
-                                        of <span class="text-red-600">{{ $companyName }}</span> will be held at
-                                        <span class="text-red-600">{{ $selected->location ?: '________________' }}</span>
-                                        on <span class="text-red-600">{{ $meetingDate }}</span> at
-                                        <span class="text-red-600">{{ $meetingTime }}</span>.
-                                    </p>
-
-                                    <div>
-                                        <div class="font-semibold">Agenda:</div>
-                                        <div class="prose prose-sm max-w-none mt-3 prose-p:my-2 prose-li:my-0.5 prose-ol:my-2 prose-ul:my-2 prose-strong:text-black">
-                                            {!! $selected->body_html ?: '
-                                                <ol>
-                                                    <li>Invocation</li>
-                                                    <li>Call to Order</li>
-                                                    <li>Proof of Notice</li>
-                                                    <li>Determination of Quorum</li>
-                                                    <li>Reading and Approval of the Previous Minutes</li>
-                                                    <li>Matters for Discussion and Approval</li>
-                                                    <li>Other Business</li>
-                                                    <li>Adjournment</li>
-                                                </ol>
-                                            ' !!}
-                                        </div>
-                                    </div>
-
-                                    <p>
-                                        In the instance that the meeting shall be conducted in-person, the minutes of the meeting shall be
-                                        properly documented and securely stored as part of the official corporate records in accordance with
-                                        applicable corporate governance requirements.
-                                    </p>
-
-                                    <p>
-                                        Directors or stockholders intending to participate via video conferencing are requested to inform the
-                                        Presiding Officer and the Corporate Secretary in advance so the quorum and participation records may be
-                                        properly documented.
-                                    </p>
-                                </div>
-
-                                <div class="mt-16">
-                                    <div>Very truly yours,</div>
-                                    <div class="mt-12 font-bold">{{ $selected->secretary ?: 'Corporate Secretary' }}</div>
-                                    <div>Corporate Secretary</div>
-                                </div>
-
-                                <div class="mt-16 flex items-end justify-between text-[11px] leading-4 text-red-600">
-                                    <div>
-                                        <div class="font-bold uppercase">Notice for {{ $meetingTitle }}</div>
-                                        <div>{{ $companyName }}</div>
-                                        <div>Company Reg. No.: {{ $companyRegNo }}</div>
-                                        <div>{{ $companyAddress }}</div>
-                                    </div>
-                                    <div class="font-bold">Page 1 of 1</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <iframe src="{{ $generatedNoticePaneUrl }}" class="w-full h-[700px] border rounded"></iframe>
                 @endif
             </div>
 

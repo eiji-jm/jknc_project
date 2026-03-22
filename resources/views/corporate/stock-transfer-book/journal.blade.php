@@ -356,6 +356,7 @@
         const defaultsEndpoint = "{{ route('stock-transfer-book.defaults') }}";
         const container = document.currentScript.closest('body');
         const keyInput = container.querySelector('[data-autofill-key]');
+        const shareholderInput = container.querySelector('[name="shareholder"]');
 
         const fieldInputs = Array.from(container.querySelectorAll('[data-autofill-field]'));
 
@@ -381,8 +382,8 @@
             }
         };
 
-        const runLookup = async () => {
-            const key = keyInput.value.trim();
+        const runLookup = async (value) => {
+            const key = (value ?? keyInput?.value ?? shareholderInput?.value ?? '').trim();
             if (!key) return;
             try {
                 const res = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`);
@@ -401,8 +402,13 @@
         };
 
         if (keyInput) {
-            keyInput.addEventListener('change', runLookup);
-            keyInput.addEventListener('blur', runLookup);
+            keyInput.addEventListener('change', () => runLookup(keyInput.value));
+            keyInput.addEventListener('blur', () => runLookup(keyInput.value));
+        }
+
+        if (shareholderInput) {
+            shareholderInput.addEventListener('change', () => runLookup(shareholderInput.value));
+            shareholderInput.addEventListener('blur', () => runLookup(shareholderInput.value));
         }
 
         const addButton = container.querySelector('[data-open-add-panel]');

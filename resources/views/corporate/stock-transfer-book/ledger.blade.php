@@ -11,17 +11,8 @@
                 <i class="fas fa-arrow-left"></i>
             </a>
             <div class="text-lg font-semibold">Ledger</div>
-
             <div class="flex-1"></div>
-
-            <div class="flex items-center gap-2">
-                <button type="button" data-open-add-panel @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
-                    </svg>
-                    Add Shareholder
-                </button>
-            </div>
+            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Go to Index</a>
         </div>
 
         <div class="border-t border-gray-100"></div>
@@ -46,24 +37,23 @@
                 <table class="min-w-full" id="ledger-table">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Family Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">First Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Middle Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Nationality</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Address</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">TIN</th>
-                            
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Shareholder</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Certificate No.</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Transaction</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Entry Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Shares</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900" id="ledger-table-body">
                         @forelse ($ledgers as $ledger)
                             <tr data-search-row class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onclick="window.location='{{ route('stock-transfer-book.ledger.show', $ledger) }}'">
-                                <td class="px-4 py-3">{{ $ledger->family_name }}</td>
-                                <td class="px-4 py-3">{{ $ledger->first_name }}</td>
-                                <td class="px-4 py-3">{{ $ledger->middle_name }}</td>
-                                <td class="px-4 py-3">{{ $ledger->nationality }}</td>
-                                <td class="px-4 py-3">{{ $ledger->address }}</td>
-                                <td class="px-4 py-3">{{ $ledger->tin }}</td>
+                                <td class="px-4 py-3">{{ trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')) ?: $ledger->family_name }}</td>
+                                <td class="px-4 py-3">{{ $ledger->certificate_no }}</td>
+                                <td class="px-4 py-3">{{ $ledger->journal?->transaction_type ?: $ledger->journal?->particulars }}</td>
+                                <td class="px-4 py-3">{{ optional($ledger->date_registered)->format('M d, Y') }}</td>
+                                <td class="px-4 py-3">{{ $ledger->shares }}</td>
+                                <td class="px-4 py-3">{{ ucfirst($ledger->status ?: 'active') }}</td>
                             </tr>
                         @empty
                             <tr data-empty-row>

@@ -55,13 +55,23 @@
             <div class="lg:col-span-3 space-y-4">
                 <div x-show="activeVersion === 'draft'" class="bg-[#ece6da] rounded-2xl p-6">
                     @if ($draftUrl)
-                        <div class="bg-gray-900 rounded-xl overflow-hidden">
-                            <div class="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center gap-2">
-                                <span class="text-gray-300 text-sm font-medium">Uploaded Draft PDF</span>
+                        <div class="document-frame">
+                            <div class="document-frame__toolbar">
+                                <div class="document-frame__tools">
+                                    <span class="document-frame__chip"><i class="fas fa-file-pdf"></i> Uploaded Draft PDF</span>
+                                    <span class="document-frame__chip">{{ $resolution->resolution_no ?: 'Draft' }}</span>
+                                </div>
+                                <div class="document-frame__actions">
+                                    <i class="fas fa-search"></i>
+                                    <i class="far fa-copy"></i>
+                                    <i class="fas fa-print"></i>
+                                </div>
                                 <div class="flex-1"></div>
                                 <a href="{{ $draftUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
                             </div>
-                            <iframe src="{{ $draftUrl }}" class="w-full h-[880px] bg-white"></iframe>
+                            <div class="document-frame__body">
+                                <iframe src="{{ $draftUrl }}" class="document-frame__embed"></iframe>
+                            </div>
                         </div>
                     @else
                         <div id="resolution-print" class="mx-auto max-w-4xl bg-white shadow-2xl rounded-sm p-12 min-h-[880px] text-[13px] leading-6 text-gray-900" style="font-family: Georgia, 'Times New Roman', serif;">
@@ -160,23 +170,32 @@
                     @endif
                 </div>
 
-                <div x-show="activeVersion === 'original'" class="bg-gray-900 rounded-xl overflow-hidden">
-                    <div class="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center gap-2">
-                        <span class="text-gray-300 text-sm font-medium">Original / Notarized Resolution</span>
+                <div x-show="activeVersion === 'original'" class="document-frame">
+                    <div class="document-frame__toolbar">
+                        <div class="document-frame__tools">
+                            <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Original / Notarized</span>
+                            <span class="document-frame__chip">{{ $resolution->resolution_no ?: 'Original' }}</span>
+                        </div>
+                        <div class="document-frame__actions">
+                            <i class="fas fa-search"></i>
+                            <i class="far fa-copy"></i>
+                            <i class="fas fa-print"></i>
+                        </div>
                         <div class="flex-1"></div>
                         @if ($notarizedUrl)
                             <a href="{{ $notarizedUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
                         @endif
                     </div>
-
+                    <div class="document-frame__body">
                     @if ($notarizedUrl)
-                        <iframe src="{{ $notarizedUrl }}" class="w-full h-[880px] bg-white"></iframe>
+                        <iframe src="{{ $notarizedUrl }}" class="document-frame__embed"></iframe>
                     @else
-                        <div class="p-10 text-center text-gray-300">
+                        <div class="document-frame__empty">
                             <div class="text-lg font-semibold">Original / notarized copy not uploaded yet</div>
                             <div class="text-sm text-gray-400 mt-2">Use the sidebar form to upload the signed and notarized scan once it is available.</div>
                         </div>
                     @endif
+                    </div>
                 </div>
             </div>
 

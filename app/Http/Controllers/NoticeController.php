@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Notice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class NoticeController extends Controller
 {
@@ -33,6 +34,7 @@ class NoticeController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data = $this->filterPersistableData($data);
 
         Notice::create($data);
 
@@ -64,6 +66,7 @@ class NoticeController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $notice->document_path);
+        $data = $this->filterPersistableData($data);
 
         $notice->update($data);
 
@@ -79,7 +82,7 @@ class NoticeController extends Controller
 
     private function fields(): array
     {
-        return [
+        $fields = [
             ['name' => 'notice_number', 'label' => 'Notice Number', 'type' => 'text'],
             ['name' => 'date_of_notice', 'label' => 'Date of Notice', 'type' => 'date'],
             ['name' => 'governing_body', 'label' => 'Governing Body', 'type' => 'select', 'options' => $this->governingBodyOptions()],
@@ -92,10 +95,18 @@ class NoticeController extends Controller
             ['name' => 'secretary', 'label' => 'Secretary', 'type' => 'text'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
             ['name' => 'date_updated', 'label' => 'Date Updated', 'type' => 'date'],
-            ['name' => 'body_html', 'label' => 'Notice Body', 'type' => 'textarea'],
-            ['name' => 'body_mode', 'label' => 'Body Mode', 'type' => 'select', 'options' => ['builder', 'upload']],
             ['name' => 'document_path', 'label' => 'Upload Notice (PDF)', 'type' => 'file'],
         ];
+
+        if (Schema::hasColumn('notices', 'body_html')) {
+            $fields[] = ['name' => 'body_html', 'label' => 'Notice Body', 'type' => 'textarea'];
+        }
+
+        if (Schema::hasColumn('notices', 'body_mode')) {
+            $fields[] = ['name' => 'body_mode', 'label' => 'Body Mode', 'type' => 'select', 'options' => ['builder', 'upload']];
+        }
+
+        return $fields;
     }
 
     private function validateData(Request $request): array
@@ -127,5 +138,12 @@ class NoticeController extends Controller
     private function meetingTypeOptions(): array
     {
         return ['Regular', 'Special'];
+    }
+
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('notices', $key))
+            ->all();
     }
 }

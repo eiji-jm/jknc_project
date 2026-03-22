@@ -55,6 +55,69 @@
         .ql-editor {
             min-height: 260px;
         }
+
+        .document-frame {
+            border: 1px solid #d8dee8;
+            border-radius: 1rem;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+            overflow: hidden;
+        }
+
+        .document-frame__toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #d8dee8;
+        }
+
+        .document-frame__tools,
+        .document-frame__actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #64748b;
+            font-size: 0.78rem;
+        }
+
+        .document-frame__chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #d8dee8;
+            border-radius: 0.7rem;
+            background: #fff;
+        }
+
+        .document-frame__body {
+            padding: 0.9rem;
+            background: #edf1f5;
+        }
+
+        .document-frame__embed {
+            width: 100%;
+            height: 780px;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.85rem;
+            background: #fff;
+        }
+
+        .document-frame__empty {
+            min-height: 420px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #cbd5e1;
+            border-radius: 0.85rem;
+            background: rgba(255,255,255,0.9);
+            color: #64748b;
+            text-align: center;
+            padding: 2rem;
+        }
     </style>
 </head>
 <body class="text-[#000000]">

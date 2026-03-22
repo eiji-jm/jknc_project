@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StockTransferLedger extends Model
 {
@@ -34,5 +35,10 @@ class StockTransferLedger extends Model
     public function journal(): BelongsTo
     {
         return $this->belongsTo(StockTransferJournal::class, 'journal_id');
+    }
+
+    public function issuanceRequests(): HasMany
+    {
+        return $this->hasMany(StockTransferIssuanceRequest::class, 'ledger_id');
     }
 }

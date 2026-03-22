@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use App\Models\GisRecord;
 
@@ -29,6 +30,10 @@ class GisController extends Controller
 
     public function index()
     {
+        if (!Schema::hasTable('gis_records')) {
+            return view('corporate.gis', ['gis' => collect()]);
+        }
+
         if ($this->canApproveCorporate()) {
             $gis = GisRecord::latest()->get();
         } else {
@@ -96,6 +101,12 @@ class GisController extends Controller
 
     public function companyInfo()
     {
+        if (!Schema::hasTable('gis_records')) {
+            $gis = new GisRecord();
+
+            return view('corporate.company-general-information', compact('gis'));
+        }
+
         $gis = GisRecord::where('approval_status', 'Approved')->latest()->first();
 
         if (!$gis) {
@@ -107,6 +118,8 @@ class GisController extends Controller
 
     public function companyInfoById($id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $gis = GisRecord::findOrFail($id);
 
         if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
@@ -118,6 +131,8 @@ class GisController extends Controller
 
     public function updateCompanyInfo(Request $request, $id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $request->validate([
             'date_registered'         => 'nullable|date',
             'trade_name'              => 'nullable|string|max:255',
@@ -189,6 +204,8 @@ class GisController extends Controller
 
     public function show($id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $gis = GisRecord::with([
             'authorizedCapital',
             'subscribedCapital',
@@ -206,6 +223,8 @@ class GisController extends Controller
 
     public function uploadDraftFile(Request $request, $id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $request->validate([
             'draft_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
@@ -230,6 +249,8 @@ class GisController extends Controller
 
     public function uploadNotaryFile(Request $request, $id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $request->validate([
             'notary_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
@@ -254,6 +275,8 @@ class GisController extends Controller
 
     public function submit($id)
     {
+        abort_unless(Schema::hasTable('gis_records'), 404);
+
         $gis = GisRecord::findOrFail($id);
 
         if (!$this->canEditRecord($gis)) {

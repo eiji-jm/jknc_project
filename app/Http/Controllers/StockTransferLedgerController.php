@@ -7,9 +7,12 @@ use App\Http\Controllers\Concerns\MatchesShareholder;
 use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
+use App\Models\StockTransferIssuanceRequest;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
 use App\Models\Contact;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 
 class StockTransferLedgerController extends Controller
@@ -20,7 +23,10 @@ class StockTransferLedgerController extends Controller
 
     public function indexPage()
     {
-        $ledgers = StockTransferLedger::latest()->get();
+        $ledgers = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->latest()
+            ->get();
         $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
 
         return view('corporate.stock-transfer-book.stb-index', compact('ledgers', 'contacts'));
@@ -28,7 +34,11 @@ class StockTransferLedgerController extends Controller
 
     public function index()
     {
-        $ledgers = StockTransferLedger::latest()->get();
+        $ledgers = StockTransferLedger::query()
+            ->whereNotNull('journal_id')
+            ->with('journal')
+            ->latest()
+            ->get();
         $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
 
         return view('corporate.stock-transfer-book.ledger', compact('ledgers', 'contacts'));
@@ -73,7 +83,22 @@ class StockTransferLedgerController extends Controller
             $data['date_registered'] = now()->toDateString();
         }
 
-        StockTransferLedger::create($data);
+        DB::transaction(function () use ($data) {
+            $ledger = StockTransferLedger::create($data);
+
+            StockTransferJournal::create([
+                'entry_date' => $data['date_registered'],
+                'journal_no' => $this->nextJournalNo(),
+                'ledger_folio' => $this->nextLedgerFolio(),
+                'particulars' => 'Index entry created',
+                'no_shares' => $data['shares'] ?? null,
+                'transaction_type' => 'Index',
+                'certificate_no' => $data['certificate_no'] ?? null,
+                'shareholder' => trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')),
+                'remarks' => 'Auto-generated from index creation.',
+                'status' => $data['status'] ?? 'active',
+            ]);
+        });
 
         return redirect()->route('stock-transfer-book.ledger')->with('success', 'Shareholder added.');
     }
@@ -91,10 +116,6 @@ class StockTransferLedgerController extends Controller
                     $query->orWhere('certificate_no', $certificateNo);
                 }
                 $this->applyNameTokens($query, $fullName, ['shareholder']);
-            })
-            ->where(function ($query) {
-                $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
@@ -119,11 +140,26 @@ class StockTransferLedgerController extends Controller
             ->latest()
             ->get();
 
+        $relatedRequests = Schema::hasTable('stock_transfer_issuance_requests')
+            ? StockTransferIssuanceRequest::query()
+                ->where(function ($query) use ($certificateNo, $fullName) {
+                    $this->applyNameTokens($query, $fullName, ['requester']);
+                    if ($certificateNo) {
+                        $query->orWhereHas('certificate', function ($certificateQuery) use ($certificateNo) {
+                            $certificateQuery->where('stock_number', $certificateNo);
+                        });
+                    }
+                })
+                ->latest()
+                ->get()
+            : collect();
+
         return view('corporate.stock-transfer-book.ledger-preview', [
             'ledger' => $stockTransferLedger,
             'journalEntries' => $journalEntries,
             'relatedCertificates' => $relatedCertificates,
             'relatedInstallments' => $relatedInstallments,
+            'relatedRequests' => $relatedRequests,
             'backRoute' => route('stock-transfer-book.ledger'),
             'editRoute' => route('stock-transfer-book.ledger.edit', $stockTransferLedger),
         ]);

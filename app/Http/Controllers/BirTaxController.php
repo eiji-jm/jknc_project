@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\BirTax;
+use App\Models\GisRecord;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class BirTaxController extends Controller
 {
@@ -122,6 +124,18 @@ class BirTaxController extends Controller
 
     private function companyDefaults(): array
     {
+        if (Schema::hasTable('gis_records')) {
+            $gis = GisRecord::where('approval_status', 'Approved')->latest()->first();
+
+            if ($gis) {
+                return [
+                    'tax_payer' => $gis->corporation_name ?: 'JK&C Group of Companies',
+                    'tin' => $gis->tin ?: '000-000-000-000',
+                    'registered_address' => $gis->business_address ?: ($gis->principal_address ?: 'JK&C Corporate Office'),
+                ];
+            }
+        }
+
         return [
             'tax_payer' => 'JK&C Group of Companies',
             'tin' => '000-000-000-000',

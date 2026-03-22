@@ -21,14 +21,11 @@ class StockTransferJournalController extends Controller
     public function index()
     {
         $journals = StockTransferJournal::query()
-            ->where(function ($query) {
-                $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
-            })
             ->latest()
             ->get();
 
         $indexShareholders = StockTransferLedger::query()
+            ->whereNull('journal_id')
             ->get(['first_name', 'middle_name', 'family_name'])
             ->map(function ($ledger) {
                 return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
@@ -123,10 +120,6 @@ class StockTransferJournalController extends Controller
                     $query->orWhere('certificate_no', $certificateNo);
                 }
                 $this->applyNameTokens($query, $shareholder, ['shareholder']);
-            })
-            ->where(function ($query) {
-                $query->whereNull('transaction_type')
-                    ->orWhereIn('transaction_type', ['Issuance', 'Cancellation', 'Payment']);
             })
             ->latest()
             ->get();
@@ -226,7 +219,7 @@ class StockTransferJournalController extends Controller
             'ledger_folio' => ['nullable', 'string', 'max:255'],
             'particulars' => ['nullable', 'string'],
             'no_shares' => ['nullable', 'integer'],
-            'transaction_type' => ['nullable', 'string', 'in:Issuance,Cancellation,Payment'],
+            'transaction_type' => ['nullable', 'string', 'max:255'],
             'certificate_no' => ['nullable', 'string', 'max:255'],
             'shareholder' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],
@@ -238,6 +231,7 @@ class StockTransferJournalController extends Controller
     private function resolveLedger(?string $certificateNo, ?string $shareholder): ?StockTransferLedger
     {
         $query = StockTransferLedger::query();
+        $query->whereNull('journal_id');
         $query->where(function ($sub) use ($certificateNo, $shareholder) {
             if ($certificateNo) {
                 $sub->orWhere('certificate_no', $certificateNo);

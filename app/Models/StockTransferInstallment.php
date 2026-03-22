@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class StockTransferInstallment extends Model
 {
@@ -18,6 +19,9 @@ class StockTransferInstallment extends Model
         'no_installments',
         'total_value',
         'installment_amount',
+        'payment_date',
+        'payment_amount',
+        'payment_remarks',
         'status',
         'cancellation_date',
         'cancellation_effective_date',
@@ -30,33 +34,26 @@ class StockTransferInstallment extends Model
 
     protected $casts = [
         'installment_date' => 'date',
+        'payment_date' => 'date',
         'cancellation_date' => 'date',
         'cancellation_effective_date' => 'date',
         'total_value' => 'decimal:2',
         'installment_amount' => 'decimal:2',
+        'payment_amount' => 'decimal:2',
         'cancellation_types' => 'array',
         'schedule' => 'array',
     ];
 
-    /**
-     * Installment -> Journal (inverse of Journal -> Installments).
-     */
     public function journal(): BelongsTo
     {
         return $this->belongsTo(StockTransferJournal::class, 'journal_id');
     }
 
-    /**
-     * Installment -> Certificate (one-to-one).
-     */
     public function certificate(): HasOne
     {
         return $this->hasOne(StockTransferCertificate::class, 'installment_id');
     }
 
-    /**
-     * Installment -> payment journals matched by stock number.
-     */
     public function paymentJournals(): HasMany
     {
         return $this->hasMany(StockTransferJournal::class, 'certificate_no', 'stock_number')
@@ -67,9 +64,70 @@ class StockTransferInstallment extends Model
             });
     }
 
+    public function normalizedSchedule(): array
+    {
+        $schedule = $this->schedule;
+
+        if (!is_array($schedule)) {
+            return ['mode' => 'stock_subscribe', 'installments' => []];
+        }
+
+        if (array_is_list($schedule)) {
+            return [
+                'mode' => 'stock_subscribe',
+                'installments' => $schedule,
+            ];
+        }
+
+        return [
+            'mode' => $schedule['mode'] ?? 'stock_subscribe',
+            'installments' => is_array($schedule['installments'] ?? null) ? $schedule['installments'] : [],
+        ];
+    }
+
+    public function installmentMode(): string
+    {
+        $mode = strtolower((string) ($this->normalizedSchedule()['mode'] ?? 'stock_subscribe'));
+        $allowed = ['stock_subscribe', 'stock_payment', 'both'];
+
+        return in_array($mode, $allowed, true) ? $mode : 'stock_subscribe';
+    }
+
+    public function installmentRows(): array
+    {
+        $rows = $this->normalizedSchedule()['installments'] ?? [];
+        if (!empty($rows)) {
+            return $rows;
+        }
+
+        $date = $this->installment_date;
+        $count = max((int) ($this->no_installments ?? 0), 0);
+        $amount = (float) ($this->installment_amount ?? 0);
+
+        if (!$date instanceof Carbon || $count <= 0) {
+            return [];
+        }
+
+        return collect(range(1, $count))
+            ->map(function (int $index) use ($date, $amount) {
+                return [
+                    'no' => $index,
+                    'dueDate' => $date->copy()->addMonths($index - 1)->format('Y-m-d'),
+                    'amount' => number_format($amount, 2, '.', ''),
+                    'status' => 'Pending',
+                ];
+            })
+            ->all();
+    }
+
     public function paymentCount(): int
     {
         return $this->paymentJournals()->count();
+    }
+
+    public function paymentTotal(): float
+    {
+        return (float) $this->paymentJournals()->sum('no_shares');
     }
 
     public function paymentStatus(): string
@@ -80,18 +138,22 @@ class StockTransferInstallment extends Model
             return $status;
         }
 
-        $paymentCount = $this->paymentCount();
-        $expectedPayments = (int) ($this->no_installments ?? 0);
+        $paidAmount = $this->paymentTotal();
+        $expectedAmount = (float) ($this->total_value ?: $this->installment_amount ?: 0);
 
-        if ($status === 'completed' || ($expectedPayments > 0 && $paymentCount >= $expectedPayments && $paymentCount > 0)) {
-            return 'completed';
+        if ($paidAmount > 0 && ($expectedAmount <= 0 || $paidAmount >= $expectedAmount)) {
+            return 'paid';
         }
 
-        if ($paymentCount > 0) {
-            return 'on-going';
+        if ($paidAmount > 0) {
+            return 'partial';
         }
 
-        return 'pending';
+        if ($this->installment_date && $this->installment_date->isPast()) {
+            return 'overdue';
+        }
+
+        return 'overdue';
     }
 
     public function getPaymentStatusAttribute(): string
@@ -106,6 +168,6 @@ class StockTransferInstallment extends Model
 
     public function isFullyPaid(): bool
     {
-        return $this->paymentStatus() === 'completed';
+        return $this->paymentStatus() === 'paid';
     }
 }
