@@ -26,8 +26,8 @@
             <div class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">{{ $bif->title ?: 'Business Information Form' }}</h1>
-                        <p class="mt-1 text-sm text-gray-500">Read-only BIF preview for {{ $company->company_name }}.</p>
+                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">{{ $bif->title ?: 'Business Client Information Form' }}</h1>
+                        <p class="mt-1 text-sm text-gray-500">Read-only business client information preview for {{ $company->company_name }}.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <a href="{{ route('company.bif.print', ['company' => $company->id, 'bif' => $bif->id]) }}" target="_blank" class="inline-flex h-10 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">

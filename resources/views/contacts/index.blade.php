@@ -63,7 +63,7 @@
     <div id="selectionActionBar" class="mb-3 hidden rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
         <div class="flex items-center gap-2 text-sm">
             <span class="font-medium text-gray-800"><span id="selectedCount">0</span> selected</span>
-            <button type="button" class="h-8 rounded-md border border-gray-200 bg-white px-3 hover:bg-gray-50">Assign Owner</button>
+            <button id="openAssignOwnerModal" type="button" class="h-8 rounded-md border border-gray-200 bg-white px-3 hover:bg-gray-50">Assign Owner</button>
             <select class="h-8 rounded-md border border-gray-200 bg-white px-2">
                 <option>Mark KYC Status</option>
                 <option>Verified</option>
@@ -101,7 +101,7 @@
                             $initials = strtoupper(mb_substr($contact->first_name ?? '', 0, 1).mb_substr($contact->last_name ?? '', 0, 1));
                         @endphp
                         <tr class="text-gray-700">
-                            <td class="px-3 py-3"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300"></td>
+                            <td class="px-3 py-3"><input type="checkbox" value="{{ $contact->id }}" class="row-checkbox h-4 w-4 rounded border-gray-300"></td>
                             <td class="px-3 py-3">
                                 <div class="flex items-center gap-2">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">{{ $initials }}</div>
@@ -173,6 +173,78 @@
     'selectedOwnerId' => $selectedOwnerId,
     'selectedOwnerName' => $selectedOwnerName,
 ])
+
+<div id="assignOwnerModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+    <button id="assignOwnerOverlay" type="button" aria-label="Close assign owner panel" class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
+    <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
+        <div id="assignOwnerPanel" class="pointer-events-auto flex h-full w-full max-w-[620px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-[520px]">
+            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
+                <div>
+                    <h2 class="text-2xl font-semibold text-gray-900">Assign Owner</h2>
+                    <p id="assignOwnerSelectedCountText" class="text-sm text-gray-500">0 Contacts Selected</p>
+                </div>
+                <button id="closeAssignOwnerModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+
+            <form id="assignOwnerForm" method="POST" action="{{ route('contacts.assign-owner') }}" class="flex min-h-0 flex-1 flex-col">
+                @csrf
+                <div id="assignOwnerSelectedContacts"></div>
+                <input id="assignOwnerOwnerId" type="hidden" name="assign_owner_id" value="">
+
+                <div class="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Select New Owner</label>
+                    <div class="relative mb-3">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
+                        <input id="assignOwnerSearch" type="text" placeholder="Search Users" class="h-10 w-full rounded-lg border border-gray-200 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    </div>
+
+                    <div id="assignOwnerList" class="max-h-[60vh] overflow-y-auto rounded-lg border border-gray-200">
+                        @foreach ($owners as $owner)
+                            @php
+                                $assignOwnerInitials = strtoupper(collect(explode(' ', trim($owner['name'])))
+                                    ->filter()
+                                    ->map(fn ($segment) => mb_substr($segment, 0, 1))
+                                    ->take(2)
+                                    ->implode(''));
+                            @endphp
+                            <button
+                                type="button"
+                                class="assign-owner-option flex w-full items-center gap-3 border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-700 hover:bg-blue-50"
+                                data-owner-id="{{ $owner['id'] }}"
+                                data-owner-name="{{ $owner['name'] }}"
+                                data-owner-email="{{ $owner['email'] }}"
+                            >
+                                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
+                                    {{ $assignOwnerInitials }}
+                                </span>
+                                <span>
+                                    <span class="block text-sm text-gray-700">{{ $owner['name'] }}</span>
+                                    <span class="block text-xs text-gray-500">{{ $owner['email'] }}</span>
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+
+                    @if ($errors->has('assign_owner_id') || $errors->has('selected_contacts'))
+                        <div class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {{ $errors->first() }}
+                        </div>
+                    @endif
+                </div>
+
+                <div class="mt-auto flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
+                    <button id="cancelAssignOwnerModal" type="button" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="submitAssignOwner" type="submit" disabled class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-blue-300">
+                        Assign Owner
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @include('products.partials.create-field-dropdown', [
     'fieldTypes' => $fieldTypes,
     'dropdownId' => 'createFieldDropdownMenu',
@@ -194,6 +266,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const ownerInput = document.getElementById('owner_id');
     const ownerLabel = document.getElementById('ownerSelectedLabel');
     const ownerOptions = Array.from(document.querySelectorAll('.owner-option'));
+    const assignOwnerModal = document.getElementById('assignOwnerModal');
+    const openAssignOwnerModalButton = document.getElementById('openAssignOwnerModal');
+    const closeAssignOwnerModalButton = document.getElementById('closeAssignOwnerModal');
+    const cancelAssignOwnerModalButton = document.getElementById('cancelAssignOwnerModal');
+    const assignOwnerOverlay = document.getElementById('assignOwnerOverlay');
+    const assignOwnerPanel = document.getElementById('assignOwnerPanel');
+    const assignOwnerSearch = document.getElementById('assignOwnerSearch');
+    const assignOwnerOptions = Array.from(document.querySelectorAll('.assign-owner-option'));
+    const assignOwnerOwnerIdInput = document.getElementById('assignOwnerOwnerId');
+    const assignOwnerSelectedContacts = document.getElementById('assignOwnerSelectedContacts');
+    const assignOwnerSelectedCountText = document.getElementById('assignOwnerSelectedCountText');
+    const submitAssignOwner = document.getElementById('submitAssignOwner');
     const contactPanel = document.getElementById('createContactPanel');
     const contactOverlay = document.getElementById('createContactModalOverlay');
     const openCreateFieldDropdown = document.getElementById('openCreateFieldDropdown');
@@ -212,7 +296,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultValueSection = document.getElementById('defaultValueSection');
     const lookupSection = document.getElementById('lookupSection');
     const defaultValueInput = document.getElementById('default_value');
+    const oldSelectedContacts = @json(old('selected_contacts', []));
     let createFieldDropdownOpen = false;
+    const organizationTypeInputs = Array.from(document.querySelectorAll('input[name="organization_type"]'));
+    const ownershipFlagInputs = Array.from(document.querySelectorAll('input[name="ownership_flag"]'));
+    const organizationTypeOtherWrap = document.getElementById('organizationTypeOtherWrap');
+    const foreignBusinessNatureWrap = document.getElementById('foreignBusinessNatureWrap');
+    const conditionalOtherToggles = Array.from(document.querySelectorAll('[data-other-toggle]'));
 
     const selectAll = document.getElementById('selectAll');
     const rowChecks = Array.from(document.querySelectorAll('.row-checkbox'));
@@ -245,6 +335,100 @@ document.addEventListener('DOMContentLoaded', function () {
             modal.classList.add('hidden');
             modal.setAttribute('aria-hidden', 'true');
         }, 300);
+    };
+
+    const closeAssignOwnerModal = () => {
+        if (!assignOwnerModal || !assignOwnerPanel) {
+            return;
+        }
+        assignOwnerOverlay?.classList.add('opacity-0');
+        assignOwnerPanel.classList.add('translate-x-full');
+        document.body.classList.remove('overflow-hidden');
+        window.setTimeout(() => {
+            assignOwnerModal.classList.add('hidden');
+            assignOwnerModal.setAttribute('aria-hidden', 'true');
+        }, 300);
+    };
+
+    const openAssignOwnerModal = () => {
+        const selectedContacts = rowChecks.filter((item) => item.checked);
+        if (selectedContacts.length === 0) {
+            return;
+        }
+
+        if (assignOwnerSelectedContacts) {
+            assignOwnerSelectedContacts.innerHTML = selectedContacts
+                .map((item) => `<input type="hidden" name="selected_contacts[]" value="${item.value}">`)
+                .join('');
+        }
+
+        if (assignOwnerSelectedCountText) {
+            assignOwnerSelectedCountText.textContent = `${selectedContacts.length} ${selectedContacts.length === 1 ? 'Contact' : 'Contacts'} Selected`;
+        }
+
+        if (assignOwnerSearch) {
+            assignOwnerSearch.value = '';
+        }
+        if (assignOwnerOwnerIdInput) {
+            assignOwnerOwnerIdInput.value = '';
+        }
+        submitAssignOwner?.setAttribute('disabled', 'disabled');
+        assignOwnerOptions.forEach((option) => {
+            option.classList.remove('bg-blue-50');
+            option.classList.remove('hidden');
+        });
+
+        if (!assignOwnerModal || !assignOwnerPanel) {
+            return;
+        }
+        assignOwnerModal.classList.remove('hidden');
+        assignOwnerModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+        requestAnimationFrame(() => {
+            assignOwnerOverlay?.classList.remove('opacity-0');
+            assignOwnerPanel.classList.remove('translate-x-full');
+        });
+    };
+
+    const openAssignOwnerModalFromIds = (contactIds) => {
+        if (!Array.isArray(contactIds) || contactIds.length === 0) {
+            return;
+        }
+
+        if (assignOwnerSelectedContacts) {
+            assignOwnerSelectedContacts.innerHTML = contactIds
+                .map((id) => `<input type="hidden" name="selected_contacts[]" value="${id}">`)
+                .join('');
+        }
+
+        if (assignOwnerSelectedCountText) {
+            assignOwnerSelectedCountText.textContent = `${contactIds.length} ${contactIds.length === 1 ? 'Contact' : 'Contacts'} Selected`;
+        }
+
+        if (assignOwnerSearch) {
+            assignOwnerSearch.value = '';
+        }
+
+        assignOwnerOptions.forEach((option) => {
+            option.classList.remove('bg-blue-50');
+            option.classList.remove('hidden');
+        });
+
+        if (assignOwnerOwnerIdInput) {
+            assignOwnerOwnerIdInput.value = '';
+        }
+        submitAssignOwner?.setAttribute('disabled', 'disabled');
+
+        if (!assignOwnerModal || !assignOwnerPanel) {
+            return;
+        }
+        assignOwnerModal.classList.remove('hidden');
+        assignOwnerModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+        requestAnimationFrame(() => {
+            assignOwnerOverlay?.classList.remove('opacity-0');
+            assignOwnerPanel.classList.remove('translate-x-full');
+        });
     };
 
     const buildPicklistOptionRow = (value = '') => {
@@ -363,11 +547,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    const syncOtherFieldVisibility = () => {
+        conditionalOtherToggles.forEach((toggle) => {
+            const targetId = toggle.dataset.otherToggle;
+            if (!targetId) {
+                return;
+            }
+
+            const target = document.getElementById(targetId);
+            if (!target) {
+                return;
+            }
+
+            const matchingToggles = conditionalOtherToggles.filter((item) => item.dataset.otherToggle === targetId);
+            const isVisible = matchingToggles.some((item) => item.checked);
+            target.classList.toggle('hidden', !isVisible);
+        });
+    };
+
+    const syncBusinessConditionalFields = () => {
+        const selectedOrganization = organizationTypeInputs.find((input) => input.checked)?.value || '';
+        const selectedOwnership = ownershipFlagInputs.find((input) => input.checked)?.value || '';
+
+        organizationTypeOtherWrap?.classList.toggle('hidden', selectedOrganization !== 'Others');
+        foreignBusinessNatureWrap?.classList.toggle('hidden', selectedOwnership !== 'Foreign-Owned Business');
+    };
+
     openModalButton?.addEventListener('click', openModal);
     closeModalButton?.addEventListener('click', closeModal);
     cancelModalButton?.addEventListener('click', closeModal);
+    openAssignOwnerModalButton?.addEventListener('click', openAssignOwnerModal);
+    closeAssignOwnerModalButton?.addEventListener('click', closeAssignOwnerModal);
+    cancelAssignOwnerModalButton?.addEventListener('click', closeAssignOwnerModal);
 
     contactOverlay?.addEventListener('click', closeModal);
+    assignOwnerOverlay?.addEventListener('click', closeAssignOwnerModal);
 
     ownerTrigger?.addEventListener('click', function () {
         ownerMenu.classList.toggle('hidden');
@@ -392,6 +606,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    assignOwnerSearch?.addEventListener('input', function () {
+        const keyword = assignOwnerSearch.value.toLowerCase().trim();
+        assignOwnerOptions.forEach((option) => {
+            const name = (option.dataset.ownerName || '').toLowerCase();
+            const email = (option.dataset.ownerEmail || '').toLowerCase();
+            option.classList.toggle('hidden', keyword !== '' && !name.includes(keyword) && !email.includes(keyword));
+        });
+    });
+
+    assignOwnerOptions.forEach((option) => {
+        option.addEventListener('click', function () {
+            if (assignOwnerOwnerIdInput) {
+                assignOwnerOwnerIdInput.value = option.dataset.ownerId || '';
+            }
+            assignOwnerOptions.forEach((item) => item.classList.remove('bg-blue-50'));
+            option.classList.add('bg-blue-50');
+            submitAssignOwner?.removeAttribute('disabled');
+        });
+    });
+
     document.addEventListener('click', function (event) {
         if (ownerMenu && !ownerMenu.classList.contains('hidden')) {
             if (!ownerMenu.contains(event.target) && !ownerTrigger.contains(event.target)) {
@@ -405,6 +639,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeCreateFieldDropdownFn();
             }
         }
+
     });
 
     openCreateFieldDropdown?.addEventListener('click', function () {
@@ -433,6 +668,7 @@ document.addEventListener('DOMContentLoaded', function () {
             closeModal();
             closeCreateFieldDropdownFn();
             closeCreateFieldModalFn();
+            closeAssignOwnerModal();
         }
     });
 
@@ -468,6 +704,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     rowChecks.forEach((check) => check.addEventListener('change', refreshSelection));
+    conditionalOtherToggles.forEach((toggle) => toggle.addEventListener('change', syncOtherFieldVisibility));
+    organizationTypeInputs.forEach((input) => input.addEventListener('change', syncBusinessConditionalFields));
+    ownershipFlagInputs.forEach((input) => input.addEventListener('change', syncBusinessConditionalFields));
     clearSelection?.addEventListener('click', function () {
         rowChecks.forEach((check) => { check.checked = false; });
         if (selectAll) {
@@ -479,10 +718,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const initialFieldType = createFieldTypeInput ? createFieldTypeInput.value : 'picklist';
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
+    syncOtherFieldVisibility();
+    syncBusinessConditionalFields();
 
     @if ($errors->any())
         @if (old('field_type'))
             openCreateFieldModalFn('{{ old('field_type') }}', '{{ $fieldTypes->firstWhere('value', old('field_type'))['label'] ?? 'Picklist' }}');
+        @elseif ($errors->has('assign_owner_id') || $errors->has('selected_contacts'))
+            openAssignOwnerModalFromIds(oldSelectedContacts);
         @else
             openModal();
         @endif

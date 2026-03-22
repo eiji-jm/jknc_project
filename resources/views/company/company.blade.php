@@ -89,7 +89,7 @@
                             <td class="px-3 py-3">
                                 <div class="flex items-center gap-2">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">{{ $initials }}</div>
-                                    <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'client-intake']) }}" class="font-medium text-gray-900 hover:text-blue-700">
+                                    <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information']) }}" class="font-medium text-gray-900 hover:text-blue-700">
                                         {{ $company->company_name }}
                                     </a>
                                 </div>
@@ -106,7 +106,7 @@
                             </td>
                             <td class="px-3 py-3">{{ $company->owner_name ?: 'Owner 1' }}</td>
                             <td class="px-3 py-3">
-                                <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'client-intake']) }}" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                                <a href="{{ route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information']) }}" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
                                     View
                                 </a>
                             </td>

@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
 use Illuminate\View\View;
@@ -18,6 +21,66 @@ class ContactsController extends Controller
         'Pending Verification',
         'Not Submitted',
         'Rejected',
+    ];
+
+    private const SERVICE_INQUIRY_OPTIONS = [
+        'Business Registration / Entity Formation',
+        'Business Permit (New / Renewal)',
+        'Tax Compliance / BIR Filing',
+        'Accounting / Bookkeeping',
+        'Financial Statements Preparation',
+        'Corporate Officers Services',
+        'Business Advisory / Consultation',
+        'Regulatory Compliance',
+        'Other',
+    ];
+
+    private const RECOMMENDATION_OPTIONS = [
+        'Proceed to Proposal Preparation',
+        'Refer to Senior Consultant',
+        'Refer to Subject Matter Expert',
+        'For Further Study / Assessment',
+        'For Due Diligence / Background Check',
+        'Schedule Consultation Meeting',
+        'Request Additional Information from Client',
+        'Not Suitable for Engagement',
+        'Others',
+    ];
+
+    private const LEAD_SOURCE_OPTIONS = [
+        'Facebook',
+        'Instagram',
+        'LinkedIn',
+        'Tiktok',
+        'Website',
+        'Google Search',
+        'Google Ads',
+        'Walk-In',
+        'Referral-Client',
+        'Referral-Partner',
+        'Referral-Employee',
+        'Email Inquiry',
+        'Phone Call',
+        'SMS/Viber',
+        'WhatsApp',
+        'Online Market Place',
+        'Event Seminar',
+        'Webinar',
+        'Trade Show Expo',
+        'Flyer / Brochure',
+        'Radio Advertisement',
+        'Returning Client',
+        'Influencer / Content Creator',
+        'Television Advertisement',
+        'Other',
+    ];
+
+    private const LEAD_STAGE_OPTIONS = [
+        'Intake',
+        'Qualified',
+        'Converted',
+        'Lost',
+        'Not Qualified',
     ];
 
     private const TABS = [
@@ -48,8 +111,11 @@ class ContactsController extends Controller
                     ->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('company_name', 'like', "%{$search}%")
+                    ->orWhere('position', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('contact_address', 'like', "%{$search}%")
+                    ->orWhere('company_address', 'like', "%{$search}%")
                     ->orWhere('owner_name', 'like', "%{$search}%");
             });
         }
@@ -65,6 +131,32 @@ class ContactsController extends Controller
             ->orderBy('last_name')
             ->paginate($perPage)
             ->withQueryString();
+
+        $mockContact = $this->mockContact();
+        $mockSearchBlob = collect([
+            $mockContact->salutation,
+            $mockContact->first_name,
+            $mockContact->middle_name,
+            $mockContact->last_name,
+            $mockContact->company_name,
+            $mockContact->email,
+            $mockContact->phone,
+            $mockContact->position,
+            $mockContact->contact_address,
+            $mockContact->owner_name,
+        ])->filter()->implode(' ');
+        $mockMatchesSearch = $search === '' || Str::contains(Str::lower($mockSearchBlob), Str::lower($search));
+        $mockMatchesKyc = $kycFilter === 'All' || $mockContact->kyc_status === $kycFilter;
+
+        if ($mockMatchesSearch && $mockMatchesKyc && ! $contacts->getCollection()->contains(fn ($contact) => (int) $contact->id === 101)) {
+            $contacts = new LengthAwarePaginator(
+                $contacts->getCollection()->prepend($mockContact),
+                $contacts->total() + 1,
+                $contacts->perPage(),
+                $contacts->currentPage(),
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
         $customFields = collect($request->session()->get('contacts.custom_fields', []))
             ->values()
             ->all();
@@ -81,7 +173,7 @@ class ContactsController extends Controller
             'statusCounts' => [
                 'Verified' => Contact::query()->where('kyc_status', 'Verified')->count(),
                 'Pending Verification' => Contact::query()->where('kyc_status', 'Pending Verification')->count(),
-                'Not Submitted' => Contact::query()->where('kyc_status', 'Not Submitted')->count(),
+                'Not Submitted' => Contact::query()->where('kyc_status', 'Not Submitted')->count() + 1,
                 'Rejected' => Contact::query()->where('kyc_status', 'Rejected')->count(),
             ],
             'kycStatuses' => self::KYC_STATUSES,
@@ -98,12 +190,52 @@ class ContactsController extends Controller
         $owners = collect($this->ownerOptions())->keyBy('id');
 
         $validated = $request->validate([
+            'intake_date' => ['nullable', 'date'],
+            'customer_type' => ['nullable', 'string', 'in:business,individual'],
+            'client_status' => ['nullable', 'string', 'in:new,existing'],
+            'salutation' => ['nullable', 'string', 'max:30'],
             'first_name' => ['required', 'string', 'max:100'],
+            'middle_initial' => ['nullable', 'string', 'max:20'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['nullable', 'string', 'max:100'],
-            'lead_source' => ['nullable', 'string', 'max:150'],
+            'name_extension' => ['nullable', 'string', 'max:50'],
+            'sex' => ['nullable', 'string', 'max:20'],
+            'date_of_birth' => ['nullable', 'date'],
+            'company_name' => ['nullable', 'string', 'max:150'],
+            'company_address' => ['nullable', 'string', 'max:255'],
+            'contact_address' => ['nullable', 'string', 'max:255'],
+            'position' => ['nullable', 'string', 'max:150'],
+            'business_type_organization' => ['nullable', 'string', 'max:150'],
+            'organization_type' => ['nullable', 'string', 'max:100'],
+            'organization_type_other' => ['nullable', 'string', 'max:150'],
+            'nature_of_business' => ['nullable', 'string', 'max:255'],
+            'capitalization_amount' => ['nullable'],
+            'ownership_structure' => ['nullable', 'string', 'max:255'],
+            'previous_year_revenue' => ['nullable'],
+            'years_operating' => ['nullable', 'string', 'max:100'],
+            'projected_current_year_revenue' => ['nullable'],
+            'ownership_flag' => ['nullable', 'string', 'max:150'],
+            'foreign_business_nature' => ['nullable', 'string', 'max:2000'],
+            'service_inquiry_types' => ['nullable', 'array'],
+            'service_inquiry_types.*' => ['string', 'in:'.implode(',', self::SERVICE_INQUIRY_OPTIONS)],
+            'service_inquiry_other' => ['nullable', 'string', 'max:255'],
+            'inquiry' => ['nullable', 'string', 'max:4000'],
+            'jknc_notes' => ['nullable', 'string', 'max:4000'],
+            'sales_marketing' => ['nullable', 'string', 'max:4000'],
+            'consultant_lead' => ['nullable', 'string', 'max:150'],
+            'lead_associate' => ['nullable', 'string', 'max:150'],
+            'recommendation_options' => ['nullable', 'array'],
+            'recommendation_options.*' => ['string', 'in:'.implode(',', self::RECOMMENDATION_OPTIONS)],
+            'recommendation_other' => ['nullable', 'string', 'max:255'],
+            'lead_source_channels' => ['nullable', 'array'],
+            'lead_source_channels.*' => ['string', 'in:'.implode(',', self::LEAD_SOURCE_OPTIONS)],
+            'lead_source_other' => ['nullable', 'string', 'max:255'],
+            'referred_by' => ['nullable', 'string', 'max:150'],
+            'lead_stage' => ['nullable', 'string', 'in:'.implode(',', self::LEAD_STAGE_OPTIONS)],
             'email' => ['nullable', 'email', 'max:255'],
             'mobile' => ['nullable', 'string', 'max:30'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'recommendation' => ['nullable', 'string', 'max:2000'],
             'owner_id' => ['required', 'integer'],
         ]);
 
@@ -118,18 +250,110 @@ class ContactsController extends Controller
             return back()->withErrors(['owner_id' => 'Please select a valid owner.'])->withInput();
         }
 
-        Contact::query()->create([
+        $serviceInquiryTypes = collect($validated['service_inquiry_types'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+        $recommendationOptions = collect($validated['recommendation_options'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+        $leadSourceChannels = collect($validated['lead_source_channels'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+
+        $serviceInquirySummary = implode(', ', array_filter([
+            implode(', ', $serviceInquiryTypes),
+            $validated['service_inquiry_other'] ?? null,
+        ]));
+        $recommendationSummary = implode(', ', array_filter([
+            implode(', ', $recommendationOptions),
+            $validated['recommendation_other'] ?? null,
+        ]));
+        $leadSourceSummary = implode(', ', array_filter([
+            implode(', ', $leadSourceChannels),
+            $validated['lead_source_other'] ?? null,
+        ]));
+
+        $attributes = [
+            'intake_date' => $validated['intake_date'] ?? now()->toDateString(),
+            'customer_type' => $validated['customer_type'] ?? null,
+            'client_status' => $validated['client_status'] ?? null,
+            'salutation' => $validated['salutation'] ?? null,
             'first_name' => $validated['first_name'],
+            'middle_initial' => $validated['middle_initial'] ?? null,
+            'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => $validated['last_name'] ?? '',
-            'lead_source' => $validated['lead_source'] ?? null,
+            'name_extension' => $validated['name_extension'] ?? null,
+            'sex' => $validated['sex'] ?? null,
+            'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'company_name' => $validated['company_name'] ?? null,
+            'company_address' => $validated['company_address'] ?? null,
+            'contact_address' => $validated['contact_address'] ?? null,
+            'position' => $validated['position'] ?? null,
+            'business_type_organization' => $validated['business_type_organization'] ?? null,
+            'organization_type' => $validated['organization_type'] ?? null,
+            'organization_type_other' => $validated['organization_type_other'] ?? null,
+            'nature_of_business' => $validated['nature_of_business'] ?? null,
+            'capitalization_amount' => $this->normalizeMoneyValue($validated['capitalization_amount'] ?? null),
+            'ownership_structure' => $validated['ownership_structure'] ?? null,
+            'previous_year_revenue' => $this->normalizeMoneyValue($validated['previous_year_revenue'] ?? null),
+            'years_operating' => $validated['years_operating'] ?? null,
+            'projected_current_year_revenue' => $this->normalizeMoneyValue($validated['projected_current_year_revenue'] ?? null),
+            'ownership_flag' => $validated['ownership_flag'] ?? null,
+            'foreign_business_nature' => $validated['foreign_business_nature'] ?? null,
+            'service_inquiry_types' => $serviceInquiryTypes,
+            'service_inquiry_other' => $validated['service_inquiry_other'] ?? null,
+            'service_inquiry_type' => $serviceInquirySummary !== '' ? $serviceInquirySummary : null,
+            'inquiry' => $validated['inquiry'] ?? null,
+            'jknc_notes' => $validated['jknc_notes'] ?? null,
+            'sales_marketing' => $validated['sales_marketing'] ?? null,
+            'consultant_lead' => $validated['consultant_lead'] ?? null,
+            'lead_associate' => $validated['lead_associate'] ?? null,
+            'recommendation_options' => $recommendationOptions,
+            'recommendation_other' => $validated['recommendation_other'] ?? null,
+            'recommendation' => $recommendationSummary !== '' ? $recommendationSummary : ($validated['recommendation'] ?? null),
+            'lead_source_channels' => $leadSourceChannels,
+            'lead_source_other' => $validated['lead_source_other'] ?? null,
+            'lead_source' => $leadSourceSummary !== '' ? $leadSourceSummary : null,
+            'referred_by' => $validated['referred_by'] ?? null,
+            'lead_stage' => $validated['lead_stage'] ?? null,
             'email' => $validated['email'] ?? null,
             'phone' => $validated['mobile'] ?? null,
-            'description' => $validated['description'] ?? null,
+            'description' => $validated['inquiry'] ?? ($validated['description'] ?? null),
             'kyc_status' => 'Not Submitted',
             'owner_name' => $owner['name'],
-        ]);
+        ];
+
+        Contact::query()->create($this->filterPersistableContactAttributes($attributes));
 
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
+    }
+
+    public function assignOwner(Request $request): RedirectResponse
+    {
+        $owners = collect($this->ownerOptions())->keyBy('id');
+
+        $validated = $request->validate([
+            'selected_contacts' => ['required', 'array', 'min:1'],
+            'selected_contacts.*' => ['required', 'integer'],
+            'assign_owner_id' => ['required', 'integer'],
+        ]);
+
+        $owner = $owners->get((int) $validated['assign_owner_id']);
+        if (! $owner) {
+            return back()->withErrors(['assign_owner_id' => 'Please select a valid owner.'])->withInput();
+        }
+
+        Contact::query()
+            ->whereIn('id', $validated['selected_contacts'])
+            ->update(['owner_name' => $owner['name']]);
+
+        return redirect()->route('contacts.index')->with('success', 'Owner assigned to selected contacts.');
     }
 
     public function storeCustomField(Request $request): RedirectResponse
@@ -208,28 +432,184 @@ class ContactsController extends Controller
         return redirect()->route('contacts.index')->with('success', 'Contact custom field created successfully.');
     }
 
-    public function show(Request $request, Contact $contact): View
+    public function show(Request $request, string $contact): View
     {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
         $tab = strtolower((string) $request->query('tab', 'kyc'));
         if (! array_key_exists($tab, self::TABS)) {
             $tab = 'kyc';
         }
 
         return view('contacts.show', [
-            'contact' => $contact,
+            'contact' => $contactModel,
             'tab' => $tab,
             'tabs' => self::TABS,
-            'tabData' => $this->tabData($contact),
+            'tabData' => $this->tabData($contactModel),
+            'cifData' => $this->loadCifData($contactModel),
+            'cifDocuments' => $this->loadCifDocuments($contactModel),
+            'cifEditMode' => $request->boolean('edit_cif') || $request->session()->has('errors'),
+        ]);
+    }
+
+    public function saveCif(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $validated = $request->validate([
+            'cif_date' => ['nullable', 'date'],
+            'cif_no' => ['nullable', 'string', 'max:100'],
+            'is_new_client' => ['nullable', 'boolean'],
+            'is_existing_client' => ['nullable', 'boolean'],
+            'is_change_information' => ['nullable', 'boolean'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+            'name_extension' => ['nullable', 'string', 'max:50'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'no_middle_name' => ['nullable', 'boolean'],
+            'only_first_name' => ['nullable', 'boolean'],
+            'present_address_line1' => ['nullable', 'string', 'max:255'],
+            'present_address_line2' => ['nullable', 'string', 'max:255'],
+            'zip_code' => ['nullable', 'string', 'max:20'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'mobile' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date'],
+            'place_of_birth' => ['nullable', 'string', 'max:150'],
+            'citizenship_nationality' => ['nullable', 'string', 'max:150'],
+            'citizenship_type' => ['nullable', 'in:filipino,foreigner,dual_citizen'],
+            'gender' => ['nullable', 'in:male,female'],
+            'civil_status' => ['nullable', 'in:single,separated,widowed,married'],
+            'spouse_name' => ['nullable', 'string', 'max:150'],
+            'nature_of_work_business' => ['nullable', 'string', 'max:255'],
+            'tin' => ['nullable', 'string', 'max:100'],
+            'other_government_id' => ['nullable', 'string', 'max:150'],
+            'id_number' => ['nullable', 'string', 'max:150'],
+            'mothers_maiden_name' => ['nullable', 'string', 'max:150'],
+            'source_of_funds' => ['nullable', 'array'],
+            'source_of_funds.*' => ['string', 'in:salary,remittance,business,others,commission_fees,retirement_pension'],
+            'source_of_funds_other_text' => ['nullable', 'string', 'max:150'],
+            'foreigner_passport_no' => ['nullable', 'string', 'max:150'],
+            'foreigner_passport_expiry_date' => ['nullable', 'date'],
+            'foreigner_passport_place_of_issue' => ['nullable', 'string', 'max:150'],
+            'foreigner_acr_id_no' => ['nullable', 'string', 'max:150'],
+            'foreigner_acr_expiry_date' => ['nullable', 'date'],
+            'foreigner_acr_place_of_issue' => ['nullable', 'string', 'max:150'],
+            'visa_status' => ['nullable', 'string', 'max:150'],
+            'onboarding_two_valid_ids' => ['nullable', 'boolean'],
+            'onboarding_tin_id' => ['nullable', 'boolean'],
+            'onboarding_authorized_signatory_card' => ['nullable', 'boolean'],
+            'referred_by_footer' => ['nullable', 'string', 'max:150'],
+            'referred_date' => ['nullable', 'date'],
+            'sales_marketing_footer' => ['nullable', 'string', 'max:150'],
+            'finance_footer' => ['nullable', 'string', 'max:150'],
+            'president_footer' => ['nullable', 'string', 'max:150'],
+            'sig_name_left' => ['nullable', 'string', 'max:150'],
+            'sig_position_left' => ['nullable', 'string', 'max:150'],
+            'sig_name_right' => ['nullable', 'string', 'max:150'],
+            'sig_position_right' => ['nullable', 'string', 'max:150'],
+            'owner_name' => ['nullable', 'string', 'max:150'],
+            'kyc_status' => ['nullable', 'string', 'max:100'],
+            'date_verified' => ['nullable', 'date'],
+            'verified_by' => ['nullable', 'string', 'max:150'],
+            'remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $validated['source_of_funds'] = array_values(array_filter($validated['source_of_funds'] ?? []));
+        $validated['is_new_client'] = $request->boolean('is_new_client');
+        $validated['is_existing_client'] = $request->boolean('is_existing_client');
+        $validated['is_change_information'] = $request->boolean('is_change_information');
+        $validated['no_middle_name'] = $request->boolean('no_middle_name');
+        $validated['only_first_name'] = $request->boolean('only_first_name');
+        $validated['onboarding_two_valid_ids'] = $request->boolean('onboarding_two_valid_ids');
+        $validated['onboarding_tin_id'] = $request->boolean('onboarding_tin_id');
+        $validated['onboarding_authorized_signatory_card'] = $request->boolean('onboarding_authorized_signatory_card');
+
+        validator($validated, [])->after(function (Validator $validator) use ($validated) {
+            $onlyFirstName = (bool) ($validated['only_first_name'] ?? false);
+            if (! $onlyFirstName && blank($validated['last_name'] ?? null)) {
+                $validator->errors()->add('last_name', 'Last name is required unless "I only have a First Name" is checked.');
+            }
+        })->validate();
+
+        $this->saveCifDataToStorage($contactModel, [
+            ...$this->loadCifData($contactModel),
+            ...$validated,
+        ]);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'CIF information saved successfully.');
+    }
+
+    public function uploadCifDocument(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $validated = $request->validate([
+            'document_type' => ['required', 'string', 'in:cif_document,valid_id,tin_document,registration_document,other'],
+            'document_file' => ['required', 'file', 'max:5120'],
+            'document_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $storedPath = $request->file('document_file')->store('contact-cif-documents', 'public');
+        $documents = $this->loadCifDocuments($contactModel);
+        $documents[$validated['document_type']] = [
+            'label' => $this->cifDocumentTypes()[$validated['document_type']],
+            'path' => $storedPath,
+            'file_name' => $request->file('document_file')->getClientOriginalName(),
+            'mime_type' => $request->file('document_file')->getMimeType(),
+            'uploaded_at' => now()->toDateTimeString(),
+            'notes' => $validated['document_notes'] ?? '',
+            'url' => Storage::disk('public')->url($storedPath),
+        ];
+
+        $this->saveCifDocumentsToStorage($contactModel, $documents);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'Supporting document uploaded successfully.');
+    }
+
+    public function previewCif(Request $request, string $contact): View
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        return view('contacts.cif-preview', [
+            'contact' => $contactModel,
+            'cifData' => $this->loadCifData($contactModel),
+            'cifDocuments' => $this->loadCifDocuments($contactModel),
+            'downloadMode' => false,
+        ]);
+    }
+
+    public function downloadCif(Request $request, string $contact): View
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        return view('contacts.cif-preview', [
+            'contact' => $contactModel,
+            'cifData' => $this->loadCifData($contactModel),
+            'cifDocuments' => $this->loadCifDocuments($contactModel),
+            'downloadMode' => true,
         ]);
     }
 
     private function ownerOptions(): array
     {
         $users = User::query()
-            ->select(['id', 'name'])
+            ->select(['id', 'name', 'email'])
             ->orderBy('name')
             ->get()
-            ->map(fn (User $user) => ['id' => (int) $user->id, 'name' => $user->name])
+            ->map(fn (User $user) => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'email' => $user->email ?: strtolower(str_replace(' ', '.', $user->name)).'@example.com',
+            ])
             ->all();
 
         if (! empty($users)) {
@@ -237,9 +617,9 @@ class ContactsController extends Controller
         }
 
         return [
-            ['id' => 1001, 'name' => 'John Admin'],
-            ['id' => 1002, 'name' => 'AdminUser'],
-            ['id' => 1003, 'name' => 'Shine Florence Padillo'],
+            ['id' => 1001, 'name' => 'John Admin', 'email' => 'john.admin@example.com'],
+            ['id' => 1002, 'name' => 'AdminUser', 'email' => 'admin.user@example.com'],
+            ['id' => 1003, 'name' => 'Shine Florence Padillo', 'email' => 'shinepadi@gmail.com'],
         ];
     }
 
@@ -280,9 +660,215 @@ class ContactsController extends Controller
         return $value;
     }
 
+    private function mockContact(): Contact
+    {
+        $contact = new Contact([
+            'customer_type' => 'Corporation',
+            'salutation' => 'Mr.',
+            'first_name' => 'David',
+            'middle_name' => 'S.',
+            'last_name' => 'Lee',
+            'email' => 'david.lee@consulting.com',
+            'phone' => '09331234567',
+            'position' => 'CEO',
+            'contact_address' => 'Cebu City, Philippines',
+            'company_name' => 'Consulting Group',
+            'owner_name' => 'John Admin',
+            'kyc_status' => 'Not Submitted',
+            'lead_source' => 'Website',
+            'referred_by' => 'John Smith',
+            'service_inquiry_type' => 'Partner Referral',
+        ]);
+        $contact->id = 101;
+
+        return $contact;
+    }
+
+    private function loadCifData(Contact $contact): array
+    {
+        $path = $this->cifDataPath($contact);
+        if (Storage::disk('local')->exists($path)) {
+            return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+        }
+
+        return [
+            'cif_date' => now()->toDateString(),
+            'cif_no' => '',
+            'is_new_client' => true,
+            'is_existing_client' => false,
+            'is_change_information' => false,
+            'name_extension' => '',
+            'no_middle_name' => false,
+            'only_first_name' => false,
+            'present_address_line1' => $contact->contact_address,
+            'present_address_line2' => '',
+            'zip_code' => '',
+            'date_of_birth' => '',
+            'place_of_birth' => '',
+            'citizenship_nationality' => '',
+            'citizenship_type' => '',
+            'gender' => '',
+            'civil_status' => '',
+            'spouse_name' => '',
+            'nature_of_work_business' => '',
+            'tin' => '',
+            'other_government_id' => '',
+            'id_number' => '',
+            'mothers_maiden_name' => '',
+            'source_of_funds' => [],
+            'source_of_funds_other_text' => '',
+            'foreigner_passport_no' => '',
+            'foreigner_passport_expiry_date' => '',
+            'foreigner_passport_place_of_issue' => '',
+            'foreigner_acr_id_no' => '',
+            'foreigner_acr_expiry_date' => '',
+            'foreigner_acr_place_of_issue' => '',
+            'visa_status' => '',
+            'onboarding_two_valid_ids' => false,
+            'onboarding_tin_id' => false,
+            'onboarding_authorized_signatory_card' => false,
+            'referred_by_footer' => $contact->referred_by,
+            'referred_date' => '',
+            'sales_marketing_footer' => '',
+            'finance_footer' => '',
+            'president_footer' => '',
+            'sig_name_left' => '',
+            'sig_position_left' => '',
+            'sig_name_right' => '',
+            'sig_position_right' => '',
+            'first_name' => $contact->first_name,
+            'middle_name' => $contact->middle_name,
+            'last_name' => $contact->last_name,
+            'email' => $contact->email,
+            'mobile' => $contact->phone,
+            'owner_name' => $contact->owner_name,
+            'kyc_status' => $contact->kyc_status,
+            'date_verified' => '',
+            'verified_by' => '',
+            'remarks' => '',
+        ];
+    }
+
+    private function saveCifDataToStorage(Contact $contact, array $payload): void
+    {
+        Storage::disk('local')->put($this->cifDataPath($contact), json_encode($payload, JSON_PRETTY_PRINT));
+    }
+
+    private function loadCifDocuments(Contact $contact): array
+    {
+        $path = $this->cifDocumentsPath($contact);
+        if (Storage::disk('local')->exists($path)) {
+            return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+        }
+
+        return [];
+    }
+
+    private function saveCifDocumentsToStorage(Contact $contact, array $documents): void
+    {
+        Storage::disk('local')->put($this->cifDocumentsPath($contact), json_encode($documents, JSON_PRETTY_PRINT));
+    }
+
+    private function cifDataPath(Contact $contact): string
+    {
+        return 'contact-cif-data/'.$contact->id.'.json';
+    }
+
+    private function cifDocumentsPath(Contact $contact): string
+    {
+        return 'contact-cif-data/'.$contact->id.'-documents.json';
+    }
+
+    private function cifDocumentTypes(): array
+    {
+        return [
+            'cif_document' => 'CIF Document',
+            'valid_id' => 'Valid ID',
+            'tin_document' => 'TIN Document',
+            'registration_document' => 'Supporting Registration Document',
+            'other' => 'Other Related File',
+        ];
+    }
+
+    private function normalizeMoneyValue(mixed $value): ?float
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '', (string) $value);
+        if (! is_numeric($normalized)) {
+            return null;
+        }
+
+        return (float) $normalized;
+    }
+
+    private function filterPersistableContactAttributes(array $attributes): array
+    {
+        static $contactColumns = null;
+
+        if (! Schema::hasTable('contacts')) {
+            return [];
+        }
+
+        if ($contactColumns === null) {
+            $contactColumns = array_flip(Schema::getColumnListing('contacts'));
+        }
+
+        return collect($attributes)
+            ->filter(fn ($_value, $key) => isset($contactColumns[$key]))
+            ->all();
+    }
+
     private function tabData(Contact $contact): array
     {
         $owner = $contact->owner_name ?: 'John Admin';
+        $deals = [
+            [
+                'name' => 'Corporate Software License',
+                'stage' => 'Negotiation',
+                'amount' => '₱250,000',
+                'closing_date' => 'Mar 15, 2026',
+                'owner' => 'John Admin',
+                'status' => 'Open',
+            ],
+            [
+                'name' => 'Security Audit Package',
+                'stage' => 'Proposal',
+                'amount' => '₱120,000',
+                'closing_date' => 'Apr 02, 2026',
+                'owner' => 'Maria Santos',
+                'status' => 'Pending',
+            ],
+            [
+                'name' => 'Cloud Migration Retainer',
+                'stage' => 'Qualification',
+                'amount' => '₱340,000',
+                'closing_date' => 'Apr 20, 2026',
+                'owner' => 'AdminUser',
+                'status' => 'Open',
+            ],
+            [
+                'name' => 'Website Redesign Project',
+                'stage' => 'Closed Lost',
+                'amount' => '₱180,000',
+                'closing_date' => 'Feb 20, 2026',
+                'owner' => 'Admin User',
+                'status' => 'Lost',
+            ],
+        ];
+
+        if ((int) $contact->id === 101) {
+            array_unshift($deals, [
+                'name' => 'Tax Advisory Compliance Audit Regular Retainer',
+                'stage' => 'Inquiry',
+                'amount' => '₱920,000',
+                'closing_date' => 'Jun 10, 2026',
+                'owner' => 'Admin User',
+                'status' => 'Open',
+            ]);
+        }
 
         return [
             'history' => [
@@ -457,40 +1043,7 @@ class ContactsController extends Controller
                     'status' => 'Pending',
                 ],
             ],
-            'deals' => [
-                [
-                    'name' => 'Corporate Software License',
-                    'stage' => 'Negotiation',
-                    'amount' => '₱250,000',
-                    'closing_date' => 'Mar 15, 2026',
-                    'owner' => 'John Admin',
-                    'status' => 'Open',
-                ],
-                [
-                    'name' => 'Security Audit Package',
-                    'stage' => 'Proposal',
-                    'amount' => '₱120,000',
-                    'closing_date' => 'Apr 02, 2026',
-                    'owner' => 'Maria Santos',
-                    'status' => 'Pending',
-                ],
-                [
-                    'name' => 'Cloud Migration Retainer',
-                    'stage' => 'Qualification',
-                    'amount' => '₱340,000',
-                    'closing_date' => 'Apr 20, 2026',
-                    'owner' => 'AdminUser',
-                    'status' => 'Open',
-                ],
-                [
-                    'name' => 'Website Redesign Project',
-                    'stage' => 'Closed Lost',
-                    'amount' => '₱180,000',
-                    'closing_date' => 'Feb 20, 2026',
-                    'owner' => 'Admin User',
-                    'status' => 'Lost',
-                ],
-            ],
+            'deals' => $deals,
             'projects' => [
                 [
                     'name' => 'Software Implementation Phase 1',

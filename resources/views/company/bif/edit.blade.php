@@ -9,10 +9,10 @@
             <div class="flex items-center gap-2 text-sm text-gray-500">
                 <a href="{{ route('company.bif.show', ['company' => $company->id, 'bif' => $bif->id]) }}" class="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900">
                     <i class="fas fa-arrow-left text-xs"></i>
-                    <span>BIF Preview</span>
+                    <span>Business Client Information Form</span>
                 </a>
                 <span>/</span>
-                <span class="font-semibold text-gray-900">Edit Business Information Form</span>
+                <span class="font-semibold text-gray-900">Edit Business Client Information Form</span>
             </div>
         </div>
 
@@ -20,8 +20,8 @@
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
                 <div class="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
                     <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">Edit Business Information Form</h1>
-                        <p class="mt-1 text-sm text-gray-500">Update BIF details for {{ $company->company_name }} before final approval.</p>
+                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">Edit Business Client Information Form</h1>
+                        <p class="mt-1 text-sm text-gray-500">Update the business client information details for {{ $company->company_name }} before final approval.</p>
                     </div>
                     <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
                         {{ $statusLabels[$bif->status] ?? ucfirst(str_replace('_', ' ', $bif->status)) }}

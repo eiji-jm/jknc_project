@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
 use App\Http\Controllers\CompanyActivityController;
-use App\Http\Controllers\CompanyCifController;
 use App\Http\Controllers\CompanyConsultationNoteController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyCorporateFormationController;
@@ -42,16 +41,27 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
 });
 
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
 Route::middleware('auth')->group(function () {
-    Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
-    Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
-    Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
-    Route::get('/contacts/{contact}', [ContactsController::class, 'show'])->name('contacts.show');
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-    Route::get('/deals', [DealController::class, 'index'])->name('deals.index');
-    Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
+Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
+Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+Route::post('/contacts/assign-owner', [ContactsController::class, 'assignOwner'])->name('contacts.assign-owner');
+Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
+Route::post('/contacts/{contact}/cif', [ContactsController::class, 'saveCif'])->name('contacts.cif.save');
+Route::post('/contacts/{contact}/cif/documents', [ContactsController::class, 'uploadCifDocument'])->name('contacts.cif.documents.upload');
+Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
+Route::get('/contacts/{contact}/cif/download', [ContactsController::class, 'downloadCif'])->name('contacts.cif.download');
+Route::get('/contacts/{contact}', [ContactsController::class, 'show'])->name('contacts.show');
+
+Route::get('/deals', [DealController::class, 'index'])->name('deals.index');
+Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.preview');
+Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
+Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
+Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
+Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
+Route::get('/deals/{id}/download', [DealController::class, 'download'])->name('deals.download');
+Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
@@ -72,9 +82,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/company/{company}', [CompanyController::class, 'destroy'])->name('company.destroy');
     Route::get('/company/{company}', [CompanyController::class, 'show'])->name('company.show');
     Route::get('/company/{company}/kyc', [CompanyKycController::class, 'index'])->name('company.kyc');
-    Route::post('/company/{company}/kyc', [CompanyKycController::class, 'store'])->name('company.kyc.store');
-    Route::match(['put', 'patch'], '/company/{company}/kyc/{record}', [CompanyKycController::class, 'update'])->name('company.kyc.update');
-    Route::delete('/company/{company}/kyc/{record}', [CompanyKycController::class, 'destroy'])->name('company.kyc.destroy');
     Route::get('/company/{company}/history', [CompanyController::class, 'history'])->name('company.history');
     Route::get('/company/{company}/consultation-notes', [CompanyController::class, 'consultationNotes'])->name('company.consultation-notes');
     Route::post('/company/{company}/consultation-notes', [CompanyConsultationNoteController::class, 'store'])->name('company.consultation-notes.store');
@@ -140,14 +147,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/company/{company}/corporate-formation/gis', [CompanyCorporateFormationController::class, 'gis'])->name('company.corporate-formation.gis');
     Route::post('/company/{company}/corporate-formation/gis', [CompanyCorporateFormationController::class, 'storeGis'])->name('company.corporate-formation.gis.store');
     Route::match(['put', 'patch'], '/company/{company}/corporate-formation/gis/{record}', [CompanyCorporateFormationController::class, 'updateGis'])->name('company.corporate-formation.gis.update');
-    Route::get('/company/{company}/kyc/cif/create', [CompanyCifController::class, 'create'])->name('company.cif.create');
-    Route::post('/company/{company}/kyc/cif', [CompanyCifController::class, 'store'])->name('company.cif.store');
-    Route::get('/company/{company}/kyc/cif/{cif}', [CompanyCifController::class, 'show'])->name('company.cif.show');
-    Route::get('/company/{company}/kyc/cif/{cif}/edit', [CompanyCifController::class, 'edit'])->name('company.cif.edit');
-    Route::match(['put', 'patch'], '/company/{company}/kyc/cif/{cif}', [CompanyCifController::class, 'update'])->name('company.cif.update');
-    Route::post('/company/{company}/kyc/cif/{cif}/approve', [CompanyCifController::class, 'approve'])->name('company.cif.approve');
-    Route::post('/company/{company}/kyc/cif/{cif}/reject', [CompanyCifController::class, 'reject'])->name('company.cif.reject');
-    Route::get('/company/{company}/kyc/cif/{cif}/print', [CompanyCifController::class, 'print'])->name('company.cif.print');
     Route::get('/company/{company}/kyc/bif/create', [CompanyBifController::class, 'create'])->name('company.bif.create');
     Route::post('/company/{company}/kyc/bif', [CompanyBifController::class, 'store'])->name('company.bif.store');
     Route::get('/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'show'])->name('company.bif.show');

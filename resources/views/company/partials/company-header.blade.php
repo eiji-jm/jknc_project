@@ -37,6 +37,14 @@
                                         <a href="{{ $company->website }}" class="text-blue-600 underline" target="_blank" rel="noreferrer">{{ $company->website }}</a>
                                     </p>
                                 @endif
+                                @if (! empty($companyKycStatus ?? null))
+                                    <p class="flex items-center gap-2">
+                                        <span class="font-medium text-gray-700">Status:</span>
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $companyKycStatusClass ?? 'bg-gray-100 text-gray-600 border border-gray-200' }}">
+                                            {{ $companyKycStatus }}
+                                        </span>
+                                    </p>
+                                @endif
                             </div>
                         </div>
                     </div>

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyActivity;
 use App\Models\CompanyConsultationNote;
-use App\Models\CompanyCif;
 use App\Models\CompanyHistoryEntry;
 use App\Models\Contact;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -256,7 +255,7 @@ class CompanyController extends Controller
 
         return redirect()->route('company.kyc', [
             'company' => $company,
-            'tab' => 'client-intake',
+            'tab' => 'business-client-information',
         ]);
     }
 

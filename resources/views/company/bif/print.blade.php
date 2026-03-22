@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $bif->title ?: 'Business Information Form' }}</title>
+    <title>{{ $bif->title ?: 'Business Client Information Form' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #eef2f7; }
@@ -21,7 +21,7 @@
     <div class="print-shell mx-auto max-w-7xl p-6">
         <div class="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
             <div>
-                <h1 class="text-lg font-semibold">Business Information Form</h1>
+                <h1 class="text-lg font-semibold">Business Client Information Form</h1>
                 <p class="text-sm text-gray-500">Use your browser's print dialog and choose Save as PDF to export this document.</p>
             </div>
             <div class="flex gap-2">

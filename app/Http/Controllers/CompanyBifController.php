@@ -86,7 +86,7 @@ class CompanyBifController extends Controller
 
         CompanyHistoryLogger::log($company, [
             'type' => 'profile',
-            'title' => $isSubmit ? 'Business Information Form submitted' : 'Business Information Form draft saved',
+            'title' => $isSubmit ? 'Business Client Information Form submitted' : 'Business Client Information Form draft saved',
             'description' => $bif->title,
             'extra_label' => 'Status',
             'extra_value' => self::STATUSES[$status] ?? ucfirst($status),
@@ -95,8 +95,8 @@ class CompanyBifController extends Controller
         ]);
 
         $message = $isSubmit
-            ? "Business Information Form saved for {$companyData['company_name']} and marked as approved for demo."
-            : "Business Information Form draft saved for {$companyData['company_name']}.";
+            ? "Business Client Information Form saved for {$companyData['company_name']} and marked as approved for demo."
+            : "Business Client Information Form draft saved for {$companyData['company_name']}.";
 
         return redirect()
             ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
@@ -147,7 +147,7 @@ class CompanyBifController extends Controller
 
         CompanyHistoryLogger::log($company, [
             'type' => 'profile',
-            'title' => $isSubmit ? 'Business Information Form updated' : 'Business Information Form draft updated',
+            'title' => $isSubmit ? 'Business Client Information Form updated' : 'Business Client Information Form draft updated',
             'description' => $bifRecord->title,
             'extra_label' => 'Status',
             'extra_value' => self::STATUSES[$status] ?? ucfirst($status),
@@ -156,8 +156,8 @@ class CompanyBifController extends Controller
         ]);
 
         $message = $isSubmit
-            ? "Business Information Form updated for {$companyData['company_name']} and kept as an approved demo record."
-            : "Business Information Form draft updated for {$companyData['company_name']}.";
+            ? "Business Client Information Form updated for {$companyData['company_name']} and kept as an approved demo record."
+            : "Business Client Information Form draft updated for {$companyData['company_name']}.";
 
         return redirect()
             ->route('company.bif.show', ['company' => $company, 'bif' => $bifRecord->id])
@@ -320,7 +320,7 @@ class CompanyBifController extends Controller
     {
         $name = trim((string) ($payload['business_name'] ?? ''));
 
-        return $name !== '' ? "Business Information Form - {$name}" : 'Business Information Form';
+        return $name !== '' ? "Business Client Information Form - {$name}" : 'Business Client Information Form';
     }
 
     private function generateBifNumber(CompanyBif $bif): string

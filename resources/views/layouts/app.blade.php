@@ -135,7 +135,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 </aside>
 
 <!-- SECOND SIDEBAR -->
-@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.bif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*') || request()->routeIs('company.corporate-formation*') || request()->routeIs('company.lgu*') || request()->routeIs('company.accounting*') || request()->routeIs('company.banking*') || request()->routeIs('company.operations*') || request()->routeIs('company.correspondence*') || request()->routeIs('company.bir-tax*'))
+@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.bif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*') || request()->routeIs('company.corporate-formation*') || request()->routeIs('company.lgu*') || request()->routeIs('company.accounting*') || request()->routeIs('company.banking*') || request()->routeIs('company.operations*') || request()->routeIs('company.correspondence*') || request()->routeIs('company.bir-tax*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
@@ -146,7 +146,7 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 <div class="space-y-1 text-sm">
 @php($companyRouteParam = request()->route('company'))
 
-<a href="{{ route('company.kyc', ['company' => $companyRouteParam, 'tab' => 'client-intake']) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.cif.*') || request()->routeIs('company.bif.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+<a href="{{ route('company.kyc', ['company' => $companyRouteParam, 'tab' => 'business-client-information']) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.bif.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
 KYC
 </a>
 <a href="{{ route('company.history', $companyRouteParam) }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('company.history') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">History</a>

@@ -12,7 +12,7 @@
                     <span>Business Client Information Form</span>
                 </a>
                 <span>/</span>
-                <span class="font-semibold text-gray-900">Send BIF</span>
+                <span class="font-semibold text-gray-900">New Business Client Information Form</span>
             </div>
         </div>
 
@@ -20,8 +20,8 @@
             <div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
                 <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
                     <div>
-                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">Business Information Form</h1>
-                        <p class="mt-1 text-sm text-gray-500">Fill out the BIF details for {{ $company->company_name }} using the provided business information layout.</p>
+                        <h1 class="text-2xl font-bold tracking-tight text-gray-900">Business Client Information Form</h1>
+                        <p class="mt-1 text-sm text-gray-500">Fill out the business client information details for {{ $company->company_name }}.</p>
                     </div>
                     <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
                         JK&C Internal Form
