@@ -104,7 +104,7 @@ class TownHallController extends Controller
         $communications = TownHallCommunication::whereNotNull('attachment')
             ->where('approval_status', 'Approved')
             ->latest()
-            ->get();
+            ->paginate(10);
 
         return view('townhall.attachments', compact('communications'));
     }
