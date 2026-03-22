@@ -9,12 +9,15 @@ class Permit extends Model
 {
     protected $fillable = [
         'permit_type',
+        'document_type',
         'permit_number',
         'date_of_registration',
         'approved_date_of_registration',
         'expiration_date_of_registration',
         'user',
         'tin',
+        'document_name',
+        'document_path',
     ];
 
     protected $appends = ['status'];

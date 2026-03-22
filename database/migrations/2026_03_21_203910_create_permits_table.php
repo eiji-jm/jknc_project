@@ -10,12 +10,15 @@ return new class extends Migration {
         Schema::create('permits', function (Blueprint $table) {
             $table->id();
             $table->string('permit_type');
+            $table->string('document_type')->nullable();
             $table->string('permit_number')->unique();
             $table->date('date_of_registration')->nullable();
             $table->date('approved_date_of_registration')->nullable();
             $table->date('expiration_date_of_registration')->nullable();
             $table->string('user');
             $table->string('tin')->nullable();
+            $table->string('document_name')->nullable();
+            $table->string('document_path')->nullable();
             $table->timestamps();
         });
     }
