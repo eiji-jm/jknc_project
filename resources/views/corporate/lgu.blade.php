@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div x-data="{ showSlideOver: false }" class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
+<div x-data="{ showSlideOver: false, hasExpiration: true }" class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
         {{-- SLIDE OVER FORM --}}
@@ -46,20 +46,43 @@
                                 <input id="approvedDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Expiration Date of Registration</label>
-                                <input id="expirationDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            <div class="border rounded-md p-3 bg-gray-50">
+                                <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        x-model="hasExpiration"
+                                        id="hasExpirationInput"
+                                        class="rounded border-gray-300"
+                                        @change="if (!hasExpiration) document.getElementById('expirationDateOfRegistrationInput').value = ''"
+                                    >
+                                    This permit has an expiration date
+                                </label>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    If unchecked, expiration date will be disabled and registration status will automatically be Active.
+                                </p>
                             </div>
 
-                            <div class="text-xs text-gray-500 bg-gray-50 border rounded-md p-3">
-                                Status is now automatic based on the expiration date.
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Expiration Date of Registration</label>
+                                <input
+                                    id="expirationDateOfRegistrationInput"
+                                    type="date"
+                                    class="w-full border rounded-md p-2"
+                                    :disabled="!hasExpiration"
+                                    :class="!hasExpiration ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''"
+                                >
                             </div>
                         </div>
 
                         {{-- FOOTER --}}
                         <div class="p-6 border-t flex gap-3">
                             <button @click="showSlideOver=false" class="flex-1 border py-2 rounded">Cancel</button>
-                            <button @click="addPermit()" class="flex-1 bg-blue-600 text-white py-2 rounded">Save</button>
+                            <button
+                                @click="addPermit().then(success => { if (success) { showSlideOver = false; hasExpiration = true; } })"
+                                class="flex-1 bg-blue-600 text-white py-2 rounded"
+                            >
+                                Save
+                            </button>
                         </div>
 
                     </div>
@@ -93,8 +116,8 @@
                     <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
                             <th class="w-40 p-3 text-left">Date of Registration</th>
-                            <th class="w-48 p-3 text-left">Approved Date of Registration</th>
-                            <th class="w-44 p-3 text-left">Expiration Date of Registration</th>
+                            <th class="w-48 p-3 text-left">Approved Date</th>
+                            <th class="w-44 p-3 text-left">Expiration Date</th>
                             <th class="w-32 p-3 text-left">Uploader</th>
                             <th class="w-40 p-3 text-left">Client</th>
                             <th class="w-32 p-3 text-left">TIN</th>
@@ -114,9 +137,7 @@ let currentPermit = "Mayor's Permit";
 
 async function fetchPermits(permitName) {
     const res = await fetch(`/permits/${encodeURIComponent(permitName)}`);
-    const data = await res.json();
-    console.log('Fetched permits:', data);
-    return data;
+    return await res.json();
 }
 
 function getStatusClasses(status) {
@@ -160,7 +181,7 @@ async function renderTable(permitName) {
             <tr class="border-t hover:bg-gray-50">
                 <td class="p-3">${item.date_of_registration ?? ''}</td>
                 <td class="p-3">${item.approved_date_of_registration ?? ''}</td>
-                <td class="p-3">${item.expiration_date_of_registration ?? ''}</td>
+                <td class="p-3">${item.expiration_date_of_registration ?? 'No Expiration'}</td>
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3 truncate">${item.client ?? ''}</td>
                 <td class="p-3">${item.tin ?? ''}</td>
@@ -180,7 +201,10 @@ async function addPermit() {
     const tin = document.getElementById('tinInput').value;
     const dateOfRegistration = document.getElementById('dateOfRegistrationInput').value;
     const approvedDateOfRegistration = document.getElementById('approvedDateOfRegistrationInput').value;
-    const expirationDateOfRegistration = document.getElementById('expirationDateOfRegistrationInput').value;
+    const hasExpiration = document.getElementById('hasExpirationInput').checked;
+    const expirationDateOfRegistration = hasExpiration
+        ? document.getElementById('expirationDateOfRegistrationInput').value
+        : null;
 
     const res = await fetch('/permits', {
         method: 'POST',
@@ -199,16 +223,20 @@ async function addPermit() {
         })
     });
 
-    const saved = await res.json();
-    console.log('Saved permit:', saved);
+    if (!res.ok) {
+        alert('Failed to save permit.');
+        return false;
+    }
 
     document.getElementById('clientInput').value = '';
     document.getElementById('tinInput').value = '';
     document.getElementById('dateOfRegistrationInput').value = '';
     document.getElementById('approvedDateOfRegistrationInput').value = '';
+    document.getElementById('hasExpirationInput').checked = true;
     document.getElementById('expirationDateOfRegistrationInput').value = '';
 
-    renderTable(currentPermit);
+    await renderTable(currentPermit);
+    return true;
 }
 
 renderTable(currentPermit);

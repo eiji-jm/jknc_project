@@ -28,7 +28,7 @@ class Permit extends Model
     public function getStatusAttribute()
     {
         if (!$this->expiration_date_of_registration) {
-            return 'No Expiration Date';
+            return 'Active';
         }
 
         return $this->expiration_date_of_registration->lt(Carbon::today())
