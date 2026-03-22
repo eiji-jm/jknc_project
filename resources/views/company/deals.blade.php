@@ -189,6 +189,26 @@
         <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div class="md:col-span-2">
+                        <label for="linked_deal_id" class="mb-1 block text-sm font-medium text-gray-700">Link Existing Deal</label>
+                        <select id="linked_deal_id" name="linked_deal_id" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                            <option value="">Create a new deal manually</option>
+                            @foreach ($availableDeals as $availableDeal)
+                                <option
+                                    value="{{ $availableDeal['id'] }}"
+                                    data-deal='@json($availableDeal)'
+                                    @selected((string) old('linked_deal_id') === (string) $availableDeal['id'])
+                                >
+                                    {{ $availableDeal['name'] }}{{ $availableDeal['company_name'] ? ' - ' . $availableDeal['company_name'] : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Select from the main Deals list to auto-fill and link that deal to this company.</p>
+                        @error('linked_deal_id')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
                         <label for="deal_name" class="mb-1 block text-sm font-medium text-gray-700">Deal Name <span class="text-red-500">*</span></label>
                         <input id="deal_name" name="name" type="text" value="{{ old('name') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" required>
                         @error('name')
@@ -285,6 +305,7 @@
         const dealFormMethod = document.getElementById('dealFormMethod');
         const dealModalTitle = document.getElementById('dealModalTitle');
         const dealFormSubmit = document.getElementById('dealFormSubmit');
+        const linkedDealSelect = document.getElementById('linked_deal_id');
         const updateUrlTemplate = @json(route('company.deals.update', [$company->id, '__DEAL__']));
 
         const openModal = () => window.jkncSlideOver.open(dealModal);
@@ -296,6 +317,9 @@
             dealFormMethod.value = 'POST';
             dealModalTitle.textContent = 'Add Deal';
             dealFormSubmit.textContent = 'Save';
+            if (linkedDealSelect) {
+                linkedDealSelect.value = '';
+            }
             document.getElementById('deal_stage').value = 'Qualification';
             document.getElementById('deal_priority').value = 'Normal';
             document.getElementById('deal_owner').value = @json($company->owner_name ?? '');
@@ -312,12 +336,33 @@
             document.getElementById('deal_notes').value = deal.notes ?? '';
         };
 
+        const applyLinkedDealSelection = () => {
+            if (!linkedDealSelect) {
+                return;
+            }
+
+            const selectedOption = linkedDealSelect.options[linkedDealSelect.selectedIndex];
+
+            if (!selectedOption || !selectedOption.dataset.deal) {
+                return;
+            }
+
+            try {
+                const deal = JSON.parse(selectedOption.dataset.deal);
+                fillForm(deal);
+            } catch (error) {
+                console.error('Unable to parse linked deal payload.', error);
+            }
+        };
+
         openButtons.forEach((button) => {
             button.addEventListener('click', function () {
                 resetForm();
                 openModal();
             });
         });
+
+        linkedDealSelect?.addEventListener('change', applyLinkedDealSelection);
 
         closeButtons.forEach((button) => {
             button.addEventListener('click', closeModal);
@@ -348,8 +393,12 @@
             }
         });
 
-        @if ($errors->has('name') || $errors->has('stage') || $errors->has('amount') || $errors->has('expected_close_date') || $errors->has('owner') || $errors->has('deal_source') || $errors->has('priority') || $errors->has('notes'))
+        @if ($errors->has('linked_deal_id') || $errors->has('name') || $errors->has('stage') || $errors->has('amount') || $errors->has('expected_close_date') || $errors->has('owner') || $errors->has('deal_source') || $errors->has('priority') || $errors->has('notes'))
             resetForm();
+            if (linkedDealSelect && @json(old('linked_deal_id'))) {
+                linkedDealSelect.value = @json(old('linked_deal_id'));
+                applyLinkedDealSelection();
+            }
             openModal();
         @endif
     });

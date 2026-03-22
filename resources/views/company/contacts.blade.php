@@ -185,6 +185,26 @@
 
         <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label for="linked_contact_id" class="mb-1 block text-sm font-medium text-gray-700">Link Existing Contact</label>
+                    <select id="linked_contact_id" name="linked_contact_id" class="h-9 w-full rounded border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                        <option value="">Create a new contact manually</option>
+                        @foreach ($availableContacts as $availableContact)
+                            <option
+                                value="{{ $availableContact['id'] }}"
+                                data-contact='@json($availableContact)'
+                                @selected((string) old('linked_contact_id') === (string) $availableContact['id'])
+                            >
+                                {{ $availableContact['full_name'] ?: 'Unnamed Contact' }}{{ $availableContact['company_name'] ? ' - ' . $availableContact['company_name'] : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Select from the main Contacts list to auto-fill the form and link that contact to this company.</p>
+                    @error('linked_contact_id')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div>
                     <label for="first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
                     <input id="first_name" name="first_name" type="text" value="{{ old('first_name') }}" class="h-9 w-full rounded border border-gray-200 px-4 text-sm text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
@@ -365,6 +385,7 @@
         const closeViewButtons = document.querySelectorAll('[data-close-view-modal]');
         const closeCustomFieldButtons = document.querySelectorAll('[data-close-custom-field-modal]');
         const formFields = ['first_name', 'last_name', 'full_name', 'email', 'owner_name', 'phone', 'mobile'];
+        const linkedContactSelect = document.getElementById('linked_contact_id');
         const customFields = @json($customFields);
         const baseStoreAction = @json(route('company.contacts.store', $company->id));
         const updateActionTemplate = @json(route('company.contacts.update', [$company->id, '__CONTACT__']));
@@ -391,6 +412,9 @@
             contactFormMethod.value = 'POST';
             contactModalTitle.textContent = 'Add Contact';
             contactFormSubmit.textContent = 'Save';
+            if (linkedContactSelect) {
+                linkedContactSelect.value = '';
+            }
             document.getElementById('owner_name').value = @json($company->owner_name ?? 'Owner 1');
             customFields.forEach((field) => {
                 const input = document.getElementById(`custom_field_${field.key}`);
@@ -414,6 +438,25 @@
                     input.value = contact.custom_fields?.[field.key] ?? '';
                 }
             });
+        };
+
+        const applyLinkedContactSelection = () => {
+            if (!linkedContactSelect) {
+                return;
+            }
+
+            const selectedOption = linkedContactSelect.options[linkedContactSelect.selectedIndex];
+
+            if (!selectedOption || !selectedOption.dataset.contact) {
+                return;
+            }
+
+            try {
+                const contact = JSON.parse(selectedOption.dataset.contact);
+                fillContactForm(contact);
+            } catch (error) {
+                console.error('Unable to parse linked contact payload.', error);
+            }
         };
 
         const openCreateModal = () => {
@@ -458,6 +501,8 @@
         createButtons.forEach((button) => {
             button.addEventListener('click', openCreateModal);
         });
+
+        linkedContactSelect?.addEventListener('change', applyLinkedContactSelection);
 
         editButtons.forEach((button) => {
             button.addEventListener('click', function () {
@@ -516,6 +561,11 @@
         if (oldMode === 'create') {
             resetContactForm();
             fillContactForm(oldValues);
+            if (linkedContactSelect && @json(old('linked_contact_id'))) {
+                linkedContactSelect.value = @json(old('linked_contact_id'));
+                applyLinkedContactSelection();
+                fillContactForm(oldValues);
+            }
             customFields.forEach((field) => {
                 const input = document.getElementById(`custom_field_${field.key}`);
                 if (input) {

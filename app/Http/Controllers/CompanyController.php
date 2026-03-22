@@ -6,6 +6,7 @@ use App\Models\CompanyActivity;
 use App\Models\CompanyConsultationNote;
 use App\Models\CompanyCif;
 use App\Models\CompanyHistoryEntry;
+use App\Models\Contact;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -307,6 +308,22 @@ class CompanyController extends Controller
             'contacts' => $contacts,
             'search' => $search,
             'customFields' => $this->companyContactCustomFields($request, $company),
+            'availableContacts' => Contact::query()
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'owner_name', 'company_name'])
+                ->map(fn (Contact $contact) => [
+                    'id' => $contact->id,
+                    'first_name' => $contact->first_name,
+                    'last_name' => $contact->last_name,
+                    'full_name' => trim($contact->first_name . ' ' . $contact->last_name),
+                    'email' => $contact->email,
+                    'phone' => $contact->phone,
+                    'mobile' => $contact->phone,
+                    'owner_name' => $contact->owner_name,
+                    'company_name' => $contact->company_name,
+                ])
+                ->values(),
         ]);
     }
 
@@ -328,8 +345,25 @@ class CompanyController extends Controller
         $companyContacts = collect($contacts[$company] ?? []);
         $nextId = (int) ($companyContacts->max('id') ?? 0) + 1;
 
+        $validated = $validator->validated();
+        $linkedContactId = (int) ($validated['linked_contact_id'] ?? 0);
+        $linkedContact = $linkedContactId > 0 ? Contact::query()->find($linkedContactId) : null;
+
+        if ($linkedContact) {
+            $validated = [
+                ...$validated,
+                'first_name' => $validated['first_name'] ?: $linkedContact->first_name,
+                'last_name' => $validated['last_name'] ?: $linkedContact->last_name,
+                'full_name' => $validated['full_name'] ?: trim($linkedContact->first_name . ' ' . $linkedContact->last_name),
+                'email' => $validated['email'] ?: ($linkedContact->email ?? ''),
+                'phone' => $validated['phone'] ?: ($linkedContact->phone ?? ''),
+                'mobile' => $validated['mobile'] ?: ($linkedContact->phone ?? ''),
+                'owner_name' => $validated['owner_name'] ?: ($linkedContact->owner_name ?? ''),
+            ];
+        }
+
         $contacts[$company][] = $this->makeContactPayload(
-            $validator->validated(),
+            $validated,
             $nextId,
             $company,
             $companyData['owner_name'] ?? 'Owner 1',
@@ -1025,6 +1059,7 @@ class CompanyController extends Controller
             'phone' => ['nullable', 'string', 'max:255'],
             'mobile' => ['nullable', 'string', 'max:255'],
             'owner_name' => ['nullable', 'string', 'max:255'],
+            'linked_contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
         ];
 
         foreach ($this->companyContactCustomFields($request, (int) $request->route('company')) as $field) {

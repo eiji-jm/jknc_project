@@ -50,6 +50,9 @@ class CompanyDealController extends Controller
             'stage' => $stage,
             'stages' => self::STAGES,
             'summary' => $summary,
+            'availableDeals' => collect($this->availableDeals())
+                ->sortBy('name')
+                ->values(),
         ]);
     }
 
@@ -57,6 +60,22 @@ class CompanyDealController extends Controller
     {
         $companyData = $this->findCompany($request, $company);
         $validated = $this->validateDeal($request);
+        $linkedDealId = (int) ($validated['linked_deal_id'] ?? 0);
+        $linkedDeal = collect($this->availableDeals())->firstWhere('id', $linkedDealId);
+
+        if ($linkedDeal) {
+            $validated = [
+                ...$validated,
+                'name' => $validated['name'] ?: $linkedDeal['name'],
+                'stage' => $validated['stage'] ?: $linkedDeal['stage'],
+                'amount' => $validated['amount'] !== null && $validated['amount'] !== '' ? $validated['amount'] : $linkedDeal['amount'],
+                'expected_close_date' => $validated['expected_close_date'] ?: $linkedDeal['expected_close_date'],
+                'owner' => $validated['owner'] ?: $linkedDeal['owner'],
+                'deal_source' => $validated['deal_source'] ?: $linkedDeal['deal_source'],
+                'priority' => $validated['priority'] ?: $linkedDeal['priority'],
+                'notes' => $validated['notes'] ?: $linkedDeal['notes'],
+            ];
+        }
 
         $deals = collect($request->session()->get($this->dealsKey(), $this->defaultDeals()));
         $nextId = (int) ($deals->max('id') ?? 800) + 1;
@@ -133,14 +152,17 @@ class CompanyDealController extends Controller
     private function validateDeal(Request $request): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'linked_deal_id' => ['nullable', 'integer'],
+            'name' => ['nullable', 'string', 'max:255'],
             'stage' => ['required', 'in:' . implode(',', self::STAGES)],
-            'amount' => ['required', 'numeric', 'min:0'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
             'expected_close_date' => ['nullable', 'date'],
-            'owner' => ['required', 'string', 'max:255'],
+            'owner' => ['nullable', 'string', 'max:255'],
             'deal_source' => ['nullable', 'string', 'max:255'],
             'priority' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
+        ], [
+            'stage.required' => 'Stage is required.',
         ]);
     }
 
@@ -294,6 +316,60 @@ class CompanyDealController extends Controller
                 'address' => 'Pasig City',
                 'owner_name' => 'Owner 3',
                 'created_at' => '2026-03-03 10:00:00',
+            ],
+        ];
+    }
+
+    private function availableDeals(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'Tax Advisory Compliance Audit Regular Retainer',
+                'company_name' => 'Consulting Group',
+                'amount' => 920000,
+                'expected_close_date' => '2026-06-10',
+                'owner' => 'Admin User',
+                'stage' => 'Qualification',
+                'deal_source' => 'Referral',
+                'priority' => 'High',
+                'notes' => '',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Data Analytics Platform',
+                'company_name' => 'Consulting Group',
+                'amount' => 920000,
+                'expected_close_date' => '2026-06-10',
+                'owner' => 'Admin User',
+                'stage' => 'Consultation',
+                'deal_source' => 'Website Inquiry',
+                'priority' => 'Normal',
+                'notes' => '',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Cloud Migration Program',
+                'company_name' => 'ABC Company',
+                'amount' => 540000,
+                'expected_close_date' => '2026-05-20',
+                'owner' => 'Maria Santos',
+                'stage' => 'Proposal',
+                'deal_source' => 'Upsell',
+                'priority' => 'High',
+                'notes' => '',
+            ],
+            [
+                'id' => 4,
+                'name' => 'Security Audit Package',
+                'company_name' => 'XYZ Company',
+                'amount' => 120000,
+                'expected_close_date' => '2026-04-15',
+                'owner' => 'Sarah Williams',
+                'stage' => 'Negotiation',
+                'deal_source' => 'Partner Referral',
+                'priority' => 'Normal',
+                'notes' => '',
             ],
         ];
     }
