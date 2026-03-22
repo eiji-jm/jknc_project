@@ -9,26 +9,22 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
 use App\Models\User;
-
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TownHallController extends Controller
 {
     public function index()
-    {
-        if (!Auth::user()->hasPermission('access_townhall')) {
-            abort(403, 'Unauthorized');
-        }
-
-        $query = TownHallCommunication::latest();
-
-        if (!Auth::user()->hasPermission('approve_townhall')) {
-            $query->where('approval_status', 'Approved');
-        }
-
-        $communications = $query->paginate(10);
-
-        return view('townhall.townhall', compact('communications'));
+{
+    if (!Auth::user()->hasPermission('access_townhall')) {
+        abort(403, 'Unauthorized');
     }
+
+    $communications = TownHallCommunication::where('approval_status', 'Approved')
+        ->latest()
+        ->paginate(10);
+
+    return view('townhall.townhall', compact('communications'));
+}
 
     public function store(Request $request)
     {
@@ -36,7 +32,7 @@ class TownHallController extends Controller
             abort(403, 'Unauthorized');
         }
 
-                $validated = $request->validate([
+        $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
             'department_stakeholder' => ['nullable', 'string', 'max:255'],
             'recipient_label' => ['nullable', 'in:To,For'],
@@ -84,6 +80,7 @@ class TownHallController extends Controller
 
         $communication = TownHallCommunication::findOrFail($id);
 
+        // Non-approvers can only open approved communications
         if (
             !Auth::user()->hasPermission('approve_townhall') &&
             $communication->approval_status !== 'Approved'
@@ -91,7 +88,6 @@ class TownHallController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // attachment type (your existing)
         $attachmentType = null;
         if ($communication->attachment) {
             $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
@@ -105,7 +101,6 @@ class TownHallController extends Controller
             }
         }
 
-        // ✅ ACKNOWLEDGEMENT DATA
         $employees = User::where('role', 'Employee')->get();
 
         $acknowledgedUserIds = TownHallAcknowledgement::where('townhall_communication_id', $id)
@@ -122,7 +117,6 @@ class TownHallController extends Controller
             ? round(($ackCount / $totalEmployees) * 100)
             : 0;
 
-        // existing flags
         $hasAcknowledged = $communication->hasBeenAcknowledgedBy(Auth::id());
         $requiresAcknowledgement = Auth::user()->role === 'Employee'
             && $communication->approval_status === 'Approved';
@@ -132,8 +126,6 @@ class TownHallController extends Controller
             'attachmentType',
             'hasAcknowledged',
             'requiresAcknowledgement',
-
-            // NEW
             'acknowledgedUsers',
             'notAcknowledgedUsers',
             'progress',
@@ -223,12 +215,10 @@ class TownHallController extends Controller
 
         $communication = TownHallCommunication::findOrFail($id);
 
-        // Only approved communications can be acknowledged
         if ($communication->approval_status !== 'Approved') {
             abort(403, 'This communication is not available for acknowledgment.');
         }
 
-        // Only employees need acknowledgment
         if (Auth::user()->role !== 'Employee') {
             return redirect()->back()->with('success', 'Acknowledgment is not required for your role.');
         }
@@ -244,5 +234,18 @@ class TownHallController extends Controller
         );
 
         return redirect()->back()->with('success', 'Communication acknowledged successfully.');
+
+    }
+        public function downloadPdf($id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->approval_status !== 'Approved') {
+            abort(403, 'Only approved communications can be downloaded.');
+        }
+
+        $pdf = Pdf::loadView('townhall.show-pdf', compact('communication'));
+
+        return $pdf->download($communication->ref_no . '.pdf');
     }
 }

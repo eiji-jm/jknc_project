@@ -49,8 +49,19 @@
                 x-transition:leave-end="-translate-x-full"
                 class="w-[70%] h-full bg-[#f5f6f8] overflow-y-auto p-6 border-r border-gray-200"
             >
+                <div class="max-w-[850px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
+                    <button
+                        type="button"
+                        id="download-preview-pdf"
+                        class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow transition"
+                    >
+                        <i class="fas fa-file-pdf"></i>
+                        Download PDF
+                    </button>
+                </div>
+
                 <div class="max-w-[850px] mx-auto">
-                    <div class="bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
+                    <div id="memo-preview-pdf" class="memo-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
 
                         {{-- LETTERHEAD --}}
                         <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
@@ -487,6 +498,8 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const editorEl = document.getElementById('editor');
@@ -544,6 +557,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         form.addEventListener('submit', function () {
             hiddenInput.value = quill.root.innerHTML;
+        });
+    }
+
+    const downloadBtn = document.getElementById('download-preview-pdf');
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function () {
+            const element = document.getElementById('memo-preview-pdf');
+            if (!element) return;
+
+            const subject = document.querySelector('input[name="subject"]')?.value?.trim() || 'townhall-memo';
+            const safeFileName = subject
+                .replace(/[\\/:*?"<>|]+/g, '')
+                .replace(/\s+/g, '-')
+                .toLowerCase();
+
+            html2pdf().set({
+                margin: [0.3, 0.3, 0.3, 0.3],
+                filename: `${safeFileName}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            }).from(element).save();
         });
     }
 });
