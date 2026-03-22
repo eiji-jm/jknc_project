@@ -9,10 +9,14 @@ use Illuminate\Support\Facades\Auth;
 class LoginController extends Controller
 {
 
-    public function showLoginForm()
-    {
-        return view('auth.login');
+   public function showLoginForm()
+{
+    if(Auth::check()){
+        return redirect()->route('corporate');
     }
+
+    return view('auth.login');
+}
 
     public function login(Request $request)
     {
@@ -28,11 +32,11 @@ class LoginController extends Controller
             $request->session()->regenerate();
 
             // ROLE REDIRECT
-            if(Auth::user()->role === 'Admin'){
-                return redirect()->route('corporate');
+            if(Auth::user()->role === 'Admin' || Auth::user()->role === 'SuperAdmin'){
+                return redirect()->route('admin.users');
             }
 
-            return redirect()->route('corporate');
+            return redirect()->route('townhall');
 
         }
 
