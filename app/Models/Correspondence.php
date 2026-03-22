@@ -12,6 +12,7 @@ class Correspondence extends Model
         'uploaded_date',
         'user',
         'tin',
+        'document_type',
         'subject',
         'from',
         'to',

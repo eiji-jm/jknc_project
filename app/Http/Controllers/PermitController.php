@@ -9,10 +9,17 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PermitController extends Controller
 {
-    public function index($permitType)
+    public function index($permitType = null)
     {
-        $permits = Permit::where('permit_type', $permitType)
+        $query = Permit::query();
+
+        if ($permitType && $permitType !== 'all') {
+            $query->where('permit_type', $permitType);
+        }
+
+        $permits = $query
             ->orderBy('expiration_date_of_registration', 'asc')
+            ->latest('created_at')
             ->get()
             ->map(function ($permit) {
                 return [
