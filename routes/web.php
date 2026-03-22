@@ -11,11 +11,13 @@ use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
 use App\Http\Controllers\DirectorOfficerController;
 use App\Http\Controllers\StockholderController;
+use App\Http\Controllers\UltimateBeneficialOwnerController;
 use App\Http\Controllers\CorporateApprovalController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\AdminUserPermissionController;
+use App\Http\Controllers\StockTransferBookController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -31,11 +33,6 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | ADMIN DASHBOARD
-    |--------------------------------------------------------------------------
-    */
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
     Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
@@ -45,11 +42,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
     Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
 
-    /*
-    |--------------------------------------------------------------------------
-    | TOWN HALL
-    |--------------------------------------------------------------------------
-    */
     Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
     Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
     Route::get('/townhall/{id}', [TownHallController::class, 'show'])->name('townhall.show');
@@ -57,21 +49,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');
     Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
 
-    /*
-    |--------------------------------------------------------------------------
-    | CORPORATE MODULE
-    |--------------------------------------------------------------------------
-    */
     Route::get('/corporate', [GisController::class, 'companyInfo'])->name('corporate');
 
     Route::get('/corporate/company-general-information', [GisController::class, 'companyInfo'])
         ->name('corporate.companyinfo');
 
-    /*
-    |--------------------------------------------------------------------------
-    | GIS
-    |--------------------------------------------------------------------------
-    */
     Route::get('/corporate/gis', [GisController::class, 'index'])->name('corporate.gis');
     Route::post('/corporate/gis/store', [GisController::class, 'store'])->name('gis.store');
     Route::get('/corporate/gis/{id}/show', [GisController::class, 'show'])->name('gis.show');
@@ -96,59 +78,52 @@ Route::middleware('auth')->group(function () {
     Route::post('/gis/paidup/store', [CapitalStructureController::class, 'storePaidup'])->name('paidup.store');
     Route::post('/gis/director/store', [DirectorOfficerController::class, 'store'])->name('director.store');
     Route::post('/gis/stockholder/store', [StockholderController::class, 'store'])->name('stockholder.store');
+    Route::post('/gis/ubo/store', [UltimateBeneficialOwnerController::class, 'store'])->name('ubo.store');
 
     Route::post('/corporate/gis/{id}/upload-draft-file', [GisController::class, 'uploadDraftFile'])
-    ->name('corporate.gis.upload.draft');
+        ->name('corporate.gis.upload.draft');
 
     Route::post('/corporate/gis/{id}/upload-notary-file', [GisController::class, 'uploadNotaryFile'])
-    ->name('corporate.gis.upload.notary');
-    /*
-    |--------------------------------------------------------------------------
-    | CORPORATE DOCUMENTS
-    |--------------------------------------------------------------------------
-    */
+        ->name('corporate.gis.upload.notary');
+
+    Route::post('/corporate/gis/{id}/submit', [GisController::class, 'submit'])
+        ->name('corporate.gis.submit');
+
     Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])->name('corporate.formation');
     Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])->name('corporate.formation.store');
     Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])->name('corporate.formation.show');
     Route::post('/corporate/formation/{id}/upload-draft-file', [CorporateFormationController::class, 'uploadDraftFile'])
-    ->name('corporate.formation.upload.draft');
-
+        ->name('corporate.formation.upload.draft');
     Route::post('/corporate/formation/{id}/upload-notary-file', [CorporateFormationController::class, 'uploadNotaryFile'])
-    ->name('corporate.formation.upload.notary');
+        ->name('corporate.formation.upload.notary');
     Route::post('/corporate/formation/{id}/submit', [CorporateFormationController::class, 'submit'])
-    ->name('corporate.formation.submit');
+        ->name('corporate.formation.submit');
     Route::put('/corporate/formation/{id}/update', [CorporateFormationController::class, 'update'])
-    ->name('corporate.formation.update');
+        ->name('corporate.formation.update');
 
     Route::post('/admin/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])
-    ->name('corporate.approvals.archive');
+        ->name('corporate.approvals.archive');
 
     Route::get('/corporate/sec-aoi', [SecAoiController::class, 'index'])->name('corporate.sec_aoi');
     Route::post('/corporate/sec-aoi/store', [SecAoiController::class, 'store'])->name('corporate.sec_aoi.store');
     Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class, 'show'])->name('corporate.sec_aoi.show');
     Route::post('/corporate/sec-aoi/{id}/upload-draft-file', [SecAoiController::class, 'uploadDraftFile'])
-    ->name('corporate.sec_aoi.upload.draft');
+        ->name('corporate.sec_aoi.upload.draft');
     Route::post('/corporate/sec-aoi/{id}/upload-notary-file', [SecAoiController::class, 'uploadNotaryFile'])
-    ->name('corporate.sec_aoi.upload.notary');
+        ->name('corporate.sec_aoi.upload.notary');
+    Route::post('/corporate/sec-aoi/{id}/submit', [SecAoiController::class, 'submit'])
+        ->name('corporate.sec_aoi.submit');
 
     Route::get('/corporate/bylaws', [BylawController::class, 'index'])->name('corporate.bylaws');
     Route::post('/corporate/bylaws/store', [BylawController::class, 'store'])->name('corporate.bylaws.store');
     Route::get('/corporate/bylaws/{id}', [BylawController::class, 'show'])->name('corporate.bylaws.show');
     Route::post('/corporate/bylaws/{id}/upload-draft-file', [BylawController::class, 'uploadDraftFile'])
-    ->name('corporate.bylaws.upload.draft');
+        ->name('corporate.bylaws.upload.draft');
     Route::post('/corporate/bylaws/{id}/upload-notary-file', [BylawController::class, 'uploadNotaryFile'])
-    ->name('corporate.bylaws.upload.notary');
+        ->name('corporate.bylaws.upload.notary');
     Route::post('/corporate/bylaws/{id}/submit', [BylawController::class, 'submit'])
-    ->name('corporate.bylaws.submit');
+        ->name('corporate.bylaws.submit');
 
-    Route::post('/corporate/sec-aoi/{id}/submit', [SecAoiController::class, 'submit'])
-    ->name('corporate.sec_aoi.submit');
-
-    /*
-    |--------------------------------------------------------------------------
-    | CORPORATE APPROVAL DASHBOARD
-    |--------------------------------------------------------------------------
-    */
     Route::get('/admin/corporate-dashboard', [CorporateApprovalController::class, 'dashboard'])
         ->name('admin.corporate.dashboard');
 
@@ -161,6 +136,32 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/corporate-approvals/{module}/{id}/revise', [CorporateApprovalController::class, 'revise'])
         ->name('corporate.approvals.revise');
 
-    Route::get('/admin/corporate-dashboard', [CorporateApprovalController::class, 'dashboard'])
-    ->name('admin.corporate.dashboard');
+        /*
+    |--------------------------------------------------------------------------
+    | STOCK TRANSFER BOOK
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/corporate/stock-transfer-book', [StockTransferBookController::class, 'index'])
+    ->name('stock-transfer-book');
+
+    Route::get('/corporate/stock-transfer-book/index', [StockTransferBookController::class, 'index'])
+    ->name('stock-transfer-book.index');
+
+    Route::post('/corporate/stock-transfer-book/index/store', [StockTransferBookController::class, 'storeIndex'])
+    ->name('stock-transfer-book.index.store');
+
+    Route::get('/corporate/stock-transfer-book/index/lookup', [StockTransferBookController::class, 'lookupIndex'])
+    ->name('stock-transfer-book.index.lookup');
+
+    Route::get('/corporate/stock-transfer-book/journal', [StockTransferBookController::class, 'journal'])
+    ->name('stock-transfer-book.journal');
+
+    Route::get('/corporate/stock-transfer-book/ledger', [StockTransferBookController::class, 'ledger'])
+    ->name('stock-transfer-book.ledger');
+
+    Route::get('/corporate/stock-transfer-book/installment', [StockTransferBookController::class, 'installment'])
+    ->name('stock-transfer-book.installment');
+
+    Route::get('/corporate/stock-transfer-book/certificates', [StockTransferBookController::class, 'certificates'])
+    ->name('stock-transfer-book.certificates');
 });

@@ -29,6 +29,11 @@
                     Bylaws
                 </a>
 
+                <a href="{{ route('stock-transfer-book.index') }}"
+                   class="min-w-[180px] px-6 py-3 text-sm font-medium border-t border-b border-r border-gray-200 text-center hover:bg-gray-50">
+                    Stock Transfer Book
+                </a>
+
                 <a href="{{ route('corporate.gis') }}"
                    class="min-w-[90px] px-6 py-3 text-sm font-medium border-t border-b border-r border-blue-500 bg-blue-50 text-blue-700 text-center">
                     GIS

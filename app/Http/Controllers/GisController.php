@@ -194,7 +194,8 @@ class GisController extends Controller
             'subscribedCapital',
             'paidUpCapital',
             'directors',
-            'stockholders'
+            'stockholders',
+            'ubos'
         ])->findOrFail($id);
 
         if (!$this->canApproveCorporate() && (int) $gis->submitted_by !== (int) Auth::id()) {

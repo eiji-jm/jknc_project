@@ -21,6 +21,8 @@
     $stockholderTotalOwnership = $gis->stockholders->sum('ownership_percentage');
     $stockholderTotalPaid = $gis->stockholders->sum('amount_paid');
 
+    $uboTotalOwnership = $gis->ubos->sum('ownership_voting_rights');
+
     $draftUrl = !empty($gis->file) ? asset('storage/' . ltrim($gis->file, '/')) : null;
     $notaryUrl = !empty($gis->notary_file_path) ? asset('storage/' . ltrim($gis->notary_file_path, '/')) : null;
     $canEditRecord = in_array($gis->workflow_status, ['Uploaded', 'Reverted']);
@@ -45,7 +47,6 @@
         </div>
     @endif
 
-    <!-- TABS -->
     <div class="flex gap-6 border-b text-sm font-medium mb-6">
         <button
             @click="tab = tab === 'capital' ? null : 'capital'"
@@ -67,12 +68,17 @@
             class="pb-2">
             Stockholders
         </button>
+
+        <button
+            @click="tab = tab === 'ubo' ? null : 'ubo'"
+            :class="tab=='ubo' ? 'border-b-2 border-blue-600 text-blue-600' : ''"
+            class="pb-2">
+            UBO
+        </button>
     </div>
 
-    <!-- CAPITAL STRUCTURE -->
     <div x-show="tab=='capital'" class="space-y-8 mb-10">
 
-        <!-- AUTHORIZED -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -124,7 +130,6 @@
             </div>
         </div>
 
-        <!-- SUBSCRIBED -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -185,7 +190,6 @@
             </div>
         </div>
 
-        <!-- PAID-UP -->
         <div class="bg-white border rounded-lg">
             <div class="flex justify-between items-center px-6 py-4 border-b">
                 <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -247,7 +251,6 @@
         </div>
     </div>
 
-    <!-- DIRECTORS -->
     <div x-show="tab=='directors'" class="bg-white border rounded-lg mb-10">
         <div class="flex justify-between px-6 py-4 border-b">
             <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -302,7 +305,6 @@
         </div>
     </div>
 
-    <!-- STOCKHOLDERS -->
     <div x-show="tab=='stockholders'" class="bg-white border rounded-lg mb-10">
         <div class="flex justify-between px-6 py-4 border-b">
             <h3 class="text-sm font-semibold uppercase text-gray-800">
@@ -370,7 +372,70 @@
         </div>
     </div>
 
-    <!-- SLIDE PANEL -->
+    <div x-show="tab=='ubo'" class="bg-white border rounded-lg mb-10">
+        <div class="flex justify-between px-6 py-4 border-b">
+            <h3 class="text-sm font-semibold uppercase text-gray-800">
+                Ultimate Beneficial Owners
+            </h3>
+
+            <button
+                @click="panel='ubo'"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                Add
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm border border-gray-300">
+                <thead class="bg-gray-50 text-xs uppercase">
+                    <tr>
+                        <th class="border px-4 py-3">Complete Name</th>
+                        <th class="border px-4 py-3">Specific Residential Address</th>
+                        <th class="border px-4 py-3">Nationality</th>
+                        <th class="border px-4 py-3">Date of Birth</th>
+                        <th class="border px-4 py-3">Tax Identification No.</th>
+                        <th class="border px-4 py-3">% Ownership / % Voting Rights</th>
+                        <th class="border px-4 py-3">Type of Beneficial Owner</th>
+                        <th class="border px-4 py-3">Category of Beneficial Ownership</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($gis->ubos as $row)
+                        <tr class="hover:bg-blue-50">
+                            <td class="border px-4 py-3">{{ $row->complete_name }}</td>
+                            <td class="border px-4 py-3">{{ $row->specific_residential_address ?: '—' }}</td>
+                            <td class="border px-4 py-3">{{ $row->nationality ?: '—' }}</td>
+                            <td class="border px-4 py-3">
+                                {{ $row->date_of_birth ? $row->date_of_birth->format('M d, Y') : '—' }}
+                            </td>
+                            <td class="border px-4 py-3">{{ $row->tax_identification_no ?: '—' }}</td>
+                            <td class="border px-4 py-3">
+                                {{ $row->ownership_voting_rights !== null ? number_format($row->ownership_voting_rights, 2) . '%' : '—' }}
+                            </td>
+                            <td class="border px-4 py-3">
+                                {{ $row->beneficial_owner_type === 'D' ? 'Direct (D)' : ($row->beneficial_owner_type === 'I' ? 'Indirect (I)' : '—') }}
+                            </td>
+                            <td class="border px-4 py-3">{{ $row->beneficial_ownership_category ?: '—' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="border px-4 py-6 text-center text-gray-400">No records found</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+
+                <tfoot class="bg-gray-50 font-semibold">
+                    <tr>
+                        <td colspan="5" class="border px-4 py-3 text-right">TOTAL</td>
+                        <td class="border px-4 py-3">{{ number_format($uboTotalOwnership, 2) }}%</td>
+                        <td colspan="2" class="border px-4 py-3">—</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
     <div x-show="panel" class="fixed inset-0 bg-black/40 z-50" x-cloak>
         <div
             @click.away="panel=null"
@@ -380,7 +445,6 @@
                 Add Record
             </h2>
 
-            <!-- AUTHORIZED -->
             <form x-show="panel=='authorized'" action="{{ route('authorized.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
@@ -398,7 +462,6 @@
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- SUBSCRIBED -->
             <form x-show="panel=='subscribed'" action="{{ route('subscribed.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
@@ -426,7 +489,6 @@
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- PAID-UP -->
             <form x-show="panel=='paidup'" action="{{ route('paidup.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
@@ -454,7 +516,6 @@
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- DIRECTOR -->
             <form x-show="panel=='director'" action="{{ route('director.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
@@ -499,7 +560,6 @@
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- STOCKHOLDER -->
             <form x-show="panel=='stockholder'" action="{{ route('stockholder.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <input type="hidden" name="gis_id" value="{{ $gis->id }}">
@@ -540,7 +600,45 @@
                 <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </form>
 
-            <!-- COMPLETE / EDIT GIS INFORMATION -->
+            <form x-show="panel=='ubo'" action="{{ route('ubo.store') }}" method="POST" class="space-y-4">
+                @csrf
+                <input type="hidden" name="gis_id" value="{{ $gis->id }}">
+
+                <input name="complete_name" placeholder="Complete Name" class="border w-full p-2 rounded" required>
+                <input name="specific_residential_address" placeholder="Specific Residential Address" class="border w-full p-2 rounded">
+
+                <select name="nationality" class="border w-full p-2 rounded">
+                    <option value="">Nationality</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Foreign">Foreign</option>
+                </select>
+
+                <input name="date_of_birth" type="date" class="border w-full p-2 rounded">
+                <input name="tax_identification_no" placeholder="Tax Identification No." class="border w-full p-2 rounded">
+                <input name="ownership_voting_rights" type="number" min="0" max="100" step="0.01" placeholder="% Ownership / % Voting Rights" class="border w-full p-2 rounded">
+
+                <select name="beneficial_owner_type" class="border w-full p-2 rounded">
+                    <option value="">Type of Beneficial Owner</option>
+                    <option value="D">Direct (D)</option>
+                    <option value="I">Indirect (I)</option>
+                </select>
+
+                <select name="beneficial_ownership_category" class="border w-full p-2 rounded">
+                    <option value="">Category of Beneficial Ownership</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="G">G</option>
+                    <option value="H">H</option>
+                    <option value="I">I</option>
+                </select>
+
+                <button class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+            </form>
+
             <form x-show="panel=='completegis'" action="{{ route('gis.company.update', $gis->id) }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
@@ -586,7 +684,6 @@
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div class="grid grid-cols-3 gap-6">
 
         <div class="col-span-2 bg-white border rounded-lg p-4">
