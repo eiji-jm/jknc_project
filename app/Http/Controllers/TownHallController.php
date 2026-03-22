@@ -99,15 +99,50 @@ class TownHallController extends Controller
         return view('townhall.department', compact('communications', 'departments'));
     }
 
-    public function attachments()
-    {
-        $communications = TownHallCommunication::whereNotNull('attachment')
-            ->where('approval_status', 'Approved')
-            ->latest()
-            ->paginate(10);
+        public function attachments(Request $request)
+        {
+            if (!Auth::user()->hasPermission('access_townhall')) {
+                abort(403, 'Unauthorized');
+            }
 
-        return view('townhall.attachments', compact('communications'));
-    }
+            $query = TownHallCommunication::whereNotNull('attachment')
+                ->where('approval_status', 'Approved');
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('subject', 'like', "%{$search}%")
+                    ->orWhere('ref_no', 'like', "%{$search}%")
+                    ->orWhere('from_name', 'like', "%{$search}%")
+                    ->orWhere('department_stakeholder', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->filled('type')) {
+                $type = $request->type;
+
+                if ($type === 'image') {
+                    $query->where(function ($q) {
+                        $q->where('attachment', 'like', '%.jpg')
+                        ->orWhere('attachment', 'like', '%.jpeg')
+                        ->orWhere('attachment', 'like', '%.png')
+                        ->orWhere('attachment', 'like', '%.gif')
+                        ->orWhere('attachment', 'like', '%.webp');
+                    });
+                } elseif ($type === 'pdf') {
+                    $query->where('attachment', 'like', '%.pdf');
+                } elseif ($type === 'document') {
+                    $query->where(function ($q) {
+                        $q->where('attachment', 'like', '%.doc')
+                        ->orWhere('attachment', 'like', '%.docx');
+                    });
+                }
+            }
+
+            $communications = $query->latest()->paginate(12)->withQueryString();
+
+            return view('townhall.attachments', compact('communications'));
+        }
 
     public function show($id)
     {
