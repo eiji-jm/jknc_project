@@ -1,7 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
-<div x-data="{ showSlideOver: false, hasExpiration: true }" class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
+<div
+    x-data="{ showSlideOver: false, hasExpiration: true }"
+    class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
+>
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
         {{-- SLIDE OVER FORM --}}
@@ -18,13 +21,11 @@
                         x-transition:leave-start="translate-x-0"
                         x-transition:leave-end="translate-x-full">
 
-                        {{-- HEADER --}}
                         <div class="p-6 border-b flex justify-between items-center">
                             <h2 class="font-bold text-lg">Add Permit Entry</h2>
                             <button @click="showSlideOver=false" class="text-gray-500 hover:text-gray-700">✕</button>
                         </div>
 
-                        {{-- FORM --}}
                         <div class="p-6 space-y-4 flex-1 overflow-y-auto">
                             <div>
                                 <label class="block text-sm font-medium mb-1">TIN</label>
@@ -69,7 +70,6 @@
                             </div>
                         </div>
 
-                        {{-- FOOTER --}}
                         <div class="p-6 border-t flex gap-3">
                             <button @click="showSlideOver=false" class="flex-1 border py-2 rounded">Cancel</button>
                             <button
@@ -80,6 +80,82 @@
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- OVERLAY PREVIEW --}}
+        <div id="previewOverlay" class="hidden fixed inset-0 z-[60]">
+            <div class="absolute inset-0 bg-black/30" onclick="closePreview()"></div>
+
+            <div class="absolute inset-0 bg-[#f5f7fa] flex gap-5 p-4 overflow-hidden">
+                {{-- LEFT PDF --}}
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <iframe
+                        id="previewFrame"
+                        class="w-full h-full"
+                        frameborder="0"
+                    ></iframe>
+                </div>
+
+                {{-- RIGHT INFO --}}
+                <div class="w-[320px] shrink-0 flex flex-col gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                        <h2 class="text-[20px] font-semibold text-gray-900">Permit Preview</h2>
+                        <button
+                            type="button"
+                            onclick="closePreview()"
+                            class="text-sm text-gray-500 hover:text-gray-700"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
+                        <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Permit Information</h3>
+
+                        <div class="space-y-5 text-[14px]">
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Permit No.</span>
+                                <span id="infoPermitNumber" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Permit Type</span>
+                                <span id="infoPermitType" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Uploader</span>
+                                <span id="infoUser" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">TIN</span>
+                                <span id="infoTin" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Date Registered</span>
+                                <span id="infoDateReg" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Approved Date</span>
+                                <span id="infoApprovedDate" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Expiration Date</span>
+                                <span id="infoExpirationDate" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Status</span>
+                                <span id="infoStatus" class="text-right font-medium text-gray-900"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -135,6 +211,7 @@
 
 <script>
 let currentPermit = "Mayor's Permit";
+let permitRows = [];
 
 function resetFormDefaults() {
     document.getElementById('tinInput').value = '';
@@ -172,20 +249,46 @@ function getStatusClasses(status) {
     };
 }
 
+function openPreview(index) {
+    const item = permitRows[index];
+    if (!item) return;
+
+    document.getElementById('previewFrame').src = `/permits/template/mayors-permit/${item.id}`;
+    document.getElementById('infoPermitNumber').textContent = item.permit_number ?? '';
+    document.getElementById('infoPermitType').textContent = item.permit_type ?? '';
+    document.getElementById('infoUser').textContent = item.user ?? '';
+    document.getElementById('infoTin').textContent = item.tin ?? 'N/A';
+    document.getElementById('infoDateReg').textContent = item.date_of_registration ?? '';
+    document.getElementById('infoApprovedDate').textContent = item.approved_date_of_registration ?? '';
+    document.getElementById('infoExpirationDate').textContent = item.expiration_date_of_registration ?? 'No Expiration';
+    document.getElementById('infoStatus').textContent = item.status ?? '';
+
+    document.getElementById('previewOverlay').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closePreview() {
+    document.getElementById('previewFrame').src = '';
+    document.getElementById('previewOverlay').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
 async function renderTable(permitName) {
     currentPermit = permitName;
+    closePreview();
 
     const tableBody = document.getElementById("tableBody");
     tableBody.innerHTML = "";
 
     const permitData = await fetchPermits(permitName);
+    permitRows = permitData || [];
 
-    if (!permitData || permitData.length === 0) {
+    if (!permitRows || permitRows.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
         return;
     }
 
-    permitData.forEach(item => {
+    permitRows.forEach((item, index) => {
         const classes = getStatusClasses(item.status);
 
         tableBody.innerHTML += `
@@ -205,7 +308,7 @@ async function renderTable(permitName) {
                 <td class="p-3">
                     ${
                         item.permit_type === "Mayor's Permit"
-                            ? `<a href="/permits/template/mayors-permit/${item.id}" target="_blank" class="text-blue-600 hover:underline">View</a>`
+                            ? `<button type="button" onclick="openPreview(${index})" class="text-blue-600 hover:underline">View</button>`
                             : `<span class="text-gray-400">N/A</span>`
                     }
                 </td>
@@ -265,8 +368,19 @@ document.getElementById("permitMenu").addEventListener("click", e => {
     }
 });
 
-document.addEventListener("click", () => {
-    document.getElementById("permitMenu").classList.add("hidden");
+document.addEventListener("click", (e) => {
+    const permitMenu = document.getElementById("permitMenu");
+    const dropdownBtn = document.getElementById("permitDropdownBtn");
+
+    if (!permitMenu.contains(e.target) && !dropdownBtn.contains(e.target)) {
+        permitMenu.classList.add("hidden");
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        closePreview();
+    }
 });
 </script>
 @endsection
