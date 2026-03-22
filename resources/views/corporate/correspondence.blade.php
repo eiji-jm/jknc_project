@@ -1,353 +1,507 @@
 @extends('layouts.app')
 
 @section('content')
-<div x-data="{ 
-    showSlideOver: false,
-    currentType: 'Letters',
-    selectedItem: null,
+<div
+    x-data="{ showSlideOver: false, hasDeadline: true }"
+    class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
+>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
-    emptyForm: {
-        client: '',
-        tin: '',
-        subject: '',
-        from: '',
-        to: '',
-        department: '',
-        details: '',
-        date: '',
-        time: '',
-        deadline: '',
-        sent_via: 'Email'
-    },
+        {{-- SLIDE OVER FORM --}}
+        <div x-show="showSlideOver" class="fixed inset-0 z-50 overflow-hidden" x-cloak>
+            <div class="absolute inset-0">
+                <div @click="showSlideOver=false" class="absolute inset-0 bg-gray-900 bg-opacity-50"></div>
 
-    form: {
-        client: '',
-        tin: '',
-        subject: '',
-        from: '',
-        to: '',
-        department: '',
-        details: '',
-        date: '',
-        time: '',
-        deadline: '',
-        sent_via: 'Email'
-    },
+                <div class="absolute inset-y-0 right-0 flex max-w-full">
+                    <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col h-full"
+                        x-transition:enter="transform transition ease-in-out duration-300"
+                        x-transition:enter-start="translate-x-full"
+                        x-transition:enter-end="translate-x-0"
+                        x-transition:leave="transform transition ease-in-out duration-300"
+                        x-transition:leave-start="translate-x-0"
+                        x-transition:leave-end="translate-x-full">
 
-    correspondenceData: {
-        'Letters': [],
-        'Demand Letter': [],
-        'Request Letter': [],
-        'Follow Up Letter': [],
-        'Memo': [],
-        'Notice': []
-    },
+                        <div class="p-6 border-b flex justify-between items-center">
+                            <h2 class="font-bold text-lg">Add Correspondence Entry</h2>
+                            <button @click="showSlideOver=false" class="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
 
-    resetForm() {
-        this.form = JSON.parse(JSON.stringify(this.emptyForm));
-    },
+                        <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">TIN</label>
+                                <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
+                            </div>
 
-    generateCurrentDateTime() {
-        const now = new Date();
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Subject</label>
+                                <input id="subjectInput" class="w-full border rounded-md p-2" placeholder="Subject">
+                            </div>
 
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
+                            <div>
+                                <label class="block text-sm font-medium mb-1">From</label>
+                                <input id="fromInput" class="w-full border rounded-md p-2" placeholder="From">
+                            </div>
 
-        this.form.date = `${year}-${month}-${day}`;
-        this.form.time = `${hours}:${minutes}`;
-    },
+                            <div>
+                                <label class="block text-sm font-medium mb-1">To</label>
+                                <input id="toInput" class="w-full border rounded-md p-2" placeholder="To">
+                            </div>
 
-    openAddModal() {
-        this.selectedItem = null;
-        this.resetForm();
-        this.generateCurrentDateTime();
-        this.showSlideOver = true;
-    },
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Department / Stakeholder</label>
+                                <input id="departmentInput" class="w-full border rounded-md p-2" placeholder="Department / Stakeholder">
+                            </div>
 
-    openViewModal(item) {
-        this.selectedItem = item;
-        this.showSlideOver = true;
-    },
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Details</label>
+                                <textarea id="detailsInput" class="w-full border rounded-md p-2 min-h-[120px]" placeholder="Enter details"></textarea>
+                            </div>
 
-    closeSlideOver() {
-        this.showSlideOver = false;
-        this.selectedItem = null;
-        this.resetForm();
-    },
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Date Sent</label>
+                                <input id="dateInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
 
-    async fetchData(type) {
-        const res = await fetch(`/correspondence/${encodeURIComponent(type)}`);
-        this.correspondenceData[type] = await res.json();
-    },
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Time Sent</label>
+                                <input id="timeInput" type="time" class="w-full border rounded-md p-2">
+                            </div>
 
-    async addEntry() {
-        if (!this.form.client || !this.form.subject || !this.form.from || !this.form.to) {
-            alert('Please fill required fields');
-            return;
-        }
+                            <div class="border rounded-md p-3 bg-gray-50">
+                                <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        x-model="hasDeadline"
+                                        id="hasDeadlineInput"
+                                        class="rounded border-gray-300"
+                                        @change="if (!hasDeadline) document.getElementById('deadlineInput').value = ''"
+                                    >
+                                    This correspondence has a response deadline
+                                </label>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    If unchecked, response deadline will be disabled and status will automatically be Open.
+                                </p>
+                            </div>
 
-        const res = await fetch('/correspondence', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                type: this.currentType,
-                client: this.form.client,
-                tin: this.form.tin,
-                subject: this.form.subject,
-                from: this.form.from,
-                to: this.form.to,
-                department: this.form.department,
-                details: this.form.details,
-                date: this.form.date,
-                time: this.form.time,
-                deadline: this.form.deadline,
-                sent_via: this.form.sent_via
-            })
-        });
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Respond Before</label>
+                                <input
+                                    id="deadlineInput"
+                                    type="date"
+                                    class="w-full border rounded-md p-2"
+                                    :disabled="!hasDeadline"
+                                    :class="!hasDeadline ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''"
+                                >
+                            </div>
 
-        const data = await res.json();
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Sent Via</label>
+                                <select id="sentViaInput" class="w-full border rounded-md p-2">
+                                    <option value="Email">Email</option>
+                                    <option value="LBC">LBC</option>
+                                    <option value="Internal">Internal</option>
+                                </select>
+                            </div>
+                        </div>
 
-        if (!res.ok) {
-            console.error(data);
-            alert('Failed to save correspondence.');
-            return;
-        }
+                        <div class="p-6 border-t flex gap-3">
+                            <button @click="showSlideOver=false" class="flex-1 border py-2 rounded">Cancel</button>
+                            <button
+                                @click="addCorrespondence().then(success => { if (success) { showSlideOver = false; hasDeadline = true; resetFormDefaults(); } })"
+                                class="flex-1 bg-blue-600 text-white py-2 rounded"
+                            >
+                                Save
+                            </button>
+                        </div>
 
-        if (!this.correspondenceData[this.currentType]) {
-            this.correspondenceData[this.currentType] = [];
-        }
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        this.correspondenceData[this.currentType].unshift(data);
+        {{-- OVERLAY PREVIEW --}}
+        <div id="previewOverlay" class="hidden fixed inset-0 z-[60]">
+            <div class="absolute inset-0 bg-black/30" onclick="closePreview()"></div>
 
-        this.selectedItem = null;
-        this.resetForm();
-        this.showSlideOver = false;
-    }
-}" x-init="fetchData(currentType)" class="w-full px-6 mt-4">
+            <div class="absolute inset-0 bg-[#f5f7fa] flex gap-5 p-4 overflow-hidden">
+                {{-- LEFT PDF --}}
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <iframe
+                        id="previewFrame"
+                        class="w-full h-full"
+                        frameborder="0"
+                    ></iframe>
+                </div>
 
-    <div class="bg-white rounded-xl border">
-        <div class="flex justify-between p-4 border-b">
+                {{-- RIGHT INFO --}}
+                <div class="w-[320px] shrink-0 flex flex-col gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                        <h2 class="text-[20px] font-semibold text-gray-900">Correspondence Preview</h2>
+                        <button
+                            type="button"
+                            onclick="closePreview()"
+                            class="text-sm text-gray-500 hover:text-gray-700"
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
+                        <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Correspondence Information</h3>
+
+                        <div class="space-y-5 text-[14px]">
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Type</span>
+                                <span id="infoType" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Uploaded Date</span>
+                                <span id="infoUploadedDate" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Uploader</span>
+                                <span id="infoUser" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">TIN</span>
+                                <span id="infoTin" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Subject</span>
+                                <span id="infoSubject" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">From</span>
+                                <span id="infoFrom" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">To</span>
+                                <span id="infoTo" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Department</span>
+                                <span id="infoDepartment" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Date Sent</span>
+                                <span id="infoDate" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Time Sent</span>
+                                <span id="infoTime" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Respond Before</span>
+                                <span id="infoDeadline" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Sent Via</span>
+                                <span id="infoSentVia" class="text-right font-medium text-gray-900"></span>
+                            </div>
+
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Status</span>
+                                <span id="infoStatus" class="text-right font-medium text-gray-900"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- TOP BAR --}}
+        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0">
             <div class="relative">
-                <button @click="$refs.menu.classList.toggle('hidden')" class="px-4 py-2 bg-gray-100 rounded text-sm">
-                    <span x-text="currentType"></span> ▾
+                <button id="correspondenceDropdownBtn" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-md font-medium hover:bg-gray-200">
+                    <span id="selectedType">Letters</span> ▾
                 </button>
 
-                <div x-ref="menu" class="hidden absolute mt-2 bg-white border rounded shadow w-56 z-10">
-                    <template x-for="type in Object.keys(correspondenceData)" :key="type">
-                        <div
-                            @click="currentType = type; $refs.menu.classList.add('hidden'); fetchData(type)"
-                            class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
-                            x-text="type">
-                        </div>
-                    </template>
+                <div id="correspondenceMenu" class="hidden absolute left-0 mt-2 w-56 bg-white border shadow-xl rounded-md z-50 py-1">
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Letters</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Demand Letter</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Request Letter</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Follow Up Letter</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Memo</div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Notice</div>
                 </div>
             </div>
 
-            <button @click="openAddModal()" class="bg-blue-600 text-white px-5 py-2 rounded text-sm">
+            <button
+                @click="showSlideOver = true; $nextTick(() => resetFormDefaults())"
+                class="bg-blue-600 text-white px-6 py-2 rounded text-sm"
+            >
                 + Add
             </button>
         </div>
 
-        <div class="p-4 overflow-auto">
-            <table class="w-full text-xs border">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="border p-2">Date Uploaded</th>
-                        <th class="border p-2">Uploaded By</th>
-                        <th class="border p-2">Client</th>
-                        <th class="border p-2">TIN</th>
-                        <th class="border p-2">Type</th>
-                        <th class="border p-2">Date Sent</th>
-                        <th class="border p-2">Time Sent</th>
-                        <th class="border p-2">Department</th>
-                        <th class="border p-2">From</th>
-                        <th class="border p-2">For/To</th>
-                        <th class="border p-2">Subject</th>
-                        <th class="border p-2">Respond Before</th>
-                        <th class="border p-2">Sent Via</th>
-                        <th class="border p-2">Status</th>
-                        <th class="border p-2">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="item in correspondenceData[currentType] || []" :key="item.id">
+        {{-- TABLE --}}
+        <div class="p-4 flex-grow overflow-hidden">
+            <div class="border rounded-md h-full overflow-auto">
+                <table class="w-full text-sm table-fixed border-collapse">
+                    <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
-                            <td class="border p-2" x-text="item.uploaded_date"></td>
-                            <td class="border p-2" x-text="item.user"></td>
-                            <td class="border p-2" x-text="item.client"></td>
-                            <td class="border p-2" x-text="item.tin"></td>
-                            <td class="border p-2" x-text="item.type"></td>
-                            <td class="border p-2" x-text="item.date"></td>
-                            <td class="border p-2" x-text="item.time"></td>
-                            <td class="border p-2" x-text="item.department"></td>
-                            <td class="border p-2" x-text="item.from"></td>
-                            <td class="border p-2" x-text="item.to"></td>
-                            <td class="border p-2" x-text="item.subject"></td>
-                            <td class="border p-2" x-text="item.deadline"></td>
-                            <td class="border p-2" x-text="item.sent_via"></td>
-                            <td class="border p-2" x-text="item.status"></td>
-                            <td class="border p-2">
-                                <button
-                                    @click="openViewModal(item)"
-                                    class="text-blue-600 font-semibold underline">
-                                    View
-                                </button>
-                            </td>
+                            <th class="w-36 p-3 text-left">Date Uploaded</th>
+                            <th class="w-36 p-3 text-left">Uploaded By</th>
+                            <th class="w-28 p-3 text-left">TIN</th>
+                            <th class="w-40 p-3 text-left">Type</th>
+                            <th class="w-36 p-3 text-left">Date Sent</th>
+                            <th class="w-28 p-3 text-left">Time Sent</th>
+                            <th class="w-40 p-3 text-left">Department</th>
+                            <th class="w-36 p-3 text-left">From</th>
+                            <th class="w-36 p-3 text-left">To</th>
+                            <th class="w-44 p-3 text-left">Subject</th>
+                            <th class="w-36 p-3 text-left">Respond Before</th>
+                            <th class="w-28 p-3 text-left">Sent Via</th>
+                            <th class="w-28 p-3 text-left">Status</th>
+                            <th class="w-28 p-3 text-left">Template</th>
                         </tr>
-                    </template>
-
-                    <template x-if="(correspondenceData[currentType] || []).length === 0">
-                        <tr>
-                            <td colspan="15" class="border p-4 text-center text-gray-500">
-                                No correspondence records found.
-                            </td>
-                        </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div x-show="showSlideOver" class="fixed inset-0 z-50 flex" x-cloak>
-        <div class="absolute inset-0 bg-black/35" @click="closeSlideOver()"></div>
-
-        <div class="relative flex-1 h-full overflow-auto">
-            <div class="min-h-full flex items-start justify-center p-8">
-                <template x-if="selectedItem">
-                    <div class="bg-[#f3f4f6] w-full min-h-full flex items-start justify-center p-6">
-                        <div class="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-12 text-gray-800">
-                            <div class="text-center mb-10">
-                                <h1 class="text-2xl font-serif font-bold uppercase tracking-widest text-blue-900" x-text="selectedItem.type || 'DOCUMENT'"></h1>
-                                <hr class="border-t-2 border-blue-900 mt-2">
-                            </div>
-
-                            <div class="space-y-6 text-[15px] font-serif leading-7">
-                                <p class="font-bold">
-                                    Date:
-                                    <span class="font-normal" x-text="selectedItem.date || ''"></span>
-                                </p>
-
-                                <div class="pt-2">
-                                    <p class="font-bold">TO:</p>
-                                    <p x-text="selectedItem.to || ''"></p>
-                                </div>
-
-                                <div class="pt-2">
-                                    <p class="font-bold">FROM:</p>
-                                    <p x-text="selectedItem.from || selectedItem.user || ''"></p>
-                                </div>
-
-                                <div class="pt-2">
-                                    <p class="font-bold underline uppercase" x-text="'SUBJECT: ' + (selectedItem.subject || '')"></p>
-                                </div>
-
-                                <p class="pt-2">Dear Sir/Madam,</p>
-
-                                <p>
-                                    This correspondence is issued regarding
-                                    <span class="font-semibold" x-text="selectedItem.details || 'the matter stated above'"></span>.
-                                </p>
-
-                                <p>
-                                    It has been recorded under the
-                                    <span class="font-semibold" x-text="selectedItem.department || 'concerned'"></span>
-                                    department.
-                                </p>
-
-                                <p x-show="selectedItem.deadline">
-                                    Please respond before
-                                    <span class="font-semibold" x-text="selectedItem.deadline"></span>.
-                                </p>
-
-                                <p>
-                                    This correspondence was sent via
-                                    <span class="font-semibold" x-text="selectedItem.sent_via || ''"></span>.
-                                </p>
-
-                                <p>Thank you for your immediate attention to this matter.</p>
-
-                                <div class="pt-14">
-                                    <p>Sincerely,</p>
-                                    <br><br>
-                                    <p class="font-bold border-t border-black w-56 pt-1" x-text="selectedItem.user || 'Authorized Representative'"></p>
-                                    <p class="text-sm italic">Authorized Representative</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <template x-if="!selectedItem">
-                    <div class="w-full h-full flex items-center justify-center text-gray-500 italic">
-                        No preview yet. Fill out the form to create a new correspondence.
-                    </div>
-                </template>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white"></tbody>
+                </table>
             </div>
         </div>
 
-        <div class="relative ml-auto w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto">
-            <div class="p-6 border-b flex items-center justify-between">
-                <h2 class="text-2xl font-bold" x-text="selectedItem ? 'View Correspondence' : 'Add Correspondence'"></h2>
-                <button @click="closeSlideOver()" class="text-2xl leading-none text-gray-500 hover:text-black">
-                    &times;
-                </button>
-            </div>
-
-            <div class="p-6 space-y-3">
-                <input type="text" placeholder="Client" x-model="form.client" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                <input type="text" placeholder="TIN" x-model="form.tin" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                <input type="text" placeholder="Subject" x-model="form.subject" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                <input type="text" placeholder="From" x-model="form.from" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                <input type="text" placeholder="To" x-model="form.to" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                <input type="text" placeholder="Department" x-model="form.department" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-
-                <textarea
-                    placeholder="This correspondence is issued regarding..."
-                    x-model="form.details"
-                    class="w-full border px-3 py-3 rounded-md min-h-[120px]"
-                    :disabled="selectedItem"></textarea>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date Sent</label>
-                    <input type="date" x-model="form.date" class="w-full border px-3 py-3 rounded-md bg-gray-100" readonly>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Time Sent</label>
-                    <input type="time" x-model="form.time" class="w-full border px-3 py-3 rounded-md bg-gray-100" readonly>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Please Respond Before</label>
-                    <input type="date" x-model="form.deadline" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                </div>
-
-                <select x-model="form.sent_via" class="w-full border px-3 py-3 rounded-md" :disabled="selectedItem">
-                    <option>Email</option>
-                    <option>LBC</option>
-                    <option>Internal</option>
-                </select>
-            </div>
-
-            <div class="p-6 border-t flex justify-end gap-3">
-                <button @click="closeSlideOver()" class="px-5 py-2 border rounded-md hover:bg-gray-100">
-                    {{ __('Close') }}
-                </button>
-
-                <template x-if="!selectedItem">
-                    <button @click="addEntry()" class="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                        Save
-                    </button>
-                </template>
-            </div>
-        </div>
     </div>
 </div>
+
+<script>
+let currentType = "Letters";
+let correspondenceRows = [];
+
+const previewRoutes = {
+    "Letters": "letters",
+    "Demand Letter": "demand-letter",
+    "Request Letter": "request-letter",
+    "Follow Up Letter": "follow-up-letter",
+    "Memo": "memo",
+    "Notice": "notice"
+};
+
+function resetFormDefaults() {
+    document.getElementById('tinInput').value = '';
+    document.getElementById('subjectInput').value = '';
+    document.getElementById('fromInput').value = '';
+    document.getElementById('toInput').value = '';
+    document.getElementById('departmentInput').value = '';
+    document.getElementById('detailsInput').value = '';
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+
+    document.getElementById('dateInput').value = `${year}-${month}-${day}`;
+    document.getElementById('timeInput').value = `${hours}:${minutes}`;
+    document.getElementById('hasDeadlineInput').checked = true;
+    document.getElementById('deadlineInput').value = '';
+    document.getElementById('deadlineInput').disabled = false;
+    document.getElementById('deadlineInput').classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    document.getElementById('sentViaInput').value = 'Email';
+}
+
+async function fetchCorrespondence(type) {
+    const res = await fetch(`/correspondence/${encodeURIComponent(type)}`);
+    return await res.json();
+}
+
+function getStatusClasses(status) {
+    if (status === 'Open') {
+        return {
+            textClass: 'text-green-600',
+            dotClass: 'bg-green-500'
+        };
+    }
+
+    if (status === 'Closed') {
+        return {
+            textClass: 'text-red-600',
+            dotClass: 'bg-red-500'
+        };
+    }
+
+    return {
+        textClass: 'text-gray-500',
+        dotClass: 'bg-gray-400'
+    };
+}
+
+function openPreview(index) {
+    const item = correspondenceRows[index];
+    if (!item) return;
+
+    const routeSlug = previewRoutes[item.type];
+    if (!routeSlug) return;
+
+    const previewUrl = `/correspondence/template/${routeSlug}/${item.id}`;
+
+    document.getElementById('previewFrame').src = previewUrl;
+    document.getElementById('infoType').textContent = item.type ?? '';
+    document.getElementById('infoUploadedDate').textContent = item.uploaded_date ?? '';
+    document.getElementById('infoUser').textContent = item.user ?? '';
+    document.getElementById('infoTin').textContent = item.tin ?? 'N/A';
+    document.getElementById('infoSubject').textContent = item.subject ?? '';
+    document.getElementById('infoFrom').textContent = item.from ?? '';
+    document.getElementById('infoTo').textContent = item.to ?? '';
+    document.getElementById('infoDepartment').textContent = item.department ?? '';
+    document.getElementById('infoDate').textContent = item.date ?? '';
+    document.getElementById('infoTime').textContent = item.time ?? '';
+    document.getElementById('infoDeadline').textContent = item.deadline ?? 'No Deadline';
+    document.getElementById('infoSentVia').textContent = item.sent_via ?? '';
+    document.getElementById('infoStatus').textContent = item.status ?? '';
+
+    document.getElementById('previewOverlay').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closePreview() {
+    document.getElementById('previewFrame').src = '';
+    document.getElementById('previewOverlay').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+async function renderTable(type) {
+    currentType = type;
+    closePreview();
+
+    const tableBody = document.getElementById("tableBody");
+    tableBody.innerHTML = "";
+
+    const data = await fetchCorrespondence(type);
+    correspondenceRows = data || [];
+
+    if (!correspondenceRows || correspondenceRows.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="14" class="p-10 text-center text-gray-400 italic">No correspondence records found</td></tr>`;
+        return;
+    }
+
+    correspondenceRows.forEach((item, index) => {
+        const classes = getStatusClasses(item.status);
+        const canView = !!previewRoutes[item.type];
+
+        tableBody.innerHTML += `
+            <tr class="border-t hover:bg-gray-50">
+                <td class="p-3">${item.uploaded_date ?? ''}</td>
+                <td class="p-3">${item.user ?? ''}</td>
+                <td class="p-3">${item.tin ?? ''}</td>
+                <td class="p-3">${item.type ?? ''}</td>
+                <td class="p-3">${item.date ?? ''}</td>
+                <td class="p-3">${item.time ?? ''}</td>
+                <td class="p-3">${item.department ?? ''}</td>
+                <td class="p-3">${item.from ?? ''}</td>
+                <td class="p-3">${item.to ?? ''}</td>
+                <td class="p-3">${item.subject ?? ''}</td>
+                <td class="p-3">${item.deadline ?? 'No Deadline'}</td>
+                <td class="p-3">${item.sent_via ?? ''}</td>
+                <td class="p-3">
+                    <span class="flex items-center gap-1.5 ${classes.textClass}">
+                        <span class="w-2 h-2 ${classes.dotClass} rounded-full"></span>
+                        ${item.status ?? 'No Status'}
+                    </span>
+                </td>
+                <td class="p-3">
+                    ${
+                        canView
+                            ? `<button type="button" onclick="openPreview(${index})" class="text-blue-600 hover:underline">View</button>`
+                            : `<span class="text-gray-400">N/A</span>`
+                    }
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function addCorrespondence() {
+    const tin = document.getElementById('tinInput').value;
+    const subject = document.getElementById('subjectInput').value;
+    const from = document.getElementById('fromInput').value;
+    const to = document.getElementById('toInput').value;
+    const department = document.getElementById('departmentInput').value;
+    const details = document.getElementById('detailsInput').value;
+    const date = document.getElementById('dateInput').value;
+    const time = document.getElementById('timeInput').value;
+    const hasDeadline = document.getElementById('hasDeadlineInput').checked;
+    const deadline = hasDeadline ? document.getElementById('deadlineInput').value : null;
+    const sentVia = document.getElementById('sentViaInput').value;
+
+    if (!subject || !from || !to) {
+        alert('Please fill in Subject, From, and To.');
+        return false;
+    }
+
+    const res = await fetch('/correspondence', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            type: currentType,
+            tin: tin,
+            subject: subject,
+            from: from,
+            to: to,
+            department: department,
+            details: details,
+            date: date,
+            time: time,
+            deadline: deadline,
+            sent_via: sentVia
+        })
+    });
+
+    if (!res.ok) {
+        alert('Failed to save correspondence.');
+        return false;
+    }
+
+    await renderTable(currentType);
+    return true;
+}
+
+renderTable(currentType);
+
+document.getElementById("correspondenceDropdownBtn").addEventListener("click", e => {
+    e.stopPropagation();
+    document.getElementById("correspondenceMenu").classList.toggle("hidden");
+});
+
+document.getElementById("correspondenceMenu").addEventListener("click", e => {
+    if (e.target.tagName === 'DIV') {
+        const selected = e.target.innerText;
+        document.getElementById("selectedType").innerText = selected;
+        currentType = selected;
+        renderTable(selected);
+        document.getElementById("correspondenceMenu").classList.add("hidden");
+    }
+});
+
+document.addEventListener("click", (e) => {
+    const menu = document.getElementById("correspondenceMenu");
+    const button = document.getElementById("correspondenceDropdownBtn");
+
+    if (!menu.contains(e.target) && !button.contains(e.target)) {
+        menu.classList.add("hidden");
+    }
+});
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        closePreview();
+    }
+});
+</script>
 @endsection

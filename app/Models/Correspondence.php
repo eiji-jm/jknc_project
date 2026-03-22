@@ -2,18 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Correspondence extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'type',
         'uploaded_date',
         'user',
-        'client',
         'tin',
         'subject',
         'from',
@@ -26,4 +23,22 @@ class Correspondence extends Model
         'sent_via',
         'status',
     ];
+
+    protected $appends = ['computed_status'];
+
+    protected $casts = [
+        'uploaded_date' => 'date:Y-m-d',
+        'date' => 'date:Y-m-d',
+        'deadline' => 'date:Y-m-d',
+        'time' => 'datetime:H:i',
+    ];
+
+    public function getComputedStatusAttribute()
+    {
+        if (!$this->deadline) {
+            return 'Open';
+        }
+
+        return $this->deadline->lt(Carbon::today()) ? 'Closed' : 'Open';
+    }
 }
