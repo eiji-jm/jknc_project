@@ -77,4 +77,44 @@ class PermitController extends Controller
 
         return $pdf->stream('mayors-permit-' . $permit->permit_number . '.pdf');
     }
+
+    public function showBarangayBusinessPermitTemplate($id)
+    {
+        $permit = Permit::findOrFail($id);
+
+        $pdf = Pdf::loadView('permits.templates.barangay-business-permit', compact('permit'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('barangay-business-permit-' . $permit->permit_number . '.pdf');
+    }
+
+    public function showFirePermitTemplate($id)
+    {
+        $permit = Permit::findOrFail($id);
+
+        $pdf = Pdf::loadView('permits.templates.fire-permit', compact('permit'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('fire-permit-' . $permit->permit_number . '.pdf');
+    }
+
+    public function showSanitaryPermitTemplate($id)
+    {
+        $permit = Permit::findOrFail($id);
+
+        $pdf = Pdf::loadView('permits.templates.sanitary-permit', compact('permit'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('sanitary-permit-' . $permit->permit_number . '.pdf');
+    }
+
+    public function showOboPermitTemplate($id)
+    {
+        $permit = Permit::findOrFail($id);
+
+        $pdf = Pdf::loadView('permits.templates.obo-permit', compact('permit'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('obo-permit-' . $permit->permit_number . '.pdf');
+    }
 }

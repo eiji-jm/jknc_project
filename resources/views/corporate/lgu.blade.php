@@ -90,7 +90,6 @@
             <div class="absolute inset-0 bg-black/30" onclick="closePreview()"></div>
 
             <div class="absolute inset-0 bg-[#f5f7fa] flex gap-5 p-4 overflow-hidden">
-                {{-- LEFT PDF --}}
                 <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <iframe
                         id="previewFrame"
@@ -99,7 +98,6 @@
                     ></iframe>
                 </div>
 
-                {{-- RIGHT INFO --}}
                 <div class="w-[320px] shrink-0 flex flex-col gap-4">
                     <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
                         <h2 class="text-[20px] font-semibold text-gray-900">Permit Preview</h2>
@@ -213,6 +211,14 @@
 let currentPermit = "Mayor's Permit";
 let permitRows = [];
 
+const previewRoutes = {
+    "Mayor's Permit": "mayors-permit",
+    "Barangay Business Permit": "barangay-business-permit",
+    "Fire Permit": "fire-permit",
+    "Sanitary Permit": "sanitary-permit",
+    "OBO": "obo-permit"
+};
+
 function resetFormDefaults() {
     document.getElementById('tinInput').value = '';
     document.getElementById('dateOfRegistrationInput').value = '';
@@ -253,7 +259,12 @@ function openPreview(index) {
     const item = permitRows[index];
     if (!item) return;
 
-    document.getElementById('previewFrame').src = `/permits/template/mayors-permit/${item.id}`;
+    const routeSlug = previewRoutes[item.permit_type];
+    if (!routeSlug) return;
+
+    const previewUrl = `/permits/template/${routeSlug}/${item.id}`;
+
+    document.getElementById('previewFrame').src = previewUrl;
     document.getElementById('infoPermitNumber').textContent = item.permit_number ?? '';
     document.getElementById('infoPermitType').textContent = item.permit_type ?? '';
     document.getElementById('infoUser').textContent = item.user ?? '';
@@ -290,6 +301,7 @@ async function renderTable(permitName) {
 
     permitRows.forEach((item, index) => {
         const classes = getStatusClasses(item.status);
+        const canView = !!previewRoutes[item.permit_type];
 
         tableBody.innerHTML += `
             <tr class="border-t hover:bg-gray-50">
@@ -307,7 +319,7 @@ async function renderTable(permitName) {
                 </td>
                 <td class="p-3">
                     ${
-                        item.permit_type === "Mayor's Permit"
+                        canView
                             ? `<button type="button" onclick="openPreview(${index})" class="text-blue-600 hover:underline">View</button>`
                             : `<span class="text-gray-400">N/A</span>`
                     }
