@@ -1040,12 +1040,22 @@ class ContactsController extends Controller
     {
         $path = $this->cifDataPath($contact);
         if (Storage::disk('local')->exists($path)) {
-            return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+            $stored = json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+
+            return [
+                ...$this->defaultCifData($contact),
+                ...$stored,
+            ];
         }
 
+        return $this->defaultCifData($contact);
+    }
+
+    private function defaultCifData(Contact $contact): array
+    {
         return [
             'cif_date' => now()->toDateString(),
-            'cif_no' => '',
+            'cif_no' => $contact->cif_no ?? '',
             'is_new_client' => true,
             'is_existing_client' => false,
             'is_change_information' => false,
@@ -1055,15 +1065,15 @@ class ContactsController extends Controller
             'present_address_line1' => $contact->contact_address,
             'present_address_line2' => '',
             'zip_code' => '',
-            'date_of_birth' => '',
+            'date_of_birth' => optional($contact->date_of_birth)->toDateString() ?? '',
             'place_of_birth' => '',
             'citizenship_nationality' => '',
             'citizenship_type' => '',
-            'gender' => '',
+            'gender' => $this->normalizeContactGender($contact->sex),
             'civil_status' => '',
             'spouse_name' => '',
-            'nature_of_work_business' => '',
-            'tin' => '',
+            'nature_of_work_business' => $contact->position,
+            'tin' => $contact->tin ?? '',
             'other_government_id' => '',
             'id_number' => '',
             'mothers_maiden_name' => '',
@@ -1091,6 +1101,7 @@ class ContactsController extends Controller
             'first_name' => $contact->first_name,
             'middle_name' => $contact->middle_name,
             'last_name' => $contact->last_name,
+            'name_extension' => $contact->name_extension,
             'email' => $contact->email,
             'mobile' => $contact->phone,
             'owner_name' => $contact->owner_name,
@@ -1331,6 +1342,7 @@ class ContactsController extends Controller
 
     private function specimenFormData(Contact $contact, ?SpecimenSignature $specimenSignature): array
     {
+        $cifData = $this->loadCifData($contact);
         $authenticationData = (array) ($specimenSignature?->authentication_data ?? []);
         $signatories = collect((array) ($specimenSignature?->signatories ?? []))
             ->map(fn ($entry) => is_array($entry) ? $entry : ['name' => null, 'signature' => null])
@@ -1338,6 +1350,13 @@ class ContactsController extends Controller
             ->take(6)
             ->values()
             ->all();
+        $contactDisplayName = trim(implode(' ', array_filter([
+            $contact->first_name,
+            $contact->middle_name,
+            $contact->last_name,
+        ])));
+        $defaultCifNo = (string) ($cifData['cif_no'] ?? ($contact->cif_no ?? ($contact->id ? 'CIF-'.$contact->id : '')));
+        $defaultCifDate = (string) ($cifData['cif_date'] ?? '');
 
         return [
             'date' => old('date', optional($specimenSignature?->date)->toDateString() ?? now()->toDateString()),
@@ -1349,12 +1368,12 @@ class ContactsController extends Controller
             'account_number_right' => old('account_number_right', $specimenSignature?->account_number_right ?? ''),
             'signature_combination' => old('signature_combination', (string) ($authenticationData['signature_combination'] ?? '')),
             'signature_class' => old('signature_class', (string) ($authenticationData['signature_class'] ?? '')),
-            'left_client_name' => old('left_client_name', (string) ($authenticationData['left_client_name'] ?? trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))),
-            'left_cif_no' => old('left_cif_no', (string) ($authenticationData['left_cif_no'] ?? ($contact->id ? 'CIF-'.$contact->id : ''))),
-            'left_cif_dated' => old('left_cif_dated', (string) ($authenticationData['left_cif_dated'] ?? '')),
-            'right_client_name' => old('right_client_name', (string) ($authenticationData['right_client_name'] ?? trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))),
-            'right_cif_no' => old('right_cif_no', (string) ($authenticationData['right_cif_no'] ?? ($contact->id ? 'CIF-'.$contact->id : ''))),
-            'right_cif_dated' => old('right_cif_dated', (string) ($authenticationData['right_cif_dated'] ?? '')),
+            'left_client_name' => old('left_client_name', (string) ($authenticationData['left_client_name'] ?? $contactDisplayName)),
+            'left_cif_no' => old('left_cif_no', (string) ($authenticationData['left_cif_no'] ?? $defaultCifNo)),
+            'left_cif_dated' => old('left_cif_dated', (string) ($authenticationData['left_cif_dated'] ?? $defaultCifDate)),
+            'right_client_name' => old('right_client_name', (string) ($authenticationData['right_client_name'] ?? $contactDisplayName)),
+            'right_cif_no' => old('right_cif_no', (string) ($authenticationData['right_cif_no'] ?? $defaultCifNo)),
+            'right_cif_dated' => old('right_cif_dated', (string) ($authenticationData['right_cif_dated'] ?? $defaultCifDate)),
             'signatories' => old('signatory_names', collect($signatories)->pluck('name')->all()),
             'authenticated_by' => old('authenticated_by', (string) ($authenticationData['authenticated_by'] ?? '')),
             'board_resolution_spa_no' => old('board_resolution_spa_no', (string) ($authenticationData['board_resolution_spa_no'] ?? '')),
@@ -1372,6 +1391,17 @@ class ContactsController extends Controller
             'scanned_date' => old('scanned_date', (string) ($authenticationData['scanned_date'] ?? '')),
             'created_by' => $specimenSignature?->created_by ?? ($contact->owner_name ?: 'Admin User'),
         ];
+    }
+
+    private function normalizeContactGender(?string $value): string
+    {
+        $normalized = Str::lower(trim((string) $value));
+
+        return match ($normalized) {
+            'male' => 'male',
+            'female' => 'female',
+            default => '',
+        };
     }
 
     private function normalizeMoneyValue(mixed $value): ?float
