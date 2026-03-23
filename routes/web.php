@@ -20,6 +20,9 @@ use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\StockTransferBookController;
 use App\Http\Controllers\PermitController;
 use App\Http\Controllers\CorrespondenceController;
+use App\Http\Controllers\AccountingController;
+use App\Http\Controllers\BankingController;
+use App\Http\Controllers\OperationController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -136,11 +139,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence/template/memo/{id}', [CorrespondenceController::class, 'showMemoTemplate'])->name('correspondence.template.memo');
     Route::get('/correspondence/template/notice/{id}', [CorrespondenceController::class, 'showNoticeTemplate'])->name('correspondence.template.notice');
 
+    Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
+    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+
+    Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
+    Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
+
+    Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
+    Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
+
+    Route::get('/corporate', function () {
+        return view('corporate.company-general-information');
+    })->name('corporate');
+
     Route::get('/lgu', function () {
         return view('corporate.lgu');
     })->name('lgu');
 
-    Route::get('/accounting', function () {
+    Route::get('/accounting-page', function () {
         return view('corporate.accounting');
     })->name('accounting');
 
