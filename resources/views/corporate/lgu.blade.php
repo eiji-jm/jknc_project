@@ -2,152 +2,100 @@
 
 @section('content')
 <div
-    x-data="{ showSlideOver: false, hasExpiration: true }"
+    x-data="{ hasExpiration: true }"
     class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
 >
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
-        {{-- SLIDE OVER FORM WITH LIVE PREVIEW --}}
-        <div x-show="showSlideOver" class="fixed inset-0 z-50 overflow-hidden" x-cloak>
-            <div class="absolute inset-0">
-                <div @click="showSlideOver=false" class="absolute inset-0 bg-gray-900 bg-opacity-50"></div>
-
-                <div class="absolute inset-y-0 right-0 flex max-w-full">
-                    <div
-                        class="w-screen max-w-[95vw] bg-white shadow-2xl flex h-full"
-                        x-transition:enter="transform transition ease-in-out duration-300"
-                        x-transition:enter-start="translate-x-full"
-                        x-transition:enter-end="translate-x-0"
-                        x-transition:leave="transform transition ease-in-out duration-300"
-                        x-transition:leave-start="translate-x-0"
-                        x-transition:leave-end="translate-x-full"
-                    >
-                        {{-- LEFT: LIVE PREVIEW --}}
-                        <div class="flex-1 bg-gray-50 flex flex-col h-full border-r">
-                            <div class="p-6 border-b bg-white">
-                                <h3 class="font-semibold text-lg">Live Document Preview</h3>
-                                <p class="text-sm text-gray-500">Preview of the file before saving</p>
-                            </div>
-
-                            <div class="flex-1 p-6 overflow-auto">
-                                <div class="bg-white border rounded-xl h-full overflow-hidden">
-                                    <div id="emptyPreviewState" class="h-full flex items-center justify-center text-gray-400 text-sm">
-                                        Upload a PDF or image to preview it here.
-                                    </div>
-
-                                    <iframe id="livePdfPreview" class="w-full h-full hidden" frameborder="0"></iframe>
-
-                                    <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-gray-100">
-                                        <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- RIGHT: FORM --}}
-                        <div class="w-full max-w-md flex flex-col h-full">
-                            <div class="p-6 border-b flex justify-between items-center">
-                                <h2 class="font-bold text-lg">Add Permit Entry</h2>
-                                <button @click="showSlideOver=false" class="text-gray-500 hover:text-gray-700">✕</button>
-                            </div>
-
-                            <div class="p-6 space-y-4 flex-1 overflow-y-auto">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">TIN</label>
-                                    <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Permit Type</label>
-                                    <select id="permitTypeInput" class="w-full border rounded-md p-2">
-                                        <option value="">Select Permit Type</option>
-                                        <option value="Mayor's Permit">Mayor's Permit</option>
-                                        <option value="Barangay Business Permit">Barangay Business Permit</option>
-                                        <option value="Fire Permit">Fire Permit</option>
-                                        <option value="Sanitary Permit">Sanitary Permit</option>
-                                        <option value="OBO">OBO</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Document Type</label>
-                                    <select id="documentTypeInput" class="w-full border rounded-md p-2">
-                                        <option value="">Select Document Type</option>
-                                        <option value="PDF">PDF</option>
-                                        <option value="Image">Image</option>
-                                        <option value="Scanned Copy">Scanned Copy</option>
-                                        <option value="Signed Copy">Signed Copy</option>
-                                        <option value="Original Copy">Original Copy</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Date of Registration</label>
-                                    <input id="dateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Approved Date of Registration</label>
-                                    <input id="approvedDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
-                                </div>
-
-                                <div class="border rounded-md p-3 bg-gray-50">
-                                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                        <input
-                                            type="checkbox"
-                                            x-model="hasExpiration"
-                                            id="hasExpirationInput"
-                                            class="rounded border-gray-300"
-                                            @change="if (!hasExpiration) document.getElementById('expirationDateOfRegistrationInput').value = ''"
-                                        >
-                                        This permit has an expiration date
-                                    </label>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Expiration Date</label>
-                                    <input
-                                        id="expirationDateOfRegistrationInput"
-                                        type="date"
-                                        class="w-full border rounded-md p-2"
-                                        :disabled="!hasExpiration"
-                                        :class="!hasExpiration ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''"
-                                    >
-                                </div>
-
-                                <div class="pt-2">
-                                    <label class="block text-sm font-medium mb-1 text-blue-700">Upload Document (PDF/Image)</label>
-                                    <input
-                                        id="documentInput"
-                                        type="file"
-                                        accept=".pdf,.jpg,.jpeg,.png"
-                                        class="w-full border border-blue-200 rounded-md p-2 bg-blue-50"
-                                    >
-                                    <p id="selectedFileName" class="mt-2 text-xs text-gray-500">No file selected</p>
-                                </div>
-                            </div>
-
-                            <div class="p-6 border-t flex gap-3">
-                                <button @click="showSlideOver=false" class="flex-1 border py-2 rounded">Cancel</button>
-                                <button
-                                    @click="addPermit().then(success => { if (success) { showSlideOver = false; resetFormDefaults(); } })"
-                                    class="flex-1 bg-blue-600 text-white py-2 rounded"
-                                >
-                                    Save
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+        {{-- TOP BAR --}}
+        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
+            <div class="flex-1 min-w-0 overflow-x-auto">
+                <div id="permitTabs" class="inline-flex min-w-max border border-gray-300 rounded-md overflow-hidden bg-white">
+                    <button type="button" class="permit-tab active px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="All Documents">
+                        All Documents
+                    </button>
+                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Mayor's Permit">
+                        Mayor's Permit
+                    </button>
+                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Barangay Business Permit">
+                        Barangay Business Permit
+                    </button>
+                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Fire Permit">
+                        Fire Permit
+                    </button>
+                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Sanitary Permit">
+                        Sanitary Permit
+                    </button>
+                    <button type="button" class="permit-tab px-5 py-2 text-sm bg-white hover:bg-gray-50" data-filter="OBO">
+                        OBO Permit
+                    </button>
                 </div>
+            </div>
+
+            <button onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0">
+                + Add
+            </button>
+        </div>
+
+        {{-- STATUS FILTERS --}}
+        <div class="px-4 pt-4 shrink-0">
+            <div class="flex items-center gap-2">
+                <button type="button"
+                    class="status-tab active px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+                    data-status="All">
+                    All
+                </button>
+                <button type="button"
+                    class="status-tab px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+                    data-status="Active">
+                    Active
+                </button>
+                <button type="button"
+                    class="status-tab px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+                    data-status="Pending">
+                    Pending
+                </button>
+                <button type="button"
+                    class="status-tab px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
+                    data-status="Archive">
+                    Archive
+                </button>
             </div>
         </div>
 
-        {{-- VIEW SAVED DOCUMENT OVERLAY --}}
-        <div id="previewOverlay" class="hidden fixed inset-0 z-[60]">
-            <div class="absolute inset-0 bg-black/30" onclick="closePreview()"></div>
-            <div class="absolute inset-0 bg-[#f5f7fa] flex gap-5 p-4 overflow-hidden">
+        {{-- TABLE VIEW --}}
+        <div id="tableSection" class="p-4 flex-grow overflow-hidden">
+            <div class="border rounded-md h-full overflow-auto bg-white">
+                <table class="w-full text-sm table-fixed border-collapse">
+                    <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                        <tr>
+                            <th class="w-40 p-3 text-left">Permit No.</th>
+                            <th class="w-40 p-3 text-left">Date of Registration</th>
+                            <th class="w-48 p-3 text-left">Approved Date</th>
+                            <th class="w-44 p-3 text-left">Expiration Date</th>
+                            <th class="w-32 p-3 text-left">Uploader</th>
+                            <th class="w-32 p-3 text-left">TIN</th>
+                            <th id="permitTypeHeader" class="w-40 p-3 text-left cursor-pointer hover:bg-gray-100">
+                                <div class="flex items-center gap-2">
+                                    <span>Permit Type</span>
+                                    <span id="permitTypeSortIndicator">↕</span>
+                                </div>
+                            </th>
+                            <th class="w-40 p-3 text-left">Document Type</th>
+                            <th class="w-32 p-3 text-left">Status</th>
+                            <th class="w-40 p-3 text-left">Document</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- PREVIEW VIEW --}}
+        <div id="previewSection" class="hidden p-4 flex-grow overflow-hidden">
+            <div class="h-full flex gap-4">
                 <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <iframe id="previewFrame" class="w-full h-full" frameborder="0"></iframe>
+                    <iframe id="previewFrame" class="w-full h-full bg-white" frameborder="0"></iframe>
                 </div>
 
                 <div class="w-[320px] shrink-0 flex flex-col gap-4">
@@ -175,59 +123,180 @@
             </div>
         </div>
 
-        {{-- TOP BAR --}}
-        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0">
-            <div class="relative">
-                <button id="permitDropdownBtn" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-md font-medium hover:bg-gray-200">
-                    <span id="selectedPermitFilter">All Documents</span> ▾
-                </button>
-                <div id="permitMenu" class="hidden absolute left-0 mt-2 w-56 bg-white border shadow-xl rounded-md z-50 py-1">
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">All Documents</div>
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Mayor's Permit</div>
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Barangay Business Permit</div>
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Fire Permit</div>
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Sanitary Permit</div>
-                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer">OBO</div>
+        {{-- ADD VIEW --}}
+        <div id="addSection" class="hidden p-4 flex-grow overflow-hidden">
+            <div class="h-full flex gap-4">
+                {{-- LEFT: LIVE PREVIEW --}}
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="h-full bg-white">
+                        <div id="emptyPreviewState" class="h-full flex items-center justify-center text-gray-400 text-sm">
+                            Upload a PDF or image to preview it here.
+                        </div>
+
+                        <iframe id="livePdfPreview" class="w-full h-full hidden bg-white" frameborder="0"></iframe>
+
+                        <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-white">
+                            <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- RIGHT: FORM --}}
+                <div class="w-[360px] shrink-0 flex flex-col gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                        <h2 class="text-[20px] font-semibold text-gray-900">Add Permit Entry</h2>
+                        <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 flex-1 overflow-y-auto">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">TIN</label>
+                                <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Permit Type</label>
+                                <select id="permitTypeInput" class="w-full border rounded-md p-2">
+                                    <option value="">Select Permit Type</option>
+                                    <option value="Mayor's Permit">Mayor's Permit</option>
+                                    <option value="Barangay Business Permit">Barangay Business Permit</option>
+                                    <option value="Fire Permit">Fire Permit</option>
+                                    <option value="Sanitary Permit">Sanitary Permit</option>
+                                    <option value="OBO">OBO</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Document Type</label>
+                                <select id="documentTypeInput" class="w-full border rounded-md p-2">
+                                    <option value="">Select Document Type</option>
+                                    <option value="PDF">PDF</option>
+                                    <option value="Image">Image</option>
+                                    <option value="Scanned Copy">Scanned Copy</option>
+                                    <option value="Signed Copy">Signed Copy</option>
+                                    <option value="Original Copy">Original Copy</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Date of Registration</label>
+                                <input id="dateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Approved Date of Registration</label>
+                                <input id="approvedDateOfRegistrationInput" type="date" class="w-full border rounded-md p-2">
+                            </div>
+
+                            <div class="border rounded-md p-3 bg-gray-50">
+                                <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        id="hasExpirationInput"
+                                        class="rounded border-gray-300"
+                                        checked
+                                        onchange="toggleExpirationField()"
+                                    >
+                                    This permit has an expiration date
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Expiration Date</label>
+                                <input
+                                    id="expirationDateOfRegistrationInput"
+                                    type="date"
+                                    class="w-full border rounded-md p-2"
+                                >
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="block text-sm font-medium mb-1 text-blue-700">Upload Document (PDF/Image)</label>
+                                <input
+                                    id="documentInput"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="w-full border border-blue-200 rounded-md p-2 bg-blue-50"
+                                >
+                                <p id="selectedFileName" class="mt-2 text-xs text-gray-500">No file selected</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
+                        <button onclick="closeAddSection()" class="flex-1 border py-2 rounded">Cancel</button>
+                        <button
+                            onclick="addPermit().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
+                            class="flex-1 bg-blue-600 text-white py-2 rounded"
+                        >
+                            Save
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            <button @click="showSlideOver = true; $nextTick(() => resetFormDefaults())" class="bg-blue-600 text-white px-6 py-2 rounded text-sm">
-                + Add
-            </button>
         </div>
 
-        {{-- TABLE --}}
-        <div class="p-4 flex-grow overflow-hidden">
-            <div class="border rounded-md h-full overflow-auto">
-                <table class="w-full text-sm table-fixed border-collapse">
-                    <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
-                        <tr>
-                            <th class="w-40 p-3 text-left">Permit No.</th>
-                            <th class="w-40 p-3 text-left">Date of Registration</th>
-                            <th class="w-48 p-3 text-left">Approved Date</th>
-                            <th class="w-44 p-3 text-left">Expiration Date</th>
-                            <th class="w-32 p-3 text-left">Uploader</th>
-                            <th class="w-32 p-3 text-left">TIN</th>
-                            <th id="permitTypeHeader" class="w-40 p-3 text-left cursor-pointer hover:bg-gray-100">
-                                <div class="flex items-center gap-2"><span>Permit Type</span><span id="permitTypeSortIndicator">↕</span></div>
-                            </th>
-                            <th class="w-40 p-3 text-left">Document Type</th>
-                            <th class="w-32 p-3 text-left">Status</th>
-                            <th class="w-40 p-3 text-left">Document</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="bg-white"></tbody>
-                </table>
-            </div>
-        </div>
     </div>
 </div>
 
+<style>
+    .permit-tab.active {
+        background-color: #eff6ff;
+        color: #2563eb;
+        font-weight: 600;
+    }
+
+    .status-tab.active {
+        background-color: #eff6ff;
+        color: #2563eb;
+        font-weight: 600;
+        border-color: #93c5fd;
+    }
+</style>
+
 <script>
 let currentPermitFilter = 'All Documents';
+let currentStatusFilter = 'All';
 let permitRows = [];
 let permitTypeSortDirection = 'asc';
 let livePreviewObjectUrl = null;
+
+function showOnlySection(sectionId) {
+    document.getElementById('tableSection').classList.add('hidden');
+    document.getElementById('previewSection').classList.add('hidden');
+    document.getElementById('addSection').classList.add('hidden');
+    document.getElementById(sectionId).classList.remove('hidden');
+}
+
+function openAddSection() {
+    resetFormDefaults();
+    showOnlySection('addSection');
+}
+
+function closeAddSection() {
+    resetFormDefaults();
+    showOnlySection('tableSection');
+}
+
+function closePreview() {
+    document.getElementById('previewFrame').src = '';
+    showOnlySection('tableSection');
+}
+
+function toggleExpirationField() {
+    const checkbox = document.getElementById('hasExpirationInput');
+    const expirationInput = document.getElementById('expirationDateOfRegistrationInput');
+
+    if (!checkbox.checked) {
+        expirationInput.value = '';
+        expirationInput.disabled = true;
+        expirationInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    } else {
+        expirationInput.disabled = false;
+        expirationInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    }
+}
 
 function resetFormDefaults() {
     document.getElementById('tinInput').value = '';
@@ -235,11 +304,13 @@ function resetFormDefaults() {
     document.getElementById('documentTypeInput').value = '';
     document.getElementById('dateOfRegistrationInput').value = '';
     document.getElementById('approvedDateOfRegistrationInput').value = '';
-    document.getElementById('hasExpirationInput').checked = true;
     document.getElementById('documentInput').value = '';
     document.getElementById('selectedFileName').textContent = 'No file selected';
 
+    const checkbox = document.getElementById('hasExpirationInput');
     const expirationInput = document.getElementById('expirationDateOfRegistrationInput');
+
+    checkbox.checked = true;
     expirationInput.value = '';
     expirationInput.disabled = false;
     expirationInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
@@ -302,6 +373,8 @@ async function fetchPermits(filterValue) {
 function getStatusClasses(status) {
     if (status === 'Active') return { textClass: 'text-green-600', dotClass: 'bg-green-500' };
     if (status === 'Expired') return { textClass: 'text-red-600', dotClass: 'bg-red-500' };
+    if (status === 'Pending') return { textClass: 'text-yellow-600', dotClass: 'bg-yellow-500' };
+    if (status === 'Archive') return { textClass: 'text-gray-600', dotClass: 'bg-gray-500' };
     return { textClass: 'text-gray-500', dotClass: 'bg-gray-400' };
 }
 
@@ -309,22 +382,52 @@ function drawTableRows() {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
 
-    if (!permitRows.length) {
+    let filteredRows = [...permitRows];
+
+    if (currentStatusFilter !== 'All') {
+        filteredRows = filteredRows.filter(item => {
+            const status = (item.status || '').toLowerCase();
+
+            if (currentStatusFilter === 'Archive') {
+                return status === 'expired';
+            }
+
+            return status === currentStatusFilter.toLowerCase();
+        });
+    }
+
+    if (!filteredRows.length) {
         tableBody.innerHTML = `<tr><td colspan="10" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
         return;
     }
 
-    permitRows.forEach((item, index) => {
+    filteredRows.forEach(item => {
         const classes = getStatusClasses(item.status);
+        const safePermitNumber = JSON.stringify(item.permit_number ?? '');
+        const isClickable = !!item.document_path;
+
         tableBody.innerHTML += `
-            <tr class="border-t hover:bg-gray-50">
-                <td class="p-3">${item.permit_number ?? ''}</td>
+            <tr
+                class="border-t ${isClickable ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'}"
+                ${isClickable ? `onclick='openPreviewByPermitNumber(${safePermitNumber})'` : ''}
+            >
+                <td class="p-3">
+                    ${isClickable
+                        ? `<span class="text-blue-600 font-medium hover:underline">${item.permit_number ?? ''}</span>`
+                        : `${item.permit_number ?? ''}`
+                    }
+                </td>
                 <td class="p-3">${item.date_of_registration ?? ''}</td>
                 <td class="p-3">${item.approved_date_of_registration ?? ''}</td>
                 <td class="p-3">${item.expiration_date_of_registration ?? 'No Expiration'}</td>
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3">${item.tin ?? ''}</td>
-                <td class="p-3">${item.permit_type ?? ''}</td>
+                <td class="p-3">
+                    ${isClickable
+                        ? `<span class="text-blue-600 hover:underline">${item.permit_type ?? ''}</span>`
+                        : `${item.permit_type ?? ''}`
+                    }
+                </td>
                 <td class="p-3">${item.document_type ?? ''}</td>
                 <td class="p-3">
                     <span class="flex items-center gap-1.5 ${classes.textClass}">
@@ -334,7 +437,11 @@ function drawTableRows() {
                 </td>
                 <td class="p-3">
                     ${item.document_path
-                        ? `<button type="button" onclick="openPreview(${index})" class="text-blue-600 hover:underline">View</button>`
+                        ? `<button
+                                type="button"
+                                onclick='event.stopPropagation(); openPreviewByPermitNumber(${safePermitNumber})'
+                                class="text-blue-600 hover:underline"
+                           >View</button>`
                         : `<span class="text-gray-400">No File</span>`}
                 </td>
             </tr>
@@ -342,8 +449,8 @@ function drawTableRows() {
     });
 }
 
-function openPreview(index) {
-    const item = permitRows[index];
+function openPreviewByPermitNumber(permitNumber) {
+    const item = permitRows.find(row => (row.permit_number ?? '') === permitNumber);
     if (!item || !item.document_path) return;
 
     document.getElementById('previewFrame').src = '/' + item.document_path;
@@ -358,14 +465,7 @@ function openPreview(index) {
     document.getElementById('infoExpirationDate').textContent = item.expiration_date_of_registration || 'No Expiration';
     document.getElementById('infoStatus').textContent = item.status ?? '';
 
-    document.getElementById('previewOverlay').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closePreview() {
-    document.getElementById('previewFrame').src = '';
-    document.getElementById('previewOverlay').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    showOnlySection('previewSection');
 }
 
 async function renderTable(filterValue) {
@@ -373,6 +473,7 @@ async function renderTable(filterValue) {
     const permitData = await fetchPermits(filterValue);
     permitRows = permitData || [];
     drawTableRows();
+    setActivePermitTab(filterValue);
 }
 
 async function addPermit() {
@@ -444,29 +545,47 @@ function sortPermitRows() {
     drawTableRows();
 }
 
+function setActivePermitTab(filterValue) {
+    document.querySelectorAll('.permit-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.filter === filterValue) {
+            tab.classList.add('active');
+        }
+    });
+}
+
+function setActiveStatusTab(statusValue) {
+    document.querySelectorAll('.status-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.status === statusValue) {
+            tab.classList.add('active');
+        }
+    });
+}
+
 document.getElementById('permitTypeHeader').addEventListener('click', () => {
     permitTypeSortDirection = permitTypeSortDirection === 'asc' ? 'desc' : 'asc';
     sortPermitRows();
 });
 
-// Initial Load
+document.querySelectorAll('.permit-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const filterValue = tab.dataset.filter;
+        renderTable(filterValue);
+        showOnlySection('tableSection');
+    });
+});
+
+document.querySelectorAll('.status-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        currentStatusFilter = tab.dataset.status;
+        setActiveStatusTab(currentStatusFilter);
+        drawTableRows();
+        showOnlySection('tableSection');
+    });
+});
+
 renderTable(currentPermitFilter);
-
-// Dropdown Handlers
-document.getElementById('permitDropdownBtn').addEventListener('click', e => {
-    e.stopPropagation();
-    document.getElementById('permitMenu').classList.toggle('hidden');
-});
-
-document.getElementById('permitMenu').addEventListener('click', e => {
-    if (e.target.tagName === 'DIV') {
-        const selected = e.target.innerText;
-        document.getElementById('selectedPermitFilter').innerText = selected;
-        renderTable(selected);
-        document.getElementById('permitMenu').classList.add('hidden');
-    }
-});
-
-document.addEventListener('click', () => document.getElementById('permitMenu').classList.add('hidden'));
+setActiveStatusTab(currentStatusFilter);
 </script>
 @endsection
