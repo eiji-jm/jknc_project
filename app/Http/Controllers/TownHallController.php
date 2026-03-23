@@ -99,50 +99,126 @@ class TownHallController extends Controller
         return view('townhall.department', compact('communications', 'departments'));
     }
 
-        public function attachments(Request $request)
-        {
-            if (!Auth::user()->hasPermission('access_townhall')) {
-                abort(403, 'Unauthorized');
-            }
+    public function attachments(Request $request)
+    {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
 
-            $query = TownHallCommunication::whereNotNull('attachment')
-                ->where('approval_status', 'Approved');
+        $query = TownHallCommunication::whereNotNull('attachment')
+            ->where('approval_status', 'Approved');
 
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('subject', 'like', "%{$search}%")
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
                     ->orWhere('ref_no', 'like', "%{$search}%")
                     ->orWhere('from_name', 'like', "%{$search}%")
                     ->orWhere('department_stakeholder', 'like', "%{$search}%");
-                });
-            }
+            });
+        }
 
-            if ($request->filled('type')) {
-                $type = $request->type;
+        if ($request->filled('type')) {
+            $type = $request->type;
 
-                if ($type === 'image') {
-                    $query->where(function ($q) {
-                        $q->where('attachment', 'like', '%.jpg')
+            if ($type === 'image') {
+                $query->where(function ($q) {
+                    $q->where('attachment', 'like', '%.jpg')
                         ->orWhere('attachment', 'like', '%.jpeg')
                         ->orWhere('attachment', 'like', '%.png')
                         ->orWhere('attachment', 'like', '%.gif')
                         ->orWhere('attachment', 'like', '%.webp');
-                    });
-                } elseif ($type === 'pdf') {
-                    $query->where('attachment', 'like', '%.pdf');
-                } elseif ($type === 'document') {
-                    $query->where(function ($q) {
-                        $q->where('attachment', 'like', '%.doc')
+                });
+            } elseif ($type === 'pdf') {
+                $query->where('attachment', 'like', '%.pdf');
+            } elseif ($type === 'document') {
+                $query->where(function ($q) {
+                    $q->where('attachment', 'like', '%.doc')
                         ->orWhere('attachment', 'like', '%.docx');
-                    });
-                }
+                });
+            }
+        }
+
+        $communications = $query->latest()->paginate(12)->withQueryString();
+
+        return view('townhall.attachments', compact('communications'));
+    }
+
+    public function edit($id)
+    {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->created_by !== Auth::id()) {
+            abort(403, 'You can only edit your own communication.');
+        }
+
+        if ($communication->approval_status !== 'Needs Revision') {
+            abort(403, 'Only communications marked for revision can be edited.');
+        }
+
+        return view('townhall.edit', compact('communication'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->created_by !== Auth::id()) {
+            abort(403, 'You can only update your own communication.');
+        }
+
+        if ($communication->approval_status !== 'Needs Revision') {
+            abort(403, 'Only communications marked for revision can be updated.');
+        }
+
+        $validated = $request->validate([
+            'communication_date' => ['nullable', 'date'],
+            'department_stakeholder' => ['nullable', 'string', 'max:255'],
+            'recipient_label' => ['nullable', 'in:To,For'],
+            'to_for' => ['nullable', 'string', 'max:255'],
+            'priority' => ['nullable', 'in:High,Low'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'message' => ['nullable', 'string'],
+            'cc' => ['nullable', 'string', 'max:255'],
+            'additional' => ['nullable', 'string', 'max:255'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx', 'max:5120'],
+        ]);
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+
+            if (!$file->isValid()) {
+                return back()
+                    ->withErrors(['attachment' => 'The attachment failed to upload.'])
+                    ->withInput();
             }
 
-            $communications = $query->latest()->paginate(12)->withQueryString();
+            if ($communication->attachment && Storage::disk('public')->exists($communication->attachment)) {
+                Storage::disk('public')->delete($communication->attachment);
+            }
 
-            return view('townhall.attachments', compact('communications'));
+            $validated['attachment'] = $file->store('townhall_attachments', 'public');
         }
+
+        $validated['approval_status'] = 'Pending';
+        $validated['approved_by'] = null;
+        $validated['approved_at'] = null;
+        $validated['approval_notes'] = null;
+
+        $communication->update($validated);
+
+        return redirect()
+            ->route('townhall')
+            ->with('success', 'Communication updated and resubmitted for approval.');
+    }
 
     public function show($id)
     {
@@ -306,9 +382,8 @@ class TownHallController extends Controller
         );
 
         return redirect()->back()->with('success', 'Communication acknowledged successfully.');
-
     }
-        public function downloadPdf($id)
+    public function downloadPdf($id)
     {
         $communication = TownHallCommunication::findOrFail($id);
 

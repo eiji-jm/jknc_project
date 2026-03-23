@@ -9,12 +9,32 @@
         <div id="ack-scroll-container" class="w-[70%] h-[calc(100vh-80px)] overflow-y-auto pr-2">
 
             {{-- BACK --}}
-            <div class="mb-4 flex justify-between">
+            <div class="mb-4 flex justify-between items-center">
                 <a href="{{ route('townhall') }}"
                    class="border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-100">
                     ← Back
                 </a>
+
+                @if(
+                    $communication->approval_status === 'Needs Revision' &&
+                    $communication->created_by === Auth::id() &&
+                    Auth::user()->hasPermission('create_townhall')
+                )
+                    <a href="{{ route('townhall.edit', $communication->id) }}"
+                       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow">
+                        Edit Revision
+                    </a>
+                @endif
             </div>
+
+            @if(
+                $communication->approval_status === 'Needs Revision' &&
+                $communication->approval_notes
+            )
+                <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                    <span class="font-semibold">Revision Note:</span> {{ $communication->approval_notes }}
+                </div>
+            @endif
 
             {{-- MEMO --}}
             <div class="memo-preview bg-white border border-gray-300 shadow px-[72px] py-[72px] mb-6">
@@ -121,18 +141,17 @@
                     <span>{{ $ackCount }}/{{ $totalEmployees }}</span>
                 </div>
 
-                {{-- PROGRESS --}}
                 <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
                     <div class="bg-blue-600 h-3 rounded-full"
                          style="width: {{ $progress }}%"></div>
                 </div>
 
-                {{-- Acknowledgement BUTTON --}}
                 @if($requiresAcknowledgement && !$hasAcknowledged)
                     <form method="POST" action="{{ route('townhall.acknowledge', $communication->id) }}">
                         @csrf
 
                         <button id="ack-btn"
+                            type="submit"
                             disabled
                             class="bg-gray-400 text-white px-4 py-2 rounded-lg mb-4 cursor-not-allowed">
                             Acknowledge (Scroll + Wait 10s)
@@ -142,88 +161,39 @@
                             Please scroll to the bottom and wait 10 seconds...
                         </p>
                     </form>
+                @elseif($hasAcknowledged)
+                    <p class="text-sm text-green-600 font-medium mb-4">
+                        ✔ You have acknowledged this communication.
+                    </p>
                 @endif
 
                 <div class="grid grid-cols-2 gap-4 text-sm">
-
                     <div>
                         <b>✔ Acknowledged</b>
-                        @foreach($acknowledgedUsers as $user)
+                        @forelse($acknowledgedUsers as $user)
                             <p class="text-green-600">{{ $user->name }}</p>
-                        @endforeach
+                        @empty
+                            <p class="text-gray-400">None yet</p>
+                        @endforelse
                     </div>
 
                     <div>
                         <b>Pending</b>
-                        @foreach($notAcknowledgedUsers as $user)
+                        @forelse($notAcknowledgedUsers as $user)
                             <p class="text-red-500">{{ $user->name }}</p>
-                        @endforeach
+                        @empty
+                            <p class="text-gray-400">All acknowledged</p>
+                        @endforelse
                     </div>
-
                 </div>
 
             </div>
-            @push('scripts')
-            <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                let hasScrolledToBottom = false;
-                let timerDone = false;
-                let seconds = 10;
-
-                const container = document.getElementById('ack-scroll-container');
-                const button = document.getElementById('ack-btn');
-                const statusText = document.getElementById('ack-status');
-
-                if (!container || !button || !statusText) return;
-
-                function updateButtonState() {
-                    if (hasScrolledToBottom && timerDone) {
-                        button.disabled = false;
-                        button.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                        button.classList.add('bg-green-600', 'hover:bg-green-700');
-                        button.innerText = 'Acknowledge';
-                        statusText.innerText = 'You can now acknowledge.';
-                    } else if (hasScrolledToBottom && !timerDone) {
-                        statusText.innerText = `Scrolled to bottom. Please wait ${seconds}s...`;
-                    } else if (!hasScrolledToBottom && timerDone) {
-                        statusText.innerText = 'Timer finished. Please scroll to the bottom.';
-                    } else {
-                        statusText.innerText = `Please scroll to the bottom and wait ${seconds}s...`;
-                    }
-                }
-
-                const interval = setInterval(() => {
-                    seconds--;
-
-                    if (seconds <= 0) {
-                        timerDone = true;
-                        clearInterval(interval);
-                    }
-
-                    updateButtonState();
-                }, 1000);
-
-                container.addEventListener('scroll', function () {
-                    const isAtBottom =
-                        container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
-
-                    if (isAtBottom) {
-                        hasScrolledToBottom = true;
-                        updateButtonState();
-                    }
-                });
-
-                updateButtonState();
-            });
-            </script>
-            @endpush
             @endif
 
         </div>
 
         {{-- RIGHT SIDE PANEL --}}
         <div class="w-[30%]">
-
             <div class="bg-white border rounded-xl shadow p-5 sticky top-6 space-y-4">
 
                 <h3 class="font-semibold text-lg">Communication Details</h3>
@@ -246,12 +216,8 @@
                     </div>
 
                     <div>
-                        <p class="text-gray-500 text-xs">
-                            {{ $communication->recipient_label ?? 'To' }}
-                        </p>
-                        <p>
-                            {{ $communication->to_for }}
-                        </p>
+                        <p class="text-gray-500 text-xs">{{ $communication->recipient_label ?? 'To' }}</p>
+                        <p>{{ $communication->to_for }}</p>
                     </div>
 
                     <div>
@@ -274,9 +240,14 @@
                         <p>{{ $communication->cc }}</p>
                     </div>
 
+                    @if($communication->approval_notes)
+                    <div>
+                        <p class="text-gray-500 text-xs">Approval Notes</p>
+                        <p>{{ $communication->approval_notes }}</p>
+                    </div>
+                    @endif
                 </div>
 
-                {{-- DOWNLOAD --}}
                 @if($communication->approval_status === 'Approved')
                     <a href="{{ route('townhall.download.pdf', $communication->id) }}"
                        class="block text-center bg-red-600 text-white py-2 rounded-lg">
@@ -284,10 +255,74 @@
                     </a>
                 @endif
 
+                @if(
+                    $communication->approval_status === 'Needs Revision' &&
+                    $communication->created_by === Auth::id() &&
+                    Auth::user()->hasPermission('create_townhall')
+                )
+                    <a href="{{ route('townhall.edit', $communication->id) }}"
+                       class="block text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                        Edit and Resubmit
+                    </a>
+                @endif
             </div>
-
         </div>
 
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    let hasScrolledToBottom = false;
+    let timerDone = false;
+    let seconds = 10;
+
+    const container = document.getElementById('ack-scroll-container');
+    const button = document.getElementById('ack-btn');
+    const statusText = document.getElementById('ack-status');
+
+    if (!container || !button || !statusText) return;
+
+    function updateButtonState() {
+        if (hasScrolledToBottom && timerDone) {
+            button.disabled = false;
+            button.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            button.classList.add('bg-green-600', 'hover:bg-green-700');
+            button.innerText = 'Acknowledge';
+            statusText.innerText = 'You can now acknowledge.';
+        } else if (hasScrolledToBottom && !timerDone) {
+            statusText.innerText = `Scrolled to bottom. Please wait ${seconds}s...`;
+        } else if (!hasScrolledToBottom && timerDone) {
+            statusText.innerText = 'Timer finished. Please scroll to the bottom.';
+        } else {
+            statusText.innerText = `Please scroll to the bottom and wait ${seconds}s...`;
+        }
+    }
+
+    const interval = setInterval(() => {
+        seconds--;
+
+        if (seconds <= 0) {
+            timerDone = true;
+            clearInterval(interval);
+        }
+
+        updateButtonState();
+    }, 1000);
+
+    container.addEventListener('scroll', function () {
+        const isAtBottom =
+            container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+
+        if (isAtBottom) {
+            hasScrolledToBottom = true;
+            updateButtonState();
+        }
+    });
+
+    updateButtonState();
+});
+</script>
+@endpush
