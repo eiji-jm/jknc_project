@@ -72,33 +72,40 @@
             </div>
         </div>
 
-        {{-- ADD VIEW --}}
-        <div id="addSection" class="hidden p-4 flex-grow overflow-hidden">
-            <div class="h-full flex gap-4">
-                {{-- LEFT: LIVE PREVIEW --}}
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div class="h-full bg-white">
-                        <div id="emptyPreviewStateAdd" class="h-full flex items-center justify-center text-gray-400 text-sm">
-                            Upload a PDF or image to preview it here.
-                        </div>
+        {{-- ADD SLIDE OVER --}}
+        <div id="addSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
+            <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
 
-                        <iframe id="livePdfPreview" class="w-full h-full hidden bg-white" frameborder="0"></iframe>
+            <div class="absolute inset-y-0 right-0 flex max-w-full">
+                <div
+                    id="addPanel"
+                    class="w-screen max-w-[80vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                >
+                    {{-- LEFT: LIVE PREVIEW --}}
+                    <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
+                        <div class="h-full bg-white border border-gray-200 rounded-xl overflow-hidden">
+                            <div id="emptyPreviewStateAdd" class="h-full flex items-center justify-center text-gray-400 text-sm">
+                                Upload a PDF or image to preview it here.
+                            </div>
 
-                        <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-white">
-                            <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
+                            <iframe id="livePdfPreview" class="w-full h-full hidden bg-white" frameborder="0"></iframe>
+
+                            <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-white">
+                                <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- RIGHT: FORM --}}
-                <div class="w-[360px] shrink-0 flex flex-col gap-4">
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
-                        <h2 class="text-[20px] font-semibold text-gray-900">Add Banking Entry</h2>
-                        <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
-                    </div>
+                    {{-- RIGHT: FORM --}}
+                    <div class="w-full max-w-[320px] bg-white flex flex-col h-full">
+                        <div class="p-6 border-b flex items-center justify-between shrink-0">
+                            <h2 class="font-bold text-lg text-gray-900">Add Banking Entry</h2>
+                            <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">
+                                Close
+                            </button>
+                        </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 flex-1 overflow-y-auto">
-                        <div class="space-y-4">
+                        <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
                             <div>
                                 <label class="block text-sm font-medium mb-1">Client</label>
                                 <input id="clientInput" class="w-full border rounded-md p-2" placeholder="Client">
@@ -135,11 +142,16 @@
                                 <p id="selectedFileName" class="mt-2 text-xs text-gray-500">No file selected</p>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
-                        <button onclick="closeAddSection()" class="flex-1 border py-2 rounded">Cancel</button>
-                        <button onclick="addBankingEntry()" class="flex-1 bg-blue-600 text-white py-2 rounded">Save</button>
+                        <div class="p-6 border-t flex gap-2 shrink-0">
+                            <button onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
+                            <button
+                                onclick="addBankingEntry().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
+                                class="flex-1 bg-blue-600 text-white rounded py-2"
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -155,18 +167,31 @@ let livePreviewObjectUrl = null;
 function showOnlySection(sectionId) {
     document.getElementById('tableSection').classList.add('hidden');
     document.getElementById('previewSection').classList.add('hidden');
-    document.getElementById('addSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
 function openAddSection() {
     resetFormDefaults();
-    showOnlySection('addSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addSection.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        addPanel.classList.remove('translate-x-full');
+    });
 }
 
 function closeAddSection() {
     resetFormDefaults();
-    showOnlySection('tableSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addPanel.classList.add('translate-x-full');
+
+    setTimeout(() => {
+        addSection.classList.add('hidden');
+    }, 300);
 }
 
 function closePreview() {
@@ -346,12 +371,12 @@ async function addBankingEntry() {
 
     if (!client || !bank || !bankDoc || !dateUploaded) {
         alert('Please fill in all required fields.');
-        return;
+        return false;
     }
 
     if (!file) {
         alert('Please upload a document.');
-        return;
+        return false;
     }
 
     const formData = new FormData();
@@ -375,11 +400,11 @@ async function addBankingEntry() {
 
     if (!res.ok) {
         alert(data.message || 'Error saving banking entry.');
-        return;
+        return false;
     }
 
-    closeAddSection();
     await renderTable();
+    return true;
 }
 
 renderTable();

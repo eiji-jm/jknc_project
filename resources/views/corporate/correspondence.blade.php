@@ -175,33 +175,40 @@
             </div>
         </div>
 
-        {{-- ADD VIEW --}}
-        <div id="addSection" class="hidden p-4 flex-grow overflow-hidden">
-            <div class="h-full flex gap-4">
-                {{-- LEFT: LIVE TEMPLATE PREVIEW --}}
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-auto p-6">
-                    <div class="preview-canvas">
-                        <div class="preview-paper-shell">
-                            <iframe id="draftPreviewFrame" class="preview-paper-frame" frameborder="0"></iframe>
+        {{-- ADD SLIDE OVER --}}
+        <div id="addSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
+            <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
+
+            <div class="absolute inset-y-0 right-0 flex max-w-full">
+                <div
+                    id="addPanel"
+                    class="w-screen max-w-[85vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                >
+                    {{-- LEFT: LIVE TEMPLATE PREVIEW --}}
+                    <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200 overflow-auto">
+                        <div class="h-full bg-white border border-gray-200 rounded-xl overflow-auto p-6">
+                            <div class="preview-canvas">
+                                <div class="preview-paper-shell">
+                                    <iframe id="draftPreviewFrame" class="preview-paper-frame" frameborder="0"></iframe>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- RIGHT: FORM --}}
-                <div class="w-[360px] shrink-0 flex flex-col gap-4">
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
-                        <h2 class="text-[20px] font-semibold text-gray-900">Add Correspondence Entry</h2>
-                        <button
-                            type="button"
-                            onclick="closeAddSection()"
-                            class="text-sm text-gray-500 hover:text-gray-700"
-                        >
-                            Close
-                        </button>
-                    </div>
+                    {{-- RIGHT: FORM --}}
+                    <div class="w-full max-w-[320px] bg-white flex flex-col h-full">
+                        <div class="p-6 border-b flex items-center justify-between shrink-0">
+                            <h2 class="font-bold text-lg text-gray-900">Add Correspondence Entry</h2>
+                            <button
+                                type="button"
+                                onclick="closeAddSection()"
+                                class="text-sm text-gray-500 hover:text-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 flex-1 overflow-y-auto">
-                        <div class="space-y-4">
+                        <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
                             <div>
                                 <label class="block text-sm font-medium mb-1">TIN</label>
                                 <input id="tinInput" class="w-full border rounded-md p-2 preview-sync" placeholder="TIN">
@@ -275,16 +282,16 @@
                                 </select>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
-                        <button onclick="closeAddSection()" class="flex-1 border py-2 rounded">Cancel</button>
-                        <button
-                            onclick="addCorrespondence().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
-                            class="flex-1 bg-blue-600 text-white py-2 rounded"
-                        >
-                            Save
-                        </button>
+                        <div class="p-6 border-t flex gap-2 shrink-0">
+                            <button onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
+                            <button
+                                onclick="addCorrespondence().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
+                                class="flex-1 bg-blue-600 text-white rounded py-2"
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -344,19 +351,33 @@ const previewRoutes = {
 function showOnlySection(sectionId) {
     document.getElementById('tableSection').classList.add('hidden');
     document.getElementById('previewSection').classList.add('hidden');
-    document.getElementById('addSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
 function openAddSection() {
     resetFormDefaults();
-    showOnlySection('addSection');
-    refreshDraftPreview();
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addSection.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        addPanel.classList.remove('translate-x-full');
+        refreshDraftPreview();
+    });
 }
 
 function closeAddSection() {
     document.getElementById('draftPreviewFrame').src = '';
-    showOnlySection('tableSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addPanel.classList.add('translate-x-full');
+
+    setTimeout(() => {
+        addSection.classList.add('hidden');
+        showOnlySection('tableSection');
+    }, 300);
 }
 
 function resetFormDefaults() {
