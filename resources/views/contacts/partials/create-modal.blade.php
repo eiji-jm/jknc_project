@@ -66,10 +66,14 @@
                             <p class="text-xs text-gray-400">Use this as the main contact and business record.</p>
                         </div>
 
-                        <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
+                        <div class="grid gap-3 sm:grid-cols-3 sm:items-end">
                             <div>
                                 <label for="business_date" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Business Date</label>
                                 <input id="business_date" type="date" name="business_date" value="{{ $metaBusinessDate }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div>
+                                <label for="cif_no_preview" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">CIF No.</label>
+                                <input id="cif_no_preview" type="text" value="Auto-generated after save" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-500 outline-none" readonly disabled>
                             </div>
                             <div class="relative">
                                 <label for="ownerDropdownTrigger" class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Owner</label>

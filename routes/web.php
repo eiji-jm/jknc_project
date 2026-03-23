@@ -28,14 +28,21 @@ use App\Http\Controllers\GisController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('login');
+    return Auth::check()
+        ? redirect()->route('corporate')
+        : redirect()->route('login');
 });
 
 Route::get('/bif/respond/{token}', [CompanyBifController::class, 'clientForm'])->name('company.bif.client.show');
 Route::post('/bif/respond/{token}', [CompanyBifController::class, 'submitClientForm'])->name('company.bif.client.submit');
+Route::get('/cif/respond/{token}', [ContactsController::class, 'clientCifForm'])->name('contacts.cif.client.show');
+Route::post('/cif/respond/{token}', [ContactsController::class, 'submitClientCifForm'])->name('contacts.cif.client.submit');
+Route::get('/specimen/respond/{token}', [ContactsController::class, 'clientSpecimenForm'])->name('contacts.specimen.client.show');
+Route::post('/specimen/respond/{token}', [ContactsController::class, 'submitClientSpecimenForm'])->name('contacts.specimen.client.submit');
 
 Route::get('/activities', function () {
     return view('activities.index');
@@ -78,12 +85,16 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
 Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+Route::match(['put', 'patch'], '/contacts/{contact}', [ContactsController::class, 'update'])->name('contacts.update');
 Route::post('/contacts/assign-owner', [ContactsController::class, 'assignOwner'])->name('contacts.assign-owner');
 Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
 Route::post('/contacts/{contact}/cif', [ContactsController::class, 'saveCif'])->name('contacts.cif.save');
 Route::post('/contacts/{contact}/cif/documents', [ContactsController::class, 'uploadCifDocument'])->name('contacts.cif.documents.upload');
 Route::post('/contacts/{contact}/kyc/requirements/upload', [ContactsController::class, 'uploadKycRequirementDocument'])->name('contacts.kyc.requirements.upload');
 Route::delete('/contacts/{contact}/kyc/requirements/{requirement}', [ContactsController::class, 'removeKycRequirementDocument'])->name('contacts.kyc.requirements.remove');
+Route::post('/contacts/{contact}/kyc/submit', [ContactsController::class, 'submitKycForVerification'])->name('contacts.kyc.submit');
+Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sendCifClientForm'])->name('contacts.cif.send');
+Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
 Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
 Route::get('/contacts/{contact}/cif/download', [ContactsController::class, 'downloadCif'])->name('contacts.cif.download');
 Route::get('/contacts/{id}/kyc/specimen-signature', [ContactsController::class, 'specimenSignature'])->name('contacts.specimen-signature');

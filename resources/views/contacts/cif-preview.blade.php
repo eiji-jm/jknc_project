@@ -1,39 +1,53 @@
-@extends('layouts.app')
-
-@section('content')
-<div class="{{ $downloadMode ? 'bg-white p-0' : 'bg-[#f7f6f2] p-6' }}">
-    <div class="{{ $downloadMode ? '' : 'mx-auto max-w-6xl space-y-4' }}">
-        @if (! $downloadMode)
-            <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
-                CIF preview uses saved structured CIF data from edit mode. Supporting documents remain separate attachments.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Information Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #eef2f7; }
+        .document-page { box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08); }
+        @media print {
+            .no-print { display: none !important; }
+            @page { margin: 14mm; }
+            body { background: #fff; }
+            .print-shell { margin: 0; max-width: none; padding: 0; }
+            .document-page { box-shadow: none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <div class="print-shell mx-auto max-w-7xl p-6">
+        <div class="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+            <div>
+                <h2 class="text-lg font-semibold">Client Information Form</h2>
+                <p class="text-sm text-gray-500">Use your browser's print dialog and choose Save as PDF to export this document.</p>
             </div>
-        @endif
 
-        @include('contacts.partials.cif-document', ['cifData' => $cifData])
+            <div class="flex gap-2">
+                <button type="button" onclick="window.location.href='{{ route('contacts.show', $contact->id) }}?tab=kyc'"
+                    class="inline-flex h-10 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                    Back
+                </button>
 
-        @if (! $downloadMode)
-            <div class="rounded-xl border border-gray-200 bg-white px-5 py-4">
-                <h2 class="text-base font-semibold text-gray-900">Supporting Documents</h2>
-                <p class="mt-1 text-xs text-gray-500">Attachments are supporting evidence and do not replace the CIF form data.</p>
-                <div class="mt-4 space-y-3 text-sm">
-                    @forelse ($cifDocuments as $document)
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
-                            <p class="font-medium text-gray-900">{{ $document['label'] ?? 'Attachment' }}</p>
-                            <p class="text-xs text-gray-500">{{ $document['file_name'] ?? '-' }}</p>
-                            <p class="text-xs text-gray-500">{{ $document['uploaded_at'] ?? '-' }}</p>
-                        </div>
-                    @empty
-                        <p class="text-gray-500">No supporting documents uploaded.</p>
-                    @endforelse
-                </div>
+                <button type="button" onclick="window.print()"
+                    class="inline-flex h-10 items-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
+                    Print / Save as PDF
+                </button>
             </div>
-        @endif
+        </div>
+
+        <div class="document-page">
+            @include('contacts.partials.cif-document', ['cifData' => $cifData])
+        </div>
     </div>
-</div>
 
-@if ($downloadMode)
     <script>
-        window.addEventListener('load', () => window.print());
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('autoprint') === '1') {
+            window.onload = () => window.print();
+        }
     </script>
-@endif
-@endsection
+</body>
+</html>
