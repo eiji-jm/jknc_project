@@ -49,6 +49,7 @@
 
                                     <div class="space-y-3 text-sm">
                                         <p><span class="font-semibold">Date:</span> {{ $communication->communication_date ?? '—' }}</p>
+                                        <p><span class="font-semibold">Deadline:</span> {{ optional($communication->deadline_date)->format('M d, Y') ?: '—' }}</p>
                                         <p><span class="font-semibold">From:</span> {{ $communication->from_name ?? '—' }}</p>
                                         <p><span class="font-semibold">To / For:</span> {{ $communication->to_for ?? '—' }}</p>
                                         <p><span class="font-semibold">Department / Stakeholder:</span> {{ $communication->department_stakeholder ?? '—' }}</p>
@@ -94,6 +95,11 @@
                     <div class="rounded-xl border border-gray-200 p-4">
                         <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Date</p>
                         <p class="text-sm text-gray-800">{{ $communication->communication_date ?? '—' }}</p>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Deadline</p>
+                        <p class="text-sm text-gray-800">{{ optional($communication->deadline_date)->format('M d, Y') ?: '—' }}</p>
                     </div>
 
                     <div class="rounded-xl border border-gray-200 p-4">

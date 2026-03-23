@@ -20,7 +20,15 @@
     ])->values();
 @endphp
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="resolutionForm({{ Js::from($minuteOptions) }}, @js($currentUser))" @keydown.escape.window="showAddPanel = false">
+<style>
+    .resolution-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+</style>
+
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="resolutionForm({{ Js::from($minuteOptions) }}, @js($currentUser), @js(route('corporate-document-defaults')), @js($nextResolutionNumber ?? ''))" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <div class="text-lg font-semibold">Resolutions</div>
@@ -116,7 +124,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Resolution No.</label>
-                        <input type="text" name="resolution_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="BR-2026-001">
+                        <input type="text" name="resolution_no" x-ref="resolutionNo" value="{{ $nextResolutionNumber ?? '' }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="RES-2026-001">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Uploaded</label>
@@ -174,7 +182,41 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Resolution Body</label>
-                        <textarea name="resolution_body" rows="7" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Write the full resolved clauses here. This will be used in the draft preview and as the basis for the secretary certificate."></textarea>
+                        <div class="mt-1 rounded-xl border border-gray-300 overflow-hidden">
+                            <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-3">
+                                <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" @change="applyResolutionFormat('fontName', $event.target.value)">
+                                    <option value="">Font</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Verdana">Verdana</option>
+                                </select>
+                                <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" @change="applyResolutionFormat('fontSize', $event.target.value)">
+                                    <option value="">Size</option>
+                                    <option value="2">12</option>
+                                    <option value="3" selected>14</option>
+                                    <option value="4">16</option>
+                                    <option value="5">18</option>
+                                </select>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold" @click="applyResolutionFormat('bold')">B</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs italic" @click="applyResolutionFormat('italic')">I</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs underline" @click="applyResolutionFormat('underline')">U</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('insertUnorderedList')">Bullets</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('insertOrderedList')">Numbering</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('justifyLeft')">Left</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('justifyCenter')">Center</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('justifyRight')">Right</button>
+                                <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyResolutionFormat('removeFormat')">Clear</button>
+                            </div>
+                            <div
+                                x-ref="resolutionEditor"
+                                contenteditable="true"
+                                data-placeholder="Write the full resolved clauses here. This will be used in the draft preview and as the basis for the secretary certificate."
+                                class="resolution-rich-editor min-h-[260px] bg-white p-4 text-sm leading-7 outline-none"
+                                @input="syncResolutionBody()"
+                            ></div>
+                            <input type="hidden" name="resolution_body" x-ref="resolutionBodyField">
+                        </div>
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Directors / Attendees</label>
@@ -241,24 +283,34 @@
 </div>
 
 <script>
-    function resolutionForm(minutes, currentUser) {
+    function resolutionForm(minutes, currentUser, defaultsEndpoint, initialResolutionNo) {
         return {
             showAddPanel: false,
             minutes,
             currentUser,
+            defaultsEndpoint,
+            initialResolutionNo,
             selectedMinuteId: '',
-            get hasMinutes() {
-                return this.minutes.length > 0;
-            },
             openPanel() {
                 if (!this.hasMinutes) {
                     return;
                 }
 
                 this.showAddPanel = true;
+                if (this.$refs.resolutionNo) {
+                    this.$refs.resolutionNo.value = this.initialResolutionNo || this.$refs.resolutionNo.value || '';
+                }
+                this.loadDefaults();
 
                 if (this.$refs.uploadedBy) {
                     this.$refs.uploadedBy.value = this.currentUser || '';
+                }
+
+                if (this.$refs.resolutionEditor) {
+                    this.$refs.resolutionEditor.innerHTML = '';
+                }
+                if (this.$refs.resolutionBodyField) {
+                    this.$refs.resolutionBodyField.value = '';
                 }
 
                 if (!this.selectedMinuteId && this.minutes.length) {
@@ -266,6 +318,28 @@
                 }
 
                 this.$nextTick(() => this.applyMinute());
+            },
+            get hasMinutes() {
+                return this.minutes.length > 0;
+            },
+            async loadDefaults() {
+                if (!this.defaultsEndpoint) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(this.defaultsEndpoint);
+                    if (!res.ok) {
+                        return;
+                    }
+
+                    const defaults = await res.json();
+                    if (this.$refs.resolutionNo) {
+                        this.$refs.resolutionNo.value = defaults.resolution_no || this.initialResolutionNo || '';
+                    }
+                } catch (e) {
+                    // ignore defaults errors
+                }
             },
             applyMinute() {
                 const selected = this.minutes.find((minute) => String(minute.id) === String(this.selectedMinuteId));
@@ -291,6 +365,22 @@
                 this.$refs.location.value = selected.location || '';
                 this.$refs.chairman.value = selected.chairman || '';
                 this.$refs.secretary.value = selected.secretary || '';
+            },
+            applyResolutionFormat(command, value = null) {
+                if (!this.$refs.resolutionEditor) {
+                    return;
+                }
+
+                this.$refs.resolutionEditor.focus();
+                document.execCommand(command, false, value);
+                this.syncResolutionBody();
+            },
+            syncResolutionBody() {
+                if (!this.$refs.resolutionBodyField || !this.$refs.resolutionEditor) {
+                    return;
+                }
+
+                this.$refs.resolutionBodyField.value = String(this.$refs.resolutionEditor.innerHTML || '').trim();
             },
         };
     }

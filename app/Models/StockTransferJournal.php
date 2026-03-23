@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class StockTransferJournal extends Model
 {
@@ -81,22 +82,66 @@ class StockTransferJournal extends Model
             return;
         }
 
-        $ledgerStatus = match ($this->transaction_type) {
-            'Cancellation' => 'cancelled',
-            'Payment' => 'completed',
-            default => $this->status ?? 'active',
-        };
+        $sourceLedger = $this->resolveSourceLedger();
 
         $this->ledgers()->create([
-            // Ledger schema stores names by parts. We only have the full name here,
-            // so we keep it in family_name as a best-effort fallback.
-            'family_name' => $this->shareholder ?? 'Unknown',
-            'first_name' => '',
-            'middle_name' => null,
+            'family_name' => $sourceLedger?->family_name ?? $this->extractFamilyName(),
+            'first_name' => $sourceLedger?->first_name ?? $this->extractFirstName(),
+            'middle_name' => $sourceLedger?->middle_name,
+            'nationality' => $sourceLedger?->nationality,
+            'address' => $sourceLedger?->address,
+            'tin' => $sourceLedger?->tin,
+            'email' => $sourceLedger?->email,
+            'phone' => $sourceLedger?->phone,
             'shares' => $this->no_shares,
             'certificate_no' => $this->certificate_no,
             'date_registered' => $this->entry_date,
-            'status' => $ledgerStatus,
         ]);
+    }
+
+    private function resolveSourceLedger(): ?StockTransferLedger
+    {
+        if ($this->certificate_no) {
+            $ledger = StockTransferLedger::query()
+                ->whereNull('journal_id')
+                ->where('certificate_no', $this->certificate_no)
+                ->first();
+
+            if ($ledger) {
+                return $ledger;
+            }
+        }
+
+        $shareholder = trim((string) $this->shareholder);
+        if ($shareholder === '') {
+            return null;
+        }
+
+        return StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->get()
+            ->first(function (StockTransferLedger $ledger) use ($shareholder) {
+                $fullName = trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+
+                return Str::lower($fullName) === Str::lower($shareholder);
+            });
+    }
+
+    private function extractFirstName(): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->shareholder)) ?: [];
+
+        return $parts[0] ?? '';
+    }
+
+    private function extractFamilyName(): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->shareholder)) ?: [];
+
+        if (count($parts) <= 1) {
+            return $parts[0] ?? 'Unknown';
+        }
+
+        return $parts[count($parts) - 1];
     }
 }

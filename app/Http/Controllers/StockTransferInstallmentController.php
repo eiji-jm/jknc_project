@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
 use App\Models\StockTransferCertificate;
@@ -20,6 +21,7 @@ class StockTransferInstallmentController extends Controller
     use HandlesUploads;
     use MatchesShareholder;
     use GeneratesStockTransferIds;
+    use GeneratesPdfPreview;
 
     public function index()
     {
@@ -52,23 +54,23 @@ class StockTransferInstallmentController extends Controller
 
     public function store(Request $request)
     {
+        if (!$request->has('installment_mode')) {
+            $request->merge([
+                'installment_mode' => 'stock_subscribe',
+            ]);
+        }
+
         $data = $this->validateData($request);
+        $data = $this->applyInstallmentFinancials($data);
+        if (!$this->hasInstallmentParValueColumn()) {
+            unset($data['par_value']);
+        }
         $mode = $data['installment_mode'];
         $data['document_path'] = $this->handleUpload($request, 'document_path');
-        $paymentData = [
-            'payment_date' => $data['payment_date'] ?? null,
-            'payment_amount' => $data['payment_amount'] ?? null,
-            'payment_remarks' => $data['payment_remarks'] ?? null,
-        ];
-
         unset($data['installment_mode']);
 
         if (!$this->hasInstallmentPaymentColumns()) {
             unset($data['payment_date'], $data['payment_amount'], $data['payment_remarks']);
-        }
-
-        if ($mode === 'stock_payment') {
-            return $this->storePaymentOnly($data, $paymentData);
         }
 
         $ledger = $this->resolveLedger($data['stock_number'] ?? null, $data['subscriber'] ?? null);
@@ -92,33 +94,13 @@ class StockTransferInstallmentController extends Controller
         ];
         $data['status'] = $this->determineInstallmentStatus(
             $data['installment_date'] ?? null,
-            $mode === 'both' ? (float) ($paymentData['payment_amount'] ?? 0) : 0.0,
+            0.0,
             $data['total_value'] ?? null,
         );
 
         $installment = null;
-        DB::transaction(function () use ($data, $paymentData, $ledger, &$installment) {
-            $journal = StockTransferJournal::create([
-                'entry_date' => $data['installment_date'] ?? now()->toDateString(),
-                'journal_no' => $this->nextJournalNo(),
-                'ledger_folio' => $this->nextLedgerFolio(),
-                'particulars' => 'Installment plan created',
-                'no_shares' => $data['no_shares'] ?? null,
-                'transaction_type' => 'Issuance',
-                'certificate_no' => $data['stock_number'] ?? null,
-                'shareholder' => $data['subscriber'] ?? null,
-                'remarks' => 'Auto-generated from installment creation.',
-                'status' => $data['status'],
-            ]);
-
-            $installment = StockTransferInstallment::create(array_merge($data, [
-                'journal_id' => $journal->id,
-            ]));
-
-            if (!empty($paymentData['payment_date']) && !empty($paymentData['payment_amount'])) {
-                $this->recordPayment($installment, $ledger, $paymentData);
-                $installment->refresh();
-            }
+        DB::transaction(function () use ($data, &$installment) {
+            $installment = StockTransferInstallment::create($data);
         });
 
         return redirect()
@@ -162,37 +144,103 @@ class StockTransferInstallmentController extends Controller
             ->get();
 
         $holderName = $this->resolvePreviewHolderName($stockTransferInstallment, $relatedLedgers);
-        $paymentRows = $this->buildPreviewPaymentRows($stockTransferInstallment, $relatedJournals);
-        $installmentRows = collect($stockTransferInstallment->installmentRows())
-            ->map(function (array $row, int $index) use ($paymentRows) {
-                $paidRow = $paymentRows->get($index);
+        $paymentRows = $this->buildPreviewPaymentRows($stockTransferInstallment);
+        [$installmentRows, $totalPaid, $remainingBalance, $nextPaymentRow] = $this->buildTrackedInstallmentRows($stockTransferInstallment, $paymentRows);
+        $paidInstallmentCount = collect($installmentRows)->where('status', 'Paid')->count();
+        $remainingInstallmentCount = max(collect($installmentRows)->count() - $paidInstallmentCount, 0);
+        $canRecordPreviewPayment = !$stockTransferInstallment->isCancelled() && !empty($nextPaymentRow);
+        $individualInstallmentSheetRows = $this->buildIndividualInstallmentSheetRows($stockTransferInstallment, $paymentRows);
 
-                return [
-                    'no' => $row['no'] ?? ($index + 1),
-                    'due_date' => $this->formatPreviewDate($row['dueDate'] ?? null),
-                    'amount' => $this->formatPreviewAmount($row['amount'] ?? null),
-                    'status' => $paidRow ? 'Paid' : ($row['status'] ?? 'Pending'),
-                    'paid_date' => $paidRow['payment_date'] ?? null,
-                ];
-            })
-            ->values();
-
-        $totalPaid = (float) $paymentRows->sum('amount_paid');
-        $remainingBalance = max((float) ($stockTransferInstallment->total_value ?? 0) - $totalPaid, 0);
+        $generatedPreviewPath = $this->generatePdfPreview(
+            'corporate.stock-transfer-book.installment-pdf',
+            [
+                'installment' => $stockTransferInstallment,
+                'installmentRows' => $installmentRows,
+                'paymentRows' => $paymentRows,
+                'individualInstallmentSheetRows' => $individualInstallmentSheetRows,
+            ],
+            'generated-previews/stock-transfer-book/installments/' . ($stockTransferInstallment->stock_number ?: $stockTransferInstallment->id) . '.pdf'
+        );
 
         return view('corporate.stock-transfer-book.installment-preview', [
             'installment' => $stockTransferInstallment,
+            'generatedPreviewUrl' => $generatedPreviewPath ? route('uploads.show', ['path' => $generatedPreviewPath]) : null,
             'relatedCertificates' => $relatedCertificates,
             'relatedJournals' => $relatedJournals,
             'relatedLedgers' => $relatedLedgers,
             'holderName' => $holderName,
             'paymentRows' => $paymentRows,
             'installmentRows' => $installmentRows,
+            'individualInstallmentSheetRows' => $individualInstallmentSheetRows,
             'totalPaid' => $totalPaid,
             'remainingBalance' => $remainingBalance,
+            'paidInstallmentCount' => $paidInstallmentCount,
+            'remainingInstallmentCount' => $remainingInstallmentCount,
+            'nextPaymentRow' => $nextPaymentRow,
+            'canRecordPreviewPayment' => $canRecordPreviewPayment,
             'backRoute' => route('stock-transfer-book.installment'),
             'editRoute' => route('stock-transfer-book.installment.edit', $stockTransferInstallment),
         ]);
+    }
+
+    public function recordPreviewPayment(Request $request, StockTransferInstallment $stockTransferInstallment)
+    {
+        $data = $request->validate([
+            'payment_date' => ['required', 'date'],
+            'payment_scope' => ['required', 'string', 'in:next,all_remaining'],
+            'payment_remarks' => ['nullable', 'string'],
+        ]);
+
+        if ($stockTransferInstallment->isCancelled()) {
+            return redirect()
+                ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
+                ->with('warning', 'Cancelled installments cannot accept additional payments.');
+        }
+
+        $paymentRows = $this->buildPreviewPaymentRows($stockTransferInstallment);
+        [$installmentRows, , , $nextPaymentRow] = $this->buildTrackedInstallmentRows($stockTransferInstallment, $paymentRows);
+
+        if (empty($nextPaymentRow)) {
+            return redirect()
+                ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
+                ->with('warning', 'All scheduled installments are already paid.');
+        }
+
+        $ledger = $this->resolvePaymentLedgerForInstallment($stockTransferInstallment);
+        if (!$ledger) {
+            return redirect()
+                ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
+                ->with('warning', 'Unable to find the stockholder ledger needed to post this payment.');
+        }
+
+        $paymentTargets = $data['payment_scope'] === 'all_remaining'
+            ? collect($installmentRows)->filter(fn (array $row) => $row['status'] !== 'Paid')->values()
+            : collect([$nextPaymentRow]);
+
+        DB::transaction(function () use ($stockTransferInstallment, $ledger, $data, $paymentTargets) {
+            $paymentRemarks = trim((string) ($data['payment_remarks'] ?? ''));
+            $paymentTargets->each(function (array $targetRow) use ($stockTransferInstallment, $ledger, $data, $paymentRemarks) {
+                $scheduleNote = 'Installment ' . $targetRow['no'];
+
+                if (!empty($targetRow['due_date_raw'])) {
+                    $scheduleNote .= ' due ' . $targetRow['due_date_raw'];
+                }
+
+                $this->recordPayment($stockTransferInstallment, $ledger, [
+                    'payment_date' => $data['payment_date'],
+                    'payment_amount' => $targetRow['amount_value'],
+                    'payment_remarks' => $paymentRemarks !== ''
+                        ? $paymentRemarks . ' | ' . $scheduleNote
+                        : $scheduleNote . ' payment recorded from installment preview.',
+                ]);
+            });
+        });
+
+        return redirect()
+            ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
+            ->with('success', $data['payment_scope'] === 'all_remaining'
+                ? 'All remaining installments were recorded as paid.'
+                : 'Installment payment recorded.');
     }
 
     public function edit(StockTransferInstallment $stockTransferInstallment)
@@ -216,7 +264,11 @@ class StockTransferInstallmentController extends Controller
         }
 
         $data = $this->validateData($request);
+        $data = $this->applyInstallmentFinancials($data, $stockTransferInstallment);
         unset($data['installment_mode']);
+        if (!$this->hasInstallmentParValueColumn()) {
+            unset($data['par_value']);
+        }
 
         $data['document_path'] = $this->handleUpload($request, 'document_path', $stockTransferInstallment->document_path);
         if (!$this->hasInstallmentPaymentColumns()) {
@@ -243,32 +295,31 @@ class StockTransferInstallmentController extends Controller
             'cancellation_date' => ['required', 'date'],
             'cancellation_effective_date' => ['required', 'date'],
             'cancellation_reason' => ['required', 'string', 'in:Delinquent,Buy-back,Redemption,Treasury Cancellation,Capital Reduction,Others'],
-            'cancellation_types' => ['required', 'array', 'min:1'],
-            'cancellation_types.*' => ['required', 'string', 'in:Delinquent,Buy-back,Redemption,Treasury Cancellation,Capital Reduction,Others'],
             'cancellation_other_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $hasPayment = StockTransferJournal::query()
-            ->where('certificate_no', $stockTransferInstallment->stock_number)
-            ->where(function ($query) {
-                $query->where('transaction_type', 'Payment')
-                    ->orWhere('particulars', 'like', '%payment%')
-                    ->orWhere('remarks', 'like', '%payment%');
-            })
-            ->exists();
+        $cancellationRules = $this->installmentCancellationRules($stockTransferInstallment);
+        $selectedReason = (string) ($data['cancellation_reason'] ?? '');
+        if (!($cancellationRules[$selectedReason]['allowed'] ?? false)) {
+            return back()->withErrors([
+                'cancellation_reason' => $cancellationRules[$selectedReason]['message'] ?? 'This cancellation type is not allowed for the selected installment.',
+            ])->withInput();
+        }
+
+        $hasPayment = $stockTransferInstallment->paymentCount() > 0;
 
         if (!$stockTransferInstallment->isFullyPaid() && !$hasPayment) {
             return redirect()->route('stock-transfer-book.installment')
                 ->with('warning', 'Cannot cancel: installment has no recorded payments.');
         }
 
-        DB::transaction(function () use ($stockTransferInstallment, $data) {
-            $typeList = implode(', ', $data['cancellation_types']);
+        $cancellationJournal = null;
+
+        DB::transaction(function () use ($stockTransferInstallment, $data, &$cancellationJournal) {
             $detailParts = [
                 'Cancellation Date: ' . $data['cancellation_date'],
                 'Effective Date: ' . $data['cancellation_effective_date'],
                 'Reason: ' . $data['cancellation_reason'],
-                'Types: ' . $typeList,
             ];
 
             if (!empty($data['cancellation_other_reason'])) {
@@ -279,62 +330,56 @@ class StockTransferInstallmentController extends Controller
             $stockTransferInstallment->cancellation_date = $data['cancellation_date'];
             $stockTransferInstallment->cancellation_effective_date = $data['cancellation_effective_date'];
             $stockTransferInstallment->cancellation_reason = $data['cancellation_reason'];
-            $stockTransferInstallment->cancellation_types = $data['cancellation_types'];
+            $stockTransferInstallment->cancellation_types = null;
             $stockTransferInstallment->cancellation_other_reason = $data['cancellation_other_reason'] ?? null;
             $stockTransferInstallment->save();
 
-            $originalJournal = $stockTransferInstallment->journal;
-            $reversalJournal = null;
-            if ($originalJournal) {
-                $originalJournal->status = 'voided';
-                $originalJournal->save();
+            $originalJournal = $stockTransferInstallment->journal
+                ?: StockTransferJournal::query()
+                    ->where(function ($query) use ($stockTransferInstallment) {
+                        if ($stockTransferInstallment->stock_number) {
+                            $query->orWhere('certificate_no', $stockTransferInstallment->stock_number);
+                        }
+                        $this->applyNameTokens($query, $stockTransferInstallment->subscriber, ['shareholder']);
+                    })
+                    ->where('transaction_type', '!=', 'Cancellation')
+                    ->latest('entry_date')
+                    ->latest('id')
+                    ->first();
 
-                $reversalJournal = StockTransferJournal::create([
-                    'entry_date' => now()->toDateString(),
-                    'journal_no' => $this->nextJournalNo(),
-                    'ledger_folio' => $this->nextLedgerFolio(),
-                    'particulars' => 'Reversal of journal #' . $originalJournal->id,
-                    'no_shares' => $originalJournal->no_shares,
-                    'transaction_type' => 'Cancellation',
-                    'certificate_no' => $originalJournal->certificate_no,
-                    'shareholder' => $originalJournal->shareholder,
-                    'remarks' => 'Auto-generated reversal entry. ' . implode(' | ', $detailParts),
-                    'status' => 'cancelled',
-                    'reversal_of_id' => $originalJournal->id,
-                ]);
-            }
+            $cancelledShares = (int) (
+                $originalJournal?->no_shares
+                ?? $stockTransferInstallment->issuedShareTotal()
+                ?? $stockTransferInstallment->no_shares
+                ?? 0
+            );
+
+            $cancellationJournal = StockTransferJournal::create([
+                'entry_date' => $data['cancellation_date'],
+                'journal_no' => $this->nextJournalNo(),
+                'ledger_folio' => $this->nextLedgerFolio(),
+                'particulars' => 'Installment cancelled',
+                'no_shares' => $cancelledShares,
+                'transaction_type' => 'Cancellation',
+                'certificate_no' => $stockTransferInstallment->stock_number,
+                'shareholder' => $stockTransferInstallment->subscriber,
+                'remarks' => 'Auto-generated from installment cancellation. ' . implode(' | ', $detailParts),
+                'status' => 'voided',
+            ]);
+
+            $stockTransferInstallment->journal_id = $cancellationJournal->id;
+            $stockTransferInstallment->save();
 
             $certificate = $stockTransferInstallment->certificate;
             if ($certificate && $certificate->status !== 'voided') {
                 $certificate->status = 'voided';
                 $certificate->save();
             }
-
-            StockTransferLedger::query()
-                ->where('certificate_no', $stockTransferInstallment->stock_number)
-                ->update(['status' => 'cancelled']);
-
-            if ($originalJournal) {
-                StockTransferLedger::query()
-                    ->where('journal_id', $originalJournal->id)
-                    ->update(['status' => 'voided']);
-            }
-
-            if ($reversalJournal) {
-                StockTransferLedger::query()
-                    ->where('journal_id', $reversalJournal->id)
-                    ->update(['status' => 'cancelled']);
-            }
         });
 
-        $latestJournal = StockTransferJournal::query()
-            ->where('certificate_no', $stockTransferInstallment->stock_number)
-            ->latest()
-            ->first();
-
-        if ($latestJournal) {
+        if ($cancellationJournal) {
             return redirect()
-                ->route('stock-transfer-book.journal.show', $latestJournal)
+                ->route('stock-transfer-book.journal.show', $cancellationJournal)
                 ->with('success', 'Installment plan cancelled.');
         }
 
@@ -350,6 +395,7 @@ class StockTransferInstallmentController extends Controller
             ['name' => 'installment_date', 'label' => 'Date', 'type' => 'date'],
             ['name' => 'no_shares', 'label' => 'No. Shares', 'type' => 'number'],
             ['name' => 'no_installments', 'label' => 'No. of Installments', 'type' => 'number'],
+            ['name' => 'par_value', 'label' => 'PAR', 'type' => 'number', 'step' => '0.01'],
             ['name' => 'total_value', 'label' => 'Total Value (PhP)', 'type' => 'number', 'step' => '0.01'],
             ['name' => 'installment_amount', 'label' => 'Per Installment', 'type' => 'number', 'step' => '0.01'],
             ['name' => 'payment_date', 'label' => 'Payment Date', 'type' => 'date'],
@@ -363,12 +409,13 @@ class StockTransferInstallmentController extends Controller
     private function validateData(Request $request): array
     {
         return $request->validate([
-            'installment_mode' => ['required', 'string', 'in:stock_subscribe,stock_payment,both'],
+            'installment_mode' => ['nullable', 'string', 'in:stock_subscribe,stock_payment,both'],
             'stock_number' => ['nullable', 'string', 'max:255'],
             'subscriber' => ['nullable', 'string', 'max:255'],
             'installment_date' => ['nullable', 'date'],
             'no_shares' => ['nullable', 'integer'],
             'no_installments' => ['nullable', 'integer'],
+            'par_value' => ['nullable', 'numeric'],
             'total_value' => ['nullable', 'numeric'],
             'installment_amount' => ['nullable', 'numeric'],
             'payment_date' => ['nullable', 'date'],
@@ -406,6 +453,24 @@ class StockTransferInstallmentController extends Controller
             ->first();
     }
 
+    private function resolvePaymentLedgerForInstallment(StockTransferInstallment $installment): ?StockTransferLedger
+    {
+        $ledger = $this->resolveLedger($installment->stock_number, $installment->subscriber);
+        if ($ledger) {
+            return $ledger;
+        }
+
+        return StockTransferLedger::query()
+            ->where(function ($query) use ($installment) {
+                if ($installment->stock_number) {
+                    $query->orWhere('certificate_no', $installment->stock_number);
+                }
+                $this->applyNameTokens($query, $installment->subscriber, ['first_name', 'middle_name', 'family_name']);
+            })
+            ->latest()
+            ->first();
+    }
+
     private function determineInstallmentStatus($installmentDate, $paymentAmount, $expectedAmount): string
     {
         $paid = (float) ($paymentAmount ?? 0);
@@ -419,7 +484,60 @@ class StockTransferInstallmentController extends Controller
             return 'partial';
         }
 
-        return 'overdue';
+        return 'unpaid';
+    }
+
+    private function applyInstallmentFinancials(array $data, ?StockTransferInstallment $existingInstallment = null): array
+    {
+        $mode = $data['installment_mode'] ?? $existingInstallment?->installmentMode() ?? 'stock_subscribe';
+        if ($mode === 'stock_payment') {
+            return $data;
+        }
+
+        $shares = (int) ($data['no_shares'] ?? $existingInstallment?->no_shares ?? 0);
+        $installmentCount = max((int) ($data['no_installments'] ?? $existingInstallment?->no_installments ?? 0), 0);
+        $parValue = $data['par_value'] ?? $existingInstallment?->par_value;
+        $installmentAmount = $data['installment_amount'] ?? $existingInstallment?->installment_amount;
+
+        if (($parValue === null || $parValue === '') && $existingInstallment) {
+            $parValue = $existingInstallment->par_value;
+        }
+
+        $parValue = $parValue === null || $parValue === '' ? null : (float) $parValue;
+        if ($parValue !== null) {
+            $data['par_value'] = $parValue;
+        }
+
+        if ($shares > 0 && $parValue !== null) {
+            $data['total_value'] = round($shares * $parValue, 2);
+        } elseif (!isset($data['total_value']) && $existingInstallment?->total_value !== null) {
+            $data['total_value'] = (float) $existingInstallment->total_value;
+        }
+
+        if (
+            ($installmentCount <= 0)
+            && $installmentAmount !== null
+            && $installmentAmount !== ''
+            && isset($data['total_value'])
+            && (float) $installmentAmount > 0
+            && (float) $data['total_value'] > 0
+        ) {
+            $installmentCount = max((int) round(((float) $data['total_value']) / (float) $installmentAmount), 1);
+            $data['no_installments'] = $installmentCount;
+        }
+
+        if ($installmentCount <= 0 && isset($data['total_value']) && (float) $data['total_value'] > 0) {
+            $installmentCount = 1;
+            $data['no_installments'] = 1;
+        }
+
+        if ($installmentCount > 0 && isset($data['total_value']) && $data['total_value'] !== null && $data['total_value'] !== '') {
+            $data['installment_amount'] = round(((float) $data['total_value']) / $installmentCount, 2);
+        } elseif (!isset($data['installment_amount']) && $existingInstallment?->installment_amount !== null) {
+            $data['installment_amount'] = (float) $existingInstallment->installment_amount;
+        }
+
+        return $data;
     }
 
     private function storePaymentOnly(array $data, array $paymentData)
@@ -455,43 +573,28 @@ class StockTransferInstallmentController extends Controller
 
     private function recordPayment(StockTransferInstallment $installment, StockTransferLedger $ledger, array $paymentData): void
     {
-        $totalPaid = $installment->paymentTotal() + (float) ($paymentData['payment_amount'] ?? 0);
+        $schedule = $this->markNextInstallmentAsPaid($installment, $paymentData);
+        $totalPaid = (float) collect($schedule['installments'] ?? [])->sum(fn (array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0);
         $nextStatus = $this->determineInstallmentStatus(
             $installment->installment_date?->toDateString(),
             $totalPaid,
             $installment->total_value,
         );
 
-        $paymentJournal = StockTransferJournal::create([
+        $issuanceJournal = StockTransferJournal::create([
             'entry_date' => $paymentData['payment_date'],
             'journal_no' => $this->nextJournalNo(),
             'ledger_folio' => $this->nextLedgerFolio(),
-            'particulars' => 'Stock payment received',
-            'no_shares' => (float) $paymentData['payment_amount'],
-            'transaction_type' => 'Payment',
+            'particulars' => 'Installment issuance posted',
+            'no_shares' => (int) ($installment->no_shares ?? 0),
+            'transaction_type' => 'Issuance',
             'certificate_no' => $installment->stock_number,
             'shareholder' => $installment->subscriber,
-            'remarks' => $paymentData['payment_remarks'] ?: 'Auto-generated from installment stock payment section.',
+            'remarks' => $paymentData['payment_remarks'] ?: 'Auto-generated from installment payment.',
             'status' => $nextStatus,
         ]);
 
-        $paymentJournal->ledgers()->create([
-            'family_name' => $ledger->family_name,
-            'first_name' => $ledger->first_name,
-            'middle_name' => $ledger->middle_name,
-            'nationality' => $ledger->nationality,
-            'address' => $ledger->address,
-            'tin' => $ledger->tin,
-            'email' => $ledger->email,
-            'phone' => $ledger->phone,
-            'shares' => $installment->no_shares,
-            'certificate_no' => $installment->stock_number,
-            'date_registered' => $paymentData['payment_date'],
-            'status' => $nextStatus,
-        ]);
-
-        $schedule = $installment->normalizedSchedule();
-        $schedule['mode'] = $schedule['mode'] === 'stock_subscribe' ? 'both' : ($schedule['mode'] ?? 'stock_payment');
+        $schedule['mode'] = 'stock_subscribe';
 
         $updates = [
             'status' => $nextStatus,
@@ -505,6 +608,7 @@ class StockTransferInstallmentController extends Controller
         }
 
         $installment->update($updates);
+        $installment->refresh();
     }
 
     private function buildInstallmentRows(array $data): array
@@ -565,29 +669,146 @@ class StockTransferInstallmentController extends Controller
         return $installment->subscriber ?: '-';
     }
 
-    private function buildPreviewPaymentRows(StockTransferInstallment $installment, $relatedJournals)
+    private function buildPreviewPaymentRows(StockTransferInstallment $installment)
     {
-        return collect($relatedJournals ?? [])
-            ->filter(function ($journal) {
-                $type = strtolower((string) ($journal->transaction_type ?? ''));
-                $particulars = strtolower((string) ($journal->particulars ?? ''));
-                $remarks = strtolower((string) ($journal->remarks ?? ''));
-
-                return $type === 'payment'
-                    || str_contains($particulars, 'payment')
-                    || str_contains($remarks, 'payment');
-            })
-            ->sortBy('entry_date')
+        return collect($installment->scheduledInstallmentRows())
+            ->filter(fn (array $row) => !empty($row['paymentDate']))
             ->values()
-            ->map(function ($journal, int $index) use ($installment) {
+            ->map(function (array $row, int $index) use ($installment) {
+                $paymentDate = $row['paymentDate'] ?? null;
+                $amountPaid = (float) ($row['amount'] ?? 0);
+
                 return [
-                    'payment_date' => optional($journal->entry_date)->format('m/d/Y'),
-                    'posted_date' => optional($journal->entry_date)->format('m/d/Y'),
-                    'installment_no' => $index + 1,
-                    'amount_paid' => (float) ($journal->no_shares ?? 0),
+                    'payment_date' => $paymentDate,
+                    'payment_date_display' => $this->formatPreviewDate($paymentDate),
+                    'posted_date' => $this->formatPreviewDate($paymentDate),
+                    'installment_no' => $row['no'] ?? ($index + 1),
+                    'amount_paid' => $amountPaid,
                     'holder_name' => $installment->subscriber,
                 ];
             });
+    }
+
+    private function buildTrackedInstallmentRows(StockTransferInstallment $installment, $paymentRows): array
+    {
+        $paymentRows = collect($paymentRows ?? [])->values();
+        $scheduledRows = collect($installment->scheduledInstallmentRows())->values();
+
+        $installmentRows = $scheduledRows
+            ->map(function (array $row, int $index) use ($paymentRows) {
+                $paymentRow = $paymentRows->get($index);
+                $amountValue = (float) ($row['amount'] ?? 0);
+
+                return [
+                    'no' => $row['no'] ?? ($index + 1),
+                    'due_date' => $this->formatPreviewDate($row['dueDate'] ?? null),
+                    'due_date_raw' => $row['dueDate'] ?? null,
+                    'scheduled_amount' => $this->formatPreviewAmount($amountValue),
+                    'amount_value' => $amountValue,
+                    'payment_date' => $paymentRow['payment_date_display'] ?? '',
+                    'payment_date_raw' => $paymentRow['payment_date'] ?? null,
+                    'status' => $paymentRow ? 'Paid' : 'Pending',
+                ];
+            })
+            ->values();
+
+        $totalPaid = (float) $installmentRows
+            ->filter(fn (array $row) => $row['status'] === 'Paid')
+            ->sum('amount_value');
+
+        if ($paymentRows->count() > $installmentRows->count()) {
+            $totalPaid += (float) $paymentRows->slice($installmentRows->count())->sum('amount_paid');
+        }
+
+        $expectedTotal = (float) ($installment->total_value ?? 0);
+        if ($expectedTotal <= 0) {
+            $expectedTotal = (float) $installmentRows->sum('amount_value');
+        }
+
+        $remainingBalance = max($expectedTotal - $totalPaid, 0);
+        $nextPaymentRow = $installmentRows->first(fn (array $row) => $row['status'] !== 'Paid');
+
+        return [$installmentRows, $totalPaid, $remainingBalance, $nextPaymentRow];
+    }
+
+    private function buildIndividualInstallmentSheetRows(StockTransferInstallment $installment, $paymentRows): array
+    {
+        $paymentRows = collect($paymentRows ?? [])->values();
+        $firstPaymentRow = $paymentRows->first();
+        $remainingPaymentRows = $paymentRows->slice(1)->values();
+        $blankRows = max(26 - (1 + $remainingPaymentRows->count()), 0);
+
+        $rows = [[
+            'subscribed_date' => optional($installment->installment_date)->format('m/d/Y'),
+            'subscribed_shares' => $installment->no_shares ?? '',
+            'subscribed_installments' => $installment->no_installments ?? '',
+            'subscribed_value' => number_format((float) ($installment->total_value ?? 0), 2, '.', ''),
+            'payment_date' => $firstPaymentRow['payment_date_display'] ?? '',
+            'posted_date' => $firstPaymentRow['posted_date'] ?? '',
+            'installment_no' => $firstPaymentRow['installment_no'] ?? '',
+            'amount_paid' => $firstPaymentRow ? number_format((float) ($firstPaymentRow['amount_paid'] ?? 0), 2, '.', '') : '',
+        ]];
+
+        foreach ($remainingPaymentRows as $paymentRow) {
+            $rows[] = [
+                'subscribed_date' => '',
+                'subscribed_shares' => '',
+                'subscribed_installments' => '',
+                'subscribed_value' => '',
+                'payment_date' => $paymentRow['payment_date_display'] ?? '',
+                'posted_date' => $paymentRow['posted_date'] ?? '',
+                'installment_no' => $paymentRow['installment_no'] ?? '',
+                'amount_paid' => number_format((float) ($paymentRow['amount_paid'] ?? 0), 2, '.', ''),
+            ];
+        }
+
+        for ($i = 0; $i < $blankRows; $i++) {
+            $rows[] = [
+                'subscribed_date' => '',
+                'subscribed_shares' => '',
+                'subscribed_installments' => '',
+                'subscribed_value' => '',
+                'payment_date' => '',
+                'posted_date' => '',
+                'installment_no' => '',
+                'amount_paid' => '',
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function markNextInstallmentAsPaid(StockTransferInstallment $installment, array $paymentData): array
+    {
+        $schedule = $installment->normalizedSchedule();
+        $paymentDate = !empty($paymentData['payment_date'])
+            ? Carbon::parse($paymentData['payment_date'])->toDateString()
+            : now()->toDateString();
+        $markedPaid = false;
+
+        $schedule['installments'] = collect($installment->scheduledInstallmentRows())
+            ->values()
+            ->map(function (array $row, int $index) use (&$markedPaid, $paymentDate) {
+                $currentPaymentDate = $row['paymentDate'] ?? null;
+                $isPaid = !empty($currentPaymentDate);
+
+                if (!$isPaid && !$markedPaid) {
+                    $markedPaid = true;
+                    $currentPaymentDate = $paymentDate;
+                    $isPaid = true;
+                }
+
+                return [
+                    'no' => $row['no'] ?? ($index + 1),
+                    'dueDate' => $row['dueDate'] ?? null,
+                    'amount' => number_format((float) ($row['amount'] ?? 0), 2, '.', ''),
+                    'status' => $isPaid ? 'Paid' : 'Pending',
+                    'paymentDate' => $currentPaymentDate,
+                ];
+            })
+            ->all();
+
+        return $schedule;
     }
 
     private function formatPreviewDate(?string $date): string
@@ -617,5 +838,44 @@ class StockTransferInstallmentController extends Controller
         return Schema::hasColumn('stock_transfer_installments', 'payment_date')
             && Schema::hasColumn('stock_transfer_installments', 'payment_amount')
             && Schema::hasColumn('stock_transfer_installments', 'payment_remarks');
+    }
+
+    private function hasInstallmentParValueColumn(): bool
+    {
+        return Schema::hasColumn('stock_transfer_installments', 'par_value');
+    }
+
+    private function installmentCancellationRules(StockTransferInstallment $installment): array
+    {
+        $remainingBalance = max((float) ($installment->total_value ?? 0) - $installment->paymentTotal(), 0);
+        $installmentsRemaining = max((int) ($installment->no_installments ?? 0) - $installment->paymentCount(), 0);
+        $paidAmount = $installment->paymentTotal();
+
+        return [
+            'Delinquent' => [
+                'allowed' => $remainingBalance > 0 && $installmentsRemaining > 0,
+                'message' => 'Delinquent cancellation is only allowed when there is remaining balance and unpaid installments.',
+            ],
+            'Buy-back' => [
+                'allowed' => $paidAmount > 0,
+                'message' => 'Buy-back cancellation requires payment history.',
+            ],
+            'Redemption' => [
+                'allowed' => false,
+                'message' => 'Redemption is not enabled for this installment flow yet.',
+            ],
+            'Treasury Cancellation' => [
+                'allowed' => false,
+                'message' => 'Treasury Cancellation is not enabled for this installment flow yet.',
+            ],
+            'Capital Reduction' => [
+                'allowed' => false,
+                'message' => 'Capital Reduction is restricted and not enabled from installment preview.',
+            ],
+            'Others' => [
+                'allowed' => true,
+                'message' => null,
+            ],
+        ];
     }
 }

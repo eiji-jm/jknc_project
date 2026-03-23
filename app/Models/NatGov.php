@@ -12,6 +12,7 @@ class NatGov extends Model
         'agency',
         'registration_status',
         'registration_date',
+        'deadline_date',
         'registration_no',
         'status',
         'uploaded_by',
@@ -22,6 +23,7 @@ class NatGov extends Model
 
     protected $casts = [
         'registration_date' => 'date',
+        'deadline_date' => 'date',
         'date_uploaded' => 'date',
     ];
 }

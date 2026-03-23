@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\HandlesUploads;
+use App\Http\Controllers\Concerns\SyncsDeadlineTownHallMemo;
 use App\Models\GisRecord;
 use App\Models\NatGov;
 use Illuminate\Http\Request;
@@ -10,7 +12,9 @@ use Illuminate\Support\Facades\Schema;
 
 class NatGovController extends Controller
 {
+    use GeneratesPdfPreview;
     use HandlesUploads;
+    use SyncsDeadlineTownHallMemo;
 
     public function index()
     {
@@ -38,17 +42,36 @@ class NatGovController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
-        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+        if (Schema::hasColumn('nat_govs', 'approved_document_path')) {
+            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+        }
 
-        NatGov::create($data);
+        $natgov = NatGov::create($this->filterPersistableData($data));
+        $this->syncDeadlineTownHallMemo(
+            $natgov,
+            $natgov->deadline_date?->toDateString(),
+            'NatGov',
+            trim(($natgov->agency ?: 'NatGov filing') . ' - ' . ($natgov->client ?: $natgov->registration_no ?: 'Untitled Record'), ' -'),
+            'natgov.preview'
+        );
 
         return redirect()->route('natgov')->with('success', 'NatGov entry created.');
     }
 
     public function show(NatGov $natgov)
     {
+        $generatedDraftPath = null;
+        if (!$natgov->document_path) {
+            $generatedDraftPath = $this->generatePdfPreview(
+                'corporate.natgov.pdf',
+                ['natgov' => $natgov],
+                'generated-previews/natgov/' . ($natgov->registration_no ?: $natgov->id) . '-draft.pdf'
+            );
+        }
+
         return view('corporate.natgov.preview', [
             'natgov' => $natgov,
+            'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
             'backRoute' => route('natgov'),
             'editRoute' => route('natgov.edit', $natgov),
             'deleteRoute' => route('natgov.destroy', $natgov),
@@ -72,15 +95,26 @@ class NatGovController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $natgov->document_path);
-        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $natgov->approved_document_path);
+        if (Schema::hasColumn('nat_govs', 'approved_document_path')) {
+            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $natgov->approved_document_path);
+        }
 
-        $natgov->update($data);
+        $natgov->update($this->filterPersistableData($data));
+        $natgov->refresh();
+        $this->syncDeadlineTownHallMemo(
+            $natgov,
+            $natgov->deadline_date?->toDateString(),
+            'NatGov',
+            trim(($natgov->agency ?: 'NatGov filing') . ' - ' . ($natgov->client ?: $natgov->registration_no ?: 'Untitled Record'), ' -'),
+            'natgov.preview'
+        );
 
         return redirect()->route('natgov')->with('success', 'NatGov entry updated.');
     }
 
     public function destroy(NatGov $natgov)
     {
+        $this->deleteDeadlineTownHallMemo($natgov);
         $natgov->delete();
 
         return redirect()->route('natgov')->with('success', 'NatGov entry deleted.');
@@ -94,6 +128,7 @@ class NatGovController extends Controller
             ['name' => 'agency', 'label' => 'Government Body/Agency', 'type' => 'text'],
             ['name' => 'registration_status', 'label' => 'Registration Status', 'type' => 'text'],
             ['name' => 'registration_date', 'label' => 'Registration Date', 'type' => 'date'],
+            ['name' => 'deadline_date', 'label' => 'Deadline Date', 'type' => 'date'],
             ['name' => 'registration_no', 'label' => 'Registration No.', 'type' => 'text'],
             ['name' => 'status', 'label' => 'Status', 'type' => 'text'],
             ['name' => 'uploaded_by', 'label' => 'Uploaded By', 'type' => 'text'],
@@ -111,6 +146,7 @@ class NatGovController extends Controller
             'agency' => ['nullable', 'string', 'max:255'],
             'registration_status' => ['nullable', 'string', 'max:255'],
             'registration_date' => ['nullable', 'date'],
+            'deadline_date' => ['nullable', 'date'],
             'registration_no' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', 'max:255'],
             'uploaded_by' => ['nullable', 'string', 'max:255'],
@@ -137,5 +173,12 @@ class NatGovController extends Controller
             'client' => 'JK&C Group of Companies',
             'tin' => '000-000-000-000',
         ];
+    }
+
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('nat_govs', $key))
+            ->all();
     }
 }

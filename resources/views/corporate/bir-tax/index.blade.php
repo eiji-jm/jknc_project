@@ -95,8 +95,11 @@
         <form method="POST" action="{{ route('bir-tax.store') }}" enctype="multipart/form-data" class="flex flex-1 flex-col">
             @csrf
             <div class="p-6 overflow-y-auto space-y-4">
-                <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
-                    JK&C internal-company details are pre-filled below. You can still adjust them before saving if needed.
+                    <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
+                        JK&C internal-company details are pre-filled below. You can still adjust them before saving if needed.
+                    </div>
+                <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                    Saving a due date automatically creates or updates a Town Hall deadline memo for this BIR & Tax record.
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>

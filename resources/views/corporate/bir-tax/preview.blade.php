@@ -2,18 +2,9 @@
 
 @section('content')
 @php
-    $draftUrl = $tax->document_path ? route('uploads.show', ['path' => $tax->document_path]) : null;
-    $draftDownloadUrl = $tax->document_path ? route('uploads.show', ['path' => $tax->document_path, 'download' => 1]) : null;
+    $draftUrl = $tax->document_path ? route('uploads.show', ['path' => $tax->document_path]) : ($generatedDraftUrl ?? null);
     $approvedUrl = $tax->approved_document_path ? route('uploads.show', ['path' => $tax->approved_document_path]) : null;
-    $approvedDownloadUrl = $tax->approved_document_path ? route('uploads.show', ['path' => $tax->approved_document_path, 'download' => 1]) : null;
 @endphp
-<style>
-    @media print {
-        body * { visibility: hidden; }
-        #bir-print, #bir-print * { visibility: visible; }
-        #bir-print { position: absolute; left: 0; top: 0; width: 100%; }
-    }
-</style>
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -42,30 +33,12 @@
                             <div class="text-sm font-semibold text-slate-900">Draft BIR & Tax File</div>
                             <div class="text-xs text-slate-500">The internal draft uploaded from the slider appears here.</div>
                         </div>
-                        @if ($draftDownloadUrl)
-                            <a href="{{ $draftDownloadUrl }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Download Draft</a>
-                        @endif
                     </div>
-                    <div class="mt-4 document-frame">
-                        <div class="document-frame__toolbar">
-                            <div class="document-frame__tools">
-                                <span class="document-frame__chip"><i class="fas fa-file-pdf"></i> Draft Preview</span>
-                                <span class="document-frame__chip">{{ $tax->tax_payer ?? 'BIR & Tax File' }}</span>
-                            </div>
-                            <div class="document-frame__actions">
-                                <i class="fas fa-search"></i>
-                                <i class="far fa-copy"></i>
-                                <i class="fas fa-print"></i>
-                            </div>
-                        </div>
-                        <div class="document-frame__body">
-                        @if ($draftUrl)
-                            <iframe src="{{ $draftUrl }}" class="document-frame__embed"></iframe>
-                        @else
-                            <div class="document-frame__empty">No draft file uploaded yet.</div>
-                        @endif
-                        </div>
-                    </div>
+                    @if ($draftUrl)
+                        <iframe src="{{ $draftUrl }}" class="mt-4 w-full h-[700px] border rounded bg-white"></iframe>
+                    @else
+                        <div class="mt-4 w-full h-[700px] border rounded flex items-center justify-center bg-gray-50 text-gray-400 text-sm">No draft file available yet.</div>
+                    @endif
                 </div>
 
                 <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
@@ -74,30 +47,12 @@
                             <div class="text-sm font-semibold text-slate-900">Approved BIR & Tax File</div>
                             <div class="text-xs text-slate-500">Upload now from the slider or add the approved PDF later from this preview.</div>
                         </div>
-                        @if ($approvedDownloadUrl)
-                            <a href="{{ $approvedDownloadUrl }}" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Download Approved</a>
-                        @endif
                     </div>
-                    <div class="mt-4 document-frame">
-                        <div class="document-frame__toolbar">
-                            <div class="document-frame__tools">
-                                <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Approved Preview</span>
-                                <span class="document-frame__chip">{{ $tax->tax_payer ?? 'Approved File' }}</span>
-                            </div>
-                            <div class="document-frame__actions">
-                                <i class="fas fa-search"></i>
-                                <i class="far fa-copy"></i>
-                                <i class="fas fa-print"></i>
-                            </div>
-                        </div>
-                        <div class="document-frame__body">
-                        @if ($approvedUrl)
-                            <iframe src="{{ $approvedUrl }}" class="document-frame__embed"></iframe>
-                        @else
-                            <div class="document-frame__empty">No approved file uploaded yet.</div>
-                        @endif
-                        </div>
-                    </div>
+                    @if ($approvedUrl)
+                        <iframe src="{{ $approvedUrl }}" class="mt-4 w-full h-[700px] border rounded bg-white"></iframe>
+                    @else
+                        <div class="mt-4 w-full h-[700px] border rounded flex items-center justify-center bg-gray-50 text-gray-400 text-sm">No approved file uploaded yet.</div>
+                    @endif
                 </div>
             </div>
 
@@ -110,6 +65,7 @@
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registering Office</span><div class="font-medium text-gray-900">{{ $tax->registering_office ?? '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registered Address</span><div class="font-medium text-gray-900">{{ $tax->registered_address ?? '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Form Type</span><div class="font-medium text-gray-900">{{ $tax->form_type ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Deadline</span><div class="font-medium text-gray-900">{{ optional($tax->due_date)->format('M d, Y') ?? '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Uploaded</span><div class="font-medium text-gray-900">{{ optional($tax->date_uploaded)->format('M d, Y') ?? '-' }}</div></div>
                     </div>
                 </div>
@@ -127,20 +83,6 @@
                     </form>
                 </div>
 
-                <div class="space-y-2 pt-2">
-                    @if ($draftDownloadUrl)
-                        <a href="{{ $draftDownloadUrl }}" class="w-full inline-flex px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition items-center justify-center gap-2">
-                            <i class="fas fa-download"></i>
-                            Download Draft PDF
-                        </a>
-                    @endif
-                    @if ($approvedDownloadUrl)
-                        <a href="{{ $approvedDownloadUrl }}" class="w-full inline-flex px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition items-center justify-center gap-2">
-                            <i class="fas fa-download"></i>
-                            Download Approved PDF
-                        </a>
-                    @endif
-                </div>
             </div>
         </div>
     </div>

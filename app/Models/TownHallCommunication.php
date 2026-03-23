@@ -25,5 +25,14 @@ class TownHallCommunication extends Model
         'additional',
         'attachment',
         'created_by',
+        'source_type',
+        'source_id',
+        'deadline_date',
+    ];
+
+    protected $casts = [
+        'communication_date' => 'date',
+        'approved_at' => 'datetime',
+        'deadline_date' => 'date',
     ];
 }

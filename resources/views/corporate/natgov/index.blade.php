@@ -42,6 +42,7 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Govt Body/Agency</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Registration Status</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Reg. Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Deadline</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Registration No.</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Uploaded By</th>
@@ -57,6 +58,7 @@
             <td class="px-4 py-3">{{ $natgov->agency }}</td>
             <td class="px-4 py-3">{{ $natgov->registration_status }}</td>
             <td class="px-4 py-3">{{ optional($natgov->registration_date)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ optional($natgov->deadline_date)->format('M d, Y') }}</td>
             <td class="px-4 py-3">{{ $natgov->registration_no }}</td>
             <td class="px-4 py-3">{{ $natgov->status }}</td>
             <td class="px-4 py-3">{{ $natgov->uploaded_by }}</td>
@@ -64,7 +66,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500">No NatGov entries found.</td>
+            <td colspan="10" class="px-4 py-6 text-center text-sm text-gray-500">No NatGov entries found.</td>
         </tr>
     @endforelse
 </tbody>
@@ -96,6 +98,9 @@
                 <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
                     JK&C internal-company details are pre-filled below. You can still adjust them before saving if needed.
                 </div>
+                <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                    Saving a deadline automatically creates or updates a Town Hall deadline memo for this NatGov record.
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Client</label>
@@ -116,6 +121,10 @@
                     <div>
                         <label class="text-xs text-gray-600">Reg. Date</label>
                         <input type="date" name="registration_date" value="{{ old('registration_date') }}" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Deadline Date</label>
+                        <input type="date" name="deadline_date" value="{{ old('deadline_date') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Registration No.</label>

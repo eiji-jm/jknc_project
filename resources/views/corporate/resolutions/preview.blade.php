@@ -3,9 +3,7 @@
 @section('content')
 @php
     $draftUrl = $resolution->draft_file_path ? route('uploads.show', ['path' => $resolution->draft_file_path]) : null;
-    $draftDownloadUrl = $resolution->draft_file_path ? route('uploads.show', ['path' => $resolution->draft_file_path, 'download' => 1]) : null;
     $notarizedUrl = $resolution->notarized_file_path ? route('uploads.show', ['path' => $resolution->notarized_file_path]) : null;
-    $notarizedDownloadUrl = $resolution->notarized_file_path ? route('uploads.show', ['path' => $resolution->notarized_file_path, 'download' => 1]) : null;
     $clauseText = trim((string) $resolution->resolution_body);
     $companyName = config('app.name', 'JK&C INC.');
     $meetingDate = optional($resolution->date_of_meeting)->format('F d, Y') ?: '________________';
@@ -32,6 +30,25 @@
             filter: none !important;
         }
     }
+
+    .resolution-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+
+    .resolution-inline-editor[contenteditable="true"]:focus {
+        outline: 2px solid #93c5fd;
+        outline-offset: 2px;
+        border-radius: 4px;
+        background: rgba(239, 246, 255, 0.9);
+    }
+
+    .resolution-inline-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
 </style>
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: '{{ $notarizedUrl ? 'original' : 'draft' }}' }">
@@ -53,26 +70,12 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3 space-y-4">
-                <div x-show="activeVersion === 'draft'" class="bg-[#ece6da] rounded-2xl p-6">
+                <div x-show="activeVersion === 'draft'">
                     @if ($draftUrl)
-                        <div class="document-frame">
-                            <div class="document-frame__toolbar">
-                                <div class="document-frame__tools">
-                                    <span class="document-frame__chip"><i class="fas fa-file-pdf"></i> Uploaded Draft PDF</span>
-                                    <span class="document-frame__chip">{{ $resolution->resolution_no ?: 'Draft' }}</span>
-                                </div>
-                                <div class="document-frame__actions">
-                                    <i class="fas fa-search"></i>
-                                    <i class="far fa-copy"></i>
-                                    <i class="fas fa-print"></i>
-                                </div>
-                                <div class="flex-1"></div>
-                                <a href="{{ $draftUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
-                            </div>
-                            <div class="document-frame__body">
-                                <iframe src="{{ $draftUrl }}" class="document-frame__embed"></iframe>
-                            </div>
-                        </div>
+                        <iframe
+                            src="{{ $draftUrl }}"
+                            class="w-full h-[700px] border rounded bg-white">
+                        </iframe>
                     @else
                         <div id="resolution-print" class="mx-auto max-w-4xl bg-white shadow-2xl rounded-sm p-12 min-h-[880px] text-[13px] leading-6 text-gray-900" style="font-family: Georgia, 'Times New Roman', serif;">
                             <div class="text-center text-black">
@@ -103,9 +106,13 @@
                                     the body approved the following action:
                                 </p>
 
-                                <p>
-                                    <span data-preview="resolution-body">{!! nl2br(e($clauseText ?: ($resolution->board_resolution ?: 'No board resolution text has been encoded yet.'))) !!}</span>
-                                </p>
+                                <div
+                                    data-preview="resolution-body"
+                                    id="resolution-body-preview-editor"
+                                    contenteditable="true"
+                                    data-placeholder="Write the resolution body here..."
+                                    class="resolution-inline-editor min-h-[120px] whitespace-pre-wrap"
+                                >{!! $resolution->resolution_body ?: ($resolution->board_resolution ?: 'No board resolution text has been encoded yet.') !!}</div>
 
                                 <p>
                                     <span class="font-semibold">WHEREAS RESOLVED;</span> that the foregoing resolutions are hereby approved and adopted.
@@ -170,32 +177,17 @@
                     @endif
                 </div>
 
-                <div x-show="activeVersion === 'original'" class="document-frame">
-                    <div class="document-frame__toolbar">
-                        <div class="document-frame__tools">
-                            <span class="document-frame__chip"><i class="fas fa-file-signature"></i> Original / Notarized</span>
-                            <span class="document-frame__chip">{{ $resolution->resolution_no ?: 'Original' }}</span>
-                        </div>
-                        <div class="document-frame__actions">
-                            <i class="fas fa-search"></i>
-                            <i class="far fa-copy"></i>
-                            <i class="fas fa-print"></i>
-                        </div>
-                        <div class="flex-1"></div>
-                        @if ($notarizedUrl)
-                            <a href="{{ $notarizedUrl }}" target="_blank" class="text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5">Open PDF</a>
-                        @endif
-                    </div>
-                    <div class="document-frame__body">
+                <div x-show="activeVersion === 'original'">
                     @if ($notarizedUrl)
-                        <iframe src="{{ $notarizedUrl }}" class="document-frame__embed"></iframe>
+                        <iframe
+                            src="{{ $notarizedUrl }}"
+                            class="w-full h-[700px] border rounded bg-white">
+                        </iframe>
                     @else
-                        <div class="document-frame__empty">
+                        <div class="w-full h-[700px] border rounded flex items-center justify-center bg-gray-50 text-gray-400 text-sm">
                             <div class="text-lg font-semibold">Original / notarized copy not uploaded yet</div>
-                            <div class="text-sm text-gray-400 mt-2">Use the sidebar form to upload the signed and notarized scan once it is available.</div>
                         </div>
                     @endif
-                    </div>
                 </div>
             </div>
 
@@ -252,7 +244,40 @@
                         </div>
                         <div class="col-span-2">
                             <label class="text-xs text-gray-600">Resolution Body</label>
-                            <textarea name="resolution_body" rows="6" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="resolution-body" data-live-format="multiline">{{ $resolution->resolution_body }}</textarea>
+                            <div class="mt-1 rounded-xl border border-gray-300 overflow-hidden">
+                                <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-3">
+                                    <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" data-resolution-rich-font>
+                                        <option value="">Font</option>
+                                        <option value="Arial">Arial</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Verdana">Verdana</option>
+                                    </select>
+                                    <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" data-resolution-rich-size>
+                                        <option value="">Size</option>
+                                        <option value="2">12</option>
+                                        <option value="3" selected>14</option>
+                                        <option value="4">16</option>
+                                        <option value="5">18</option>
+                                    </select>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold" data-resolution-rich-cmd="bold">B</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs italic" data-resolution-rich-cmd="italic">I</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs underline" data-resolution-rich-cmd="underline">U</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="insertUnorderedList">Bullets</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="insertOrderedList">Numbering</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="justifyLeft">Left</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="justifyCenter">Center</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="justifyRight">Right</button>
+                                    <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" data-resolution-rich-cmd="removeFormat">Clear</button>
+                                </div>
+                                <div
+                                    id="resolution-body-editor"
+                                    contenteditable="true"
+                                    data-placeholder="Write the full resolved clauses here."
+                                    class="resolution-rich-editor min-h-[220px] bg-white p-4 text-sm leading-7 outline-none"
+                                >{!! $resolution->resolution_body ?: '' !!}</div>
+                                <input type="hidden" name="resolution_body" id="resolution-body-input" value="{{ $resolution->resolution_body }}">
+                            </div>
                         </div>
                         <div>
                             <label class="text-xs text-gray-600">Chairman</label>
@@ -321,16 +346,6 @@
                         Update Resolution Files
                     </button>
                 </form>
-
-                <div class="space-y-2">
-                    <button type="button" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" @click="handleResolutionDownload(activeVersion, @js($draftDownloadUrl), @js($notarizedDownloadUrl))">
-                        Download PDF
-                    </button>
-                    <button type="button" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="handleResolutionPrint(activeVersion, @js($draftUrl), @js($notarizedUrl))">
-                        Print
-                    </button>
-                </div>
-
                 <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Signatories</div>
                     <div class="space-y-2 text-sm">
@@ -345,40 +360,11 @@
 </div>
 
 <script>
-    function getResolutionUrl(activeVersion, draftUrl, notarizedUrl) {
-        return activeVersion === 'original' ? (notarizedUrl || null) : (draftUrl || null);
-    }
-
-    function handleResolutionDownload(activeVersion, draftUrl, notarizedUrl) {
-        const url = getResolutionUrl(activeVersion, draftUrl, notarizedUrl);
-        if (url) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = '';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            return;
-        }
-
-        window.print();
-    }
-
-    function handleResolutionPrint(activeVersion, draftUrl, notarizedUrl) {
-        const url = getResolutionUrl(activeVersion, draftUrl, notarizedUrl);
-        if (url) {
-            const win = window.open(url, '_blank');
-            if (win) {
-                window.setTimeout(() => win.print(), 800);
-            }
-            return;
-        }
-
-        window.print();
-    }
-
     (() => {
         const form = document.getElementById('resolution-live-form');
+        const resolutionBodyEditor = document.getElementById('resolution-body-editor');
+        const resolutionBodyInput = document.getElementById('resolution-body-input');
+        const resolutionBodyPreviewEditor = document.getElementById('resolution-body-preview-editor');
         if (!form) {
             return;
         }
@@ -440,9 +426,7 @@
             }
 
             if (input.dataset.liveFormat === 'multiline') {
-                const finalHtml = value
-                    ? value.replace(/\n/g, '<br>')
-                    : 'No board resolution text has been encoded yet.';
+                const finalHtml = value || 'No board resolution text has been encoded yet.';
 
                 targets.forEach((target) => {
                     target.innerHTML = finalHtml;
@@ -473,6 +457,63 @@
             input.addEventListener('input', () => applyValue(input));
             input.addEventListener('change', () => applyValue(input));
         });
+
+        if (resolutionBodyEditor && resolutionBodyInput) {
+            const syncResolutionBody = () => {
+                resolutionBodyInput.value = String(resolutionBodyEditor.innerHTML || '').trim();
+                applyValue(resolutionBodyInput);
+            };
+
+            resolutionBodyEditor.addEventListener('input', syncResolutionBody);
+
+            form.querySelectorAll('[data-resolution-rich-cmd]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    resolutionBodyEditor.focus();
+                    document.execCommand(button.dataset.resolutionRichCmd, false, null);
+                    syncResolutionBody();
+                });
+            });
+
+            const fontSelect = form.querySelector('[data-resolution-rich-font]');
+            if (fontSelect) {
+                fontSelect.addEventListener('change', () => {
+                    resolutionBodyEditor.focus();
+                    document.execCommand('fontName', false, fontSelect.value);
+                    syncResolutionBody();
+                });
+            }
+
+            const sizeSelect = form.querySelector('[data-resolution-rich-size]');
+            if (sizeSelect) {
+                sizeSelect.addEventListener('change', () => {
+                    resolutionBodyEditor.focus();
+                    document.execCommand('fontSize', false, sizeSelect.value);
+                    syncResolutionBody();
+                });
+            }
+
+            syncResolutionBody();
+        }
+
+        if (resolutionBodyPreviewEditor && resolutionBodyEditor && resolutionBodyInput) {
+            const syncFromPreview = () => {
+                const html = String(resolutionBodyPreviewEditor.innerHTML || '').trim();
+                resolutionBodyEditor.innerHTML = html;
+                resolutionBodyInput.value = html;
+            };
+
+            resolutionBodyPreviewEditor.addEventListener('focus', () => {
+                resolutionBodyEditor.innerHTML = resolutionBodyPreviewEditor.innerHTML;
+            });
+
+            resolutionBodyPreviewEditor.addEventListener('input', () => {
+                syncFromPreview();
+            });
+
+            resolutionBodyEditor.addEventListener('input', () => {
+                resolutionBodyPreviewEditor.innerHTML = resolutionBodyEditor.innerHTML;
+            });
+        }
     })();
 </script>
 @endsection

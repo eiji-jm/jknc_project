@@ -18,13 +18,7 @@
         <div class="border-t border-gray-100"></div>
 
         {{-- NAVIGATION TABS --}}
-        <div class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
-            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
-            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
-            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Ledger</a>
-            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
-            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
-        </div>
+        @include('corporate.stock-transfer-book.partials.section-tabs', ['currentStockTransferTab' => 'ledger'])
 
         {{-- SEARCH --}}
         <div class="px-4 py-4 bg-gray-50 border-b border-gray-100">
@@ -42,7 +36,6 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Transaction</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Entry Date</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Shares</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
                         </tr>
                     </thead>
                     <tbody class="text-sm text-gray-900" id="ledger-table-body">
@@ -53,11 +46,10 @@
                                 <td class="px-4 py-3">{{ $ledger->journal?->transaction_type ?: $ledger->journal?->particulars }}</td>
                                 <td class="px-4 py-3">{{ optional($ledger->date_registered)->format('M d, Y') }}</td>
                                 <td class="px-4 py-3">{{ $ledger->shares }}</td>
-                                <td class="px-4 py-3">{{ ucfirst($ledger->status ?: 'active') }}</td>
                             </tr>
                         @empty
                             <tr data-empty-row>
-                                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No shareholders found.</td>
+                                <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No shareholders found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -133,10 +125,6 @@
                             <div>
                                 <label class="text-xs text-gray-600">Certificate No.</label>
                                 <input type="text" name="certificate_no" data-autofill-key data-autofill-field="certificate_no" data-default-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
-                            </div>
-                            <div>
-                                <label class="text-xs text-gray-600">Status</label>
-                                <input type="text" name="status" data-autofill-field="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="active">
                             </div>
                             <div>
                                 <label class="text-xs text-gray-600">Phone</label>
@@ -235,8 +223,6 @@
                     return ledger.shares || '';
                 case 'date_registered':
                     return ledger.date_registered || '';
-                case 'status':
-                    return ledger.status || '';
                 default:
                     return '';
             }

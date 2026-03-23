@@ -24,12 +24,12 @@
     ])->values();
 @endphp
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="secretaryCertificateForm({{ Js::from($resolutionOptions) }})" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="secretaryCertificateForm({{ Js::from($resolutionOptions) }}, @js(route('corporate-document-defaults')), @js($nextCertificateNumber ?? ''))" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <div class="text-lg font-semibold">Secretary Certificates</div>
             <div class="flex-1"></div>
-            <button type="button" @click="showAddPanel = true" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
+            <button type="button" @click="openPanel()" class="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                 </svg>
@@ -108,7 +108,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Certificate No.</label>
-                        <input type="text" name="certificate_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="SEC-2026-001">
+                        <input type="text" name="certificate_no" x-ref="certificateNo" value="{{ $nextCertificateNumber ?? '' }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="SEC-2026-001">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Uploaded</label>
@@ -216,11 +216,39 @@
 </div>
 
 <script>
-    function secretaryCertificateForm(resolutions) {
+    function secretaryCertificateForm(resolutions, defaultsEndpoint, initialCertificateNo) {
         return {
             showAddPanel: false,
             resolutions,
+            defaultsEndpoint,
+            initialCertificateNo,
             selectedResolutionId: '',
+            openPanel() {
+                this.showAddPanel = true;
+                if (this.$refs.certificateNo) {
+                    this.$refs.certificateNo.value = this.initialCertificateNo || this.$refs.certificateNo.value || '';
+                }
+                this.loadDefaults();
+            },
+            async loadDefaults() {
+                if (!this.defaultsEndpoint) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(this.defaultsEndpoint);
+                    if (!res.ok) {
+                        return;
+                    }
+
+                    const defaults = await res.json();
+                    if (this.$refs.certificateNo) {
+                        this.$refs.certificateNo.value = defaults.certificate_no || this.initialCertificateNo || '';
+                    }
+                } catch (e) {
+                    // ignore defaults errors
+                }
+            },
             applyResolution() {
                 const selected = this.resolutions.find((resolution) => String(resolution.id) === String(this.selectedResolutionId));
                 if (!selected) {

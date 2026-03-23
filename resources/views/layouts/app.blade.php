@@ -120,21 +120,35 @@
         }
     </style>
 </head>
-<body class="text-[#000000]">
+<body class="overflow-x-hidden text-[#000000]">
+    @php
+        $isTownHallRoute = request()->routeIs('townhall*');
+        $isAdminRoute = request()->routeIs('admin.*');
+        $isCorporateRoute = request()->routeIs('corporate*')
+            || request()->routeIs('notices*')
+            || request()->routeIs('minutes*')
+            || request()->routeIs('resolutions*')
+            || request()->routeIs('secretary-certificates*')
+            || request()->routeIs('bir-tax*')
+            || request()->routeIs('natgov*')
+            || request()->routeIs('stock-transfer-book*');
+    @endphp
     <header class="h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div class="h-full px-4 flex items-center justify-between">
-            <div class="flex items-center gap-3 w-[260px]">
-                <img src="/images/imaglogo.png" class="h-10 w-auto" alt="Logo">
+        <div class="h-full px-3 sm:px-4 flex items-center gap-3">
+            <div class="flex min-w-0 flex-1 items-center gap-3 md:w-[260px] md:flex-none">
+                <a href="{{ route('corporate') }}" class="inline-flex items-center" aria-label="Go to home">
+                    <img src="/images/imaglogo.png" class="h-10 w-auto" alt="John Kelly & Company">
+                </a>
             </div>
 
-            <div class="flex-1 flex justify-center px-6">
+            <div class="hidden min-w-0 flex-1 justify-center px-4 md:flex md:px-6">
                 <div class="relative w-full max-w-xl">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                     <input type="text" placeholder="Search" class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-full pl-11 pr-4 py-2 text-sm outline-none transition">
                 </div>
             </div>
 
-            <div class="w-[260px] flex justify-end">
+            <div class="flex items-center justify-end md:w-[260px]">
                 <div class="flex items-center gap-4">
                     <button class="relative h-9 w-9 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center transition">
                         <i class="far fa-bell text-lg"></i>
@@ -166,7 +180,7 @@
     </header>
 
     <div class="flex h-[calc(100vh-4rem)]">
-        <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
+        <aside class="w-16 shrink-0 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
             @if(Auth::user()->hasPermission('access_admin_dashboard'))
                 <a href="{{ route('admin.dashboard') }}" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition {{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-user-shield text-base"></i>
@@ -181,8 +195,8 @@
                 </a>
             @endif
 
-            @if(Auth::user()->hasPermission('access_corporate'))
-                <a href="{{ route('corporate') }}" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition {{ request()->routeIs('corporate*') || request()->routeIs('notices*') || request()->routeIs('minutes*') || request()->routeIs('resolutions*') || request()->routeIs('secretary-certificates*') || request()->routeIs('bir-tax*') || request()->routeIs('natgov*') || request()->routeIs('stock-transfer-book*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+            @if(Auth::user()->hasPermission('access_corporate') || $isCorporateRoute)
+                <a href="{{ route('corporate') }}" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition {{ $isCorporateRoute ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-building text-base"></i>
                     <span>Corporate</span>
                 </a>
@@ -196,8 +210,8 @@
             @endif
         </aside>
 
-        @if(Auth::user()->hasPermission('access_townhall') && request()->routeIs('townhall*'))
-            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+        @if((Auth::user()->hasPermission('access_townhall') || $isTownHallRoute) && $isTownHallRoute)
+            <aside class="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
                 </div>
@@ -207,8 +221,8 @@
                     </div>
                 </div>
             </aside>
-        @elseif(Auth::user()->hasPermission('access_admin_dashboard') && request()->routeIs('admin.*'))
-            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+        @elseif((Auth::user()->hasPermission('access_admin_dashboard') || $isAdminRoute) && $isAdminRoute)
+            <aside class="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admin Panel</p>
                 </div>
@@ -230,8 +244,8 @@
                     </div>
                 </div>
             </aside>
-        @elseif(Auth::user()->hasPermission('access_corporate'))
-            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+        @elseif(Auth::user()->hasPermission('access_corporate') || $isCorporateRoute)
+            <aside class="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Corporate</p>
                 </div>
@@ -255,7 +269,7 @@
             </aside>
         @endif
 
-        <main class="flex-1 overflow-y-auto">
+        <main class="min-w-0 flex-1 overflow-y-auto">
             @yield('content')
         </main>
     </div>

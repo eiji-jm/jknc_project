@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 trait HandlesUploads
 {
@@ -23,6 +24,20 @@ trait HandlesUploads
             Storage::disk('public')->delete($existingPath);
         }
 
-        return $request->file($field)->store('uploads', 'public');
+        return $this->storeUploadedFile($request->file($field));
+    }
+
+    protected function storeUploadedFile($file, string $directory = 'uploads'): string
+    {
+        $folder = trim($directory, '/') . '/' . Str::uuid();
+
+        return $file->storeAs($folder, $this->sanitizedOriginalFilename($file->getClientOriginalName()), 'public');
+    }
+
+    protected function sanitizedOriginalFilename(string $originalName): string
+    {
+        $filename = trim(str_replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], '_', basename($originalName)));
+
+        return $filename !== '' ? $filename : 'upload-' . now()->format('YmdHis');
     }
 }

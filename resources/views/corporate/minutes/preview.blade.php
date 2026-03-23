@@ -22,12 +22,19 @@
         'saved' => true,
     ])->values();
     $canApproveMinutes = auth()->user()?->role === 'Admin';
+    $minutesDocumentTitle = strtoupper(trim('Minutes of the ' . ($minute->type_of_meeting ?: 'Special') . ' ' . ($minute->governing_body ?: 'Meeting')));
 @endphp
 <style>
     @media print {
         body * { visibility: hidden; }
         #minutes-print, #minutes-print * { visibility: visible; }
         #minutes-print { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+
+    .minutes-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
     }
 </style>
 
@@ -108,8 +115,6 @@
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <div id="minutes-save-status" class="inline-flex items-center rounded-full bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">Draft not saved yet</div>
-                                <button id="minutes-save-attachments" type="button" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium">Save Attachments to Preview</button>
-                                <button id="minutes-finalize-audio" type="button" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Save to Final Preview</button>
                                 <a id="minutes-video-download" href="#" class="hidden px-4 py-2 rounded-lg bg-gray-800 hover:bg-black text-white text-sm font-medium">Download Video Copy</a>
                             </div>
                         </div>
@@ -117,10 +122,12 @@
                         <div class="rounded-xl border border-emerald-200 bg-white p-4">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                <div class="text-sm font-semibold text-gray-900">Tentative Recording</div>
-                                    <div class="text-xs text-gray-500">Listen to the selected tentative audio here before sending it to the final preview.</div>
+                                    <div class="text-sm font-semibold text-gray-900">Tentative Recording</div>
+                                    <div class="text-xs text-gray-500">Select a recording below, then compile it into the final preview when the meeting ends.</div>
                                 </div>
-                                <label for="minutes-audio-upload" class="cursor-pointer inline-flex rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Upload Recording</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <label for="minutes-audio-upload" class="cursor-pointer inline-flex rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Upload Recording</label>
+                                </div>
                             </div>
                             <input id="minutes-audio-upload" type="file" accept="audio/*" class="hidden">
                             <div id="minutes-audio-meta" class="hidden mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
@@ -135,9 +142,12 @@
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <div class="text-sm font-semibold text-gray-900">Recordings List</div>
-                                    <div class="text-xs text-gray-500">Every finished recording appears here. Save them when you are done with the attachments.</div>
+                                    <div class="text-xs text-gray-500">Every finished recording appears here. You can select one, remove a mistaken take, or compile the chosen take into the final preview.</div>
                                 </div>
-                                <span id="recordings-list-status" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No recordings yet</span>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span id="recordings-list-status" class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">No recordings yet</span>
+                                    <button id="minutes-compile-audio" type="button" class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">Compile to Final Preview</button>
+                                </div>
                             </div>
                             <div id="recordings-list" class="mt-4 space-y-3"></div>
                             <div id="recordings-list-empty" class="mt-3 text-sm text-gray-500">Recorded clips will appear here after you stop a recording or upload an audio file.</div>
@@ -145,7 +155,13 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="rounded-xl border border-dashed border-gray-300 bg-white p-4">
-                                <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Meeting Video</label>
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Meeting Video</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button id="minutes-save-video" type="button" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-black">Save Video</button>
+                                        <button id="minutes-remove-video" type="button" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Remove Video</button>
+                                    </div>
+                                </div>
                                 <input id="minutes-video-upload" type="file" accept="video/*" class="mt-2 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-800 file:text-white hover:file:bg-black">
                                 <div id="minutes-video-meta" class="hidden mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                                     <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 font-semibold text-blue-700">Video Attached</span>
@@ -156,7 +172,13 @@
                             </div>
 
                             <div class="rounded-xl border border-dashed border-gray-300 bg-white p-4">
-                                <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Script File</label>
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <label class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Script File</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button id="minutes-save-script" type="button" class="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700">Save Script File</button>
+                                        <button id="minutes-remove-script" type="button" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Remove Script File</button>
+                                    </div>
+                                </div>
                                 <input id="minutes-script-upload" type="file" accept=".pdf,.doc,.docx,.txt" class="mt-2 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-amber-600 file:text-white hover:file:bg-amber-700">
                                 <div id="minutes-script-file" class="hidden mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     <div class="font-semibold">Attached Script</div>
@@ -170,7 +192,10 @@
 
                     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                         <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
-                            <div class="text-sm font-semibold text-gray-900">On-Going Notes</div>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-900">Minutes Body Builder</div>
+                                <div class="text-xs text-gray-500">Write the minutes here with document tools. This content feeds the minutes template preview below.</div>
+                            </div>
                             <div class="flex-1"></div>
                             <select id="notes-font" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
                                 <option value="Arial">Arial</option>
@@ -189,10 +214,15 @@
                             <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="bold">Bold</button>
                             <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="italic">Italic</button>
                             <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="underline">Underline</button>
+                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertUnorderedList">Bullets</button>
+                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertOrderedList">Numbering</button>
+                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyLeft">Left</button>
+                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyCenter">Center</button>
+                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyRight">Right</button>
                             <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="hiliteColor" data-value="yellow">Highlight</button>
                             <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="removeFormat">Clear</button>
                         </div>
-                        <div id="notes-editor" class="min-h-[220px] p-4 text-sm outline-none" contenteditable="true">{!! $minute->recording_notes ? nl2br(e($minute->recording_notes)) : '' !!}</div>
+                        <div id="notes-editor" class="minutes-rich-editor min-h-[280px] p-4 text-sm leading-7 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here...">{!! $minute->recording_notes ?: '' !!}</div>
                     </div>
 
                     <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -236,25 +266,25 @@
                             <div class="rounded-xl border border-slate-200 bg-white p-4">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Attached Final Files</div>
                                 <div class="mt-3 space-y-3 text-sm text-slate-700">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <span>Minutes PDF</span>
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <span class="min-w-0 break-words">Minutes PDF</span>
                                         @if($documentDownloadUrl)
-                                            <a href="{{ $documentDownloadUrl }}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Download</a>
+                                            <a href="{{ $documentDownloadUrl }}" class="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Download</a>
                                         @else
-                                            <span class="text-xs text-slate-400">No file uploaded</span>
+                                            <span class="shrink-0 text-xs text-slate-400">No file uploaded</span>
                                         @endif
                                     </div>
-                                    <div class="flex items-center justify-between gap-3">
-                                        <span>Approved / Signed Minutes</span>
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <span class="min-w-0 break-words">Approved / Signed Minutes</span>
                                         @if($approvedMinutesDownloadUrl)
-                                            <a href="{{ $approvedMinutesDownloadUrl }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Download</a>
+                                            <a href="{{ $approvedMinutesDownloadUrl }}" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Download</a>
                                         @else
-                                            <span class="text-xs text-slate-400">No approved file uploaded</span>
+                                            <span class="shrink-0 text-xs text-slate-400">No approved file uploaded</span>
                                         @endif
                                     </div>
-                                    <div id="final-script-file-row" class="hidden flex items-center justify-between gap-3">
-                                        <span id="final-script-file-label">Attached Script</span>
-                                        <a id="final-script-file-download" href="#" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Download</a>
+                                    <div id="final-script-file-row" class="hidden flex flex-wrap items-center justify-between gap-3">
+                                        <span id="final-script-file-label" class="min-w-0 flex-1 break-all">Attached Script</span>
+                                        <a id="final-script-file-download" href="#" class="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Download</a>
                                     </div>
                                     <div id="final-media-empty" class="text-xs text-slate-400">Audio and video attachments will appear here once added in the on-going preview.</div>
                                 </div>
@@ -292,11 +322,44 @@
                             </div>
                         </div>
 
-                        <div class="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div class="mt-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.7fr)] gap-4">
                             <div class="rounded-xl border border-slate-200 bg-white p-5">
-                                <div class="text-sm font-semibold text-slate-900">Final Notes</div>
-                                <div id="final-notes-output" class="prose prose-sm mt-4 max-w-none text-slate-700"></div>
-                                <div id="final-notes-empty" class="mt-4 text-sm text-slate-500">No notes drafted yet.</div>
+                                <div class="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">Minutes Template Preview</div>
+                                        <div class="mt-1 text-xs text-slate-500">Editable preview based on `resources/doc_templates/[TEMPLATE-SKBL] Minutes of Special Meeting_ (Title).docx`.</div>
+                                    </div>
+                                    <div class="text-right text-[11px] leading-5 text-slate-500">
+                                        <div>{{ $minute->minutes_ref ?? '-' }}</div>
+                                        <div>{{ optional($minute->date_of_meeting)->format('F d, Y') ?? '-' }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-5 rounded-2xl border border-slate-200 bg-[#fbfbfd] px-10 py-9 shadow-sm">
+                                    <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">John Kelly &amp; Company</div>
+                                    <div class="mt-2 text-2xl font-semibold uppercase tracking-[0.18em] text-slate-900">{{ $minutesDocumentTitle }}</div>
+                                    <div class="mt-6 grid grid-cols-[150px_1fr] gap-x-6 gap-y-2 text-sm leading-6 text-slate-700">
+                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Date</div>
+                                        <div>{{ optional($minute->date_of_meeting)->format('F d, Y') ?? '-' }}</div>
+                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Time</div>
+                                        <div>{{ $minute->time_started ?? '-' }} - {{ $minute->time_ended ?? '-' }}</div>
+                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Location</div>
+                                        <div>{{ $minute->location ?? '-' }}</div>
+                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Presiding</div>
+                                        <div>{{ $minute->chairman ?? '-' }}</div>
+                                    </div>
+                                    <div id="final-notes-output" class="minutes-rich-editor prose prose-slate mt-8 min-h-[340px] max-w-none text-[15px] leading-8 text-slate-800 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here and it will save as the live minutes document..."></div>
+                                    <div id="final-notes-empty" class="hidden"></div>
+                                    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-slate-700">
+                                        <div>
+                                            <div class="border-t border-slate-300 pt-3 font-semibold text-slate-900">{{ $minute->chairman ?? 'Chairman' }}</div>
+                                            <div class="text-xs uppercase tracking-wide text-slate-500">Chairman</div>
+                                        </div>
+                                        <div>
+                                            <div class="border-t border-slate-300 pt-3 font-semibold text-slate-900">{{ $minute->secretary ?? 'Corporate Secretary' }}</div>
+                                            <div class="text-xs uppercase tracking-wide text-slate-500">Corporate Secretary</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-white p-5">
                                 <div class="text-sm font-semibold text-slate-900">Final Script</div>
@@ -436,12 +499,31 @@
     const finalScriptOutput = document.getElementById('final-script-output');
     const finalScriptEmpty = document.getElementById('final-script-empty');
 
-    const syncFinalNotes = () => {
+    let activeMinutesEditor = editor;
+
+    const updateMinutesEditors = (html, source = 'builder') => {
+        if (source !== 'builder' && editor) {
+            editor.innerHTML = html;
+        }
+
+        if (source !== 'preview' && finalNotesOutput) {
+            finalNotesOutput.innerHTML = html;
+        }
+
+        if (finalNotesOutput) {
+            finalNotesOutput.classList.remove('hidden');
+        }
+        if (finalNotesEmpty) {
+            finalNotesEmpty.classList.toggle('hidden', true);
+        }
+    };
+
+    const syncFinalNotes = (source = 'builder') => {
         if (!editor || !finalNotesOutput || !finalNotesEmpty) return;
-        const text = editor.textContent.trim();
-        finalNotesOutput.innerHTML = editor.innerHTML;
-        finalNotesOutput.classList.toggle('hidden', text === '');
-        finalNotesEmpty.classList.toggle('hidden', text !== '');
+        const html = source === 'preview'
+            ? finalNotesOutput.innerHTML
+            : editor.innerHTML;
+        updateMinutesEditors(html, source);
     };
 
     const syncFinalScript = () => {
@@ -452,30 +534,37 @@
         finalScriptEmpty.classList.toggle('hidden', text !== '');
     };
 
-    if (editor) editor.addEventListener('input', syncFinalNotes);
+    if (editor) {
+        editor.addEventListener('focus', () => { activeMinutesEditor = editor; });
+        editor.addEventListener('input', () => syncFinalNotes('builder'));
+    }
+    if (finalNotesOutput) {
+        finalNotesOutput.addEventListener('focus', () => { activeMinutesEditor = finalNotesOutput; });
+        finalNotesOutput.addEventListener('input', () => syncFinalNotes('preview'));
+    }
     if (scriptEditor) scriptEditor.addEventListener('input', syncFinalScript);
 
     document.querySelectorAll('[data-cmd]').forEach((button) => {
         button.addEventListener('click', () => {
+            (activeMinutesEditor || editor)?.focus();
             document.execCommand(button.dataset.cmd, false, button.dataset.value || null);
-            editor.focus();
-            syncFinalNotes();
+            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
         });
     });
 
     if (fontSelect) {
         fontSelect.addEventListener('change', () => {
+            (activeMinutesEditor || editor)?.focus();
             document.execCommand('fontName', false, fontSelect.value);
-            editor.focus();
-            syncFinalNotes();
+            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
         });
     }
 
     if (sizeSelect) {
         sizeSelect.addEventListener('change', () => {
+            (activeMinutesEditor || editor)?.focus();
             document.execCommand('fontSize', false, sizeSelect.value);
-            editor.focus();
-            syncFinalNotes();
+            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
         });
     }
 
@@ -516,7 +605,11 @@
         const finalAudioMeta = document.getElementById('final-audio-meta');
         const finalAudioFilename = document.getElementById('final-audio-filename');
         const finalAudioDownload = document.getElementById('final-audio-download');
-        const finalizeAudioButton = document.getElementById('minutes-finalize-audio');
+        const compileAudioButton = document.getElementById('minutes-compile-audio');
+        const saveVideoButton = document.getElementById('minutes-save-video');
+        const removeVideoButton = document.getElementById('minutes-remove-video');
+        const saveScriptButton = document.getElementById('minutes-save-script');
+        const removeScriptButton = document.getElementById('minutes-remove-script');
         const finalSaveButton = document.getElementById('minutes-final-save');
         const finalVideoPlayer = document.getElementById('final-video-player');
         const finalVideoEmpty = document.getElementById('final-video-empty');
@@ -525,7 +618,6 @@
         const finalScriptFileLabel = document.getElementById('final-script-file-label');
         const finalScriptFileDownload = document.getElementById('final-script-file-download');
         const finalMediaEmpty = document.getElementById('final-media-empty');
-        const saveAttachmentsButton = document.getElementById('minutes-save-attachments');
         const saveStatus = document.getElementById('minutes-save-status');
 
         if (
@@ -536,10 +628,11 @@
             !videoDownload || !scriptUpload || !scriptFile || !scriptEmpty || !scriptFilename ||
             !scriptDownload || !finalAudioPlayer || !finalAudioEmpty || !finalAudioBadge ||
             !finalAudioMeta || !finalAudioFilename || !finalAudioDownload ||
-            !finalizeAudioButton || !finalSaveButton ||
+            !compileAudioButton ||
+            !saveVideoButton || !removeVideoButton || !saveScriptButton || !removeScriptButton || !finalSaveButton ||
             !finalVideoPlayer || !finalVideoEmpty || !finalVideoBadge || !finalScriptFileRow ||
             !finalScriptFileLabel || !finalScriptFileDownload || !finalMediaEmpty ||
-            !saveAttachmentsButton || !saveStatus
+            !saveStatus
         ) {
             return;
         }
@@ -558,7 +651,9 @@
         let finalAudioBlob = null;
         let finalAudioUrl = null;
         let currentVideoFile = null;
+        let currentVideoFilename = '';
         let currentScriptFile = null;
+        let currentScriptFilename = '';
         let uploadedVideoUrl = null;
         let uploadedScriptUrl = null;
         let currentAudioFilename = 'minutes-recording.webm';
@@ -587,6 +682,25 @@
             saveStatus.textContent = message;
         };
 
+        const extractErrorMessage = async (response, fallback) => {
+            try {
+                const payload = await response.json();
+
+                if (payload?.message) {
+                    return payload.message;
+                }
+
+                const fieldMessage = Object.values(payload?.errors || {})[0]?.[0];
+                if (fieldMessage) {
+                    return fieldMessage;
+                }
+            } catch (error) {
+                // Ignore JSON parse issues and fall back to the provided message.
+            }
+
+            return fallback;
+        };
+
         const fileFromBlob = (blob, filename, fallbackType) => {
             if (!(blob instanceof Blob)) {
                 return null;
@@ -597,6 +711,24 @@
             }
 
             return new File([blob], filename, { type: blob.type || fallbackType });
+        };
+
+        const resolveStandaloneFile = async (file, url, filename, fallbackType) => {
+            if (file instanceof File) {
+                return file;
+            }
+
+            if (!url || url === '#') {
+                return null;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('file-fetch-failed');
+            }
+
+            const blob = await response.blob();
+            return fileFromBlob(blob, filename || 'attachment', blob.type || fallbackType);
         };
 
         const openDraftDb = () => new Promise((resolve, reject) => {
@@ -834,11 +966,12 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-slate-900">${clip.filename || 'Recording clip'}</div>
-                            <div class="mt-1 text-xs text-slate-500">${clip.saved ? 'Saved on server' : 'Saved locally until you click Save Attachments to Preview'}</div>
+                            <div class="mt-1 text-xs text-slate-500">${clip.saved ? 'Saved on server' : 'Stored locally until you save the selected recording'}</div>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <button type="button" data-recording-action="select" data-recording-id="${clip.id}" class="${selected ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'} rounded-lg px-3 py-2 text-xs font-semibold">Select</button>
                             ${clip.downloadUrl ? `<a href="${clip.downloadUrl}" class="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-slate-700 border border-slate-300 hover:bg-slate-100">Download</a>` : ''}
+                            <button type="button" data-recording-action="remove" data-recording-id="${clip.id}" class="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button>
                         </div>
                     </div>
                 `;
@@ -880,7 +1013,7 @@
             renderRecordingsList();
         };
 
-        const replaceSavedClips = (clips) => {
+        const replaceSavedClips = (clips, preferredId = null, preferredFilename = null) => {
             recordingClips = (clips || []).map((clip, index) => ({
                 id: clip.id || clip.url || `saved-clip-${index}`,
                 filename: clip.filename || `recording-${index + 1}.webm`,
@@ -890,8 +1023,42 @@
                 downloadUrl: clip.download_url || clip.downloadUrl || clip.url,
             }));
 
-            selectedRecordingId = recordingClips[0]?.id || null;
+            const preferredClip = recordingClips.find((clip) => clip.id === preferredId)
+                || recordingClips.find((clip) => preferredFilename && clip.filename === preferredFilename)
+                || recordingClips[0]
+                || null;
+
+            selectedRecordingId = preferredClip?.id || null;
             renderRecordingsList();
+        };
+
+        const getRetainedSavedClipIds = () => recordingClips
+            .filter((clip) => clip.saved && clip.id)
+            .map((clip) => clip.id);
+
+        const removeClipLocally = (clipId) => {
+            const clip = recordingClips.find((item) => item.id === clipId) || null;
+
+            if (!clip) {
+                return null;
+            }
+
+            if (!clip.saved) {
+                cleanupObjectUrl(clip.url);
+                if (clip.downloadUrl && clip.downloadUrl !== clip.url) {
+                    cleanupObjectUrl(clip.downloadUrl);
+                }
+            }
+
+            recordingClips = recordingClips.filter((item) => item.id !== clipId);
+
+            if (selectedRecordingId === clipId) {
+                selectedRecordingId = recordingClips[0]?.id || null;
+            }
+
+            renderRecordingsList();
+
+            return clip;
         };
 
         const resolveClipFile = async (clip) => {
@@ -917,7 +1084,12 @@
         };
 
         const applyWorkspaceResponse = (payload) => {
-            replaceSavedClips(payload.recording_clips || []);
+            const selectedClip = getSelectedClip();
+            replaceSavedClips(
+                payload.recording_clips || [],
+                selectedClip?.id || selectedRecordingId,
+                selectedClip?.filename || currentAudioFilename
+            );
 
             if (payload.tentative_audio_url) {
                 syncPreviewAudio(
@@ -927,6 +1099,8 @@
                 );
             } else if (getSelectedClip()) {
                 syncPreviewPlayer(getSelectedClip());
+            } else {
+                syncPreviewAudio(null, currentAudioFilename);
             }
 
             if (payload.meeting_video_url) {
@@ -935,6 +1109,16 @@
                     payload.meeting_video_filename || 'meeting-video',
                     payload.meeting_video_download_url || payload.meeting_video_url
                 );
+                cleanupObjectUrl(uploadedVideoUrl);
+                uploadedVideoUrl = null;
+                currentVideoFile = null;
+                currentVideoFilename = '';
+            } else {
+                syncPreviewVideo(null, '');
+                cleanupObjectUrl(uploadedVideoUrl);
+                uploadedVideoUrl = null;
+                currentVideoFile = null;
+                currentVideoFilename = '';
             }
 
             if (payload.script_file_url) {
@@ -943,6 +1127,16 @@
                     payload.script_file_filename || 'script-file',
                     payload.script_file_download_url || payload.script_file_url
                 );
+                cleanupObjectUrl(uploadedScriptUrl);
+                uploadedScriptUrl = null;
+                currentScriptFile = null;
+                currentScriptFilename = '';
+            } else {
+                syncScriptFile(null, '');
+                cleanupObjectUrl(uploadedScriptUrl);
+                uploadedScriptUrl = null;
+                currentScriptFile = null;
+                currentScriptFilename = '';
             }
 
             if (payload.final_audio_url) {
@@ -951,11 +1145,12 @@
                     payload.final_audio_filename || finalAudioFilenameValue,
                     payload.final_audio_download_url || payload.final_audio_url
                 );
+            } else {
+                syncFinalAudio(null, finalAudioFilenameValue);
             }
 
             if (payload.recording_notes !== undefined && editor) {
-                editor.innerHTML = payload.recording_notes || '';
-                syncFinalNotes();
+                updateMinutesEditors(payload.recording_notes || '', 'server');
             }
 
             if (payload.script_text !== undefined && scriptEditor) {
@@ -964,34 +1159,85 @@
             }
         };
 
-        const persistWorkspaceFiles = async () => {
+        const persistWorkspaceFiles = async ({
+            saveTentativeAudio = false,
+            removeTentativeAudio = false,
+            uploadUnsavedClips = false,
+            syncRecordingClips = false,
+            saveVideo = false,
+            removeVideo = false,
+            saveScript = false,
+            removeScript = false,
+            includeNotes = true,
+            includeScriptText = true,
+        } = {}) => {
             const formData = new FormData();
             const selectedClip = getSelectedClip();
-            const tentativeAudioFile = await resolveClipFile(selectedClip);
 
-            if (tentativeAudioFile) {
-                formData.append('tentative_audio', tentativeAudioFile);
+            if (saveTentativeAudio) {
+                const tentativeAudioFile = await resolveClipFile(selectedClip);
+                if (tentativeAudioFile) {
+                    formData.append('tentative_audio', tentativeAudioFile);
+                }
+            } else if (removeTentativeAudio) {
+                formData.append('remove_tentative_audio', '1');
             }
 
-            recordingClips
-                .filter((clip) => !clip.saved)
-                .forEach((clip) => {
-                    const clipFile = fileFromBlob(clip.blob, clip.filename, 'audio/webm');
-                    if (clipFile) {
-                        formData.append('recording_clips[]', clipFile);
-                    }
+            if (syncRecordingClips) {
+                formData.append('sync_recording_clips', '1');
+                getRetainedSavedClipIds().forEach((clipId) => {
+                    formData.append('retained_recording_clips[]', clipId);
                 });
-
-            if (currentVideoFile instanceof File) {
-                formData.append('meeting_video', currentVideoFile);
             }
 
-            if (currentScriptFile instanceof File) {
-                formData.append('script_file', currentScriptFile);
+            if (uploadUnsavedClips) {
+                recordingClips
+                    .filter((clip) => !clip.saved)
+                    .forEach((clip) => {
+                        const clipFile = fileFromBlob(clip.blob, clip.filename, 'audio/webm');
+                        if (clipFile) {
+                            formData.append('recording_clips[]', clipFile);
+                        }
+                    });
             }
 
-            formData.append('recording_notes', editor?.innerText?.trim() || '');
-            formData.append('script_text', scriptEditor?.value || '');
+            if (saveVideo) {
+                const meetingVideoFile = await resolveStandaloneFile(
+                    currentVideoFile,
+                    uploadedVideoUrl || videoPlayer.getAttribute('src'),
+                    currentVideoFilename || videoFilename.textContent || 'meeting-video',
+                    'video/mp4'
+                );
+
+                if (meetingVideoFile) {
+                    formData.append('meeting_video', meetingVideoFile);
+                }
+            } else if (removeVideo) {
+                formData.append('remove_meeting_video', '1');
+            }
+
+            if (saveScript) {
+                const scriptFileToSave = await resolveStandaloneFile(
+                    currentScriptFile,
+                    uploadedScriptUrl || scriptDownload.getAttribute('href'),
+                    currentScriptFilename || scriptFilename.textContent || 'script-file',
+                    'application/pdf'
+                );
+
+                if (scriptFileToSave) {
+                    formData.append('script_file', scriptFileToSave);
+                }
+            } else if (removeScript) {
+                formData.append('remove_script_file', '1');
+            }
+
+            if (includeNotes) {
+                formData.append('recording_notes', editor?.innerHTML || '');
+            }
+
+            if (includeScriptText) {
+                formData.append('script_text', scriptEditor?.value || '');
+            }
 
             const response = await fetch(workspaceSaveUrl, {
                 method: 'POST',
@@ -1003,19 +1249,24 @@
             });
 
             if (!response.ok) {
-                throw new Error('workspace-save-failed');
+                throw new Error(await extractErrorMessage(response, 'Workspace save failed.'));
             }
 
             return response.json();
         };
 
-        const persistFinalAudio = async () => {
+        const persistFinalAudio = async ({ remove = false } = {}) => {
             const formData = new FormData();
-            const selectedClip = getSelectedClip();
-            const finalAudioFile = await resolveClipFile(selectedClip);
 
-            if (finalAudioFile) {
-                formData.append('final_audio', finalAudioFile);
+            if (remove) {
+                formData.append('remove_final_audio', '1');
+            } else {
+                const selectedClip = getSelectedClip();
+                const finalAudioFile = await resolveClipFile(selectedClip);
+
+                if (finalAudioFile) {
+                    formData.append('final_audio', finalAudioFile);
+                }
             }
 
             const response = await fetch(finalAudioSaveUrl, {
@@ -1028,7 +1279,7 @@
             });
 
             if (!response.ok) {
-                throw new Error('final-audio-save-failed');
+                throw new Error(await extractErrorMessage(response, 'Final audio save failed.'));
             }
 
             return response.json();
@@ -1048,6 +1299,11 @@
                 formData.append('final_audio', finalAudioFile);
             }
 
+            formData.append('sync_recording_clips', '1');
+            getRetainedSavedClipIds().forEach((clipId) => {
+                formData.append('retained_recording_clips[]', clipId);
+            });
+
             recordingClips
                 .filter((clip) => !clip.saved)
                 .forEach((clip) => {
@@ -1057,15 +1313,29 @@
                     }
                 });
 
-            if (currentVideoFile instanceof File) {
-                formData.append('meeting_video', currentVideoFile);
+            const finalPreviewVideoFile = await resolveStandaloneFile(
+                currentVideoFile,
+                uploadedVideoUrl || videoPlayer.getAttribute('src'),
+                currentVideoFilename || videoFilename.textContent || 'meeting-video',
+                'video/mp4'
+            );
+
+            if (finalPreviewVideoFile) {
+                formData.append('meeting_video', finalPreviewVideoFile);
             }
 
-            if (currentScriptFile instanceof File) {
-                formData.append('script_file', currentScriptFile);
+            const finalPreviewScriptFile = await resolveStandaloneFile(
+                currentScriptFile,
+                uploadedScriptUrl || scriptDownload.getAttribute('href'),
+                currentScriptFilename || scriptFilename.textContent || 'script-file',
+                'application/pdf'
+            );
+
+            if (finalPreviewScriptFile) {
+                formData.append('script_file', finalPreviewScriptFile);
             }
 
-            formData.append('recording_notes', editor?.innerText?.trim() || '');
+            formData.append('recording_notes', editor?.innerHTML || '');
             formData.append('script_text', scriptEditor?.value || '');
 
             const response = await fetch(finalSaveUrl, {
@@ -1078,7 +1348,7 @@
             });
 
             if (!response.ok) {
-                throw new Error('final-save-failed');
+                throw new Error(await extractErrorMessage(response, 'Final preview save failed.'));
             }
 
             return response.json();
@@ -1097,8 +1367,7 @@
                 }
 
                 if (editor && draft.notesHtml) {
-                    editor.innerHTML = draft.notesHtml;
-                    syncFinalNotes();
+                    updateMinutesEditors(draft.notesHtml, 'server');
                 }
 
                 if (scriptEditor && draft.scriptText) {
@@ -1228,6 +1497,7 @@
             }
 
             currentVideoFile = file;
+            currentVideoFilename = file.name;
             uploadedVideoUrl = URL.createObjectURL(file);
             syncPreviewVideo(uploadedVideoUrl, file.name);
             queueDraftSave();
@@ -1245,6 +1515,7 @@
             }
 
             currentScriptFile = file;
+            currentScriptFilename = file.name;
             uploadedScriptUrl = URL.createObjectURL(file);
             syncScriptFile(uploadedScriptUrl, file.name);
             queueDraftSave();
@@ -1327,7 +1598,7 @@
         });
         stopButton.addEventListener('click', stopRecording);
 
-        recordingsList.addEventListener('click', (event) => {
+        recordingsList.addEventListener('click', async (event) => {
             const button = event.target.closest('[data-recording-action]');
             if (!button) return;
 
@@ -1336,6 +1607,32 @@
 
             if (button.dataset.recordingAction === 'select') {
                 setSelectedClip(clip.id);
+                return;
+            }
+
+            if (button.dataset.recordingAction === 'remove') {
+                const removedClip = removeClipLocally(clip.id);
+                queueDraftSave();
+
+                if (!removedClip?.saved) {
+                    setSaveStatus('Recording removed from the local list', 'emerald');
+                    return;
+                }
+
+                try {
+                    setSaveStatus('Removing recording from the minutes workspace...', 'blue');
+                    const payload = await persistWorkspaceFiles({
+                        saveTentativeAudio: Boolean(getSelectedClip()),
+                        removeTentativeAudio: !getSelectedClip(),
+                        uploadUnsavedClips: true,
+                        syncRecordingClips: true,
+                    });
+                    applyWorkspaceResponse(payload);
+                    await saveTentativeDraft('manual');
+                    setSaveStatus('Recording removed successfully', 'emerald');
+                } catch (error) {
+                    setSaveStatus('Could not remove that recording from the workspace', 'red');
+                }
             }
         });
 
@@ -1347,19 +1644,7 @@
             scriptEditor.addEventListener('input', queueDraftSave);
         }
 
-        saveAttachmentsButton.addEventListener('click', async () => {
-            try {
-                setSaveStatus('Saving attachments to the preview...', 'blue');
-                const payload = await persistWorkspaceFiles();
-                applyWorkspaceResponse(payload);
-                await saveTentativeDraft('manual');
-                setSaveStatus('Attachments saved and shown in the final preview', 'emerald');
-            } catch (error) {
-                setSaveStatus('Could not save the attachments to the preview', 'red');
-            }
-        });
-
-        finalizeAudioButton.addEventListener('click', async () => {
+        compileAudioButton.addEventListener('click', async () => {
             const selectedClip = getSelectedClip();
             if (!selectedClip) {
                 setSaveStatus('Select a recording from the list first', 'amber');
@@ -1367,39 +1652,108 @@
             }
 
             try {
-                setSaveStatus('Saving recordings and attachments...', 'blue');
-                const workspacePayload = await persistWorkspaceFiles();
+                setSaveStatus('Saving the selected recording before compile...', 'blue');
+                const workspacePayload = await persistWorkspaceFiles({
+                    saveTentativeAudio: true,
+                    uploadUnsavedClips: true,
+                    syncRecordingClips: true,
+                });
                 applyWorkspaceResponse(workspacePayload);
 
-                setSaveStatus('Saving final preview files...', 'blue');
+                setSaveStatus('Compiling the selected recording into the final preview...', 'blue');
                 const payload = await persistFinalAudio();
                 finalAudioBlob = selectedClip.blob instanceof Blob ? selectedClip.blob : null;
                 finalAudioFilenameValue = payload.final_audio_filename || selectedClip.filename;
                 applyWorkspaceResponse(payload);
                 await saveTentativeDraft('manual');
-                setSaveStatus('Final preview files saved successfully', 'emerald');
+                setSaveStatus('Recording compiled into the final preview', 'emerald');
             } catch (error) {
-                setSaveStatus('Could not save the final preview files', 'red');
+                setSaveStatus(error?.message || 'Could not compile the selected recording', 'red');
             }
         });
 
-        finalSaveButton.addEventListener('click', async () => {
-            const selectedClip = getSelectedClip();
-            if (!selectedClip) {
-                setSaveStatus('Select a recording from the list first', 'amber');
+        saveVideoButton.addEventListener('click', async () => {
+            if (!(currentVideoFile instanceof File) && !uploadedVideoUrl && !videoPlayer.getAttribute('src')) {
+                setSaveStatus('Choose a meeting video first', 'amber');
                 return;
             }
 
             try {
-                setSaveStatus('Final saving everything...', 'blue');
-                const payload = await persistFinalPreview();
-                finalAudioBlob = selectedClip.blob instanceof Blob ? selectedClip.blob : null;
-                finalAudioFilenameValue = payload.final_audio_filename || selectedClip.filename;
+                setSaveStatus('Saving the meeting video...', 'blue');
+                const payload = await persistWorkspaceFiles({ saveVideo: true });
                 applyWorkspaceResponse(payload);
                 await saveTentativeDraft('manual');
-                setSaveStatus('Everything was saved to the final preview', 'emerald');
+                setSaveStatus('Meeting video saved successfully', 'emerald');
             } catch (error) {
-                setSaveStatus('Could not final save everything', 'red');
+                setSaveStatus(error?.message || 'Could not save the meeting video', 'red');
+            }
+        });
+
+        removeVideoButton.addEventListener('click', async () => {
+            cleanupObjectUrl(uploadedVideoUrl);
+            uploadedVideoUrl = null;
+            currentVideoFile = null;
+            videoInput.value = '';
+            syncPreviewVideo(null, '');
+
+            try {
+                setSaveStatus('Removing the meeting video...', 'blue');
+                const payload = await persistWorkspaceFiles({ removeVideo: true });
+                applyWorkspaceResponse(payload);
+                await saveTentativeDraft('manual');
+                setSaveStatus('Meeting video removed', 'emerald');
+            } catch (error) {
+                setSaveStatus(error?.message || 'Could not remove the meeting video', 'red');
+            }
+        });
+
+        saveScriptButton.addEventListener('click', async () => {
+            if (!(currentScriptFile instanceof File) && scriptDownload.getAttribute('href') === '#') {
+                setSaveStatus('Choose a script file first', 'amber');
+                return;
+            }
+
+            try {
+                setSaveStatus('Saving the script file...', 'blue');
+                const payload = await persistWorkspaceFiles({ saveScript: true });
+                applyWorkspaceResponse(payload);
+                await saveTentativeDraft('manual');
+                setSaveStatus('Script file saved successfully', 'emerald');
+            } catch (error) {
+                setSaveStatus(error?.message || 'Could not save the script file', 'red');
+            }
+        });
+
+        removeScriptButton.addEventListener('click', async () => {
+            cleanupObjectUrl(uploadedScriptUrl);
+            uploadedScriptUrl = null;
+            currentScriptFile = null;
+            scriptUpload.value = '';
+            syncScriptFile(null, '');
+
+            try {
+                setSaveStatus('Removing the script file...', 'blue');
+                const payload = await persistWorkspaceFiles({ removeScript: true });
+                applyWorkspaceResponse(payload);
+                await saveTentativeDraft('manual');
+                setSaveStatus('Script file removed', 'emerald');
+            } catch (error) {
+                setSaveStatus(error?.message || 'Could not remove the script file', 'red');
+            }
+        });
+
+        finalSaveButton.addEventListener('click', async () => {
+            try {
+                setSaveStatus('Saving the full final preview...', 'blue');
+                const payload = await persistFinalPreview();
+                const selectedClip = getSelectedClip();
+                finalAudioBlob = selectedClip?.blob instanceof Blob ? selectedClip.blob : null;
+                finalAudioFilenameValue = payload.final_audio_filename || selectedClip?.filename || finalAudioFilenameValue;
+                applyWorkspaceResponse(payload);
+                await saveTentativeDraft('manual');
+                setSaveStatus('Final preview saved successfully', 'emerald');
+            } catch (error) {
+                setSaveStatus(error?.message || 'Could not save the final preview', 'red');
             }
         });
 

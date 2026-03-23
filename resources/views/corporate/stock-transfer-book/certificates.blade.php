@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @php($currentUser = auth()->user()?->name ?? '')
+@php($stockNumberOptions = collect($availableStockNumbers ?? collect())->merge(collect($availableInstallments ?? collect())->pluck('stock_number'))->filter()->unique()->values())
+@php($stockNumberDirectory = collect($stockNumberDirectory ?? collect()))
 
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showAddPanel: false, showRequestPanel: false, activeTab: 'stock' }" @keydown.escape.window="showAddPanel = false; showRequestPanel = false">
@@ -14,13 +16,7 @@
 
         <div class="border-t border-gray-100"></div>
 
-        <div class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
-            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
-            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
-            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
-            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
-            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Certificates</a>
-        </div>
+        @include('corporate.stock-transfer-book.partials.section-tabs', ['currentStockTransferTab' => 'certificates'])
 
         <div class="px-4 py-3 border-b border-gray-100 flex gap-4">
             <button type="button" class="text-sm font-medium pb-2 px-1" :class="activeTab === 'stock' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'" @click="activeTab = 'stock'">Certificate Stock</button>
@@ -195,28 +191,35 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Stock Number</label>
-                        <select name="stock_number" data-autofill-key onchange="window.syncCertificateStockFields?.(this)" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            <option value="">Select stock number</option>
-                            @foreach (($availableInstallments ?? collect()) as $installmentOption)
-                                <option
-                                    value="{{ $installmentOption->stock_number }}"
-                                    data-subscriber="{{ $installmentOption->subscriber }}"
-                                    data-stockholder-name="{{ $installmentOption->stockholder_name }}"
-                                    data-installment-date="{{ optional($installmentOption->installment_date)->toDateString() }}"
-                                    data-no-shares="{{ $installmentOption->no_shares }}"
-                                    data-total-value="{{ $installmentOption->total_value }}"
-                                    data-installment-amount="{{ $installmentOption->installment_amount }}"
-                                    data-par-value="{{ $installmentOption->par_value }}"
-                                    data-amount-in-words="{{ $installmentOption->amount_in_words }}"
-                                >
-                                    {{ $installmentOption->stock_number }} - {{ $installmentOption->subscriber }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <input type="text" name="stock_number" list="certificate-stock-numbers" x-ref="certificateStockNumber" data-certificate-stock-key class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Select or type stock number">
+                        @if ($stockNumberDirectory->isNotEmpty())
+                            <div class="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Available Stock Numbers</div>
+                                <div class="max-h-44 space-y-2 overflow-y-auto pr-1">
+                                    @foreach ($stockNumberDirectory as $stockOption)
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left hover:border-blue-300 hover:bg-blue-50"
+                                            data-stock-number-option="{{ $stockOption->stock_number }}"
+                                            @click.prevent="$refs.certificateStockNumber.value = '{{ $stockOption->stock_number }}'; window.syncCertificateStockFields($refs.certificateStockNumber)"
+                                        >
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-900">{{ $stockOption->stock_number }}</div>
+                                                <div class="truncate text-xs text-gray-600">{{ $stockOption->holder_name ?: 'No stockholder linked yet' }}</div>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <div class="text-[11px] font-medium text-gray-700">{{ $stockOption->source }}</div>
+                                                <div class="text-[11px] {{ $stockOption->is_recommended ? 'text-green-600' : 'text-amber-600' }}">{{ $stockOption->status_label }}</div>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Name of Stockholder</label>
-                        <input type="text" name="stockholder_name" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600" placeholder="Auto-filled from stock number">
+                        <input type="text" name="stockholder_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Auto-filled from stock number or enter manually">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Corporation Name</label>
@@ -228,19 +231,19 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">PAR</label>
-                        <input type="number" step="0.01" name="par_value" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        <input type="number" step="0.01" name="par_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Number of Shares</label>
-                        <input type="number" name="number" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        <input type="number" name="number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Amount</label>
-                        <input type="number" step="0.01" name="amount" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        <input type="number" step="0.01" name="amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Amount in Words</label>
-                        <input type="text" name="amount_in_words" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600" placeholder="Auto-filled from stock number">
+                        <input type="text" name="amount_in_words" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Auto-filled from stock number or enter manually">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Issued</label>
@@ -283,11 +286,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Ref #</label>
-                        <input type="text" name="reference_no" data-default-field="reference_no" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="text" name="reference_no" value="{{ $nextIssuanceRequestReference ?? 'REQ-0001' }}" data-default-field="reference_no" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date and Time</label>
-                        <input type="datetime-local" name="requested_at" data-default-field="now" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="datetime-local" name="requested_at" value="{{ $defaultRequestedAt ?? now()->format('Y-m-d\\TH:i') }}" data-default-field="now" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Type of Request</label>
@@ -345,6 +348,12 @@
 </div>
 @endsection
 
+<datalist id="certificate-stock-numbers">
+    @foreach ($stockNumberOptions as $stockNumberOption)
+        <option value="{{ $stockNumberOption }}"></option>
+    @endforeach
+</datalist>
+
 <datalist id="index-shareholders">
     @foreach (($indexShareholders ?? collect()) as $name)
         <option value="{{ $name }}"></option>
@@ -352,23 +361,11 @@
 </datalist>
 
 <script>
-    window.syncCertificateStockFields = async function (selectElement) {
-        if (!selectElement) return;
+    window.syncCertificateStockFields = async function (stockInput) {
+        if (!stockInput) return;
 
-        const form = selectElement.closest('form');
+        const form = stockInput.closest('form');
         if (!form) return;
-
-        const selectedOption = selectElement.selectedOptions?.[0] || selectElement.options[selectElement.selectedIndex];
-        if (!selectedOption || !selectedOption.value) return;
-
-        const readOption = (datasetKey, attributeName) => {
-            const datasetValue = selectedOption.dataset?.[datasetKey];
-            if (datasetValue !== undefined && datasetValue !== null && datasetValue !== '') {
-                return datasetValue;
-            }
-
-            return selectedOption.getAttribute(attributeName) || '';
-        };
 
         const setField = (name, value, allowBlank = false) => {
             const field = form.querySelector(`[name="${name}"]`);
@@ -380,17 +377,16 @@
         const preservedDateUploaded = form.querySelector('[name="date_uploaded"]')?.value || '';
         const preservedDateIssued = form.querySelector('[name="date_issued"]')?.value || '';
 
-        setField('stock_number', selectedOption.value);
-        setField('stockholder_name', readOption('stockholderName', 'data-stockholder-name') || readOption('subscriber', 'data-subscriber'), true);
-        setField('par_value', readOption('parValue', 'data-par-value'), true);
-        setField('number', readOption('noShares', 'data-no-shares'), true);
-        setField('amount', readOption('totalValue', 'data-total-value'), true);
-        setField('amount_in_words', readOption('amountInWords', 'data-amount-in-words'), true);
-        setField('date_uploaded', readOption('installmentDate', 'data-installment-date') || preservedDateUploaded, true);
-        setField('date_issued', readOption('installmentDate', 'data-installment-date') || preservedDateIssued, true);
+        const key = (stockInput.value || '').trim();
+        setField('stock_number', key, true);
+        if (!key) {
+            setField('date_uploaded', preservedDateUploaded, true);
+            setField('date_issued', preservedDateIssued, true);
+            return;
+        }
 
         try {
-            const res = await fetch(`{{ route('stock-transfer-book.lookup') }}?key=${encodeURIComponent(selectedOption.value)}`);
+            const res = await fetch(`{{ route('stock-transfer-book.lookup') }}?key=${encodeURIComponent(key)}`);
             if (!res.ok) return;
             const data = await res.json();
             const ledger = data.ledger || {};
@@ -400,12 +396,14 @@
             const company = data.company || {};
 
             setField('stockholder_name', stockholderRecord.stockholder_name || installment.holder_name || installment.subscriber || cert.stockholder_name || ledger.full_name || '', true);
-            setField('par_value', company.par_value || cert.par_value || readOption('parValue', 'data-par-value'), true);
-            setField('number', installment.no_shares || cert.number || ledger.shares || readOption('noShares', 'data-no-shares'), true);
-            setField('amount', installment.total_value || company.computed_amount || cert.amount || stockholderRecord.amount || readOption('totalValue', 'data-total-value'), true);
-            setField('amount_in_words', installment.amount_in_words || company.computed_amount_in_words || cert.amount_in_words || readOption('amountInWords', 'data-amount-in-words'), true);
+            setField('par_value', installment.par_value || cert.par_value || company.par_value || '', true);
+            setField('number', installment.no_shares || cert.number || ledger.shares || '', true);
+            setField('amount', installment.total_value || company.computed_amount || cert.amount || stockholderRecord.amount || '', true);
+            setField('amount_in_words', installment.amount_in_words || company.computed_amount_in_words || cert.amount_in_words || '', true);
+            setField('date_uploaded', installment.installment_date || cert.date_uploaded || preservedDateUploaded, true);
+            setField('date_issued', installment.installment_date || cert.date_issued || preservedDateIssued, true);
         } catch (error) {
-            // Ignore lookup enrichment failures; direct option-based autofill already ran.
+            // Ignore lookup enrichment failures and allow manual certificate creation.
         }
     };
 
@@ -449,7 +447,8 @@
         const issuanceType = container.querySelector('[data-issuance-type]');
         const addPanel = container.querySelector('[data-add-panel]');
         const requestPanel = container.querySelector('[data-request-panel]');
-        const addStockNumberInput = addPanel?.querySelector('[name="stock_number"]');
+        const addStockNumberInput = addPanel?.querySelector('[data-certificate-stock-key]');
+        const stockNumberButtons = Array.from(container.querySelectorAll('[data-stock-number-option]'));
         const requesterInput = requestPanel?.querySelector('[name="requester"]');
         const requestReceivedBy = requestPanel?.querySelector('[name="received_by"]');
         const requestIssuedBy = requestPanel?.querySelector('[name="issued_by"]');
@@ -562,40 +561,6 @@
             filterStockOptions();
         });
 
-        const getOptionValue = (option, datasetKey, attributeName) => {
-            if (!option) return '';
-
-            const datasetValue = option.dataset?.[datasetKey];
-            if (datasetValue !== undefined && datasetValue !== null && datasetValue !== '') {
-                return datasetValue;
-            }
-
-            return option.getAttribute(attributeName) || '';
-        };
-
-        const populateCertificateAddPanel = (option) => {
-            if (!addPanel || !option || !option.value) return;
-
-            const setField = (name, value) => {
-                const field = addPanel.querySelector(`[name="${name}"]`);
-                if (field && value !== undefined && value !== null) {
-                    field.value = value;
-                }
-            };
-
-            const preservedDateUploaded = addPanel.querySelector('[name="date_uploaded"]')?.value || '';
-            const preservedDateIssued = addPanel.querySelector('[name="date_issued"]')?.value || '';
-
-            setField('stock_number', option.value);
-            setField('stockholder_name', getOptionValue(option, 'stockholderName', 'data-stockholder-name') || getOptionValue(option, 'subscriber', 'data-subscriber'));
-            setField('number', getOptionValue(option, 'noShares', 'data-no-shares'));
-            setField('amount', getOptionValue(option, 'totalValue', 'data-total-value'));
-            setField('par_value', getOptionValue(option, 'parValue', 'data-par-value'));
-            setField('amount_in_words', getOptionValue(option, 'amountInWords', 'data-amount-in-words'));
-            setField('date_uploaded', getOptionValue(option, 'installmentDate', 'data-installment-date') || preservedDateUploaded);
-            setField('date_issued', getOptionValue(option, 'installmentDate', 'data-installment-date') || preservedDateIssued);
-        };
-
         const syncCertificateAddPanel = async (value) => {
             const data = await lookup(value);
             if (!data || !addPanel) return;
@@ -623,7 +588,7 @@
             setField('date_uploaded', installment.installment_date || cert.date_uploaded || addPanel.querySelector('[name="date_uploaded"]')?.value || '');
             setField('date_issued', installment.installment_date || cert.date_issued || addPanel.querySelector('[name="date_issued"]')?.value || '');
 
-            setField('par_value', company.par_value || cert.par_value || '');
+            setField('par_value', installment.par_value || cert.par_value || company.par_value || '');
             setField('amount_in_words', installment.amount_in_words || company.computed_amount_in_words || cert.amount_in_words || '');
         };
 
@@ -635,6 +600,14 @@
         addStockNumberInput?.addEventListener('change', syncCertificateAddPanelFromOption);
         addStockNumberInput?.addEventListener('input', syncCertificateAddPanelFromOption);
         addStockNumberInput?.addEventListener('blur', syncCertificateAddPanelFromOption);
+
+        stockNumberButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                if (!addStockNumberInput) return;
+                addStockNumberInput.value = button.dataset.stockNumberOption || '';
+                await syncCertificateAddPanelFromOption();
+            });
+        });
 
         const syncRequestPanelFromRequester = async () => {
             if (!requesterInput) return;

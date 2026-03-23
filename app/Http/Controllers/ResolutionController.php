@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesCorporateDocumentNumbers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Minute;
 use App\Models\Resolution;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 class ResolutionController extends Controller
 {
+    use GeneratesCorporateDocumentNumbers;
     use HandlesUploads;
 
     public function index()
@@ -16,7 +22,11 @@ class ResolutionController extends Controller
         $resolutions = Resolution::with(['minute', 'notice', 'secretaryCertificates'])->latest()->get();
         $minutes = Minute::with('notice')->orderBy('date_of_meeting')->get();
 
-        return view('corporate.resolutions.index', compact('resolutions', 'minutes'));
+        return view('corporate.resolutions.index', [
+            'resolutions' => $resolutions,
+            'minutes' => $minutes,
+            'nextResolutionNumber' => $this->nextResolutionNumber(),
+        ]);
     }
 
     public function create()
@@ -27,7 +37,11 @@ class ResolutionController extends Controller
             'method' => 'POST',
             'cancelRoute' => route('resolutions'),
             'fields' => $this->fields(),
-            'item' => new Resolution(),
+            'item' => new Resolution([
+                'resolution_no' => $this->nextResolutionNumber(),
+                'date_uploaded' => now()->toDateString(),
+                'uploaded_by' => auth()->user()?->name ?? '',
+            ]),
         ]);
     }
 
@@ -37,8 +51,11 @@ class ResolutionController extends Controller
         $data = $this->mergeMinuteData($data);
         $data['draft_file_path'] = $this->handleUpload($request, 'draft_file_path');
         $data['notarized_file_path'] = $this->handleUpload($request, 'notarized_file_path');
+        $data['resolution_no'] = $data['resolution_no'] ?: $this->nextResolutionNumber();
+        $data = $this->filterPersistableData($data);
 
         $resolution = Resolution::create($data);
+        $this->syncGeneratedResolutionPdf($resolution, $request->hasFile('draft_file_path'));
         $this->syncSecretaryCertificates($resolution);
 
         return redirect()->route('resolutions')->with('success', 'Resolution created.');
@@ -46,6 +63,8 @@ class ResolutionController extends Controller
 
     public function show(Resolution $resolution)
     {
+        $this->syncGeneratedResolutionPdf($resolution, false);
+        $resolution = $resolution->fresh();
         $resolution->load(['notice', 'secretaryCertificates']);
 
         return view('corporate.resolutions.preview', [
@@ -75,8 +94,10 @@ class ResolutionController extends Controller
         $data = $this->mergeMinuteData($data);
         $data['draft_file_path'] = $this->handleUpload($request, 'draft_file_path', $resolution->draft_file_path);
         $data['notarized_file_path'] = $this->handleUpload($request, 'notarized_file_path', $resolution->notarized_file_path);
+        $data = $this->filterPersistableData($data);
 
         $resolution->update($data);
+        $this->syncGeneratedResolutionPdf($resolution->fresh(), $request->hasFile('draft_file_path'));
         $this->syncSecretaryCertificates($resolution->fresh());
 
         return redirect()->route('resolutions')->with('success', 'Resolution updated.');
@@ -211,5 +232,137 @@ class ResolutionController extends Controller
     private function meetingTypeOptions(): array
     {
         return ['Regular', 'Special'];
+    }
+
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('resolutions', $key))
+            ->all();
+    }
+
+    private function syncGeneratedResolutionPdf(Resolution $resolution, bool $hasUploadedDraft): void
+    {
+        if ($hasUploadedDraft || $resolution->draft_file_path) {
+            return;
+        }
+
+        $pdfPath = $this->generateResolutionPdf($resolution->fresh());
+
+        if (!$pdfPath) {
+            return;
+        }
+
+        $resolution->update(['draft_file_path' => $pdfPath]);
+    }
+
+    private function generateResolutionPdf(Resolution $resolution): ?string
+    {
+        $browserBinary = $this->browserBinary();
+
+        if (!$browserBinary) {
+            return null;
+        }
+
+        $html = view('corporate.resolutions.pdf', [
+            'resolution' => $resolution,
+        ])->render();
+
+        $tempDirectory = storage_path('app/temp');
+        if (!is_dir($tempDirectory)) {
+            mkdir($tempDirectory, 0777, true);
+        }
+
+        $basename = 'resolution-' . Str::slug($resolution->resolution_no ?: 'draft-resolution');
+        $htmlPath = $tempDirectory . DIRECTORY_SEPARATOR . $basename . '-' . Str::uuid() . '.html';
+        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . $basename . '-' . Str::uuid() . '.pdf';
+        $profilePath = $tempDirectory . DIRECTORY_SEPARATOR . $basename . '-profile-' . Str::uuid();
+
+        file_put_contents($htmlPath, $html);
+        if (!is_dir($profilePath)) {
+            mkdir($profilePath, 0777, true);
+        }
+
+        $process = new Process([
+            $browserBinary,
+            '--headless',
+            '--disable-gpu',
+            '--user-data-dir=' . $profilePath,
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--disable-crash-reporter',
+            '--disable-features=Crashpad',
+            '--noerrdialogs',
+            '--allow-file-access-from-files',
+            '--disable-web-security',
+            '--print-to-pdf=' . $pdfPath,
+            '--no-pdf-header-footer',
+            'file:///' . str_replace(DIRECTORY_SEPARATOR, '/', $htmlPath),
+        ]);
+
+        $process->setTimeout(60);
+        $process->setEnv([
+            'TEMP' => $tempDirectory,
+            'TMP' => $tempDirectory,
+            'LOCALAPPDATA' => $tempDirectory,
+            'APPDATA' => $tempDirectory,
+        ]);
+        $process->run();
+
+        @unlink($htmlPath);
+        $this->deleteDirectory($profilePath);
+
+        if (!file_exists($pdfPath) || filesize($pdfPath) === 0) {
+            @unlink($pdfPath);
+
+            return null;
+        }
+
+        $targetPath = 'uploads/resolutions/' . ($resolution->resolution_no ?: 'draft-resolution') . '.pdf';
+
+        Storage::disk('public')->delete($targetPath);
+        Storage::disk('public')->put($targetPath, file_get_contents($pdfPath));
+        @unlink($pdfPath);
+
+        return $targetPath;
+    }
+
+    private function browserBinary(): ?string
+    {
+        $candidates = [
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function deleteDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $items = array_diff(scandir($directory) ?: [], ['.', '..']);
+
+        foreach ($items as $item) {
+            $path = $directory . DIRECTORY_SEPARATOR . $item;
+
+            if (is_dir($path)) {
+                $this->deleteDirectory($path);
+            } else {
+                @unlink($path);
+            }
+        }
+
+        @rmdir($directory);
     }
 }

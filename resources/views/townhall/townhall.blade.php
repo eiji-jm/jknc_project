@@ -241,6 +241,7 @@
                         <tr>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Ref#</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Date</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Deadline</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Department/Stakeholder</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">From</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Subject</th>
@@ -260,6 +261,7 @@
                             >
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->communication_date }}</td>
+                                <td class="px-3 py-3 border-r border-gray-200">{{ optional($communication->deadline_date)->format('M d, Y') ?: '—' }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->department_stakeholder }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->from_name }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>

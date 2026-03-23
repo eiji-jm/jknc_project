@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\HandlesUploads;
+use App\Http\Controllers\Concerns\SyncsDeadlineTownHallMemo;
 use App\Models\BirTax;
 use App\Models\GisRecord;
 use Illuminate\Http\Request;
@@ -10,7 +12,9 @@ use Illuminate\Support\Facades\Schema;
 
 class BirTaxController extends Controller
 {
+    use GeneratesPdfPreview;
     use HandlesUploads;
+    use SyncsDeadlineTownHallMemo;
 
     public function index()
     {
@@ -38,17 +42,36 @@ class BirTaxController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
-        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+        if (Schema::hasColumn('bir_taxes', 'approved_document_path')) {
+            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+        }
 
-        BirTax::create($data);
+        $birTax = BirTax::create($this->filterPersistableData($data));
+        $this->syncDeadlineTownHallMemo(
+            $birTax,
+            $birTax->due_date?->toDateString(),
+            'BIR & Tax',
+            trim(($birTax->form_type ?: 'BIR filing') . ' - ' . ($birTax->tax_payer ?: $birTax->tin ?: 'Untitled Record'), ' -'),
+            'bir-tax.preview'
+        );
 
         return redirect()->route('bir-tax')->with('success', 'BIR & Tax entry created.');
     }
 
     public function show(BirTax $birTax)
     {
+        $generatedDraftPath = null;
+        if (!$birTax->document_path) {
+            $generatedDraftPath = $this->generatePdfPreview(
+                'corporate.bir-tax.pdf',
+                ['tax' => $birTax],
+                'generated-previews/bir-tax/' . ($birTax->tin ?: $birTax->id) . '-draft.pdf'
+            );
+        }
+
         return view('corporate.bir-tax.preview', [
             'tax' => $birTax,
+            'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
             'backRoute' => route('bir-tax'),
             'editRoute' => route('bir-tax.edit', $birTax),
             'deleteRoute' => route('bir-tax.destroy', $birTax),
@@ -72,15 +95,26 @@ class BirTaxController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $birTax->document_path);
-        $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $birTax->approved_document_path);
+        if (Schema::hasColumn('bir_taxes', 'approved_document_path')) {
+            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $birTax->approved_document_path);
+        }
 
-        $birTax->update($data);
+        $birTax->update($this->filterPersistableData($data));
+        $birTax->refresh();
+        $this->syncDeadlineTownHallMemo(
+            $birTax,
+            $birTax->due_date?->toDateString(),
+            'BIR & Tax',
+            trim(($birTax->form_type ?: 'BIR filing') . ' - ' . ($birTax->tax_payer ?: $birTax->tin ?: 'Untitled Record'), ' -'),
+            'bir-tax.preview'
+        );
 
         return redirect()->route('bir-tax')->with('success', 'BIR & Tax entry updated.');
     }
 
     public function destroy(BirTax $birTax)
     {
+        $this->deleteDeadlineTownHallMemo($birTax);
         $birTax->delete();
 
         return redirect()->route('bir-tax')->with('success', 'BIR & Tax entry deleted.');
@@ -141,5 +175,12 @@ class BirTaxController extends Controller
             'tin' => '000-000-000-000',
             'registered_address' => 'JK&C Corporate Office',
         ];
+    }
+
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('bir_taxes', $key))
+            ->all();
     }
 }

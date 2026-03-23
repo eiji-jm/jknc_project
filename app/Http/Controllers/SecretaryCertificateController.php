@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesCorporateDocumentNumbers;
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Notice;
 use App\Models\Resolution;
 use App\Models\SecretaryCertificate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class SecretaryCertificateController extends Controller
 {
+    use GeneratesCorporateDocumentNumbers;
+    use GeneratesPdfPreview;
     use HandlesUploads;
 
     public function index()
@@ -17,7 +22,11 @@ class SecretaryCertificateController extends Controller
         $certificates = SecretaryCertificate::with(['notice', 'resolution'])->latest()->get();
         $resolutions = Resolution::with('notice')->orderBy('date_of_meeting')->get();
 
-        return view('corporate.secretary-certificates.index', compact('certificates', 'resolutions'));
+        return view('corporate.secretary-certificates.index', [
+            'certificates' => $certificates,
+            'resolutions' => $resolutions,
+            'nextCertificateNumber' => $this->nextSecretaryCertificateNumber(),
+        ]);
     }
 
     public function create()
@@ -28,7 +37,12 @@ class SecretaryCertificateController extends Controller
             'method' => 'POST',
             'cancelRoute' => route('secretary-certificates'),
             'fields' => $this->fields(),
-            'item' => new SecretaryCertificate(),
+            'item' => new SecretaryCertificate([
+                'certificate_no' => $this->nextSecretaryCertificateNumber(),
+                'date_uploaded' => now()->toDateString(),
+                'uploaded_by' => auth()->user()?->name ?? '',
+                'date_issued' => now()->toDateString(),
+            ]),
         ]);
     }
 
@@ -37,6 +51,8 @@ class SecretaryCertificateController extends Controller
         $data = $this->validateData($request);
         $data = $this->mergeResolutionData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['certificate_no'] = $data['certificate_no'] ?: $this->nextSecretaryCertificateNumber();
+        $data = $this->filterPersistableData($data);
 
         SecretaryCertificate::create($data);
 
@@ -46,9 +62,15 @@ class SecretaryCertificateController extends Controller
     public function show(SecretaryCertificate $secretaryCertificate)
     {
         $secretaryCertificate->load(['notice', 'resolution.notice']);
+        $generatedDraftPath = $this->generatePdfPreview(
+            'corporate.secretary-certificates.pdf',
+            ['certificate' => $secretaryCertificate],
+            'generated-previews/secretary-certificates/' . ($secretaryCertificate->certificate_no ?: $secretaryCertificate->id) . '-draft.pdf'
+        );
 
         return view('corporate.secretary-certificates.preview', [
             'certificate' => $secretaryCertificate,
+            'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
             'backRoute' => route('secretary-certificates'),
             'editRoute' => route('secretary-certificates.edit', $secretaryCertificate),
             'updateRoute' => route('secretary-certificates.update', $secretaryCertificate),
@@ -73,6 +95,7 @@ class SecretaryCertificateController extends Controller
         $data = $this->validateData($request);
         $data = $this->mergeResolutionData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $secretaryCertificate->document_path);
+        $data = $this->filterPersistableData($data);
 
         $secretaryCertificate->update($data);
 
@@ -178,5 +201,12 @@ class SecretaryCertificateController extends Controller
     private function meetingTypeOptions(): array
     {
         return ['Regular', 'Special'];
+    }
+
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('secretary_certificates', $key))
+            ->all();
     }
 }

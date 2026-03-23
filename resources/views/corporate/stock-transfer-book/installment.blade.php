@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false, installmentMode: 'both' }" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false, autoStockNumber: true }" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4">
             <a href="{{ route('stock-transfer-book') }}" class="text-gray-500 hover:text-gray-700">
@@ -22,12 +22,8 @@
 
         <div class="border-t border-gray-100"></div>
 
-        <div x-show="!showPreview" class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
-            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
-            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
-            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
-            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Installment</a>
-            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
+        <div x-show="!showPreview">
+            @include('corporate.stock-transfer-book.partials.section-tabs', ['currentStockTransferTab' => 'installment'])
         </div>
 
         <div x-show="!showPreview" class="px-4 py-4 bg-gray-50 border-b border-gray-100">
@@ -59,18 +55,18 @@
                                 <td class="px-4 py-3">{{ $installment->total_value }}</td>
                                 <td class="px-4 py-3">
                                     @php
-                                        $status = strtolower((string) ($installment->payment_status ?? 'overdue'));
+                                        $status = strtolower((string) ($installment->payment_status ?? 'unpaid'));
                                         $statusClasses = match ($status) {
                                             'paid' => 'bg-green-100 text-green-800',
                                             'partial' => 'bg-blue-100 text-blue-800',
-                                            'overdue' => 'bg-amber-100 text-amber-800',
+                                            'unpaid' => 'bg-amber-100 text-amber-800',
                                             'cancelled' => 'bg-red-100 text-red-800',
                                             'voided' => 'bg-gray-200 text-gray-800',
                                             default => 'bg-amber-100 text-amber-800',
                                         };
                                     @endphp
                                     <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {{ $statusClasses }}">
-                                        {{ ucfirst($status ?: 'overdue') }}
+                                        {{ ucfirst($status ?: 'unpaid') }}
                                     </span>
                                 </td>
                             </tr>
@@ -105,78 +101,56 @@
             </div>
             <form method="POST" action="{{ route('stock-transfer-book.installment.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
                 @csrf
+                <input type="hidden" name="installment_mode" value="stock_subscribe">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <div class="text-sm font-semibold text-gray-900 mb-3">Installment Entry Type</div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900">
-                                <input type="radio" name="installment_mode" value="stock_subscribe" x-model="installmentMode" class="border-gray-300 text-blue-600 focus:ring-blue-500">
-                                <span>Stock Subscribe</span>
-                            </label>
-                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900">
-                                <input type="radio" name="installment_mode" value="stock_payment" x-model="installmentMode" class="border-gray-300 text-blue-600 focus:ring-blue-500">
-                                <span>Stock Payment</span>
-                            </label>
-                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900">
-                                <input type="radio" name="installment_mode" value="both" x-model="installmentMode" class="border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-                                <span>Both</span>
-                            </label>
-                        </div>
-                    </div>
-
                     <div class="md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-4">
                         <div class="text-sm font-semibold text-gray-900 mb-3">Stock Subscribed</div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="text-xs text-gray-600">Stock Number</label>
-                                <input type="text" name="stock_number" list="installment-stock-numbers" data-autofill-key data-autofill-field="stock_number" data-default-field="stock_number" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                                <input type="text" name="stock_number" list="installment-stock-numbers" data-autofill-key data-autofill-field="stock_number" data-default-field="stock_number" x-bind:readonly="autoStockNumber" x-bind:class="autoStockNumber ? 'bg-gray-50' : 'bg-white'" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
+                                <label class="mt-2 inline-flex items-center gap-2 text-xs text-gray-700">
+                                    <input type="checkbox" x-model="autoStockNumber" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span>Auto-increment stock number</span>
+                                </label>
                             </div>
                             <div>
                                 <label class="text-xs text-gray-600">Holder</label>
                                 <input type="text" name="subscriber" list="index-shareholders" data-autofill-field="subscriber" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Holder name">
                             </div>
-                            <div x-show="installmentMode !== 'stock_payment'">
+                            <div>
                                 <label class="text-xs text-gray-600">Date</label>
                                 <input type="date" name="installment_date" data-autofill-field="installment_date" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             </div>
-                            <div x-show="installmentMode !== 'stock_payment'">
+                            <div>
                                 <label class="text-xs text-gray-600">No. Shares</label>
-                                <input type="number" name="no_shares" data-autofill-field="no_shares" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                                <input type="number" name="no_shares" data-autofill-field="no_shares" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
                             </div>
-                            <div x-show="installmentMode !== 'stock_payment'">
+                            <div>
                                 <label class="text-xs text-gray-600">No. of Installments</label>
-                                <input type="number" name="no_installments" data-autofill-field="no_installments" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
+                                <input type="number" name="no_installments" data-autofill-field="no_installments" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
                             </div>
-                            <div x-show="installmentMode !== 'stock_payment'">
+                            <div>
+                                <label class="text-xs text-gray-600">PAR</label>
+                                <input type="number" step="0.01" name="par_value" data-autofill-field="par_value" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100.00">
+                            </div>
+                            <div>
                                 <label class="text-xs text-gray-600">Total Value (PhP)</label>
-                                <input type="text" name="total_value" data-autofill-field="total_value" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100000.00">
+                                <input type="text" name="total_value" data-autofill-field="total_value" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm" placeholder="100000.00" readonly>
                             </div>
-                            <div x-show="installmentMode !== 'stock_payment'">
+                            <div>
                                 <label class="text-xs text-gray-600">Per Installment</label>
-                                <input type="text" name="installment_amount" data-autofill-field="installment_amount" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="25000.00">
+                                <input type="text" name="installment_amount" data-autofill-field="installment_amount" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm" placeholder="25000.00" readonly>
                             </div>
                             <div>
                                 <label class="text-xs text-gray-600">Status</label>
-                                <input type="text" data-status-display class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600" value="Overdue" readonly>
-                                <input type="hidden" name="status" value="overdue" data-autofill-field="status">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2 rounded-xl border border-green-200 bg-green-50 p-4" x-show="installmentMode === 'stock_payment' || installmentMode === 'both'">
-                        <div class="text-sm font-semibold text-gray-900 mb-3">Stock Payment</div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-xs text-gray-600">Payment Date</label>
-                                <input type="date" name="payment_date" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="text-xs text-gray-600">Amount Paid</label>
-                                <input type="number" step="0.01" name="payment_amount" data-payment-amount class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="25000.00">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="text-xs text-gray-600">Payment Remarks</label>
-                                <textarea name="payment_remarks" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Optional note for stock payment. Saving this section will also reflect in ledger and journal."></textarea>
+                                <select name="status" data-status-select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                                    <option value="unpaid">Unpaid</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="voided">Voided</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -214,6 +188,31 @@
 </datalist>
 
 <script>
+    window.updateInstallmentFinancials = (panel) => {
+        if (!panel) return;
+
+        const sharesInput = panel.querySelector('[name="no_shares"]');
+        const installmentsInput = panel.querySelector('[name="no_installments"]');
+        const parInput = panel.querySelector('[name="par_value"]');
+        const totalValueInput = panel.querySelector('[name="total_value"]');
+        const perInstallmentInput = panel.querySelector('[name="installment_amount"]');
+
+        const shares = parseFloat(sharesInput?.value || '0');
+        const installments = parseInt(installmentsInput?.value || '0', 10);
+        const par = parseFloat(parInput?.value || '0');
+
+        const totalValue = shares > 0 && par > 0 ? shares * par : 0;
+        const perInstallment = totalValue > 0 && installments > 0 ? totalValue / installments : 0;
+
+        if (totalValueInput) {
+            totalValueInput.value = totalValue > 0 ? totalValue.toFixed(2) : '';
+        }
+
+        if (perInstallmentInput) {
+            perInstallmentInput.value = perInstallment > 0 ? perInstallment.toFixed(2) : '';
+        }
+    };
+
     (function () {
         const searchInput = document.getElementById('installment-search');
         const tableBody = document.getElementById('installment-table-body');
@@ -249,16 +248,14 @@
         const keyInput = addPanel.querySelector('[data-autofill-key]');
         const holderInput = addPanel.querySelector('[name="subscriber"]');
         const fieldInputs = Array.from(addPanel.querySelectorAll('[data-autofill-field]'));
-        const paymentAmountInput = addPanel.querySelector('[data-payment-amount]');
+        const parValueInput = addPanel.querySelector('[name="par_value"]');
         const installmentAmountInput = addPanel.querySelector('[name="installment_amount"]');
         const totalValueInput = addPanel.querySelector('[name="total_value"]');
-        const hiddenStatus = addPanel.querySelector('[name="status"]');
-        const statusDisplay = addPanel.querySelector('[data-status-display]');
-        const modeInputs = Array.from(addPanel.querySelectorAll('[name="installment_mode"]'));
+        const sharesInput = addPanel.querySelector('[name="no_shares"]');
+        const noInstallmentsInput = addPanel.querySelector('[name="no_installments"]');
+        const statusSelect = addPanel.querySelector('[data-status-select]');
         const today = new Date().toISOString().split('T')[0];
         let existingPaymentTotal = 0;
-
-        const currentMode = () => modeInputs.find((input) => input.checked)?.value || 'both';
 
         const valueFrom = (field, data) => {
             const installment = data.installment || {};
@@ -276,6 +273,8 @@
                     return installment.no_shares || cert.number || ledger.shares || '';
                 case 'no_installments':
                     return installment.no_installments || '';
+                case 'par_value':
+                    return installment.par_value || cert.par_value || data.company?.par_value || '';
                 case 'total_value':
                     return installment.total_value || cert.amount || '';
                 case 'installment_amount':
@@ -288,25 +287,24 @@
         };
 
         const refreshStatus = () => {
-            if (!hiddenStatus || !statusDisplay) return;
+            if (!statusSelect) return;
 
-            const mode = currentMode();
-            const paidAmount = parseFloat(paymentAmountInput?.value || '0') + existingPaymentTotal;
-            const expectedAmount = parseFloat(totalValueInput?.value || installmentAmountInput?.value || '0');
+            const paidAmount = existingPaymentTotal;
+            const expectedAmount = parseFloat(totalValueInput?.value || '0');
 
-            let nextStatus = 'overdue';
+            let nextStatus = 'unpaid';
             if (paidAmount > 0 && (expectedAmount <= 0 || paidAmount >= expectedAmount)) {
                 nextStatus = 'paid';
             } else if (paidAmount > 0) {
                 nextStatus = 'partial';
             }
 
-            if (mode === 'stock_subscribe' && paidAmount <= 0) {
-                nextStatus = 'overdue';
-            }
+            statusSelect.value = nextStatus;
+        };
 
-            hiddenStatus.value = nextStatus;
-            statusDisplay.value = nextStatus.replace(/\b\w/g, (char) => char.toUpperCase());
+        const refreshFinancials = () => {
+            window.updateInstallmentFinancials(addPanel);
+            refreshStatus();
         };
 
         const runLookup = async (value) => {
@@ -331,6 +329,7 @@
                 });
 
                 existingPaymentTotal = parseFloat(data.installment?.payment_total || '0');
+                refreshFinancials();
                 refreshStatus();
             } catch (e) {
                 // Ignore lookup errors.
@@ -356,11 +355,8 @@
         document.querySelector('[data-open-add-panel]')?.addEventListener('click', async () => {
             existingPaymentTotal = 0;
             addPanel.querySelector('form')?.reset();
-            modeInputs.forEach((input) => {
-                input.checked = input.value === 'both';
-            });
-            modeInputs.find((input) => input.value === 'both')?.dispatchEvent(new Event('change', { bubbles: true }));
             applyDefaults();
+            refreshFinancials();
             refreshStatus();
 
             try {
@@ -368,6 +364,7 @@
                 if (!res.ok) return;
                 const defaults = await res.json();
                 applyDefaults(defaults);
+                refreshFinancials();
                 refreshStatus();
             } catch (e) {
                 // Ignore defaults errors.
@@ -379,19 +376,13 @@
         holderInput?.addEventListener('change', () => runLookup(holderInput.value));
         holderInput?.addEventListener('blur', () => runLookup(holderInput.value));
 
-        [paymentAmountInput, installmentAmountInput, totalValueInput].forEach((input) => {
-            input?.addEventListener('input', refreshStatus);
-            input?.addEventListener('change', refreshStatus);
+        [sharesInput, noInstallmentsInput, parValueInput].forEach((input) => {
+            input?.addEventListener('input', refreshFinancials);
+            input?.addEventListener('keyup', refreshFinancials);
+            input?.addEventListener('paste', () => requestAnimationFrame(refreshFinancials));
+            input?.addEventListener('change', refreshFinancials);
         });
 
-        modeInputs.forEach((input) => {
-            input.addEventListener('change', () => {
-                if (currentMode() === 'stock_payment' && existingPaymentTotal === 0) {
-                    if (keyInput) keyInput.value = '';
-                    if (holderInput) holderInput.value = '';
-                }
-                refreshStatus();
-            });
-        });
+        refreshFinancials();
     })();
 </script>

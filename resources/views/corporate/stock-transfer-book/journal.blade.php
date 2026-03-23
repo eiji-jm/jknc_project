@@ -26,14 +26,7 @@
 
         <div class="border-t border-gray-100"></div>
 
-        {{-- NAVIGATION TABS --}}
-        <div class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
-            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Index</a>
-            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Journal</a>
-            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
-            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
-            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
-        </div>
+        @include('corporate.stock-transfer-book.partials.section-tabs', ['currentStockTransferTab' => 'journal'])
 
         {{-- SEARCH --}}
         <div class="px-4 py-4 bg-gray-50 border-b border-gray-100">
@@ -186,8 +179,7 @@
                                                 :class="{
                                                     'bg-green-100 text-green-800': selectedEntry.transactionType === 'Issuance',
                                                     'bg-blue-100 text-blue-800': selectedEntry.transactionType === 'Transfer',
-                                                    'bg-red-100 text-red-800': selectedEntry.transactionType === 'Cancellation',
-                                                    'bg-amber-100 text-amber-800': selectedEntry.transactionType === 'Payment'
+                                                    'bg-red-100 text-red-800': selectedEntry.transactionType === 'Cancellation'
                                                 }">
                                             </span>
                                     </div>
@@ -280,7 +272,6 @@
                         <select name="transaction_type" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             <option>Issuance</option>
                             <option>Cancellation</option>
-                            <option>Payment</option>
                         </select>
                     </div>
                     <div>

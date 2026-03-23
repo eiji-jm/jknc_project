@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
 use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
 use App\Models\StockTransferIssuanceRequest;
@@ -20,6 +21,7 @@ class StockTransferLedgerController extends Controller
     use HandlesUploads;
     use MatchesShareholder;
     use GeneratesStockTransferIds;
+    use GeneratesPdfPreview;
 
     public function indexPage()
     {
@@ -60,8 +62,6 @@ class StockTransferLedgerController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
-        $data['status'] = $data['status'] ?? 'active';
-
         $contact = $this->resolveContact($data['first_name'] ?? null, $data['middle_name'] ?? null, $data['family_name'] ?? null);
         if (!$contact) {
             return back()->withErrors([
@@ -84,20 +84,7 @@ class StockTransferLedgerController extends Controller
         }
 
         DB::transaction(function () use ($data) {
-            $ledger = StockTransferLedger::create($data);
-
-            StockTransferJournal::create([
-                'entry_date' => $data['date_registered'],
-                'journal_no' => $this->nextJournalNo(),
-                'ledger_folio' => $this->nextLedgerFolio(),
-                'particulars' => 'Index entry created',
-                'no_shares' => $data['shares'] ?? null,
-                'transaction_type' => 'Index',
-                'certificate_no' => $data['certificate_no'] ?? null,
-                'shareholder' => trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')),
-                'remarks' => 'Auto-generated from index creation.',
-                'status' => $data['status'] ?? 'active',
-            ]);
+            StockTransferLedger::create($data);
         });
 
         return redirect()->route('stock-transfer-book.ledger')->with('success', 'Shareholder added.');
@@ -154,8 +141,18 @@ class StockTransferLedgerController extends Controller
                 ->get()
             : collect();
 
+        $generatedPreviewPath = $this->generatePdfPreview(
+            'corporate.stock-transfer-book.ledger-pdf',
+            [
+                'ledger' => $stockTransferLedger,
+                'journalEntries' => $journalEntries,
+            ],
+            'generated-previews/stock-transfer-book/ledger/' . ($stockTransferLedger->certificate_no ?: $stockTransferLedger->id) . '.pdf'
+        );
+
         return view('corporate.stock-transfer-book.ledger-preview', [
             'ledger' => $stockTransferLedger,
+            'generatedPreviewUrl' => $generatedPreviewPath ? route('uploads.show', ['path' => $generatedPreviewPath]) : null,
             'journalEntries' => $journalEntries,
             'relatedCertificates' => $relatedCertificates,
             'relatedInstallments' => $relatedInstallments,
@@ -208,7 +205,6 @@ class StockTransferLedgerController extends Controller
             ['name' => 'shares', 'label' => 'Number of Shares', 'type' => 'number'],
             ['name' => 'certificate_no', 'label' => 'Certificate No.', 'type' => 'text'],
             ['name' => 'date_registered', 'label' => 'Date Registered', 'type' => 'date'],
-            ['name' => 'status', 'label' => 'Status', 'type' => 'text'],
             ['name' => 'document_path', 'label' => 'Upload Document (PDF)', 'type' => 'file'],
         ];
     }
@@ -227,7 +223,6 @@ class StockTransferLedgerController extends Controller
             'shares' => ['nullable', 'integer'],
             'certificate_no' => ['nullable', 'string', 'max:255'],
             'date_registered' => ['nullable', 'date'],
-            'status' => ['nullable', 'string', 'max:255'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
     }

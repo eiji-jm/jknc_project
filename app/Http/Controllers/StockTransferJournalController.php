@@ -5,18 +5,19 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
 use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
 use App\Models\StockTransferInstallment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class StockTransferJournalController extends Controller
 {
     use HandlesUploads;
     use MatchesShareholder;
     use GeneratesStockTransferIds;
+    use GeneratesPdfPreview;
 
     public function index()
     {
@@ -86,24 +87,6 @@ class StockTransferJournalController extends Controller
             $data['ledger_folio'] = $this->nextLedgerFolio();
         }
 
-        $installment = null;
-        if (!empty($data['certificate_no'])) {
-            $installment = StockTransferInstallment::query()
-                ->where('stock_number', $data['certificate_no'])
-                ->latest()
-                ->first();
-        }
-
-        $isPaymentEntry = ($data['transaction_type'] ?? '') === 'Payment'
-            || Str::contains(Str::lower($data['particulars'] ?? ''), 'payment')
-            || Str::contains(Str::lower($data['remarks'] ?? ''), 'payment');
-
-        if ($installment && $installment->isCancelled() && $isPaymentEntry) {
-            return back()->withErrors([
-                'certificate_no' => 'Cannot record payment: installment has been cancelled.',
-            ])->withInput();
-        }
-
         StockTransferJournal::create($data);
 
         return redirect()->route('stock-transfer-book.journal')->with('success', 'Journal entry added.');
@@ -154,8 +137,18 @@ class StockTransferJournalController extends Controller
             ->latest()
             ->get();
 
+        $generatedPreviewPath = $this->generatePdfPreview(
+            'corporate.stock-transfer-book.journal-pdf',
+            [
+                'journal' => $stockTransferJournal,
+                'journalEntries' => $journalEntries,
+            ],
+            'generated-previews/stock-transfer-book/journal/' . ($stockTransferJournal->journal_no ?: $stockTransferJournal->id) . '.pdf'
+        );
+
         return view('corporate.stock-transfer-book.journal-preview', [
             'journal' => $stockTransferJournal,
+            'generatedPreviewUrl' => $generatedPreviewPath ? route('uploads.show', ['path' => $generatedPreviewPath]) : null,
             'journalEntries' => $journalEntries,
             'relatedCertificates' => $relatedCertificates,
             'relatedLedgers' => $relatedLedgers,
@@ -203,7 +196,7 @@ class StockTransferJournalController extends Controller
             ['name' => 'ledger_folio', 'label' => 'Ledger Folio', 'type' => 'text'],
             ['name' => 'particulars', 'label' => 'Particulars', 'type' => 'textarea'],
             ['name' => 'no_shares', 'label' => 'No. Shares', 'type' => 'number'],
-            ['name' => 'transaction_type', 'label' => 'Transaction Type', 'type' => 'select', 'options' => ['Issuance', 'Cancellation', 'Payment']],
+            ['name' => 'transaction_type', 'label' => 'Transaction Type', 'type' => 'select', 'options' => ['Issuance', 'Cancellation']],
             ['name' => 'certificate_no', 'label' => 'Certificate No.', 'type' => 'text'],
             ['name' => 'shareholder', 'label' => 'Shareholder', 'type' => 'text'],
             ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea'],
@@ -219,7 +212,7 @@ class StockTransferJournalController extends Controller
             'ledger_folio' => ['nullable', 'string', 'max:255'],
             'particulars' => ['nullable', 'string'],
             'no_shares' => ['nullable', 'integer'],
-            'transaction_type' => ['nullable', 'string', 'max:255'],
+            'transaction_type' => ['nullable', 'string', 'in:Issuance,Cancellation'],
             'certificate_no' => ['nullable', 'string', 'max:255'],
             'shareholder' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],

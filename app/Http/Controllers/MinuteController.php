@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesCorporateDocumentNumbers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Minute;
 use App\Models\Notice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class MinuteController extends Controller
 {
+    use GeneratesCorporateDocumentNumbers;
     use HandlesUploads;
 
     public function index()
@@ -17,7 +20,11 @@ class MinuteController extends Controller
         $minutes = Minute::with('notice')->latest()->get();
         $notices = Notice::orderBy('date_of_meeting')->get();
 
-        return view('corporate.minutes.index', compact('minutes', 'notices'));
+        return view('corporate.minutes.index', [
+            'minutes' => $minutes,
+            'notices' => $notices,
+            'nextMinutesRef' => $this->nextMinutesRef(),
+        ]);
     }
 
     public function create()
@@ -28,7 +35,11 @@ class MinuteController extends Controller
             'method' => 'POST',
             'cancelRoute' => route('minutes'),
             'fields' => $this->fields(),
-            'item' => new Minute(),
+            'item' => new Minute([
+                'minutes_ref' => $this->nextMinutesRef(),
+                'date_uploaded' => now()->toDateString(),
+                'uploaded_by' => auth()->user()?->name ?? '',
+            ]),
         ]);
     }
 
@@ -37,6 +48,8 @@ class MinuteController extends Controller
         $data = $this->validateData($request);
         $data = $this->mergeNoticeData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
+        $data['minutes_ref'] = $data['minutes_ref'] ?: $this->nextMinutesRef();
+        $data = $this->filterPersistableData($data);
 
         Minute::create($data);
 
@@ -72,6 +85,7 @@ class MinuteController extends Controller
         $data = $this->validateData($request);
         $data = $this->mergeNoticeData($data);
         $data['document_path'] = $this->handleUpload($request, 'document_path', $minute->document_path);
+        $data = $this->filterPersistableData($data);
 
         $minute->update($data);
 
@@ -86,7 +100,7 @@ class MinuteController extends Controller
             'approved_minutes_path' => [$minute->approved_minutes_path ? 'nullable' : 'required', 'file', 'mimes:pdf', 'max:5120'],
         ]);
 
-        $minute->update([
+        $this->updateExistingColumns($minute, [
             'approved_by' => auth()->user()?->name,
             'approved_minutes_path' => $this->handleUpload($request, 'approved_minutes_path', $minute->approved_minutes_path),
         ]);
@@ -97,28 +111,26 @@ class MinuteController extends Controller
     public function saveWorkspace(Request $request, Minute $minute)
     {
         $request->validate([
-            'tentative_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'tentative_audio' => ['nullable', 'file', 'max:51200'],
+            'remove_tentative_audio' => ['nullable', 'boolean'],
             'recording_clips' => ['nullable', 'array'],
-            'recording_clips.*' => ['file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
-            'meeting_video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo,video/*', 'max:204800'],
+            'recording_clips.*' => ['file', 'max:51200'],
+            'sync_recording_clips' => ['nullable', 'boolean'],
+            'retained_recording_clips' => ['nullable', 'array'],
+            'retained_recording_clips.*' => ['string'],
+            'meeting_video' => ['nullable', 'file', 'max:204800'],
+            'remove_meeting_video' => ['nullable', 'boolean'],
             'script_file' => ['nullable', 'file', 'mimes:pdf,doc,docx,txt', 'max:51200'],
+            'remove_script_file' => ['nullable', 'boolean'],
             'recording_notes' => ['nullable', 'string'],
             'script_text' => ['nullable', 'string'],
         ]);
 
-        $recordingClips = collect($minute->recording_clips ?? []);
-
-        if ($request->hasFile('recording_clips')) {
-            foreach ($request->file('recording_clips') as $clip) {
-                $recordingClips->push($clip->store('uploads', 'public'));
-            }
-        }
-
-        $minute->update([
+        $this->updateExistingColumns($minute, [
             'tentative_audio_path' => $this->handleUpload($request, 'tentative_audio', $minute->tentative_audio_path),
+            'recording_clips' => $this->syncRecordingClips($request, $minute),
             'meeting_video_path' => $this->handleUpload($request, 'meeting_video', $minute->meeting_video_path),
             'script_file_path' => $this->handleUpload($request, 'script_file', $minute->script_file_path),
-            'recording_clips' => $recordingClips->values()->all(),
             'recording_notes' => $request->input('recording_notes', $minute->recording_notes),
             'script_text' => $request->input('script_text', $minute->script_text),
         ]);
@@ -129,12 +141,18 @@ class MinuteController extends Controller
     public function saveFinalRecording(Request $request, Minute $minute)
     {
         $request->validate([
-            'final_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'final_audio' => ['nullable', 'file', 'max:51200'],
+            'remove_final_audio' => ['nullable', 'boolean'],
         ]);
 
         $finalPath = $this->handleUpload($request, 'final_audio', $minute->final_audio_path);
 
-        if (!$request->hasFile('final_audio') && $minute->tentative_audio_path) {
+        if (
+            !$request->hasFile('final_audio')
+            && !$request->boolean('remove_final_audio')
+            && !$finalPath
+            && $minute->tentative_audio_path
+        ) {
             $finalPath = $this->duplicateUpload($minute->tentative_audio_path);
         }
 
@@ -144,7 +162,7 @@ class MinuteController extends Controller
             ], 422);
         }
 
-        $minute->update([
+        $this->updateExistingColumns($minute, [
             'final_audio_path' => $finalPath,
         ]);
 
@@ -154,36 +172,40 @@ class MinuteController extends Controller
     public function saveFinalPreview(Request $request, Minute $minute)
     {
         $request->validate([
-            'tentative_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
-            'final_audio' => ['nullable', 'file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
+            'tentative_audio' => ['nullable', 'file', 'max:51200'],
+            'remove_tentative_audio' => ['nullable', 'boolean'],
+            'final_audio' => ['nullable', 'file', 'max:51200'],
+            'remove_final_audio' => ['nullable', 'boolean'],
             'recording_clips' => ['nullable', 'array'],
-            'recording_clips.*' => ['file', 'mimetypes:audio/webm,audio/wav,audio/mpeg,audio/mp4,audio/ogg,audio/*', 'max:51200'],
-            'meeting_video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo,video/*', 'max:204800'],
+            'recording_clips.*' => ['file', 'max:51200'],
+            'sync_recording_clips' => ['nullable', 'boolean'],
+            'retained_recording_clips' => ['nullable', 'array'],
+            'retained_recording_clips.*' => ['string'],
+            'meeting_video' => ['nullable', 'file', 'max:204800'],
+            'remove_meeting_video' => ['nullable', 'boolean'],
             'script_file' => ['nullable', 'file', 'mimes:pdf,doc,docx,txt', 'max:51200'],
+            'remove_script_file' => ['nullable', 'boolean'],
             'recording_notes' => ['nullable', 'string'],
             'script_text' => ['nullable', 'string'],
         ]);
 
-        $recordingClips = collect($minute->recording_clips ?? []);
-
-        if ($request->hasFile('recording_clips')) {
-            foreach ($request->file('recording_clips') as $clip) {
-                $recordingClips->push($clip->store('uploads', 'public'));
-            }
-        }
-
         $finalPath = $this->handleUpload($request, 'final_audio', $minute->final_audio_path);
 
-        if (! $request->hasFile('final_audio') && ! $finalPath && $minute->tentative_audio_path) {
+        if (
+            ! $request->hasFile('final_audio')
+            && ! $request->boolean('remove_final_audio')
+            && ! $finalPath
+            && $minute->tentative_audio_path
+        ) {
             $finalPath = $this->duplicateUpload($minute->tentative_audio_path);
         }
 
-        $minute->update([
+        $this->updateExistingColumns($minute, [
             'tentative_audio_path' => $this->handleUpload($request, 'tentative_audio', $minute->tentative_audio_path),
             'final_audio_path' => $finalPath,
+            'recording_clips' => $this->syncRecordingClips($request, $minute),
             'meeting_video_path' => $this->handleUpload($request, 'meeting_video', $minute->meeting_video_path),
             'script_file_path' => $this->handleUpload($request, 'script_file', $minute->script_file_path),
-            'recording_clips' => $recordingClips->values()->all(),
             'recording_notes' => $request->input('recording_notes', $minute->recording_notes),
             'script_text' => $request->input('script_text', $minute->script_text),
         ]);
@@ -278,6 +300,24 @@ class MinuteController extends Controller
         return ['Regular', 'Special'];
     }
 
+    private function filterPersistableData(array $data): array
+    {
+        return collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('minutes', $key))
+            ->all();
+    }
+
+    private function updateExistingColumns(Minute $minute, array $data): void
+    {
+        $payload = collect($data)
+            ->filter(fn ($value, $key) => Schema::hasColumn('minutes', $key))
+            ->all();
+
+        if ($payload !== []) {
+            $minute->update($payload);
+        }
+    }
+
     private function userCanApprove(): bool
     {
         return auth()->check() && auth()->user()?->role === 'Admin';
@@ -302,11 +342,32 @@ class MinuteController extends Controller
             'recording_notes' => $minute->recording_notes,
             'script_text' => $minute->script_text,
             'recording_clips' => collect($minute->recording_clips ?? [])->map(fn ($path) => [
+                'id' => $path,
                 'url' => route('uploads.show', ['path' => $path]),
                 'download_url' => route('uploads.show', ['path' => $path, 'download' => 1]),
                 'filename' => basename($path),
             ])->values()->all(),
         ];
+    }
+
+    private function syncRecordingClips(Request $request, Minute $minute): array
+    {
+        $currentClips = collect($minute->recording_clips ?? []);
+        $clips = $request->boolean('sync_recording_clips')
+            ? $currentClips->filter(fn ($path) => in_array($path, $request->input('retained_recording_clips', []), true))->values()
+            : $currentClips->values();
+
+        $currentClips
+            ->diff($clips)
+            ->each(fn ($path) => Storage::disk('public')->delete($path));
+
+        if ($request->hasFile('recording_clips')) {
+            foreach ($request->file('recording_clips') as $clip) {
+                $clips->push($this->storeUploadedFile($clip));
+            }
+        }
+
+        return $clips->values()->all();
     }
 
     private function duplicateUpload(string $existingPath): ?string
@@ -315,8 +376,7 @@ class MinuteController extends Controller
             return null;
         }
 
-        $extension = pathinfo($existingPath, PATHINFO_EXTENSION);
-        $copyPath = 'uploads/' . uniqid('final-audio-', true) . ($extension ? '.' . $extension : '');
+        $copyPath = 'uploads/' . uniqid('final-audio-', true) . '/' . basename($existingPath);
 
         Storage::disk('public')->copy($existingPath, $copyPath);
 

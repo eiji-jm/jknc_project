@@ -4,8 +4,6 @@
 @php
     $selected = $notice;
     $documentUrl = $selected->document_path ? route('uploads.show', ['path' => $selected->document_path]) : null;
-    $documentPaneUrl = $selected->document_path ? asset('storage/' . ltrim($selected->document_path, '/')) : null;
-    $documentDownloadUrl = $selected->document_path ? route('uploads.show', ['path' => $selected->document_path, 'download' => 1]) : null;
     $meetingTitle = strtoupper(trim(($selected->type_of_meeting ?: 'Special') . ' ' . ($selected->governing_body ?: 'Board of Directors') . ' Meeting'));
     $noticeDate = optional($selected->date_of_notice)->format('F d, Y') ?: optional($selected->created_at)->format('F d, Y') ?: now()->format('F d, Y');
     $meetingDate = optional($selected->date_of_meeting)->format('F d, Y') ?: '________________';
@@ -23,16 +21,7 @@
     $meetingLocation = $selected->location ?: '________________';
     $secretaryName = $selected->secretary ?: 'Corporate Secretary';
     $agendaHtml = $selected->body_html ?: '
-        <ol>
-            <li>Invocation</li>
-            <li>Call to Order</li>
-            <li>Proof of Notice</li>
-            <li>Determination of Quorum</li>
-            <li>Reading and Approval of the Previous Minutes</li>
-            <li>Matters for Discussion and Approval</li>
-            <li>Other Business</li>
-            <li>Adjournment</li>
-        </ol>
+
     ';
     $generatedNoticePane = <<<HTML
 <!DOCTYPE html>
@@ -134,8 +123,6 @@
                 <div><strong>Agenda:</strong></div>
                 {$agendaHtml}
             </div>
-            <p>In the instance that the meeting shall be conducted in-person, the minutes of the meeting shall be properly documented and securely stored as part of the official corporate records in accordance with applicable corporate governance requirements.</p>
-            <p>Directors or stockholders intending to participate via video conferencing are requested to inform the Presiding Officer and the Corporate Secretary in advance so the quorum and participation records may be properly documented.</p>
         </div>
 
         <div class="signature">
@@ -199,9 +186,15 @@ HTML;
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3 space-y-4">
                 @if ($documentUrl)
-                    <iframe src="{{ $documentPaneUrl }}" class="w-full h-[700px] border rounded"></iframe>
+                    <iframe
+                        src="{{ $documentUrl }}"
+                        class="w-full h-[700px] border rounded bg-white">
+                    </iframe>
                 @else
-                    <iframe src="{{ $generatedNoticePaneUrl }}" class="w-full h-[700px] border rounded"></iframe>
+                    <iframe
+                        src="{{ $generatedNoticePaneUrl }}"
+                        class="w-full h-[700px] border rounded bg-white">
+                    </iframe>
                 @endif
             </div>
 
@@ -252,45 +245,8 @@ HTML;
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Uploaded By</span><div class="font-medium text-gray-900">{{ $selected->uploaded_by }}</div></div>
                     </div>
                 </div>
-
-                <div class="space-y-2">
-                    <button type="button" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" onclick="handleNoticeDownload(@js($documentDownloadUrl))">
-                        Download PDF
-                    </button>
-                    <button type="button" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" onclick="handleNoticePrint(@js($documentUrl))">
-                        Print
-                    </button>
-                </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    function handleNoticeDownload(url) {
-        if (url) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = '';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            return;
-        }
-
-        window.print();
-    }
-
-    function handleNoticePrint(url) {
-        if (url) {
-            const win = window.open(url, '_blank');
-            if (win) {
-                window.setTimeout(() => win.print(), 800);
-            }
-            return;
-        }
-
-        window.print();
-    }
-</script>
 @endsection

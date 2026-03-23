@@ -19,7 +19,7 @@
     ])->values();
 @endphp
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="minutesForm({{ Js::from($noticeOptions) }}, @js($today), @js($currentUser))" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="minutesForm({{ Js::from($noticeOptions) }}, @js($today), @js($currentUser), @js(route('corporate-document-defaults')), @js($nextMinutesRef ?? ''))" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <div class="text-lg font-semibold">Minutes of Meeting</div>
@@ -137,7 +137,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Minutes Ref</label>
-                        <input type="text" name="minutes_ref" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="MIN-2026-001">
+                        <input type="text" name="minutes_ref" x-ref="minutesRef" value="{{ $nextMinutesRef ?? '' }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="MIN-2026-001">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date Uploaded</label>
@@ -243,12 +243,14 @@
 </div>
 
 <script>
-    function minutesForm(notices, today, currentUser) {
+    function minutesForm(notices, today, currentUser, defaultsEndpoint, initialMinutesRef) {
         return {
             showAddPanel: false,
             notices,
             today,
             currentUser,
+            defaultsEndpoint,
+            initialMinutesRef,
             selectedNoticeId: '',
             get hasNotices() {
                 return this.notices.length > 0;
@@ -259,6 +261,10 @@
                 }
 
                 this.showAddPanel = true;
+                if (this.$refs.minutesRef) {
+                    this.$refs.minutesRef.value = this.initialMinutesRef || this.$refs.minutesRef.value || '';
+                }
+                this.loadDefaults();
                 if (this.$refs.uploadedBy) {
                     this.$refs.uploadedBy.value = this.currentUser || '';
                 }
@@ -268,6 +274,25 @@
                 }
 
                 this.$nextTick(() => this.applyNotice());
+            },
+            async loadDefaults() {
+                if (!this.defaultsEndpoint) {
+                    return;
+                }
+
+                try {
+                    const res = await fetch(this.defaultsEndpoint);
+                    if (!res.ok) {
+                        return;
+                    }
+
+                    const defaults = await res.json();
+                    if (this.$refs.minutesRef) {
+                        this.$refs.minutesRef.value = defaults.minutes_ref || this.initialMinutesRef || '';
+                    }
+                } catch (e) {
+                    // ignore defaults errors
+                }
             },
             applyNotice() {
                 const selected = this.notices.find((notice) => String(notice.id) === String(this.selectedNoticeId));

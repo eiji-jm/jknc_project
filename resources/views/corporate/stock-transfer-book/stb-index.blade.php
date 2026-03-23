@@ -17,20 +17,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
                 </svg>
-                Add Index
+                Add Shareholder
             </button>
         </div>
 
         <div class="border-t border-gray-100"></div>
 
-        {{-- NAVIGATION TABS --}}
-        <div class="px-4 py-3 border-b border-gray-100 flex gap-1 bg-gray-50">
-            <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600 bg-white">Index</a>
-            <a href="{{ route('stock-transfer-book.journal') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Journal</a>
-            <a href="{{ route('stock-transfer-book.ledger') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ledger</a>
-            <a href="{{ route('stock-transfer-book.installment') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Installment</a>
-            <a href="{{ route('stock-transfer-book.certificates') }}" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Certificates</a>
-        </div>
+        @include('corporate.stock-transfer-book.partials.section-tabs', ['currentStockTransferTab' => 'index'])
 
         {{-- FILTER SEARCH --}}
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
@@ -89,7 +82,7 @@
             @click.stop
         >
             <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                <div class="text-lg font-semibold">Add Index Entry</div>
+                <div class="text-lg font-semibold">Add Shareholder</div>
                 <div class="flex-1"></div>
                 <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
                     <i class="fas fa-times"></i>

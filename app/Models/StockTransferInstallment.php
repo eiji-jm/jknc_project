@@ -17,6 +17,7 @@ class StockTransferInstallment extends Model
         'installment_date',
         'no_shares',
         'no_installments',
+        'par_value',
         'total_value',
         'installment_amount',
         'payment_date',
@@ -37,6 +38,7 @@ class StockTransferInstallment extends Model
         'payment_date' => 'date',
         'cancellation_date' => 'date',
         'cancellation_effective_date' => 'date',
+        'par_value' => 'decimal:2',
         'total_value' => 'decimal:2',
         'installment_amount' => 'decimal:2',
         'payment_amount' => 'decimal:2',
@@ -57,11 +59,7 @@ class StockTransferInstallment extends Model
     public function paymentJournals(): HasMany
     {
         return $this->hasMany(StockTransferJournal::class, 'certificate_no', 'stock_number')
-            ->where(function ($query) {
-                $query->where('transaction_type', 'Payment')
-                    ->orWhere('particulars', 'like', '%payment%')
-                    ->orWhere('remarks', 'like', '%payment%');
-            });
+            ->where('transaction_type', 'Issuance');
     }
 
     public function normalizedSchedule(): array
@@ -120,14 +118,39 @@ class StockTransferInstallment extends Model
             ->all();
     }
 
+    public function scheduledInstallmentRows(): array
+    {
+        return collect($this->installmentRows())
+            ->values()
+            ->map(function (array $row, int $index) {
+                return [
+                    'no' => (int) ($row['no'] ?? ($index + 1)),
+                    'dueDate' => $this->normalizeScheduleDate($row['dueDate'] ?? $row['due_date'] ?? null),
+                    'amount' => $this->normalizeScheduleAmount($row['amount'] ?? null),
+                    'status' => $row['status'] ?? 'Pending',
+                    'paymentDate' => $this->normalizeScheduleDate($row['paymentDate'] ?? $row['payment_date'] ?? null),
+                ];
+            })
+            ->all();
+    }
+
     public function paymentCount(): int
     {
-        return $this->paymentJournals()->count();
+        return collect($this->scheduledInstallmentRows())
+            ->filter(fn (array $row) => !empty($row['paymentDate']))
+            ->count();
     }
 
     public function paymentTotal(): float
     {
-        return (float) $this->paymentJournals()->sum('no_shares');
+        return (float) collect($this->scheduledInstallmentRows())
+            ->filter(fn (array $row) => !empty($row['paymentDate']))
+            ->sum(fn (array $row) => (float) ($row['amount'] ?? 0));
+    }
+
+    public function issuedShareTotal(): int
+    {
+        return (int) ($this->paymentJournals()->latest('entry_date')->latest('id')->value('no_shares') ?? 0);
     }
 
     public function paymentStatus(): string
@@ -149,11 +172,7 @@ class StockTransferInstallment extends Model
             return 'partial';
         }
 
-        if ($this->installment_date && $this->installment_date->isPast()) {
-            return 'overdue';
-        }
-
-        return 'overdue';
+        return 'unpaid';
     }
 
     public function getPaymentStatusAttribute(): string
@@ -169,5 +188,27 @@ class StockTransferInstallment extends Model
     public function isFullyPaid(): bool
     {
         return $this->paymentStatus() === 'paid';
+    }
+
+    private function normalizeScheduleDate($value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->toDateString();
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function normalizeScheduleAmount($value): string
+    {
+        return number_format((float) ($value ?? 0), 2, '.', '');
     }
 }

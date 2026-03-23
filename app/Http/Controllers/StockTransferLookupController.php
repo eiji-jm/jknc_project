@@ -12,6 +12,7 @@ use App\Models\StockTransferIssuanceRequest;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
 use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 
@@ -155,6 +156,7 @@ class StockTransferLookupController extends Controller
                 'installment_date' => optional($installment->installment_date)->toDateString(),
                 'no_shares' => $installment->no_shares,
                 'no_installments' => $installment->no_installments,
+                'par_value' => $installment->par_value ?: $parValue,
                 'total_value' => $installment->total_value,
                 'installment_amount' => $installment->installment_amount,
                 'status' => $installment->payment_status,
@@ -238,9 +240,11 @@ class StockTransferLookupController extends Controller
 
     public function defaults()
     {
+        $manilaNow = Carbon::now('Asia/Manila');
+
         return response()->json([
-            'today' => now()->toDateString(),
-            'now' => now()->format('Y-m-d\TH:i'),
+            'today' => $manilaNow->toDateString(),
+            'now' => $manilaNow->format('Y-m-d\TH:i'),
             'journal_no' => $this->nextJournalNo(),
             'ledger_folio' => $this->nextLedgerFolio(),
             'stock_number' => $this->nextStockNumber(),
