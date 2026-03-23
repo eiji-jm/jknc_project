@@ -75,6 +75,13 @@
                 </div>
             @endif
 
+            @if (session('contact_client_link'))
+                <div class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <p class="font-medium">{{ session('contact_client_link.label') }}</p>
+                    <p class="mt-1 break-all">{{ session('contact_client_link.url') }}</p>
+                </div>
+            @endif
+
             @if ($tab === 'kyc')
                 <div id="kyc">
                 <div id="kycTabApp">
@@ -104,6 +111,29 @@
                         </div>
 
                         <div class="space-y-4">
+                            <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                                <div class="border-b border-gray-100 px-4 py-3">
+                                    <h3 class="text-base font-semibold text-gray-900">Client Outreach</h3>
+                                </div>
+                                <div class="space-y-4 px-4 py-4">
+                                    <div class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-4">
+                                        <p class="text-sm font-semibold text-gray-900">Send secure CIF link</p>
+                                        <p class="mt-1 text-xs leading-5 text-gray-600">Send a secure CIF link to the client so they can complete missing details and upload onboarding documents.</p>
+                                        <button type="button" data-open-send-cif-modal class="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                                            Send CIF
+                                        </button>
+                                    </div>
+
+                                    <div class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50 p-4">
+                                        <p class="text-sm font-semibold text-gray-900">Send secure Specimen Signature link</p>
+                                        <p class="mt-1 text-xs leading-5 text-gray-600">Send a secure link so the client can complete the specimen signature form.</p>
+                                        <button type="button" data-open-send-specimen-modal class="mt-4 flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                                            Send Specimen Link
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                                 <div class="border-b border-gray-100 px-4 py-3">
                                     <h3 class="text-base font-semibold text-gray-900">Preview / PDF</h3>
@@ -136,7 +166,7 @@
                             <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                                 <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                                     <h2 class="text-base font-semibold text-gray-900">KYC Information</h2>
-                                    <button id="openKycEditModal" type="button" class="text-sm text-blue-600 hover:text-blue-700">Edit</button>
+                                    <button id="openContactIntakeModal" type="button" class="text-sm text-blue-600 hover:text-blue-700">View KYC Form</button>
                                 </div>
                                 <div class="space-y-4 px-4 py-4 text-sm">
                                     <div>
@@ -573,7 +603,7 @@
                                 rejectionReason: '',
                                 submitted: ['Pending Verification','For Review','Approved','Rejected', 'Verified'].includes(statusInit)
                             };
-                            let logs = [`KYC profile loaded by ${mockUser}`];
+                            let logs = @json($kycActivityLogs ?? []);
                             let activeDoc = null; let file = null; let fileUrl = '';
                             let currentFiles = [];
                             let currentIndex = 0;
@@ -604,7 +634,16 @@
                                 }, 300);
                             };
                             const badge = (el, status) => { el.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[status] || statusStyles['Not Submitted']}`; el.textContent = status; };
-                            const addLog = (msg) => logs.unshift(`${msg} (${new Date().toLocaleString('en-US',{month:'short',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})})`);
+                            const addLog = (msg) => logs.unshift({
+                                message: msg,
+                                timestamp: new Date().toLocaleString('en-US', {
+                                    month: 'long',
+                                    day: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }).replace(',', '').replace(' at', ' •'),
+                            });
                             const allRequiredUploaded = () => !!(
                                 kycRequirementState.cif_signed_document?.complete &&
                                 kycRequirementState.two_valid_ids?.complete &&
@@ -619,7 +658,12 @@
                                 q('kycVerifiedByValue').textContent = kyc.verifiedBy || '-';
                                 badge(q('kycCardStatusBadge'), kyc.status);
                                 if (q('contactKycHeaderBadge')) badge(q('contactKycHeaderBadge'), kyc.status);
-                                q('kycActionLogs').innerHTML = logs.slice(0, 7).map((l) => `<p>${l}</p>`).join('');
+                                q('kycActionLogs').innerHTML = logs.slice(0, 7).map((entry) => `
+                                    <div class="space-y-0.5">
+                                        <p class="text-xs text-gray-600">${entry.message ?? ''}</p>
+                                        <p class="text-[11px] text-gray-400">${entry.timestamp ?? ''}</p>
+                                    </div>
+                                `).join('');
                                 const canReview = kyc.submitted && ['Pending Verification','For Review'].includes(kyc.status);
                                 q('approveKycBtn').disabled = !canReview; q('rejectKycBtn').disabled = !canReview;
                                 q('kycRejectionNote').classList.toggle('hidden', !kyc.rejectionReason);
@@ -713,7 +757,10 @@
                             };
                             window.openDocumentModal = openDocumentModal;
 
-                            q('openKycEditModal').addEventListener('click', () => { q('kycEditCif').value = kyc.cif; q('kycEditTin').value = kyc.tin; q('kycEditStatus').value = kyc.status; q('kycEditDateVerified').value = kyc.dateVerified; q('kycEditVerifiedBy').value = kyc.verifiedBy; ['kycErrorCif','kycErrorTin','kycErrorDateVerified','kycErrorVerifiedBy'].forEach((id) => q(id).classList.add('hidden')); open(q('kycEditModal')); });
+                            const openKycEditButton = q('openKycEditModal');
+                            if (openKycEditButton) {
+                                openKycEditButton.addEventListener('click', () => { q('kycEditCif').value = kyc.cif; q('kycEditTin').value = kyc.tin; q('kycEditStatus').value = kyc.status; q('kycEditDateVerified').value = kyc.dateVerified; q('kycEditVerifiedBy').value = kyc.verifiedBy; ['kycErrorCif','kycErrorTin','kycErrorDateVerified','kycErrorVerifiedBy'].forEach((id) => q(id).classList.add('hidden')); open(q('kycEditModal')); });
+                            }
                             [q('closeKycEditModal'), q('cancelKycEdit')].forEach((b) => b.addEventListener('click', () => close(q('kycEditModal'))));
                             [q('closeDocumentModal'), q('cancelDocumentModal')].forEach((b) => b.addEventListener('click', () => close(q('documentModal'))));
                             [q('closeDocumentViewModal'), q('closeDocumentViewFooter')].forEach((b) => b.addEventListener('click', () => close(q('documentViewModal'))));
@@ -1731,4 +1778,178 @@
         </section>
     </div>
 </div>
+
+@include('contacts.partials.kyc-intake-modal', ['contact' => $contact])
+
+<x-slide-over id="sendCifModal" width="sm:max-w-[560px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Send CIF</h2>
+                <p class="mt-1 text-sm text-gray-500">Email a secure CIF link to the client so they can complete missing details and upload onboarding documents.</p>
+            </div>
+            <button type="button" data-close-send-cif-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('contacts.cif.send', $contact->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+        <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                The secure link opens a client CIF form. Submitted details update this contact's KYC profile and keep the Contact record as the main source of truth.
+            </div>
+            <div>
+                <label for="cif_recipient_email" class="mb-1 block text-sm font-medium text-gray-700">Recipient Email</label>
+                <input id="cif_recipient_email" name="recipient_email" type="email" value="{{ $contact->email }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
+                <p class="mt-1 text-xs text-gray-500">Defaults to the contact email. You can change it before sending.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                <p class="font-semibold uppercase tracking-wide text-gray-500">What the client can do</p>
+                <p class="mt-2">Complete personal details, address, citizenship, KYC details, and onboarding information from the secure CIF page.</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" data-close-send-cif-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="h-9 min-w-[140px] rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Send CIF Link</button>
+            </div>
+        </div>
+    </form>
+</x-slide-over>
+
+<x-slide-over id="sendSpecimenModal" width="sm:max-w-[560px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Send Specimen Form</h2>
+                <p class="mt-1 text-sm text-gray-500">Email a secure specimen signature form link so the client can complete the signature card remotely.</p>
+            </div>
+            <button type="button" data-close-send-specimen-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('contacts.specimen.send', $contact->id) }}" class="flex min-h-0 flex-1 flex-col">
+        @csrf
+        <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                The secure link opens a client specimen signature form. Submitted details populate the saved specimen signature record for this contact.
+            </div>
+            <div>
+                <label for="specimen_recipient_email" class="mb-1 block text-sm font-medium text-gray-700">Recipient Email</label>
+                <input id="specimen_recipient_email" name="recipient_email" type="email" value="{{ $contact->email }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
+                <p class="mt-1 text-xs text-gray-500">Defaults to the contact email. You can change it before sending.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                <p class="font-semibold uppercase tracking-wide text-gray-500">What the client can do</p>
+                <p class="mt-2">Complete the specimen signature card details, client references, signatory names, and related authentication fields.</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" data-close-send-specimen-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="h-9 min-w-[160px] rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">Send Specimen Link</button>
+            </div>
+        </div>
+    </form>
+</x-slide-over>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const contactIntakeModal = document.getElementById('contactIntakeModal');
+        const contactIntakeForm = document.getElementById('contactIntakeForm');
+        const contactIntakeEditBtn = document.getElementById('contactIntakeEditBtn');
+        const contactIntakeSaveBtn = document.getElementById('contactIntakeSaveBtn');
+        const contactIntakeCancelBtn = document.getElementById('contactIntakeCancelBtn');
+        const contactIntakeCloseBtn = document.getElementById('cancelContactIntakeModal');
+        const contactIntakeOpenBtn = document.getElementById('openContactIntakeModal');
+        const contactIntakeCloseButtons = document.querySelectorAll('[data-close-contact-intake-modal]');
+        const contactIntakeFields = contactIntakeForm
+            ? Array.from(contactIntakeForm.querySelectorAll('input, select, textarea')).filter((field) => !['hidden', 'submit', 'button'].includes(field.type))
+            : [];
+
+        const syncContactIntakeConditionalFields = () => {
+            document.getElementById('intakeServiceInquiryOtherWrap')?.classList.toggle('hidden', !contactIntakeForm?.querySelector('input[name="service_inquiry_types[]"][value="Other"]')?.checked);
+            document.getElementById('intakeRecommendationOtherWrap')?.classList.toggle('hidden', !contactIntakeForm?.querySelector('input[name="recommendation_options[]"][value="Others"]')?.checked);
+            document.getElementById('intakeLeadSourceOtherWrap')?.classList.toggle('hidden', !contactIntakeForm?.querySelector('input[name="lead_source_channels[]"][value="Other"]')?.checked);
+            document.getElementById('intakeOrganizationTypeOtherWrap')?.classList.toggle('hidden', contactIntakeForm?.querySelector('input[name="organization_type"]:checked')?.value !== 'Others');
+            document.getElementById('intakeForeignBusinessNatureWrap')?.classList.toggle('hidden', contactIntakeForm?.querySelector('input[name="ownership_flag"]:checked')?.value !== 'Foreign-Owned Business');
+        };
+
+        const setContactIntakeEditMode = (isEditMode) => {
+            contactIntakeFields.forEach((field) => {
+                if (!field.readOnly) {
+                    field.disabled = !isEditMode;
+                }
+            });
+
+            contactIntakeEditBtn?.classList.toggle('hidden', isEditMode);
+            contactIntakeSaveBtn?.classList.toggle('hidden', !isEditMode);
+            contactIntakeCancelBtn?.classList.toggle('hidden', !isEditMode);
+            contactIntakeCloseBtn?.classList.toggle('hidden', isEditMode);
+        };
+
+        const resetContactIntakeForm = () => {
+            if (!contactIntakeForm) {
+                return;
+            }
+
+            contactIntakeForm.reset();
+            syncContactIntakeConditionalFields();
+            setContactIntakeEditMode(false);
+        };
+
+        if (contactIntakeForm) {
+            setContactIntakeEditMode(false);
+            syncContactIntakeConditionalFields();
+            contactIntakeForm.querySelectorAll('input, select, textarea').forEach((field) => {
+                field.addEventListener('change', syncContactIntakeConditionalFields);
+            });
+        }
+
+        contactIntakeOpenBtn?.addEventListener('click', () => {
+            resetContactIntakeForm();
+            window.jkncSlideOver.open(contactIntakeModal);
+        });
+
+        contactIntakeCloseButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                resetContactIntakeForm();
+                window.jkncSlideOver.close(contactIntakeModal);
+            });
+        });
+
+        contactIntakeEditBtn?.addEventListener('click', () => setContactIntakeEditMode(true));
+        contactIntakeCancelBtn?.addEventListener('click', () => resetContactIntakeForm());
+
+        @if (old('_from_contact_intake_edit'))
+            setContactIntakeEditMode(true);
+            syncContactIntakeConditionalFields();
+            window.jkncSlideOver.open(contactIntakeModal);
+        @endif
+
+        const bindSlideOver = (modalId, openSelector, closeSelector) => {
+            const modal = document.getElementById(modalId);
+            const openButtons = document.querySelectorAll(openSelector);
+            const closeButtons = document.querySelectorAll(closeSelector);
+            const openModal = () => window.jkncSlideOver.open(modal);
+            const closeModal = () => window.jkncSlideOver.close(modal);
+
+            openButtons.forEach((button) => button.addEventListener('click', openModal));
+            closeButtons.forEach((button) => button.addEventListener('click', closeModal));
+
+            modal?.addEventListener('click', function (event) {
+                if (event.target === modal || event.target.hasAttribute('data-drawer-overlay')) {
+                    closeModal();
+                }
+            });
+        };
+
+        bindSlideOver('sendCifModal', '[data-open-send-cif-modal]', '[data-close-send-cif-modal]');
+        bindSlideOver('sendSpecimenModal', '[data-open-send-specimen-modal]', '[data-close-send-specimen-modal]');
+    });
+</script>
 @endsection

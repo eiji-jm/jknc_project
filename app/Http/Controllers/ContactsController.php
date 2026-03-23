@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ use Illuminate\View\View;
 
 class ContactsController extends Controller
 {
+    private const CLIENT_LINK_TTL_DAYS = 14;
     private const KYC_STATUSES = [
         'Verified',
         'Pending Verification',
@@ -333,9 +335,159 @@ class ContactsController extends Controller
             'owner_name' => $owner['name'],
         ];
 
-        Contact::query()->create($this->filterPersistableContactAttributes($attributes));
+        $contact = Contact::query()->create($this->filterPersistableContactAttributes($attributes));
+
+        if (Schema::hasColumn('contacts', 'cif_no') && blank($contact->cif_no)) {
+            $contact->updateQuietly([
+                'cif_no' => $this->generateCifNumber($contact),
+            ]);
+        }
 
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
+    }
+
+    public function update(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->findOrFail($contact);
+        $owners = collect($this->ownerOptions())->keyBy('id');
+
+        $validated = $request->validate([
+            'business_date' => ['nullable', 'date'],
+            'customer_type' => ['nullable', 'string', 'in:business,individual'],
+            'client_status' => ['nullable', 'string', 'in:new,existing'],
+            'salutation' => ['nullable', 'string', 'max:30'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_initial' => ['nullable', 'string', 'max:20'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'name_extension' => ['nullable', 'string', 'max:50'],
+            'sex' => ['nullable', 'string', 'max:20'],
+            'date_of_birth' => ['nullable', 'date'],
+            'company_name' => ['nullable', 'string', 'max:150'],
+            'company_address' => ['nullable', 'string', 'max:255'],
+            'contact_address' => ['nullable', 'string', 'max:255'],
+            'position' => ['nullable', 'string', 'max:150'],
+            'business_type_organization' => ['nullable', 'string', 'max:150'],
+            'organization_type' => ['nullable', 'string', 'max:100'],
+            'organization_type_other' => ['nullable', 'string', 'max:150'],
+            'nature_of_business' => ['nullable', 'string', 'max:255'],
+            'capitalization_amount' => ['nullable'],
+            'ownership_structure' => ['nullable', 'string', 'max:255'],
+            'previous_year_revenue' => ['nullable'],
+            'years_operating' => ['nullable', 'string', 'max:100'],
+            'projected_current_year_revenue' => ['nullable'],
+            'ownership_flag' => ['nullable', 'string', 'max:150'],
+            'foreign_business_nature' => ['nullable', 'string', 'max:2000'],
+            'service_inquiry_types' => ['nullable', 'array'],
+            'service_inquiry_types.*' => ['string', 'in:'.implode(',', self::SERVICE_INQUIRY_OPTIONS)],
+            'service_inquiry_other' => ['nullable', 'string', 'max:255'],
+            'inquiry' => ['nullable', 'string', 'max:4000'],
+            'jknc_notes' => ['nullable', 'string', 'max:4000'],
+            'sales_marketing' => ['nullable', 'string', 'max:4000'],
+            'consultant_lead' => ['nullable', 'string', 'max:150'],
+            'lead_associate' => ['nullable', 'string', 'max:150'],
+            'recommendation_options' => ['nullable', 'array'],
+            'recommendation_options.*' => ['string', 'in:'.implode(',', self::RECOMMENDATION_OPTIONS)],
+            'recommendation_other' => ['nullable', 'string', 'max:255'],
+            'lead_source_channels' => ['nullable', 'array'],
+            'lead_source_channels.*' => ['string', 'in:'.implode(',', self::LEAD_SOURCE_OPTIONS)],
+            'lead_source_other' => ['nullable', 'string', 'max:255'],
+            'referred_by' => ['nullable', 'string', 'max:150'],
+            'lead_stage' => ['nullable', 'string', 'in:'.implode(',', self::LEAD_STAGE_OPTIONS)],
+            'email' => ['required', 'email', 'max:255'],
+            'mobile_number' => ['required', 'string', 'max:20'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'recommendation' => ['nullable', 'string', 'max:2000'],
+            'owner_id' => ['nullable', 'integer'],
+        ]);
+
+        $selectedOwnerId = (int) ($validated['owner_id'] ?? 0);
+        $owner = $owners->get($selectedOwnerId) ?? ['name' => $contactModel->owner_name ?: ($request->user()?->name ?? 'Admin User')];
+
+        $serviceInquiryTypes = collect($validated['service_inquiry_types'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+        $recommendationOptions = collect($validated['recommendation_options'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+        $leadSourceChannels = collect($validated['lead_source_channels'] ?? [])
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+
+        $serviceInquirySummary = implode(', ', array_filter([
+            implode(', ', $serviceInquiryTypes),
+            $validated['service_inquiry_other'] ?? null,
+        ]));
+        $recommendationSummary = implode(', ', array_filter([
+            implode(', ', $recommendationOptions),
+            $validated['recommendation_other'] ?? null,
+        ]));
+        $leadSourceSummary = implode(', ', array_filter([
+            implode(', ', $leadSourceChannels),
+            $validated['lead_source_other'] ?? null,
+        ]));
+
+        $attributes = [
+            'business_date' => $validated['business_date'] ?? $contactModel->business_date,
+            'intake_date' => $validated['business_date'] ?? $contactModel->intake_date,
+            'customer_type' => $validated['customer_type'] ?? null,
+            'client_status' => $validated['client_status'] ?? null,
+            'salutation' => $validated['salutation'] ?? null,
+            'first_name' => $validated['first_name'],
+            'middle_initial' => $validated['middle_initial'] ?? null,
+            'middle_name' => $validated['middle_name'] ?? null,
+            'last_name' => $validated['last_name'] ?? '',
+            'name_extension' => $validated['name_extension'] ?? null,
+            'sex' => $validated['sex'] ?? null,
+            'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'company_name' => $validated['company_name'] ?? null,
+            'company_address' => $validated['company_address'] ?? null,
+            'contact_address' => $validated['contact_address'] ?? null,
+            'position' => $validated['position'] ?? null,
+            'business_type_organization' => $validated['business_type_organization'] ?? null,
+            'organization_type' => $validated['organization_type'] ?? null,
+            'organization_type_other' => $validated['organization_type_other'] ?? null,
+            'nature_of_business' => $validated['nature_of_business'] ?? null,
+            'capitalization_amount' => $this->normalizeMoneyValue($validated['capitalization_amount'] ?? null),
+            'ownership_structure' => $validated['ownership_structure'] ?? null,
+            'previous_year_revenue' => $this->normalizeMoneyValue($validated['previous_year_revenue'] ?? null),
+            'years_operating' => $validated['years_operating'] ?? null,
+            'projected_current_year_revenue' => $this->normalizeMoneyValue($validated['projected_current_year_revenue'] ?? null),
+            'ownership_flag' => $validated['ownership_flag'] ?? null,
+            'foreign_business_nature' => $validated['foreign_business_nature'] ?? null,
+            'service_inquiry_types' => $serviceInquiryTypes,
+            'service_inquiry_other' => $validated['service_inquiry_other'] ?? null,
+            'service_inquiry_type' => $serviceInquirySummary !== '' ? $serviceInquirySummary : null,
+            'inquiry' => $validated['inquiry'] ?? null,
+            'jknc_notes' => $validated['jknc_notes'] ?? null,
+            'sales_marketing' => $validated['sales_marketing'] ?? null,
+            'consultant_lead' => $validated['consultant_lead'] ?? null,
+            'lead_associate' => $validated['lead_associate'] ?? null,
+            'recommendation_options' => $recommendationOptions,
+            'recommendation_other' => $validated['recommendation_other'] ?? null,
+            'recommendation' => $recommendationSummary !== '' ? $recommendationSummary : ($validated['recommendation'] ?? null),
+            'lead_source_channels' => $leadSourceChannels,
+            'lead_source_other' => $validated['lead_source_other'] ?? null,
+            'lead_source' => $leadSourceSummary !== '' ? $leadSourceSummary : null,
+            'referred_by' => $validated['referred_by'] ?? null,
+            'lead_stage' => $validated['lead_stage'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['mobile_number'] ?? null,
+            'description' => $validated['inquiry'] ?? ($validated['description'] ?? null),
+            'owner_name' => $owner['name'],
+        ];
+
+        $contactModel->update($this->filterPersistableContactAttributes($attributes));
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'Contact KYC form updated successfully.');
     }
 
     public function assignOwner(Request $request): RedirectResponse
@@ -456,7 +608,188 @@ class ContactsController extends Controller
             'cifEditMode' => $request->boolean('edit_cif') || $request->session()->has('errors'),
             'specimenSignature' => $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first(),
             'kycRequirementState' => $this->kycRequirementState($contactModel, $specimenSignature),
+            'kycActivityLogs' => $this->buildKycActivityLogs($contactModel),
         ]);
+    }
+
+    public function sendCifClientForm(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $recipientEmail = trim((string) $validated['recipient_email']);
+
+        $contactModel->update([
+            'cif_access_token' => $token,
+            'cif_access_expires_at' => $expiresAt,
+            'cif_form_sent_to_email' => $recipientEmail,
+            'cif_form_sent_at' => now(),
+        ]);
+
+        $clientUrl = route('contacts.cif.client.show', ['token' => $token]);
+        Mail::raw(
+            "Please complete your Client Information Form using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
+            function ($message) use ($recipientEmail, $contactModel) {
+                $message->to($recipientEmail)->subject("Client Information Form for {$contactModel->first_name} {$contactModel->last_name}");
+            }
+        );
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', "CIF link sent to {$recipientEmail}")
+            ->with('contact_client_link', [
+                'label' => 'Client CIF link generated',
+                'url' => $clientUrl,
+            ]);
+    }
+
+    public function sendSpecimenClientForm(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        abort_unless($contactModel, 404);
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $recipientEmail = trim((string) $validated['recipient_email']);
+
+        $contactModel->update([
+            'specimen_access_token' => $token,
+            'specimen_access_expires_at' => $expiresAt,
+            'specimen_form_sent_to_email' => $recipientEmail,
+            'specimen_form_sent_at' => now(),
+        ]);
+
+        $clientUrl = route('contacts.specimen.client.show', ['token' => $token]);
+        Mail::raw(
+            "Please complete your Specimen Signature Form using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
+            function ($message) use ($recipientEmail, $contactModel) {
+                $message->to($recipientEmail)->subject("Specimen Signature Form for {$contactModel->first_name} {$contactModel->last_name}");
+            }
+        );
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', "Specimen link sent to {$recipientEmail}")
+            ->with('contact_client_link', [
+                'label' => 'Client Specimen Signature link generated',
+                'url' => $clientUrl,
+            ]);
+    }
+
+    public function clientCifForm(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('cif', $token);
+
+        abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
+
+        return view('contacts.cif-client-form', [
+            'contact' => $contact,
+            'cifData' => $this->loadCifData($contact),
+            'clientFormAction' => route('contacts.cif.client.submit', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientCifForm(Request $request, string $token): RedirectResponse
+    {
+        $contact = $this->findContactByClientToken('cif', $token);
+
+        abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
+
+        $validated = $this->validatedCifPayload($request);
+
+        $this->saveCifDataToStorage($contact, [
+            ...$this->loadCifData($contact),
+            ...$validated,
+            'cif_no' => $contact->cif_no ?: ($validated['cif_no'] ?? ''),
+        ]);
+
+        $this->syncContactKycSnapshot($contact, [
+            'cif_no' => $contact->cif_no ?: ($validated['cif_no'] ?? null),
+            'tin' => $validated['tin'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('contacts.cif.client.show', ['token' => $token])
+            ->with('success', 'Your Client Information Form has been submitted successfully.');
+    }
+
+    public function clientSpecimenForm(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('specimen', $token);
+
+        abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
+
+        return view('contacts.specimen-client-form', [
+            'contact' => $contact,
+            'specimenSignature' => SpecimenSignature::query()->where('contact_id', $contact->id)->first(),
+            'specimenForm' => $this->specimenFormData($contact, SpecimenSignature::query()->where('contact_id', $contact->id)->first()),
+            'clientFormAction' => route('contacts.specimen.client.submit', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientSpecimenForm(Request $request, string $token): RedirectResponse
+    {
+        $contact = $this->findContactByClientToken('specimen', $token);
+
+        abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
+
+        $validated = $this->validatedSpecimenPayload($request);
+        $existing = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
+
+        SpecimenSignature::query()->updateOrCreate(
+            ['contact_id' => $contact->id],
+            [
+                'date' => $validated['date'] ?? null,
+                'bif_no' => $validated['bif_no'] ?? null,
+                'client_type' => $validated['client_type'] ?? 'new',
+                'business_name_left' => $validated['business_name_left'] ?? null,
+                'business_name_right' => $validated['business_name_right'] ?? null,
+                'account_number_left' => $validated['account_number_left'] ?? null,
+                'account_number_right' => $validated['account_number_right'] ?? null,
+                'signatories' => collect($validated['signatory_names'] ?? [])->map(fn ($name) => ['name' => $name, 'signature' => null])->all(),
+                'authentication_data' => [
+                    'signature_combination' => $validated['signature_combination'] ?? null,
+                    'signature_class' => $validated['signature_class'] ?? null,
+                    'left_client_name' => $validated['left_client_name'] ?? null,
+                    'left_cif_no' => $validated['left_cif_no'] ?? null,
+                    'left_cif_dated' => $validated['left_cif_dated'] ?? null,
+                    'right_client_name' => $validated['right_client_name'] ?? null,
+                    'right_cif_no' => $validated['right_cif_no'] ?? null,
+                    'right_cif_dated' => $validated['right_cif_dated'] ?? null,
+                    'authenticated_by' => $validated['authenticated_by'] ?? null,
+                    'board_resolution_spa_no' => $validated['board_resolution_spa_no'] ?? null,
+                    'board_resolution_spa_date' => $validated['board_resolution_spa_date'] ?? null,
+                    'signature_over_printed_name' => $validated['signature_over_printed_name'] ?? null,
+                    'authorized_signatory_signature' => $validated['authorized_signatory_signature'] ?? null,
+                    'authorized_signatory_date' => $validated['authorized_signatory_date'] ?? null,
+                    'processing_instruction' => $validated['processing_instruction'] ?? null,
+                    'sales_marketing' => $validated['sales_marketing'] ?? null,
+                    'processed_by' => $validated['processed_by'] ?? null,
+                    'finance' => $validated['finance'] ?? null,
+                    'scanned_by' => $validated['scanned_by'] ?? null,
+                ],
+                'remarks' => $validated['remarks'] ?? null,
+                'created_by' => $existing?->created_by ?: ($contact->owner_name ?: 'Client'),
+            ]
+        );
+
+        $this->syncContactKycSnapshot($contact, [
+            'cif_no' => $validated['left_cif_no'] ?? $contact->cif_no,
+        ]);
+
+        return redirect()
+            ->route('contacts.specimen.client.show', ['token' => $token])
+            ->with('success', 'Your Specimen Signature Form has been submitted successfully.');
     }
 
     public function saveCif(Request $request, string $contact): RedirectResponse
@@ -1418,6 +1751,11 @@ class ContactsController extends Controller
         return (float) $normalized;
     }
 
+    private function generateCifNumber(Contact $contact): string
+    {
+        return 'CIF-'.now()->format('Ymd').'-'.str_pad((string) $contact->id, 4, '0', STR_PAD_LEFT);
+    }
+
     private function filterPersistableContactAttributes(array $attributes): array
     {
         static $contactColumns = null;
@@ -1737,5 +2075,118 @@ class ContactsController extends Controller
                 'total_value' => 'P265,000',
             ],
         ];
+    }
+
+    private function buildKycActivityLogs(Contact $contact): array
+    {
+        $actor = trim((string) ($contact->created_by ?: $contact->owner_name ?: 'Admin User'));
+
+        return [[
+            'message' => "KYC profile loaded by {$actor}",
+            'timestamp' => optional($contact->created_at)->format('F d, Y • h:i A') ?: null,
+        ]];
+    }
+
+    private function findContactByClientToken(string $type, string $token): Contact
+    {
+        $column = $type === 'specimen' ? 'specimen_access_token' : 'cif_access_token';
+
+        return Contact::query()->where($column, $token)->firstOrFail();
+    }
+
+    private function validatedCifPayload(Request $request): array
+    {
+        return $request->validate([
+            'cif_date' => ['nullable', 'date'],
+            'cif_no' => ['nullable', 'string', 'max:100'],
+            'is_new_client' => ['nullable', 'boolean'],
+            'is_existing_client' => ['nullable', 'boolean'],
+            'is_change_information' => ['nullable', 'boolean'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+            'name_extension' => ['nullable', 'string', 'max:50'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'no_middle_name' => ['nullable', 'boolean'],
+            'only_first_name' => ['nullable', 'boolean'],
+            'present_address_line1' => ['nullable', 'string', 'max:255'],
+            'present_address_line2' => ['nullable', 'string', 'max:255'],
+            'zip_code' => ['nullable', 'string', 'max:20'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'mobile' => ['nullable', 'string', 'max:50'],
+            'date_of_birth' => ['nullable', 'date'],
+            'place_of_birth' => ['nullable', 'string', 'max:150'],
+            'citizenship_nationality' => ['nullable', 'string', 'max:150'],
+            'citizenship_type' => ['nullable', 'in:filipino,foreigner,dual_citizen'],
+            'gender' => ['nullable', 'in:male,female'],
+            'civil_status' => ['nullable', 'in:single,separated,widowed,married'],
+            'spouse_name' => ['nullable', 'string', 'max:150'],
+            'nature_of_work_business' => ['nullable', 'string', 'max:255'],
+            'tin' => ['nullable', 'string', 'max:100'],
+            'other_government_id' => ['nullable', 'string', 'max:150'],
+            'id_number' => ['nullable', 'string', 'max:150'],
+            'mothers_maiden_name' => ['nullable', 'string', 'max:150'],
+            'source_of_funds' => ['nullable', 'array'],
+            'source_of_funds.*' => ['string', 'in:salary,remittance,business,others,commission_fees,retirement_pension'],
+            'source_of_funds_other_text' => ['nullable', 'string', 'max:150'],
+            'foreigner_passport_no' => ['nullable', 'string', 'max:150'],
+            'foreigner_passport_expiry_date' => ['nullable', 'date'],
+            'foreigner_passport_place_of_issue' => ['nullable', 'string', 'max:150'],
+            'foreigner_acr_id_no' => ['nullable', 'string', 'max:150'],
+            'foreigner_acr_expiry_date' => ['nullable', 'date'],
+            'foreigner_acr_place_of_issue' => ['nullable', 'string', 'max:150'],
+            'visa_status' => ['nullable', 'string', 'max:150'],
+            'onboarding_two_valid_ids' => ['nullable', 'boolean'],
+            'onboarding_tin_id' => ['nullable', 'boolean'],
+            'onboarding_authorized_signatory_card' => ['nullable', 'boolean'],
+            'referred_by_footer' => ['nullable', 'string', 'max:150'],
+            'referred_date' => ['nullable', 'date'],
+            'sales_marketing_footer' => ['nullable', 'string', 'max:150'],
+            'finance_footer' => ['nullable', 'string', 'max:150'],
+            'president_footer' => ['nullable', 'string', 'max:150'],
+            'sig_name_left' => ['nullable', 'string', 'max:150'],
+            'sig_position_left' => ['nullable', 'string', 'max:150'],
+            'sig_name_right' => ['nullable', 'string', 'max:150'],
+            'sig_position_right' => ['nullable', 'string', 'max:150'],
+            'owner_name' => ['nullable', 'string', 'max:150'],
+            'kyc_status' => ['nullable', 'string', 'max:100'],
+            'date_verified' => ['nullable', 'date'],
+            'verified_by' => ['nullable', 'string', 'max:150'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+    }
+
+    private function validatedSpecimenPayload(Request $request): array
+    {
+        return $request->validate([
+            'date' => ['nullable', 'date'],
+            'bif_no' => ['nullable', 'string', 'max:100'],
+            'client_type' => ['nullable', 'string', 'in:new,existing,change'],
+            'business_name_left' => ['nullable', 'string', 'max:255'],
+            'business_name_right' => ['nullable', 'string', 'max:255'],
+            'account_number_left' => ['nullable', 'string', 'max:100'],
+            'account_number_right' => ['nullable', 'string', 'max:100'],
+            'signature_combination' => ['nullable', 'string', 'max:150'],
+            'signature_class' => ['nullable', 'string', 'max:150'],
+            'left_client_name' => ['nullable', 'string', 'max:150'],
+            'left_cif_no' => ['nullable', 'string', 'max:100'],
+            'left_cif_dated' => ['nullable', 'date'],
+            'right_client_name' => ['nullable', 'string', 'max:150'],
+            'right_cif_no' => ['nullable', 'string', 'max:100'],
+            'right_cif_dated' => ['nullable', 'date'],
+            'signatory_names' => ['nullable', 'array'],
+            'signatory_names.*' => ['nullable', 'string', 'max:150'],
+            'authenticated_by' => ['nullable', 'string', 'max:150'],
+            'board_resolution_spa_no' => ['nullable', 'string', 'max:150'],
+            'board_resolution_spa_date' => ['nullable', 'date'],
+            'signature_over_printed_name' => ['nullable', 'string', 'max:150'],
+            'authorized_signatory_signature' => ['nullable', 'string', 'max:150'],
+            'authorized_signatory_date' => ['nullable', 'date'],
+            'remarks' => ['nullable', 'string'],
+            'processing_instruction' => ['nullable', 'string'],
+            'sales_marketing' => ['nullable', 'string', 'max:150'],
+            'processed_by' => ['nullable', 'string', 'max:150'],
+            'finance' => ['nullable', 'string', 'max:150'],
+            'scanned_by' => ['nullable', 'string', 'max:150'],
+        ]);
     }
 }

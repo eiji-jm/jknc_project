@@ -61,6 +61,14 @@ class Contact extends Model
         'cif_no',
         'tin',
         'created_by',
+        'cif_access_token',
+        'cif_access_expires_at',
+        'cif_form_sent_to_email',
+        'cif_form_sent_at',
+        'specimen_access_token',
+        'specimen_access_expires_at',
+        'specimen_form_sent_to_email',
+        'specimen_form_sent_at',
     ];
 
     protected $casts = [
@@ -68,6 +76,10 @@ class Contact extends Model
         'intake_date' => 'date',
         'date_of_birth' => 'date',
         'last_activity_at' => 'datetime',
+        'cif_access_expires_at' => 'datetime',
+        'cif_form_sent_at' => 'datetime',
+        'specimen_access_expires_at' => 'datetime',
+        'specimen_form_sent_at' => 'datetime',
         'capitalization_amount' => 'decimal:2',
         'previous_year_revenue' => 'decimal:2',
         'projected_current_year_revenue' => 'decimal:2',
