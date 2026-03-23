@@ -5,7 +5,7 @@
     x-data="{ showSlideOver: false, hasDeadline: true }"
     class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
 >
-    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
+    <div class="relative bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0 overflow-hidden">
 
         {{-- SLIDE OVER FORM --}}
         <div x-show="showSlideOver" class="fixed inset-0 z-50 overflow-hidden" x-cloak>
@@ -119,34 +119,53 @@
             </div>
         </div>
 
-        {{-- OVERLAY PREVIEW --}}
-        <div id="previewOverlay" class="hidden fixed inset-0 z-[60]">
-            <div class="absolute inset-0 bg-black/30" onclick="closePreview()"></div>
+        {{-- PREVIEW INSIDE PAGE --}}
+        <div id="previewOverlay" class="hidden absolute inset-0 z-40">
+            <div class="absolute inset-0 bg-white/70 backdrop-blur-[1px]" onclick="closePreview()"></div>
 
             <div class="absolute inset-0 bg-[#f5f7fa] flex gap-5 p-4 overflow-hidden">
-                {{-- LEFT PDF --}}
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <iframe
-                        id="previewFrame"
-                        class="w-full h-full"
-                        frameborder="0"
-                    ></iframe>
+                {{-- LEFT PREVIEW --}}
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+                    <div class="border-b border-gray-200 px-5 py-4 flex items-center justify-between">
+                        <h2 class="text-[18px] font-semibold text-gray-900">Correspondence Preview</h2>
+
+                        <div class="flex items-center gap-2">
+                            <a
+                                id="openPreviewBtn"
+                                href="#"
+                                target="_blank"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                            >
+                                Open
+                            </a>
+                            <button
+                                type="button"
+                                onclick="closePreview()"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-[#edf2f6] p-4 overflow-auto">
+                        <div class="mx-auto max-w-[980px] h-full">
+                            <iframe
+                                id="previewFrame"
+                                class="w-full h-full min-h-[780px] bg-white rounded-lg border border-gray-300"
+                                frameborder="0"
+                            ></iframe>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- RIGHT INFO --}}
                 <div class="w-[320px] shrink-0 flex flex-col gap-4">
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4">
                         <h2 class="text-[20px] font-semibold text-gray-900">Correspondence Preview</h2>
-                        <button
-                            type="button"
-                            onclick="closePreview()"
-                            class="text-sm text-gray-500 hover:text-gray-700"
-                        >
-                            Close
-                        </button>
                     </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 overflow-y-auto">
                         <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Correspondence Information</h3>
 
                         <div class="space-y-5 text-[14px]">
@@ -177,12 +196,12 @@
 
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">From</span>
-                                <span id="infoFrom" class="text-right font-medium text-gray-900"></span>
+                                <span id="infoFrom" class="text-right font-medium text-gray-900 break-all"></span>
                             </div>
 
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">To</span>
-                                <span id="infoTo" class="text-right font-medium text-gray-900"></span>
+                                <span id="infoTo" class="text-right font-medium text-gray-900 break-all"></span>
                             </div>
 
                             <div class="flex justify-between gap-4">
@@ -348,6 +367,7 @@ function openPreview(index) {
     const previewUrl = `/correspondence/template/${routeSlug}/${item.id}`;
 
     document.getElementById('previewFrame').src = previewUrl;
+    document.getElementById('openPreviewBtn').href = previewUrl;
     document.getElementById('infoType').textContent = item.type ?? '';
     document.getElementById('infoUploadedDate').textContent = item.uploaded_date ?? '';
     document.getElementById('infoUser').textContent = item.user ?? '';
@@ -363,13 +383,12 @@ function openPreview(index) {
     document.getElementById('infoStatus').textContent = item.status ?? '';
 
     document.getElementById('previewOverlay').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
 }
 
 function closePreview() {
     document.getElementById('previewFrame').src = '';
+    document.getElementById('openPreviewBtn').href = '#';
     document.getElementById('previewOverlay').classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
 }
 
 async function renderTable(type) {
