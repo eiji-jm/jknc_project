@@ -7,6 +7,7 @@ use App\Http\Controllers\PermitController;
 use App\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
+use App\Http\Controllers\OperationController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -43,6 +44,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
+
+    Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
+    Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
 
     Route::get('/corporate', function () {
         return view('corporate.company-general-information');
