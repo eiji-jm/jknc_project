@@ -761,6 +761,7 @@ class ContactsController extends Controller
             'cifData' => $this->loadCifData($contactModel),
             'cifDocuments' => $this->loadCifDocuments($contactModel),
             'downloadMode' => false,
+            'autoPrint' => false,
         ]);
     }
 
@@ -774,6 +775,7 @@ class ContactsController extends Controller
             'cifData' => $this->loadCifData($contactModel),
             'cifDocuments' => $this->loadCifDocuments($contactModel),
             'downloadMode' => true,
+            'autoPrint' => $request->boolean('autoprint'),
         ]);
     }
 
@@ -783,7 +785,7 @@ class ContactsController extends Controller
         abort_unless($contactModel, 404);
 
         $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
-        $isEditMode = $request->boolean('edit') || ! $specimenSignature;
+        $isEditMode = $request->boolean('edit') || $request->session()->has('errors');
 
         return view('contacts.specimen-signature', [
             'contact' => $contactModel,
@@ -933,7 +935,7 @@ class ContactsController extends Controller
             ->with('success', 'KYC submitted for verification successfully.');
     }
 
-    public function downloadSpecimenSignature(Request $request, string $id)
+    public function downloadSpecimenSignature(Request $request, string $id): View
     {
         $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
@@ -941,11 +943,12 @@ class ContactsController extends Controller
         $data = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
         abort_unless($data, 404);
 
-        $pdf = Pdf::loadView('contacts.specimen-signature-print', compact('data'))
-            ->setPaper('A4', 'portrait')
-            ->setOptions(['dpi' => 150]);
-
-        return $pdf->download('specimen-signature.pdf');
+        return view('contacts.specimen-signature-print', [
+            'contact' => $contactModel,
+            'data' => $data,
+            'autoPrint' => $request->boolean('autoprint'),
+            'embedMode' => $request->boolean('embed'),
+        ]);
     }
 
     private function ownerOptions(): array

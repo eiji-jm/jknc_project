@@ -2,19 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Specimen Signature</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @page { margin: 8mm; }
+        @page { margin: 14mm; }
         body {
-            font-family: "Times New Roman", serif;
-            font-size: 10px;
+            background: #eef2f7;
             color: #000;
             margin: 0;
+        }
+        .print-shell {
+            margin: 0 auto;
+            max-width: 1280px;
+            padding: 24px;
+        }
+        .document-page {
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+            background: #fff;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
+            font-family: "Times New Roman", serif;
+            font-size: 10px;
         }
         td {
             border: 1px solid #000;
@@ -28,6 +40,12 @@
         .line {
             border-bottom: 1px solid #000;
             min-height: 12px;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff; }
+            .print-shell { margin: 0; max-width: none; padding: 0; }
+            .document-page { box-shadow: none; }
         }
     </style>
 </head>
@@ -43,7 +61,29 @@
     $logo = public_path('images/jk-logo.png');
 @endphp
 
-<div class="doc">
+<div class="print-shell">
+    @unless (!empty($embedMode))
+        <div class="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">Specimen Signature Form</h2>
+                <p class="text-sm text-gray-500">Use your browser's print dialog and choose Save as PDF to export this document.</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button type="button" onclick="window.location.href='{{ route('contacts.show', $contact->id) }}?tab=kyc'"
+                    class="inline-flex h-10 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                    Back
+                </button>
+
+                <button type="button" onclick="window.print()"
+                    class="inline-flex h-10 items-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
+                    Print / Save as PDF
+                </button>
+            </div>
+        </div>
+    @endunless
+
+<div class="doc document-page">
     <table>
         <tr>
             <td width="20%" style="border-right:0; border-bottom:0; padding:4px 4px 2px 4px;">
@@ -304,6 +344,22 @@
             </td>
         </tr>
     </table>
+</div>
+
+    @if (!empty($autoPrint))
+        <script>
+            window.addEventListener('load', function () {
+                window.print();
+            });
+        </script>
+    @else
+        <script>
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('autoprint') === '1') {
+                window.onload = () => window.print();
+            }
+        </script>
+    @endif
 </div>
 </body>
 </html>

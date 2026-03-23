@@ -28,10 +28,13 @@ use App\Http\Controllers\GisController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect()->route('login');
+    return Auth::check()
+        ? redirect()->route('corporate')
+        : redirect()->route('login');
 });
 
 Route::get('/bif/respond/{token}', [CompanyBifController::class, 'clientForm'])->name('company.bif.client.show');
