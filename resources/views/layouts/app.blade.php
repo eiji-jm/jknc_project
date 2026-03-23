@@ -331,28 +331,24 @@
 
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Priority
+                                Banking
                             </a>
 
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Status
+                                Legal
                             </a>
 
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Tag
+                                Operations
                             </a>
 
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Task Name
+                                Correspondence
                             </a>
 
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Task Owner
-                            </a>
                         </div>
 
                     </div>
