@@ -624,10 +624,26 @@
                     <input type="date" x-model="newTask.dueDate" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
                 </div>
 
-                <!-- Related To -->
+                <!-- Related To (Tagging UI) -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
-                    <input type="text" x-model="newTask.relatedTo" placeholder="Search Contacts/Companies..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition placeholder-gray-400" />
+                    <div class="relative">
+                        <div class="flex flex-wrap gap-1.5 p-2 bg-white border border-gray-300 rounded-md focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition min-h-[40px]">
+                            <template x-for="tag in newTask.relatedTo" :key="tag">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                                    <span x-text="tag"></span>
+                                    <i @click="removeTag('tasks', tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
+                                </span>
+                            </template>
+                            <input 
+                                type="text" 
+                                x-model="tagSearch" 
+                                @keydown.enter.prevent="tagSearch && addTag('tasks', tagSearch)"
+                                placeholder="Search Contacts/Companies..." 
+                                class="flex-1 min-w-[150px] border-none p-0 text-sm text-gray-800 outline-none focus:ring-0 bg-transparent"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Description -->
@@ -743,10 +759,26 @@
                     </div>
                 </div>
 
-                <!-- Attendees -->
+                <!-- Attendees (Tagging UI) -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Attendees</label>
-                    <input type="number" x-model="newMeeting.attendees" min="0" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    <div class="relative">
+                        <div class="flex flex-wrap gap-1.5 p-2 bg-white border border-gray-300 rounded-md focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition min-h-[40px]">
+                            <template x-for="tag in newMeeting.attendees" :key="tag">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                                    <span x-text="tag"></span>
+                                    <i @click="removeTag('meetings', tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
+                                </span>
+                            </template>
+                            <input 
+                                type="text" 
+                                x-model="tagSearch" 
+                                @keydown.enter.prevent="tagSearch && addTag('meetings', tagSearch)"
+                                placeholder="Add attendee and press Enter" 
+                                class="flex-1 min-w-[150px] border-none p-0 text-sm text-gray-800 outline-none focus:ring-0 bg-transparent"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Description -->
@@ -889,13 +921,94 @@
                     </div>
                 </div>
 
-                <div class="mt-6">
-                    <h4 class="font-bold text-gray-900 text-sm mb-3">Tags</h4>
-                    <span class="inline-flex items-center justify-center bg-[#1d54e2] text-white rounded-full px-3 py-1 text-xs font-semibold shadow-sm">
-                        <i class="fas fa-plus mr-1"></i>
-                        Tag
-                    </span>
+
+
+                <!-- Call Recording Section -->
+                <div class="mt-6 pt-4 border-t border-gray-100" x-show="selectedTaskType === 'call'">
+                    <h4 class="font-bold text-gray-900 text-sm mb-3">Call Recording</h4>
+                    
+                    <!-- Persistent Custom Audio Player -->
+                    <div x-show="selectedTaskDetails?.audio_path" class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 shadow-sm flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                    <i class="fas fa-microphone text-xs"></i>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-bold text-gray-900 line-clamp-1" x-text="selectedTaskDetails?.audio_path ? selectedTaskDetails.audio_path.split('/').pop() : 'Recording'"></span>
+                                    <span class="text-[10px] text-green-600 font-semibold uppercase tracking-wide">Recording Available</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-1">
+                                <a :href="selectedTaskDetails?.audio_path" download class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center transition shadow-sm" title="Download">
+                                    <i class="fas fa-download text-xs"></i>
+                                </a>
+                                <button @click="deleteCallAudio(selectedTaskDetails?.id)" class="w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200 flex items-center justify-center transition shadow-sm" title="Delete">
+                                    <i class="far fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="flex items-center gap-3">
+                            <button @click="toggleCallAudio()" 
+                                    class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1">
+                                <i :class="isCallAudioPlaying ? 'fas fa-pause text-xs' : 'fas fa-play text-xs ml-0.5'"></i>
+                            </button>
+                            
+                            <!-- Progress -->
+                            <div class="flex flex-col flex-1 gap-1.5">
+                                <div class="w-full h-2 bg-gray-200 rounded-full relative cursor-pointer overflow-hidden" @click="seekCallAudio($event)">
+                                    <div class="absolute top-0 left-0 h-full bg-blue-500 rounded-full" 
+                                         :style="`width: ${callAudioDuration > 0 ? (callAudioCurrentTime / callAudioDuration) * 100 : 0}%`"></div>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-gray-500 font-mono">
+                                    <span x-text="formatTimeGeneral(callAudioCurrentTime)">00:00</span>
+                                    <span x-text="formatTimeGeneral(callAudioDuration)">00:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No Recording State -->
+                    <div x-show="!selectedTaskDetails?.audio_path" class="bg-gray-50 border border-gray-200 border-dashed rounded-xl p-5 text-center mb-4">
+                        <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <i class="fas fa-microphone-slash text-gray-400 text-sm"></i>
+                        </div>
+                        <p class="text-xs text-gray-500 font-medium">No recording available</p>
+                    </div>
+
+                    <!-- Hidden Audio Element -->
+                    <audio x-ref="callAudioPlayer" 
+                           :src="selectedTaskDetails?.audio_url"
+                           @timeupdate="updateCallAudioTime()"
+                           @loadedmetadata="updateCallAudioTime()"
+                           @ended="isCallAudioPlaying = false"
+                           class="hidden"></audio>
+
+                    <!-- Upload UI -->
+                    <div class="pt-2">
+                        <button @click="document.getElementById('audioUploadInput').click()" 
+                                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-white hover:border-[#1d54e2] hover:text-[#1d54e2] transition-all shadow-sm group"
+                                :class="isUploadingAudio ? 'opacity-50 cursor-wait pointer-events-none' : ''">
+                            <template x-if="!isUploadingAudio">
+                                <i class="fas fa-upload text-xs group-hover:-translate-y-0.5 transition-transform"></i>
+                            </template>
+                            <template x-if="isUploadingAudio">
+                                <i class="fas fa-spinner fa-spin text-xs"></i>
+                            </template>
+                            <span x-text="isUploadingAudio ? 'Uploading...' : (selectedTaskDetails?.audio_path ? 'Replace Recording' : 'Upload Call Recording')"></span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- Hidden Input -->
+                <input type="file" 
+                       id="audioUploadInput"
+                       x-ref="audioUploadInput" 
+                       class="hidden" 
+                       accept="audio/*,video/mp4" 
+                       @change="uploadCallAudio($event, selectedTaskDetails?.id)">
                 </div>
 
                 <!-- Notes Tab Content -->
@@ -1118,7 +1231,7 @@
 
                         <!-- Upload -->
                         <div class="pt-2">
-                            <button @click="$refs.videoUploadInput.click()" 
+                            <button @click="document.getElementById('videoUploadInput').click()" 
                                     class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-white hover:border-[#1d54e2] hover:text-[#1d54e2] transition-all shadow-sm group"
                                     :class="isUploading ? 'opacity-50 cursor-wait pointer-events-none' : ''">
                                 <template x-if="!isUploading">
@@ -1154,11 +1267,12 @@
 
                     <!-- Hidden File Input for Upload -->
                     <input type="file" 
+                           id="videoUploadInput"
                            x-ref="videoUploadInput" 
                            class="hidden" 
-                           accept="video/mp4,video/webm,video/ogg" 
+                           accept="video/*" 
                            @change="uploadVideo($event, selectedMeetingDetails.id)">
-                </div>
+
 
                 <!-- Notes Tab -->
                 <div x-show="meetingDetailsTab === 'notes'" style="display: none;">
@@ -1191,7 +1305,6 @@
                         </template>
                     </div>
                 </div>
-                
             </div>
         </div>
     </div>
@@ -1270,6 +1383,21 @@
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                             <p class="text-[10px] text-gray-400 uppercase font-black mb-1">Duration</p>
                             <p class="text-sm font-bold text-gray-700" x-text="formatDurationText(duration)">45 Minutes</p>
+                        </div>
+                    </div>
+
+                    {{-- Upload Minutes Action --}}
+                    <div class="mt-4">
+                        <input type="file" x-ref="minutesInputPlayer" @change="uploadMinutes(selectedMeetingDetails.id, $event)" class="hidden" accept=".pdf,.doc,.docx,.txt" />
+                        <button @click="$refs.minutesInputPlayer.click()" 
+                                class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold hover:bg-white hover:border-[#1d54e2] hover:text-[#1d54e2] transition shadow-sm group">
+                            <i class="fas fa-file-upload text-blue-500 group-hover:scale-110 transition-transform"></i>
+                            Upload Meeting Minutes
+                        </button>
+                        <div x-show="isUploadingMinutes" class="mt-2 px-1">
+                            <div class="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+                                <div class="bg-blue-600 h-1 animate-pulse"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1374,14 +1502,14 @@
                             <template x-for="tag in newCall.relatedTo" :key="tag">
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
                                     <span x-text="tag"></span>
-                                    <i @click="removeTag(tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
+                                    <i @click="removeTag('calls', tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
                                 </span>
                             </template>
                             <input 
                                 type="text" 
                                 x-model="tagSearch" 
-                                @keydown.enter.prevent="tagSearch && addTag(tagSearch)"
-                                placeholder="Type and press Enter to add tag" 
+                                @keydown.enter.prevent="tagSearch && addTag('calls', tagSearch)"
+                                placeholder="Search Contacts/Companies..." 
                                 class="flex-1 min-w-[150px] border-none p-0 text-sm text-gray-800 outline-none focus:ring-0 bg-transparent"
                             />
                         </div>
@@ -1534,10 +1662,26 @@
                     <input type="text" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
                 </div>
 
-                <!-- Related To -->
+                <!-- Related To (Tagging UI) -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 mb-1">Related To</label>
-                    <input type="text" x-model="newEvent.relatedTo" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#1d54e2] focus:ring-1 focus:ring-[#1d54e2] transition" />
+                    <div class="relative">
+                        <div class="flex flex-wrap gap-1.5 p-2 bg-white border border-gray-300 rounded-md focus-within:border-[#1d54e2] focus-within:ring-1 focus-within:ring-[#1d54e2] transition min-h-[40px]">
+                            <template x-for="tag in newEvent.relatedTo" :key="tag">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                                    <span x-text="tag"></span>
+                                    <i @click="removeTag('events', tag)" class="fas fa-times cursor-pointer hover:text-blue-800"></i>
+                                </span>
+                            </template>
+                            <input 
+                                type="text" 
+                                x-model="tagSearch" 
+                                @keydown.enter.prevent="tagSearch && addTag('events', tagSearch)"
+                                placeholder="Search Contacts/Companies..." 
+                                class="flex-1 min-w-[150px] border-none p-0 text-sm text-gray-800 outline-none focus:ring-0 bg-transparent"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Participants -->
@@ -1643,17 +1787,17 @@ document.addEventListener('alpine:init', () => {
         selectedTasks: [],
         tasks: [],
         systemUsers: [],
-        newTask: { name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: '' },
+        newTask: { name: '', dueDate: '', relatedTo: [], description: '', priority: false, completed: false, owner: '' },
         
         events: [],
-        newEvent: { title: '', from: '', to: '', relatedTo: '', host: '' },
+        newEvent: { title: '', from: '', to: '', relatedTo: [], host: '' },
 
         calls: [],
         newCall: { contact: '', to: '', from: '', type: 'Outbound', startTime: '', startHour: '', duration: '', relatedTo: [], owner: '', agenda: '', purpose: '', status: '' },
         tagSearch: '',
 
         meetings: [],
-        newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
+        newMeeting: { title: '', owner: '', date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: [], description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false },
 
         filterSelection: {
             task: 'All Tasks',
@@ -1679,6 +1823,11 @@ document.addEventListener('alpine:init', () => {
         editingNote: null,
         activeDownloadMenu: null,
         isUploading: false,
+        isUploadingMinutes: false,
+        isUploadingAudio: false,
+        isCallAudioPlaying: false,
+        callAudioCurrentTime: 0,
+        callAudioDuration: 0,
         currentPage: 1,
         perPage: 50,
         perPageOptions: [10, 20, 30, 40, 50, 100],
@@ -1956,21 +2105,40 @@ document.addEventListener('alpine:init', () => {
             const file = event.target.files[0];
             if (!file) return;
 
-            const formData = new FormData();
-            formData.append('video', file);
-
             this.isUploading = true;
             try {
-                const response = await fetch(`/api/meetings/${meetingId}/upload-video`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-                    },
-                    body: formData
-                });
+                const chunkSize = 1024 * 1024; // 1MB chunks
+                const totalChunks = Math.ceil(file.size / chunkSize);
+                let updatedMeeting = null;
+                const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
 
-                if (response.ok) {
-                    const updatedMeeting = await response.json();
+                for (let i = 0; i < totalChunks; i++) {
+                    const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
+                    const formData = new FormData();
+                    formData.append('video', chunk);
+                    formData.append('chunkIndex', i);
+                    formData.append('totalChunks', totalChunks);
+                    formData.append('fileName', file.name);
+
+                    const response = await fetch(`/api/meetings/${meetingId}/upload-video`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.message || errData.error || 'Server returned ' + response.status);
+                    }
+                    
+                    if (i === totalChunks - 1) {
+                        updatedMeeting = await response.json();
+                    }
+                }
+
+                if (updatedMeeting) {
                     // Update the meetings array
                     const index = this.meetings.findIndex(m => m.id === meetingId);
                     if (index !== -1) {
@@ -1981,14 +2149,174 @@ document.addEventListener('alpine:init', () => {
                     }
                     // Automatically trigger AI transcription and analysis
                     await this.generateMeetingAI(meetingId);
-                } else {
-                    console.error('Upload failed');
                 }
             } catch (error) {
                 console.error('Error uploading video:', error);
+                alert('Upload failed: ' + error.message);
             } finally {
                 this.isUploading = false;
                 event.target.value = ''; // Reset input
+            }
+        },
+
+        async uploadMinutes(meetingId, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            this.isUploadingMinutes = true;
+            const formData = new FormData();
+            formData.append('minutes', file);
+
+            try {
+                const response = await fetch(`/api/meetings/${meetingId}/upload-minutes`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    },
+                    body: formData
+                });
+                if (response.ok) {
+                    const updatedMeeting = await response.json();
+                    const index = this.meetings.findIndex(m => m.id === meetingId);
+                    if (index !== -1) {
+                        this.meetings[index] = updatedMeeting;
+                    }
+                    if (this.selectedMeetingDetails && this.selectedMeetingDetails.id === meetingId) {
+                        this.selectedMeetingDetails = updatedMeeting;
+                    }
+                }
+            } catch (error) {
+                console.error('Error uploading minutes:', error);
+                alert('Upload failed: ' + error.message);
+            } finally {
+                this.isUploadingMinutes = false;
+                event.target.value = '';
+            }
+        },
+
+        formatTimeGeneral(seconds) {
+            if (!seconds || isNaN(seconds)) return '00:00';
+            let m = Math.floor(seconds / 60);
+            let s = Math.floor(seconds % 60);
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        },
+
+        toggleCallAudio() {
+            let aud = this.$refs.callAudioPlayer;
+            if (!aud) return;
+            if (aud.paused) {
+                aud.play();
+                this.isCallAudioPlaying = true;
+            } else {
+                aud.pause();
+                this.isCallAudioPlaying = false;
+            }
+        },
+
+        updateCallAudioTime() {
+            let aud = this.$refs.callAudioPlayer;
+            if (!aud) return;
+            this.callAudioCurrentTime = aud.currentTime;
+            if (aud.duration && !isNaN(aud.duration)) {
+                this.callAudioDuration = aud.duration;
+            }
+        },
+
+        seekCallAudio(event) {
+            let aud = this.$refs.callAudioPlayer;
+            if (!aud) return;
+            let rect = event.currentTarget.getBoundingClientRect();
+            let pos = (event.clientX - rect.left) / rect.width;
+            aud.currentTime = pos * this.callAudioDuration;
+        },
+
+        async deleteCallAudio(callId) {
+            if (!callId) return;
+            if (!confirm('Are you sure you want to remove this audio recording?')) return;
+            
+            try {
+                const response = await fetch(`/api/calls/${callId}/audio`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+                    }
+                });
+
+                if (response.ok) {
+                    const updatedCall = await response.json();
+                    const index = this.calls.findIndex(c => c.id === callId);
+                    if (index !== -1) {
+                        this.calls[index] = updatedCall;
+                    }
+                    if (this.selectedTaskDetails && this.selectedTaskDetails.id === callId) {
+                        this.selectedTaskDetails = updatedCall;
+                        this.isCallAudioPlaying = false;
+                        this.callAudioCurrentTime = 0;
+                        if (this.$refs.callAudioPlayer) {
+                            this.$refs.callAudioPlayer.pause();
+                            this.$refs.callAudioPlayer.load();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error removing call audio:', error);
+            }
+        },
+
+        async uploadCallAudio(event, callId) {
+            if (!callId) return;
+            const file = event.target.files[0];
+            if (!file) return;
+
+            this.isUploadingAudio = true;
+            try {
+                const chunkSize = 1024 * 1024; // 1MB chunks
+                const totalChunks = Math.ceil(file.size / chunkSize);
+                let updatedCall = null;
+                const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+
+                for (let i = 0; i < totalChunks; i++) {
+                    const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
+                    const formData = new FormData();
+                    formData.append('audio', chunk);
+                    formData.append('chunkIndex', i);
+                    formData.append('totalChunks', totalChunks);
+                    formData.append('fileName', file.name);
+
+                    const response = await fetch(`/api/calls/${callId}/upload-audio`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.message || errData.error || 'Server returned ' + response.status);
+                    }
+                    
+                    if (i === totalChunks - 1) {
+                        updatedCall = await response.json();
+                    }
+                }
+
+                if (updatedCall) {
+                    const index = this.calls.findIndex(c => c.id === callId);
+                    if (index !== -1) {
+                        this.calls[index] = updatedCall;
+                    }
+
+                    if (this.selectedTaskDetails && this.selectedTaskDetails.id === callId) {
+                        this.selectedTaskDetails = updatedCall;
+                    }
+                }
+            } catch (error) {
+                alert('Upload failed: ' + error.message);
+                console.error('Error uploading call audio:', error);
+            } finally {
+                this.isUploadingAudio = false;
+                event.target.value = '';
             }
         },
 
@@ -2063,7 +2391,7 @@ document.addEventListener('alpine:init', () => {
                         due_date: this.newTask.dueDate,
                         status: this.newTask.completed ? 'Completed' : 'Open',
                         priority: this.newTask.priority ? 'High' : 'Normal',
-                        related_to: this.newTask.relatedTo,
+                        related_to: Array.isArray(this.newTask.relatedTo) ? this.newTask.relatedTo.join(', ') : this.newTask.relatedTo,
                         owner: this.newTask.owner,
                         description: this.newTask.description
                     })
@@ -2076,7 +2404,7 @@ document.addEventListener('alpine:init', () => {
                     this.tasks.unshift(task);
                 }
                 this.showTaskModal = false;
-                this.newTask = { id: null, name: '', dueDate: '', relatedTo: '', description: '', priority: false, completed: false, owner: (this.systemUsers[0] || '') };
+                this.newTask = { id: null, name: '', dueDate: '', relatedTo: [], description: '', priority: false, completed: false, owner: (this.systemUsers[0] || '') };
             } catch (error) {
                 console.error('Error saving task:', error);
             }
@@ -2099,7 +2427,7 @@ document.addEventListener('alpine:init', () => {
                         title: this.newEvent.title,
                         from: this.newEvent.from,
                         to: this.newEvent.to,
-                        related_to: this.newEvent.relatedTo,
+                        related_to: Array.isArray(this.newEvent.relatedTo) ? this.newEvent.relatedTo.join(', ') : this.newEvent.relatedTo,
                         host: this.newEvent.host
                     })
                 });
@@ -2111,7 +2439,7 @@ document.addEventListener('alpine:init', () => {
                     this.events.unshift(event);
                 }
                 this.showEventModal = false;
-                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: '', host: (this.systemUsers[0] || '') };
+                this.newEvent = { id: null, title: '', from: '', to: '', relatedTo: [], host: (this.systemUsers[0] || '') };
             } catch (error) {
                 console.error('Error saving event:', error);
             }
@@ -2193,7 +2521,7 @@ document.addEventListener('alpine:init', () => {
                         time: this.newMeeting.time,
                         duration: this.newMeeting.duration,
                         location: this.newMeeting.location,
-                        attendees: this.newMeeting.attendees,
+                        attendees: this.newMeeting.attendees.length,
                         status: this.newMeeting.status || 'upcoming',
                         description: this.newMeeting.description,
                         has_video: this.newMeeting.hasVideo,
@@ -2219,7 +2547,7 @@ document.addEventListener('alpine:init', () => {
 
                 this.showMeetingModal = false;
                 this.recordingError = '';
-                this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: '', description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
+                this.newMeeting = { id: null, title: '', owner: (this.systemUsers[0] || ''), date: '', time: '', duration: '', durationHour: '0', durationMin: '30', location: '', attendees: [], description: '', hasVideo: false, hasAudio: false, hasTranscript: false, hasMinutes: false, status: 'upcoming' };
             } catch (error) {
                 console.error('Error saving meeting:', error);
             }
@@ -2230,7 +2558,7 @@ document.addEventListener('alpine:init', () => {
                 id: task.id, 
                 name: task.name, 
                 dueDate: task.due_date, 
-                relatedTo: task.related_to, 
+                relatedTo: task.related_to ? task.related_to.split(', ').filter(Boolean) : [], 
                 description: task.description, 
                 priority: task.priority === 'High', 
                 completed: task.status === 'Completed', 
@@ -2245,7 +2573,7 @@ document.addEventListener('alpine:init', () => {
                 title: event.title,
                 from: event.from,
                 to: event.to,
-                relatedTo: event.related_to,
+                relatedTo: event.related_to ? event.related_to.split(', ').filter(Boolean) : [],
                 host: event.host
             };
             this.showEventModal = true;
@@ -2291,15 +2619,29 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        addTag(tag) {
-            if (tag && !this.newCall.relatedTo.includes(tag)) {
-                this.newCall.relatedTo.push(tag);
+        addTag(type, tag) {
+            let list;
+            if (type === 'calls') list = this.newCall.relatedTo;
+            else if (type === 'events') list = this.newEvent.relatedTo;
+            else if (type === 'meetings') list = this.newMeeting.attendees;
+            else list = this.newTask.relatedTo;
+
+            if (tag && !list.includes(tag)) {
+                list.push(tag);
             }
             this.tagSearch = '';
         },
 
-        removeTag(tag) {
-            this.newCall.relatedTo = this.newCall.relatedTo.filter(t => t !== tag);
+        removeTag(type, tag) {
+            if (type === 'calls') {
+                this.newCall.relatedTo = this.newCall.relatedTo.filter(t => t !== tag);
+            } else if (type === 'events') {
+                this.newEvent.relatedTo = this.newEvent.relatedTo.filter(t => t !== tag);
+            } else if (type === 'meetings') {
+                this.newMeeting.attendees = this.newMeeting.attendees.filter(t => t !== tag);
+            } else {
+                this.newTask.relatedTo = this.newTask.relatedTo.filter(t => t !== tag);
+            }
         },
 
         editMeeting(meeting) {
@@ -2322,7 +2664,7 @@ document.addEventListener('alpine:init', () => {
                 durationHour: parsedHr,
                 durationMin: parsedMin,
                 location: meeting.location,
-                attendees: meeting.attendees,
+                attendees: [], // Cannot easily reverse numeric count to names, so starting fresh for editing
                 description: meeting.description,
                 hasVideo: meeting.has_video,
                 hasAudio: meeting.has_audio,

@@ -34,4 +34,6 @@ Route::prefix('api')->group(function () {
     Route::delete('/notes/{id}', [ActivityController::class, 'destroyNote']);
     Route::post('/meetings/{id}/analyze', [ActivityController::class, 'analyzeMeeting']);
     Route::post('/meetings/{id}/upload-video', [ActivityController::class, 'uploadVideo']);
+    Route::post('/calls/{id}/upload-audio', [ActivityController::class, 'uploadCallAudio']);
+    Route::delete('/calls/{id}/audio', [ActivityController::class, 'destroyCallAudio']);
 });

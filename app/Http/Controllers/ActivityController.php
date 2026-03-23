@@ -357,36 +357,140 @@ class ActivityController extends Controller
 
     public function destroyCall($id)
     {
-        Call::findOrFail($id)->delete();
+        $call = Call::findOrFail($id);
+        if ($call->audio_path) {
+            $path = public_path($call->audio_path);
+            if (file_exists($path) && is_file($path)) {
+                unlink($path);
+            }
+        }
+        $call->delete();
         return response()->json(null, 204);
     }
 
     public function destroyMeeting($id)
     {
-        Meeting::findOrFail($id)->delete();
+        $meeting = Meeting::findOrFail($id);
+        if ($meeting->video_path) {
+            $path = public_path($meeting->video_path);
+            if (file_exists($path) && is_file($path)) {
+                unlink($path);
+            }
+        }
+        if ($meeting->audio_path) {
+            $path = public_path($meeting->audio_path);
+            if (file_exists($path) && is_file($path)) {
+                unlink($path);
+            }
+        }
+        $meeting->delete();
         return response()->json(null, 204);
     }
 
     public function uploadVideo(Request $request, $id)
     {
-        $request->validate([
-            'video' => 'required|file|mimes:mp4,webm,ogg|max:102400', // 100MB limit
-        ]);
-
         $meeting = Meeting::findOrFail($id);
+
+        $videoDir = public_path('videos');
+        if (!file_exists($videoDir)) {
+            mkdir($videoDir, 0755, true);
+        }
 
         if ($request->hasFile('video')) {
             $file = $request->file('video');
-            $filename = 'meeting_' . $id . '_' . time() . '.' . $file->getClientOriginalExtension();
-            $path = $file->move(public_path('videos'), $filename);
+            $chunkIndex = $request->input('chunkIndex', 0);
+            $totalChunks = $request->input('totalChunks', 1);
+            $originalName = $request->input('fileName', 'upload.mp4');
             
-            $meeting->video_path = '/videos/' . $filename;
-            $meeting->has_video = true;
-            $meeting->save();
+            $extension = pathinfo($originalName, PATHINFO_EXTENSION) ?: 'mp4';
+            $filename = 'meeting_' . $id . '_' . md5($originalName) . '.' . $extension;
+            $filePath = $videoDir . '/' . $filename;
+            
+            // Save or append chunk
+            $out = fopen($filePath, $chunkIndex == 0 ? 'wb' : 'ab');
+            if ($out) {
+                $in = fopen($file->getRealPath(), 'rb');
+                if ($in) {
+                    while ($buff = fread($in, 4096)) {
+                        fwrite($out, $buff);
+                    }
+                    fclose($in);
+                }
+                fclose($out);
+            }
 
-            return response()->json($meeting);
+            // If it's the last chunk, update the database
+            if ($chunkIndex == $totalChunks - 1) {
+                $meeting->video_path = '/videos/' . $filename;
+                $meeting->has_video = true;
+                $meeting->save();
+                return response()->json($meeting);
+            }
+
+            return response()->json(['status' => 'chunk_uploaded', 'index' => $chunkIndex]);
         }
 
-        return response()->json(['error' => 'No file uploaded'], 400);
+        return response()->json(['error' => 'No file uploaded, or file is too large (exceeds server limit of '.ini_get('upload_max_filesize').')'], 400);
+    }
+
+    public function uploadCallAudio(Request $request, $id)
+    {
+        $call = Call::findOrFail($id);
+        
+        $audioDir = public_path('audios');
+        if (!file_exists($audioDir)) {
+            mkdir($audioDir, 0755, true);
+        }
+
+        if ($request->hasFile('audio')) {
+            $file = $request->file('audio');
+            $chunkIndex = $request->input('chunkIndex', 0);
+            $totalChunks = $request->input('totalChunks', 1);
+            $originalName = $request->input('fileName', 'upload.mp3');
+            
+            $extension = pathinfo($originalName, PATHINFO_EXTENSION) ?: 'mp3';
+            $filename = 'call_' . $id . '_' . md5($originalName) . '.' . $extension;
+            $filePath = $audioDir . '/' . $filename;
+            
+            // Save or append chunk
+            $out = fopen($filePath, $chunkIndex == 0 ? 'wb' : 'ab');
+            if ($out) {
+                $in = fopen($file->getRealPath(), 'rb');
+                if ($in) {
+                    while ($buff = fread($in, 4096)) {
+                        fwrite($out, $buff);
+                    }
+                    fclose($in);
+                }
+                fclose($out);
+            }
+
+            // If it's the last chunk, update the database
+            if ($chunkIndex == $totalChunks - 1) {
+                $call->audio_path = '/audios/' . $filename;
+                $call->save();
+                return response()->json($call);
+            }
+
+            return response()->json(['status' => 'chunk_uploaded', 'index' => $chunkIndex]);
+        }
+
+        return response()->json(['error' => 'No file uploaded, or file is too large (exceeds server limit of '.ini_get('upload_max_filesize').')'], 400);
+    }
+
+    public function destroyCallAudio($id)
+    {
+        $call = Call::findOrFail($id);
+        
+        if ($call->audio_path) {
+            $path = public_path($call->audio_path);
+            if (file_exists($path) && is_file($path)) {
+                unlink($path);
+            }
+            $call->audio_path = null;
+            $call->save();
+        }
+
+        return response()->json($call);
     }
 }
