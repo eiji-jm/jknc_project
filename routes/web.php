@@ -29,8 +29,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/permits/template/sanitary-permit/{id}', [PermitController::class, 'showSanitaryPermitTemplate'])->name('permits.template.sanitary-permit');
     Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
 
-    Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
+    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
 
     Route::get('/correspondence/template/letters/{id}', [CorrespondenceController::class, 'showLettersTemplate'])->name('correspondence.template.letters');
     Route::get('/correspondence/template/demand-letter/{id}', [CorrespondenceController::class, 'showDemandLetterTemplate'])->name('correspondence.template.demand-letter');
@@ -38,6 +37,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence/template/follow-up-letter/{id}', [CorrespondenceController::class, 'showFollowUpLetterTemplate'])->name('correspondence.template.follow-up-letter');
     Route::get('/correspondence/template/memo/{id}', [CorrespondenceController::class, 'showMemoTemplate'])->name('correspondence.template.memo');
     Route::get('/correspondence/template/notice/{id}', [CorrespondenceController::class, 'showNoticeTemplate'])->name('correspondence.template.notice');
+
+    Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
+    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
     Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
