@@ -148,10 +148,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
     Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
 
-    Route::get('/corporate', function () {
-        return view('corporate.company-general-information');
-    })->name('corporate');
-
     Route::get('/lgu', function () {
         return view('corporate.lgu');
     })->name('lgu');
