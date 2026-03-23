@@ -81,7 +81,17 @@ Logout
 <!-- MINI SIDEBAR -->
 <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
 
-<a href="#" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+@if (Auth::user()->hasPermission('access_admin_dashboard'))
+<a href="{{ route('admin.users') }}"
+class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+<i class="fas fa-user-shield text-base"></i>
+<span>Admin</span>
+</a>
+@endif
+
+<a href="{{ route('townhall') }}" class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+{{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
 <i class="fas fa-bullhorn text-base"></i>
 <span>Town Hall</span>
 </a>
@@ -138,7 +148,40 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 </aside>
 
 <!-- SECOND SIDEBAR -->
-@if (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.bif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*') || request()->routeIs('company.corporate-formation*') || request()->routeIs('company.lgu*') || request()->routeIs('company.accounting*') || request()->routeIs('company.banking*') || request()->routeIs('company.operations*') || request()->routeIs('company.correspondence*') || request()->routeIs('company.bir-tax*'))
+@if (request()->routeIs('admin.*'))
+<aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+<div class="px-4 py-3 border-b border-gray-100">
+<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admin Panel</p>
+</div>
+
+<div class="flex-1 overflow-y-auto p-3">
+<div class="space-y-1 text-sm">
+<a href="{{ route('admin.users') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Users</a>
+<a href="{{ route('admin.role-permissions') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Role Permissions</a>
+<a href="{{ route('admin.user-permissions') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">User Permissions</a>
+<a href="{{ route('admin.dashboard') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Town Hall</a>
+</div>
+</div>
+
+</aside>
+@elseif (request()->routeIs('townhall*'))
+<aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+<div class="px-4 py-3 border-b border-gray-100">
+<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
+</div>
+
+<div class="flex-1 overflow-y-auto p-3">
+<div class="space-y-1 text-sm">
+<a href="{{ route('townhall') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('townhall') || request()->routeIs('townhall.show') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Communications</a>
+<a href="{{ route('townhall.department') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Department</a>
+<a href="{{ route('townhall.attachments') }}" class="block px-3 py-2 rounded-lg {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">Attachments</a>
+</div>
+</div>
+
+</aside>
+@elseif (request()->routeIs('company.show') || request()->routeIs('company.kyc') || request()->routeIs('company.bif.*') || request()->routeIs('company.history') || request()->routeIs('company.consultation-notes') || request()->routeIs('company.activities') || request()->routeIs('company.deals') || request()->routeIs('company.deals.*') || request()->routeIs('company.contacts') || request()->routeIs('company.projects') || request()->routeIs('company.regular') || request()->routeIs('company.products.*') || request()->routeIs('company.products') || request()->routeIs('company.services.*') || request()->routeIs('company.corporate-formation*') || request()->routeIs('company.lgu*') || request()->routeIs('company.accounting*') || request()->routeIs('company.banking*') || request()->routeIs('company.operations*') || request()->routeIs('company.correspondence*') || request()->routeIs('company.bir-tax*'))
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
 <div class="px-4 py-3 border-b border-gray-100">
