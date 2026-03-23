@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\PermitController;
 use App\Http\Controllers\CorrespondenceController;
+use App\Http\Controllers\AccountingController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -36,6 +37,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence/template/memo/{id}', [CorrespondenceController::class, 'showMemoTemplate'])->name('correspondence.template.memo');
     Route::get('/correspondence/template/notice/{id}', [CorrespondenceController::class, 'showNoticeTemplate'])->name('correspondence.template.notice');
 
+    Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
+    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+
     Route::get('/corporate', function () {
         return view('corporate.company-general-information');
     })->name('corporate');
@@ -44,7 +48,7 @@ Route::middleware('auth')->group(function () {
         return view('corporate.lgu');
     })->name('lgu');
 
-    Route::get('/accounting', function () {
+    Route::get('/accounting-page', function () {
         return view('corporate.accounting');
     })->name('accounting');
 
