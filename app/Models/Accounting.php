@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Accounting extends Model
 {
     protected $fillable = [
-        'type',
+        'statement_type',
         'client',
         'tin',
         'date',

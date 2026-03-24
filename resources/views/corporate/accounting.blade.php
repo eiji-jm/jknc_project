@@ -8,24 +8,8 @@
 
         {{-- TOP BAR --}}
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
-            <div class="flex-1 min-w-0 overflow-x-auto">
-                <div id="accountingTabs" class="inline-flex min-w-max border border-gray-300 rounded-md overflow-hidden bg-white">
-                    <button type="button" class="accounting-tab active px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="PNL">
-                        PNL
-                    </button>
-                    <button type="button" class="accounting-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Balance Sheet">
-                        Balance Sheet
-                    </button>
-                    <button type="button" class="accounting-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Cash Flow">
-                        Cash Flow
-                    </button>
-                    <button type="button" class="accounting-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Income Statement">
-                        Income Statement
-                    </button>
-                    <button type="button" class="accounting-tab px-5 py-2 text-sm bg-white hover:bg-gray-50" data-filter="AFS">
-                        AFS
-                    </button>
-                </div>
+            <div class="flex items-center flex-1 min-w-0">
+                <h1 class="text-lg font-semibold text-gray-900">Accounting</h1>
             </div>
 
             <button onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0">
@@ -43,6 +27,42 @@
                             <th class="w-36 p-3 text-left">Uploader</th>
                             <th class="w-48 p-3 text-left">Client</th>
                             <th class="w-40 p-3 text-left">TIN</th>
+
+                            <th class="w-44 p-3 text-left relative">
+                                <button
+                                    type="button"
+                                    id="statementTypeHeaderBtn"
+                                    class="w-full flex items-center gap-2 hover:text-gray-900"
+                                >
+                                    <span>Statement Type</span>
+                                    <span>▼</span>
+                                </button>
+
+                                <div
+                                    id="statementTypeHeaderMenu"
+                                    class="hidden absolute left-3 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden"
+                                >
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="All Statement Types">
+                                        All Statement Types
+                                    </button>
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="PNL">
+                                        PNL
+                                    </button>
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Balance Sheet">
+                                        Balance Sheet
+                                    </button>
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Cash Flow">
+                                        Cash Flow
+                                    </button>
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Income Statement">
+                                        Income Statement
+                                    </button>
+                                    <button type="button" class="header-statement-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="AFS">
+                                        AFS
+                                    </button>
+                                </div>
+                            </th>
+
                             <th class="w-32 p-3 text-left">Status</th>
                             <th class="w-40 p-3 text-left">Document</th>
                         </tr>
@@ -77,10 +97,6 @@
                         <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Accounting Information</h3>
                         <div class="space-y-5 text-[14px]">
                             <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Type</span>
-                                <span id="infoType" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Date</span>
                                 <span id="infoDate" class="text-right font-medium text-gray-900"></span>
                             </div>
@@ -95,6 +111,10 @@
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">TIN</span>
                                 <span id="infoTin" class="text-right font-medium text-gray-900"></span>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <span class="text-gray-500">Statement Type</span>
+                                <span id="infoStatementType" class="text-right font-medium text-gray-900"></span>
                             </div>
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Document Name</span>
@@ -155,6 +175,18 @@
                             </div>
 
                             <div>
+                                <label class="block text-sm font-medium mb-1">Statement Type</label>
+                                <select id="statementTypeInput" class="w-full border rounded-md p-2">
+                                    <option value="">Select Statement Type</option>
+                                    <option value="PNL">PNL</option>
+                                    <option value="Balance Sheet">Balance Sheet</option>
+                                    <option value="Cash Flow">Cash Flow</option>
+                                    <option value="Income Statement">Income Statement</option>
+                                    <option value="AFS">AFS</option>
+                                </select>
+                            </div>
+
+                            <div>
                                 <label class="block text-sm font-medium mb-1">Date</label>
                                 <input id="dateInput" type="date" class="w-full border rounded-md p-2">
                             </div>
@@ -185,16 +217,8 @@
     </div>
 </div>
 
-<style>
-    .accounting-tab.active {
-        background-color: #eff6ff;
-        color: #2563eb;
-        font-weight: 600;
-    }
-</style>
-
 <script>
-let currentAccountingFilter = 'PNL';
+let currentStatementTypeFilter = 'All Statement Types';
 let accountingRows = [];
 let livePreviewObjectUrl = null;
 
@@ -241,6 +265,7 @@ function closePreview() {
 function resetFormDefaults() {
     document.getElementById('clientInput').value = '';
     document.getElementById('tinInput').value = '';
+    document.getElementById('statementTypeInput').value = '';
     document.getElementById('dateInput').value = '';
     document.getElementById('documentInput').value = '';
     document.getElementById('selectedFileName').textContent = 'No file selected';
@@ -292,8 +317,11 @@ document.getElementById('documentInput').addEventListener('change', function (e)
     handleLivePreview(file);
 });
 
-async function fetchAccounting(filterValue) {
-    const url = `/accounting?filter=${encodeURIComponent(filterValue)}`;
+async function fetchAccounting() {
+    const url = currentStatementTypeFilter !== 'All Statement Types'
+        ? `/accounting?statement_type=${encodeURIComponent(currentStatementTypeFilter)}`
+        : `/accounting`;
+
     const res = await fetch(url);
     return await res.json();
 }
@@ -320,7 +348,7 @@ function drawTableRows() {
     if (!accountingRows.length) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="6" class="p-10 text-center text-gray-400 italic">No data found</td>
+                <td colspan="7" class="p-10 text-center text-gray-400 italic">No data found</td>
             </tr>
         `;
         return;
@@ -329,6 +357,7 @@ function drawTableRows() {
     accountingRows.forEach(item => {
         const classes = getStatusClasses(item.status);
         const safeId = item.id;
+        const safeStatementType = JSON.stringify(item.statement_type ?? '');
         const isClickable = !!item.document_path;
 
         tableBody.innerHTML += `
@@ -340,6 +369,15 @@ function drawTableRows() {
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3">${item.client ?? ''}</td>
                 <td class="p-3">${item.tin ?? ''}</td>
+                <td class="p-3">
+                    <button
+                        type="button"
+                        onclick='event.stopPropagation(); applyStatementTypeFilter(${safeStatementType})'
+                        class="text-blue-600 hover:underline"
+                    >
+                        ${item.statement_type ?? ''}
+                    </button>
+                </td>
                 <td class="p-3">
                     <span class="flex items-center gap-1.5 ${classes.textClass}">
                         <span class="w-2 h-2 ${classes.dotClass} rounded-full"></span>
@@ -388,33 +426,40 @@ function openPreview(id) {
         }
     }
 
-    document.getElementById('infoType').textContent = item.type ?? '';
     document.getElementById('infoDate').textContent = item.date ?? '';
     document.getElementById('infoUser').textContent = item.user ?? '';
     document.getElementById('infoClient').textContent = item.client ?? '';
     document.getElementById('infoTin').textContent = item.tin ?? '';
+    document.getElementById('infoStatementType').textContent = item.statement_type ?? '';
     document.getElementById('infoDocumentName').textContent = item.document_name ?? 'N/A';
     document.getElementById('infoStatus').textContent = item.status ?? '';
 
     showOnlySection('previewSection');
 }
 
-async function renderTable(filterValue) {
-    currentAccountingFilter = filterValue;
-    accountingRows = await fetchAccounting(filterValue);
+async function renderTable() {
+    accountingRows = await fetchAccounting();
     drawTableRows();
-    setActiveAccountingTab(filterValue);
+    showOnlySection('tableSection');
+}
+
+function applyStatementTypeFilter(filterValue) {
+    currentStatementTypeFilter = filterValue;
+    drawTableRows();
+    closeStatementTypeHeaderMenu();
+    renderTable();
 }
 
 async function addAccountingEntry() {
     const client = document.getElementById('clientInput').value.trim();
     const tin = document.getElementById('tinInput').value.trim();
+    const statementType = document.getElementById('statementTypeInput').value;
     const date = document.getElementById('dateInput').value;
     const fileInput = document.getElementById('documentInput');
     const file = fileInput.files[0];
 
-    if (!client || !date) {
-        alert('Please fill in Client and Date.');
+    if (!client || !statementType || !date) {
+        alert('Please fill in Client, Statement Type, and Date.');
         return false;
     }
 
@@ -424,7 +469,7 @@ async function addAccountingEntry() {
     }
 
     const formData = new FormData();
-    formData.append('type', currentAccountingFilter);
+    formData.append('statement_type', statementType);
     formData.append('client', client);
     formData.append('tin', tin);
     formData.append('date', date);
@@ -446,27 +491,43 @@ async function addAccountingEntry() {
         return false;
     }
 
-    await renderTable(currentAccountingFilter);
+    currentStatementTypeFilter = 'All Statement Types';
+    await renderTable();
     return true;
 }
 
-function setActiveAccountingTab(filterValue) {
-    document.querySelectorAll('.accounting-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.dataset.filter === filterValue) {
-            tab.classList.add('active');
-        }
-    });
+function toggleStatementTypeHeaderMenu() {
+    document.getElementById('statementTypeHeaderMenu').classList.toggle('hidden');
 }
 
-document.querySelectorAll('.accounting-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const filterValue = tab.dataset.filter;
-        renderTable(filterValue);
-        showOnlySection('tableSection');
+function closeStatementTypeHeaderMenu() {
+    document.getElementById('statementTypeHeaderMenu').classList.add('hidden');
+}
+
+document.getElementById('statementTypeHeaderBtn').addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleStatementTypeHeaderMenu();
+});
+
+document.querySelectorAll('.header-statement-option').forEach(option => {
+    option.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const filterValue = option.dataset.filter;
+        currentStatementTypeFilter = filterValue;
+        closeStatementTypeHeaderMenu();
+        renderTable();
     });
 });
 
-renderTable(currentAccountingFilter);
+document.addEventListener('click', function (event) {
+    const headerBtn = document.getElementById('statementTypeHeaderBtn');
+    const headerMenu = document.getElementById('statementTypeHeaderMenu');
+
+    if (!headerBtn.contains(event.target) && !headerMenu.contains(event.target)) {
+        closeStatementTypeHeaderMenu();
+    }
+});
+
+renderTable();
 </script>
 @endsection

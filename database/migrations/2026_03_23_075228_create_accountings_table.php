@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('accountings', function (Blueprint $table) {
             $table->id();
-            $table->string('type'); // PNL, Balance Sheet, Cash Flow, Income Statement, AFS
+            $table->string('statement_type'); // PNL, Balance Sheet, Cash Flow, Income Statement, AFS
             $table->string('client');
             $table->string('tin')->nullable();
             $table->date('date')->nullable();
