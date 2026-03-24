@@ -59,12 +59,28 @@ class RolePermissionController extends Controller
             ]
         );
 
+        RolePermission::firstOrCreate(
+            ['role' => 'Client'],
+            [
+                'manage_users' => false,
+                'access_admin_dashboard' => false,
+                'approve_townhall' => false,
+                'create_townhall' => false,
+                'access_townhall' => true,
+                'access_corporate' => false,
+                'access_activities' => false,
+                'access_contacts' => false,
+                'access_company' => false,
+            ]
+        );
+
         $permissions = RolePermission::orderByRaw("
             CASE role
                 WHEN 'SuperAdmin' THEN 1
                 WHEN 'Admin' THEN 2
                 WHEN 'Employee' THEN 3
-                ELSE 4
+                WHEN 'Client' THEN 4
+                ELSE 5
             END
         ")->get();
 

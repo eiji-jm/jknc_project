@@ -59,6 +59,11 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || ($this->isAdmin() && $this->can_delete_users);
     }
 
+    public function isClient()
+    {
+        return strtolower($this->role) === 'client';
+    }
+
     public function hasPermission(string $permission): bool
     {
         if (strtolower((string) $this->role) === 'superadmin') {

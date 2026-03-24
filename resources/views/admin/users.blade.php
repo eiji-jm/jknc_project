@@ -93,6 +93,7 @@
                                 <option value="">Select role</option>
                                 <option value="Admin" {{ old('role') == 'Admin' ? 'selected' : '' }}>Admin</option>
                                 <option value="Employee" {{ old('role') == 'Employee' ? 'selected' : '' }}>Employee</option>
+                                <option value="Client" {{ old('role') == 'Client' ? 'selected' : '' }}>Client</option>
                             </select>
                         </div>
 
@@ -187,6 +188,7 @@
                                             >
                                                 <option value="Admin" {{ $user->role === 'Admin' ? 'selected' : '' }}>Admin</option>
                                                 <option value="Employee" {{ $user->role === 'Employee' ? 'selected' : '' }}>Employee</option>
+                                                <option value="Client" {{ $user->role === 'Client' ? 'selected' : '' }}>Client</option>
                                             </select>
 
                                             @if($authUser->isSuperAdmin())

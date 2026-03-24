@@ -8,6 +8,7 @@ class RolePermission extends Model
 {
     protected $fillable = [
         'role',
+        'permission',
         'manage_users',
         'access_admin_dashboard',
         'create_townhall',
