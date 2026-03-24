@@ -79,7 +79,7 @@
             <div class="absolute inset-y-0 right-0 flex max-w-full">
                 <div
                     id="addPanel"
-                    class="w-screen max-w-[80vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                    class="w-screen max-w-[100vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
                 >
                     {{-- LEFT: LIVE PREVIEW --}}
                     <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">

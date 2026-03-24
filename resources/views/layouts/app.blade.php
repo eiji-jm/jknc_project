@@ -8,6 +8,8 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-50 font-sans">
@@ -85,7 +87,6 @@ Logout
 </div>
 </header>
 
-
 <div class="flex h-[calc(100vh-4rem)]">
 
 <!-- MINI SIDEBAR -->
@@ -119,8 +120,6 @@ class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text
 </a>
 
 </aside>
-
-
 
 <!-- SECOND SIDEBAR -->
 <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
@@ -181,8 +180,6 @@ class="block px-3 py-2 rounded-lg transition
 Correspondence
 </a>
 
-
-
 <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
 
 <a href="#" class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
@@ -212,8 +209,6 @@ Task Owner
 
 </aside>
 
-
-
 <!-- MAIN CONTENT -->
 <main class="flex-1 overflow-y-auto">
 @yield('content')
@@ -223,6 +218,9 @@ Task Owner
 
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+@stack('scripts')
 
 </body>
 </html>

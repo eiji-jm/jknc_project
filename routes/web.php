@@ -30,15 +30,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
 
     Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
-
-    Route::get('/correspondence/template/letters/{id}', [CorrespondenceController::class, 'showLettersTemplate'])->name('correspondence.template.letters');
-    Route::get('/correspondence/template/demand-letter/{id}', [CorrespondenceController::class, 'showDemandLetterTemplate'])->name('correspondence.template.demand-letter');
-    Route::get('/correspondence/template/request-letter/{id}', [CorrespondenceController::class, 'showRequestLetterTemplate'])->name('correspondence.template.request-letter');
-    Route::get('/correspondence/template/follow-up-letter/{id}', [CorrespondenceController::class, 'showFollowUpLetterTemplate'])->name('correspondence.template.follow-up-letter');
-    Route::get('/correspondence/template/memo/{id}', [CorrespondenceController::class, 'showMemoTemplate'])->name('correspondence.template.memo');
-    Route::get('/correspondence/template/notice/{id}', [CorrespondenceController::class, 'showNoticeTemplate'])->name('correspondence.template.notice');
-
-    Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
+    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
+    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
+    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
+    Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
+    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
     Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
