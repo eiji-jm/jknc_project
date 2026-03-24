@@ -19,7 +19,7 @@
     <div class="subtitle">Generated from the saved national government filing record.</div>
     <div class="card">
         <table class="grid">
-            <tr><td class="label">Client</td><td class="value">{{ $natgov->client ?: '-' }}</td></tr>
+            <tr><td class="label">Company</td><td class="value">{{ $natgov->client ?: '-' }}</td></tr>
             <tr><td class="label">TIN</td><td class="value">{{ $natgov->tin ?: '-' }}</td></tr>
             <tr><td class="label">Agency</td><td class="value">{{ $natgov->agency ?: '-' }}</td></tr>
             <tr><td class="label">Registration Status</td><td class="value">{{ $natgov->registration_status ?: '-' }}</td></tr>

@@ -66,9 +66,14 @@ class ResolutionController extends Controller
         $this->syncGeneratedResolutionPdf($resolution, false);
         $resolution = $resolution->fresh();
         $resolution->load(['notice', 'secretaryCertificates']);
+        $generatedBodyPreviewPath = $this->generateResolutionPdf(
+            $resolution,
+            'generated-previews/resolutions/' . ($resolution->resolution_no ?: $resolution->id) . '-body-built.pdf'
+        );
 
         return view('corporate.resolutions.preview', [
             'resolution' => $resolution,
+            'generatedBodyPreviewUrl' => $generatedBodyPreviewPath ? route('uploads.show', ['path' => $generatedBodyPreviewPath]) : null,
             'backRoute' => route('resolutions'),
             'editRoute' => route('resolutions.edit', $resolution),
             'updateRoute' => route('resolutions.update', $resolution),
@@ -256,7 +261,7 @@ class ResolutionController extends Controller
         $resolution->update(['draft_file_path' => $pdfPath]);
     }
 
-    private function generateResolutionPdf(Resolution $resolution): ?string
+    private function generateResolutionPdf(Resolution $resolution, ?string $targetPath = null): ?string
     {
         $browserBinary = $this->browserBinary();
 
@@ -318,7 +323,7 @@ class ResolutionController extends Controller
             return null;
         }
 
-        $targetPath = 'uploads/resolutions/' . ($resolution->resolution_no ?: 'draft-resolution') . '.pdf';
+        $targetPath = $targetPath ?: 'uploads/resolutions/' . ($resolution->resolution_no ?: 'draft-resolution') . '.pdf';
 
         Storage::disk('public')->delete($targetPath);
         Storage::disk('public')->put($targetPath, file_get_contents($pdfPath));

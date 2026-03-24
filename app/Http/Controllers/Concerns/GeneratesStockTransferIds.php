@@ -101,6 +101,19 @@ trait GeneratesStockTransferIds
         return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
+    protected function nextIssuanceRequestReference(): string
+    {
+        $modelClass = \App\Models\StockTransferIssuanceRequest::class;
+        $column = 'reference_no';
+        $prefix = 'REQ-';
+
+        do {
+            $next = $this->nextSequenceFor($modelClass, $column, $prefix);
+        } while ($modelClass::query()->where($column, $next)->exists());
+
+        return $next;
+    }
+
     protected function nextAvailableStockNumber(?string $preferred = null): string
     {
         $preferred = is_string($preferred) ? trim($preferred) : '';

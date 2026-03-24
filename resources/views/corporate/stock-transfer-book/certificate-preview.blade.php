@@ -185,7 +185,6 @@
                     <div><label class="text-xs text-gray-600">Effective Date</label><input type="date" name="cancellation_effective_date" value="{{ now()->toDateString() }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" required></div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Reason for Cancellation</label>
-                        <select name="cancellation_reason" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" required>
                         <select name="cancellation_reason" x-model="cancellationReason" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" required>
                             <option value="">Select reason</option>
                             @foreach (['Delinquent', 'Buy-back', 'Redemption', 'Treasury Cancellation', 'Capital Reduction', 'Others'] as $reason)

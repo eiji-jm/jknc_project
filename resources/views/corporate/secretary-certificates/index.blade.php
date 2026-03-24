@@ -21,10 +21,34 @@
         'notary_page_no' => $resolution->notary_page_no,
         'notary_book_no' => $resolution->notary_book_no,
         'notary_series_no' => $resolution->notary_series_no,
+        'minute_id' => $resolution->minute_id,
+        'minutes_ref' => $resolution->minute?->minutes_ref,
+        'source_type' => 'resolution',
+    ])->values();
+    $minuteOptions = ($minutes ?? collect())->map(fn ($minute) => [
+        'id' => $minute->id,
+        'minutes_ref' => $minute->minutes_ref,
+        'notice_id' => $minute->notice_id,
+        'notice_ref' => $minute->notice_ref,
+        'governing_body' => $minute->governing_body,
+        'type_of_meeting' => $minute->type_of_meeting,
+        'meeting_no' => $minute->meeting_no,
+        'date_of_meeting' => optional($minute->date_of_meeting)->toDateString(),
+        'location' => $minute->location,
+        'secretary' => $minute->secretary,
+        'source_type' => 'minutes',
     ])->values();
 @endphp
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="secretaryCertificateForm({{ Js::from($resolutionOptions) }}, @js(route('corporate-document-defaults')), @js($nextCertificateNumber ?? ''))" @keydown.escape.window="showAddPanel = false">
+<style>
+    .secretary-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+</style>
+
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="secretaryCertificateForm({{ Js::from($resolutionOptions) }}, {{ Js::from($minuteOptions) }}, @js(route('corporate-document-defaults')), @js($nextCertificateNumber ?? ''))" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <div class="text-lg font-semibold">Secretary Certificates</div>
@@ -55,7 +79,7 @@
                                 <td class="px-4 py-3 font-medium">{{ $certificate->certificate_no }}</td>
                                 <td class="px-4 py-3">
                                     <div>{{ $certificate->resolution_no }}</div>
-                                    <div class="text-xs text-gray-500">{{ $certificate->notice_ref }}</div>
+                                    <div class="text-xs text-gray-500">{{ $certificate->minutes_ref ?: $certificate->notice_ref }}</div>
                                 </td>
                                 <td class="px-4 py-3">{{ $certificate->purpose }}</td>
                                 <td class="px-4 py-3">
@@ -102,7 +126,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('secretary-certificates.store') }}" enctype="multipart/form-data" class="flex-1 overflow-y-auto p-6 space-y-6">
+            <form method="POST" action="{{ route('secretary-certificates.store') }}" enctype="multipart/form-data" class="flex-1 overflow-y-auto p-6 space-y-6" @submit="prepareSubmit()">
                 @csrf
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -119,11 +143,27 @@
                         <input type="text" name="uploaded_by" value="{{ $currentUser }}" data-default-field="current_user" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
+                        <label class="text-xs text-gray-600">Certificate Source</label>
+                        <select x-model="sourceType" @change="applySource()" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option value="resolution">Resolution + Minutes</option>
+                            <option value="minutes">Minutes Only</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="text-xs text-gray-600">Linked Resolution</label>
-                        <select name="resolution_id" x-model="selectedResolutionId" @change="applyResolution()" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <select name="resolution_id" x-model="selectedResolutionId" @change="applyResolution()" :disabled="sourceType !== 'resolution'" :class="sourceType !== 'resolution' ? 'bg-gray-50 text-gray-400' : ''" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             <option value="">Select a resolution</option>
                             <template x-for="resolution in resolutions" :key="resolution.id">
                                 <option :value="resolution.id" x-text="`${resolution.resolution_no || 'Draft Resolution'} • ${resolution.board_resolution || ''}`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Linked Minutes</label>
+                        <select name="minute_id" x-model="selectedMinuteId" @change="applyMinute()" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">Select minutes</option>
+                            <template x-for="minute in minutes" :key="minute.id">
+                                <option :value="minute.id" x-text="`${minute.minutes_ref || 'Draft Minutes'} • ${minute.notice_ref || ''}`"></option>
                             </template>
                         </select>
                     </div>
@@ -131,6 +171,10 @@
                     <div>
                         <label class="text-xs text-gray-600">Notice Ref #</label>
                         <input type="text" name="notice_ref" x-ref="noticeRef" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Minutes Ref</label>
+                        <input type="text" name="minutes_ref" x-ref="minutesRef" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Resolution No.</label>
@@ -162,6 +206,36 @@
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Purpose</label>
                         <input type="text" name="purpose" x-ref="purpose" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Certificate Body</label>
+                        <input type="hidden" name="resolution_body" x-ref="resolutionBodyInput">
+                        <div class="mt-1 overflow-hidden rounded-xl border border-gray-300 bg-white">
+                            <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 py-3">
+                                <select @change="applyBodyFormat('fontName', $event.target.value)" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Verdana">Verdana</option>
+                                </select>
+                                <select @change="applyBodyFormat('fontSize', $event.target.value)" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                    <option value="2">12</option>
+                                    <option value="3" selected>14</option>
+                                    <option value="4">16</option>
+                                    <option value="5">18</option>
+                                </select>
+                                <button type="button" @click="applyBodyFormat('bold')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold">B</button>
+                                <button type="button" @click="applyBodyFormat('italic')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs italic">I</button>
+                                <button type="button" @click="applyBodyFormat('underline')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs underline">U</button>
+                                <button type="button" @click="applyBodyFormat('insertUnorderedList')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Bullets</button>
+                                <button type="button" @click="applyBodyFormat('insertOrderedList')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Numbering</button>
+                                <button type="button" @click="applyBodyFormat('justifyLeft')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Left</button>
+                                <button type="button" @click="applyBodyFormat('justifyCenter')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Center</button>
+                                <button type="button" @click="applyBodyFormat('justifyRight')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Right</button>
+                                <button type="button" @click="applyBodyFormat('removeFormat')" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs">Clear</button>
+                            </div>
+                            <div x-ref="resolutionBodyEditor" @input="syncBody()" class="secretary-rich-editor min-h-[260px] px-4 py-3 text-sm leading-7 text-gray-900 outline-none" contenteditable="true" data-placeholder="Write the certified body here..."></div>
+                        </div>
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Meeting Date</label>
@@ -216,19 +290,51 @@
 </div>
 
 <script>
-    function secretaryCertificateForm(resolutions, defaultsEndpoint, initialCertificateNo) {
+    function secretaryCertificateForm(resolutions, minutes, defaultsEndpoint, initialCertificateNo) {
         return {
             showAddPanel: false,
             resolutions,
+            minutes,
             defaultsEndpoint,
             initialCertificateNo,
             selectedResolutionId: '',
+            selectedMinuteId: '',
+            sourceType: 'resolution',
+            resolutionBodyHtml: '',
             openPanel() {
                 this.showAddPanel = true;
                 if (this.$refs.certificateNo) {
                     this.$refs.certificateNo.value = this.initialCertificateNo || this.$refs.certificateNo.value || '';
                 }
                 this.loadDefaults();
+                this.$nextTick(() => {
+                    this.applySource();
+                    this.syncBody();
+                });
+            },
+            normalizeEditorHtml(html) {
+                return String(html ?? '')
+                    .replace(/<div><br><\/div>/gi, '')
+                    .replace(/<p><br><\/p>/gi, '')
+                    .trim();
+            },
+            syncBody() {
+                this.resolutionBodyHtml = this.normalizeEditorHtml(this.$refs.resolutionBodyEditor?.innerHTML || '');
+                if (this.$refs.resolutionBodyInput) {
+                    this.$refs.resolutionBodyInput.value = this.resolutionBodyHtml;
+                }
+            },
+            applyBodyFormat(command, value = null) {
+                if (!this.$refs.resolutionBodyEditor) {
+                    return;
+                }
+
+                this.$refs.resolutionBodyEditor.focus();
+                document.execCommand(command, false, value);
+                this.syncBody();
+            },
+            prepareSubmit() {
+                this.syncBody();
             },
             async loadDefaults() {
                 if (!this.defaultsEndpoint) {
@@ -249,14 +355,36 @@
                     // ignore defaults errors
                 }
             },
+            applySource() {
+                if (this.sourceType === 'resolution') {
+                    if (!this.selectedResolutionId && this.resolutions.length) {
+                        this.selectedResolutionId = String(this.resolutions[0].id);
+                    }
+                    this.applyResolution();
+                    return;
+                }
+
+                this.selectedResolutionId = '';
+                this.$refs.resolutionNo.value = '';
+                if (!this.selectedMinuteId && this.minutes.length) {
+                    this.selectedMinuteId = String(this.minutes[0].id);
+                }
+                this.applyMinute();
+            },
             applyResolution() {
+                if (this.sourceType !== 'resolution') {
+                    return;
+                }
+
                 const selected = this.resolutions.find((resolution) => String(resolution.id) === String(this.selectedResolutionId));
                 if (!selected) {
                     return;
                 }
 
+                this.selectedMinuteId = selected.minute_id ? String(selected.minute_id) : '';
                 this.$refs.noticeId.value = selected.notice_id || '';
                 this.$refs.noticeRef.value = selected.notice_ref || '';
+                this.$refs.minutesRef.value = selected.minutes_ref || '';
                 this.$refs.resolutionNo.value = selected.resolution_no || '';
                 this.$refs.governingBody.value = selected.governing_body || 'Board of Directors';
                 this.$refs.meetingType.value = selected.type_of_meeting || 'Regular';
@@ -264,12 +392,47 @@
                 this.$refs.meetingDate.value = selected.date_of_meeting || '';
                 this.$refs.location.value = selected.location || '';
                 this.$refs.purpose.value = selected.board_resolution || '';
+                if (this.$refs.resolutionBodyEditor) {
+                    this.$refs.resolutionBodyEditor.innerHTML = selected.board_resolution || '';
+                }
                 this.$refs.secretary.value = selected.secretary || '';
                 this.$refs.notaryPublic.value = selected.notary_public || '';
                 this.$refs.docNo.value = selected.notary_doc_no || '';
                 this.$refs.pageNo.value = selected.notary_page_no || '';
                 this.$refs.bookNo.value = selected.notary_book_no || '';
                 this.$refs.seriesNo.value = selected.notary_series_no || '';
+                this.syncBody();
+            },
+            applyMinute() {
+                const selected = this.minutes.find((minute) => String(minute.id) === String(this.selectedMinuteId));
+                if (!selected) {
+                    return;
+                }
+
+                this.$refs.noticeId.value = selected.notice_id || '';
+                this.$refs.noticeRef.value = selected.notice_ref || '';
+                this.$refs.minutesRef.value = selected.minutes_ref || '';
+                this.$refs.resolutionNo.value = this.sourceType === 'minutes' ? '' : this.$refs.resolutionNo.value;
+                this.$refs.governingBody.value = selected.governing_body || 'Board of Directors';
+                this.$refs.meetingType.value = selected.type_of_meeting || 'Regular';
+                this.$refs.meetingNo.value = selected.meeting_no || '';
+                this.$refs.meetingDate.value = selected.date_of_meeting || '';
+                this.$refs.location.value = selected.location || '';
+                if (this.sourceType === 'minutes') {
+                    this.$refs.purpose.value = `Certified extract from Minutes Ref. ${selected.minutes_ref || ''}`;
+                    if (this.$refs.resolutionBodyEditor) {
+                        this.$refs.resolutionBodyEditor.innerHTML = `Certified from Minutes Ref. ${selected.minutes_ref || ''}.`;
+                    }
+                }
+                this.$refs.secretary.value = selected.secretary || '';
+                if (this.sourceType === 'minutes') {
+                    this.$refs.notaryPublic.value = '';
+                    this.$refs.docNo.value = '';
+                    this.$refs.pageNo.value = '';
+                    this.$refs.bookNo.value = '';
+                    this.$refs.seriesNo.value = '';
+                }
+                this.syncBody();
             },
         };
     }

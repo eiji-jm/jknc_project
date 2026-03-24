@@ -3,9 +3,11 @@
 @php($currentUser = auth()->user()?->name ?? '')
 @php($stockNumberOptions = collect($availableStockNumbers ?? collect())->merge(collect($availableInstallments ?? collect())->pluck('stock_number'))->filter()->unique()->values())
 @php($stockNumberDirectory = collect($stockNumberDirectory ?? collect()))
+@php($requestPanelFields = ['reference_no', 'requested_at', 'request_type', 'issuance_type', 'requester', 'received_by', 'issued_by', 'certificate_id', 'notes', 'document_path'])
+@php($requestPanelHasErrors = collect($requestPanelFields)->contains(fn ($field) => $errors->has($field)))
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showAddPanel: false, showRequestPanel: false, activeTab: 'stock' }" @keydown.escape.window="showAddPanel = false; showRequestPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showAddPanel: false, showRequestPanel: @js($requestPanelHasErrors), activeTab: @js($requestPanelHasErrors ? 'requests' : 'stock') }" @keydown.escape.window="showAddPanel = false; showRequestPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4">
             <a href="{{ route('stock-transfer-book') }}" class="text-gray-500 hover:text-gray-700">
@@ -281,52 +283,56 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <form method="POST" action="{{ route('stock-transfer-book.certificates.requests.store') }}" class="p-6 overflow-y-auto space-y-4">
+            <form method="POST" action="{{ route('stock-transfer-book.certificates.requests.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
                 @csrf
+                @if ($requestPanelHasErrors)
+                    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                        <div class="font-semibold">Request could not be saved.</div>
+                        <div class="mt-1">{{ $errors->first() }}</div>
+                    </div>
+                @endif
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-gray-600">Ref #</label>
-                        <input type="text" name="reference_no" value="{{ $nextIssuanceRequestReference ?? 'REQ-0001' }}" data-default-field="reference_no" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        <input type="text" name="reference_no" value="{{ old('reference_no', $nextIssuanceRequestReference ?? 'REQ-0001') }}" data-default-field="reference_no" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Date and Time</label>
-                        <input type="datetime-local" name="requested_at" value="{{ $defaultRequestedAt ?? now()->format('Y-m-d\\TH:i') }}" data-default-field="now" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        <input type="datetime-local" name="requested_at" value="{{ old('requested_at', $defaultRequestedAt ?? now()->format('Y-m-d\\TH:i')) }}" data-default-field="now" readonly class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Type of Request</label>
                         <select name="request_type" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            <option value="New COS">New COS</option>
-                            <option value="Loss COS">Loss COS</option>
-                            <option value="Damage COS">Damage COS</option>
-                            <option value="Digital Copy of COS">Digital Copy of COS</option>
-                            <option value="Certified True Copy of CV">Certified True Copy of CV</option>
+                            @foreach (['New COS', 'Loss COS', 'Damage COS', 'Digital Copy of COS', 'Certified True Copy of CV'] as $requestTypeOption)
+                                <option value="{{ $requestTypeOption }}" @selected(old('request_type') === $requestTypeOption)>{{ $requestTypeOption }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Choose COS/CV</label>
                         <select name="issuance_type" data-issuance-type class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            <option value="COS">COS</option>
-                            <option value="CV">CV</option>
+                            <option value="COS" @selected(old('issuance_type', 'COS') === 'COS')>COS</option>
+                            <option value="CV" @selected(old('issuance_type') === 'CV')>CV</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Requester</label>
-                        <input type="text" name="requester" list="index-shareholders" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Choose from index">
+                        <input type="text" name="requester" list="index-shareholders" value="{{ old('requester') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Choose from index or enter manually">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Received By</label>
-                        <input type="text" name="received_by" value="{{ $currentUser }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="text" name="received_by" value="{{ old('received_by', $currentUser) }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Issued By</label>
-                        <input type="text" name="issued_by" value="{{ $currentUser }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                        <input type="text" name="issued_by" value="{{ old('issued_by', $currentUser) }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Certificate Stock</label>
                         <select name="certificate_id" data-certificate-stock class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                             <option value="">Select certificate stock</option>
                             @foreach ($certificateStocks as $certificate)
-                                <option value="{{ $certificate->id }}" data-type="{{ $certificate->certificate_type ?: 'COS' }}">
+                                <option value="{{ $certificate->id }}" data-type="{{ $certificate->certificate_type ?: 'COS' }}" @selected((string) old('certificate_id') === (string) $certificate->id)>
                                     {{ $certificate->certificate_type ?: 'COS' }} - {{ $certificate->stock_number }} - {{ $certificate->stockholder_name }}
                                 </option>
                             @endforeach
@@ -334,7 +340,12 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Notes</label>
-                        <textarea name="notes" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Optional request notes"></textarea>
+                        <textarea name="notes" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Optional request notes">{{ old('notes') }}</textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs text-gray-600">Upload Request File (PDF)</label>
+                        <input type="file" name="document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600">
+                        <div class="mt-1 text-[11px] text-gray-500">Attach the scanned request or supporting request PDF. If blank, the system preview will generate a request sheet automatically.</div>
                     </div>
                 </div>
                 <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2 -mx-6 -mb-6 mt-4">
@@ -496,6 +507,7 @@
             if (!stockSelect || !issuanceType) return;
             const selectedType = issuanceType.value;
             let firstVisibleValue = '';
+            let currentValueStillVisible = false;
 
             Array.from(stockSelect.options).forEach((option) => {
                 if (!option.value) {
@@ -505,10 +517,17 @@
 
                 const matches = option.dataset.type === selectedType;
                 option.hidden = !matches;
+                if (matches && option.value === stockSelect.value) {
+                    currentValueStillVisible = true;
+                }
                 if (matches && !firstVisibleValue) {
                     firstVisibleValue = option.value;
                 }
             });
+
+            if (currentValueStillVisible) {
+                return;
+            }
 
             if (firstVisibleValue) {
                 stockSelect.value = firstVisibleValue;

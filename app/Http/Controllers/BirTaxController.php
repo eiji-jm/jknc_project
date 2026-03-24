@@ -41,9 +41,23 @@ class BirTaxController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
-        $data['document_path'] = $this->handleUpload($request, 'document_path');
+        [$data['document_path'], $data['draft_documents']] = $this->appendUploadedFiles(
+            $request,
+            'document_path',
+            'document_paths',
+            [],
+            null,
+            'uploads/bir-tax/drafts'
+        );
         if (Schema::hasColumn('bir_taxes', 'approved_document_path')) {
-            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+            [$data['approved_document_path'], $data['approved_documents']] = $this->appendUploadedFiles(
+                $request,
+                'approved_document_path',
+                'approved_document_paths',
+                [],
+                null,
+                'uploads/bir-tax/approved'
+            );
         }
 
         $birTax = BirTax::create($this->filterPersistableData($data));
@@ -72,6 +86,7 @@ class BirTaxController extends Controller
         return view('corporate.bir-tax.preview', [
             'tax' => $birTax,
             'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
+            'visibleAuthorityNotes' => $this->visibleAuthorityNotes($birTax),
             'backRoute' => route('bir-tax'),
             'editRoute' => route('bir-tax.edit', $birTax),
             'deleteRoute' => route('bir-tax.destroy', $birTax),
@@ -94,9 +109,23 @@ class BirTaxController extends Controller
     public function update(Request $request, BirTax $birTax)
     {
         $data = $this->validateData($request);
-        $data['document_path'] = $this->handleUpload($request, 'document_path', $birTax->document_path);
+        [$data['document_path'], $data['draft_documents']] = $this->appendUploadedFiles(
+            $request,
+            'document_path',
+            'document_paths',
+            $birTax->draft_documents ?? [],
+            $birTax->document_path,
+            'uploads/bir-tax/drafts'
+        );
         if (Schema::hasColumn('bir_taxes', 'approved_document_path')) {
-            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $birTax->approved_document_path);
+            [$data['approved_document_path'], $data['approved_documents']] = $this->appendUploadedFiles(
+                $request,
+                'approved_document_path',
+                'approved_document_paths',
+                $birTax->approved_documents ?? [],
+                $birTax->approved_document_path,
+                'uploads/bir-tax/approved'
+            );
         }
 
         $birTax->update($this->filterPersistableData($data));
@@ -120,6 +149,24 @@ class BirTaxController extends Controller
         return redirect()->route('bir-tax')->with('success', 'BIR & Tax entry deleted.');
     }
 
+    public function storeAuthorityNote(Request $request, BirTax $birTax)
+    {
+        $data = $request->validate([
+            'visible_to_role' => ['required', 'string', 'in:Admin,Employee'],
+            'body' => ['required', 'string'],
+        ]);
+
+        $birTax->authorityNotes()->create([
+            'user_id' => auth()->id(),
+            'visible_to_role' => $data['visible_to_role'],
+            'body' => $data['body'],
+        ]);
+
+        return redirect()
+            ->route('bir-tax.preview', $birTax)
+            ->with('success', 'Authority note added.');
+    }
+
     private function fields(): array
     {
         return [
@@ -135,6 +182,8 @@ class BirTaxController extends Controller
             ['name' => 'date_uploaded', 'label' => 'Date Uploaded', 'type' => 'date'],
             ['name' => 'document_path', 'label' => 'Upload Draft BIR & Tax Document (PDF)', 'type' => 'file'],
             ['name' => 'approved_document_path', 'label' => 'Upload Approved BIR & Tax Document (PDF)', 'type' => 'file'],
+            ['name' => 'notes_visible_to', 'label' => 'Notes Visible To Authority', 'type' => 'text'],
+            ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
         ];
     }
 
@@ -152,7 +201,13 @@ class BirTaxController extends Controller
             'uploaded_by' => ['nullable', 'string', 'max:255'],
             'date_uploaded' => ['nullable', 'date'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'document_paths' => ['nullable', 'array'],
+            'document_paths.*' => ['file', 'mimes:pdf', 'max:5120'],
             'approved_document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'approved_document_paths' => ['nullable', 'array'],
+            'approved_document_paths.*' => ['file', 'mimes:pdf', 'max:5120'],
+            'notes_visible_to' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
         ]);
     }
 
@@ -182,5 +237,17 @@ class BirTaxController extends Controller
         return collect($data)
             ->filter(fn ($value, $key) => Schema::hasColumn('bir_taxes', $key))
             ->all();
+    }
+
+    private function visibleAuthorityNotes(BirTax $birTax)
+    {
+        $role = auth()->user()?->role;
+
+        return $birTax->authorityNotes()
+            ->with('user:id,name,role')
+            ->when($role && $role !== 'SuperAdmin', function ($query) use ($role) {
+                $query->where('visible_to_role', $role);
+            })
+            ->get();
     }
 }

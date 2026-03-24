@@ -13,11 +13,14 @@ class SecretaryCertificate extends Model
         'uploaded_by',
         'governing_body',
         'type_of_meeting',
+        'minute_id',
         'notice_id',
         'notice_ref',
         'meeting_no',
+        'minutes_ref',
         'resolution_id',
         'resolution_no',
+        'resolution_body',
         'date_issued',
         'purpose',
         'date_of_meeting',
@@ -53,5 +56,14 @@ class SecretaryCertificate extends Model
         }
 
         return $this->belongsTo(Resolution::class, 'resolution_no', 'resolution_no');
+    }
+
+    public function minute()
+    {
+        if (Schema::hasColumn('secretary_certificates', 'minute_id')) {
+            return $this->belongsTo(Minute::class, 'minute_id');
+        }
+
+        return $this->belongsTo(Minute::class, 'minutes_ref', 'minutes_ref');
     }
 }

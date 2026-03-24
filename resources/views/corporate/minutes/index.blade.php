@@ -19,6 +19,14 @@
     ])->values();
 @endphp
 
+<style>
+    .minutes-slider-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+</style>
+
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="minutesForm({{ Js::from($noticeOptions) }}, @js($today), @js($currentUser), @js(route('corporate-document-defaults')), @js($nextMinutesRef ?? ''))" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
@@ -129,7 +137,7 @@
                 </button>
             </div>
 
-            <form method="POST" action="{{ route('minutes.store') }}" enctype="multipart/form-data" class="flex-1 overflow-y-auto p-6 space-y-6">
+            <form method="POST" action="{{ route('minutes.store') }}" enctype="multipart/form-data" class="flex-1 overflow-y-auto p-6 space-y-6" @submit="prepareSubmit()">
                 @csrf
                 <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                     Select an existing Notice of Meeting first. The linked notice will suggest and auto-fill the core fields below so the minutes stay aligned with the notice record.
@@ -224,7 +232,36 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="text-xs text-gray-600">Recording Notes</label>
-                        <textarea name="recording_notes" rows="4" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></textarea>
+                        <input type="hidden" name="recording_notes" x-ref="recordingNotesInput">
+                        <div class="mt-1 overflow-hidden rounded-xl border border-gray-300 bg-white">
+                            <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 px-3 py-3 bg-gray-50">
+                                <select @change="applyMinutesFormat('fontName', $event.target.value)" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Verdana">Verdana</option>
+                                    <option value="Courier New">Courier New</option>
+                                </select>
+                                <select @change="applyMinutesFormat('fontSize', $event.target.value)" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                    <option value="1">10</option>
+                                    <option value="2">12</option>
+                                    <option value="3" selected>14</option>
+                                    <option value="4">16</option>
+                                    <option value="5">18</option>
+                                </select>
+                                <button type="button" @click="applyMinutesFormat('bold')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Bold</button>
+                                <button type="button" @click="applyMinutesFormat('italic')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Italic</button>
+                                <button type="button" @click="applyMinutesFormat('underline')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Underline</button>
+                                <button type="button" @click="applyMinutesFormat('insertUnorderedList')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Bullets</button>
+                                <button type="button" @click="applyMinutesFormat('insertOrderedList')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Numbering</button>
+                                <button type="button" @click="applyMinutesFormat('justifyLeft')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Left</button>
+                                <button type="button" @click="applyMinutesFormat('justifyCenter')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Center</button>
+                                <button type="button" @click="applyMinutesFormat('justifyRight')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Right</button>
+                                <button type="button" @click="applyMinutesFormat('hiliteColor', 'yellow')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Highlight</button>
+                                <button type="button" @click="applyMinutesFormat('removeFormat')" class="px-2 py-1 border border-gray-300 rounded-lg text-xs">Clear</button>
+                            </div>
+                            <div x-ref="minutesEditor" @input="syncMinutesBody()" class="minutes-slider-editor min-h-[260px] px-4 py-3 text-sm leading-7 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here..."></div>
+                        </div>
                     </div>
                 </div>
 
@@ -252,6 +289,7 @@
             defaultsEndpoint,
             initialMinutesRef,
             selectedNoticeId: '',
+            minutesBodyHtml: '',
             get hasNotices() {
                 return this.notices.length > 0;
             },
@@ -274,6 +312,39 @@
                 }
 
                 this.$nextTick(() => this.applyNotice());
+                this.$nextTick(() => {
+                    this.minutesBodyHtml = '';
+                    if (this.$refs.minutesEditor) {
+                        this.$refs.minutesEditor.innerHTML = '';
+                    }
+                    if (this.$refs.recordingNotesInput) {
+                        this.$refs.recordingNotesInput.value = '';
+                    }
+                });
+            },
+            normalizeEditorHtml(html) {
+                return String(html ?? '')
+                    .replace(/<div><br><\/div>/gi, '')
+                    .replace(/<p><br><\/p>/gi, '')
+                    .trim();
+            },
+            syncMinutesBody() {
+                this.minutesBodyHtml = this.normalizeEditorHtml(this.$refs.minutesEditor?.innerHTML || '');
+                if (this.$refs.recordingNotesInput) {
+                    this.$refs.recordingNotesInput.value = this.minutesBodyHtml;
+                }
+            },
+            applyMinutesFormat(command, value = null) {
+                if (!this.$refs.minutesEditor) {
+                    return;
+                }
+
+                this.$refs.minutesEditor.focus();
+                document.execCommand(command, false, value);
+                this.syncMinutesBody();
+            },
+            prepareSubmit() {
+                this.syncMinutesBody();
             },
             async loadDefaults() {
                 if (!this.defaultsEndpoint) {

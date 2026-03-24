@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\GeneratesCorporateDocumentNumbers;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Models\Minute;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 
 class MinuteController extends Controller
 {
+    use GeneratesPdfPreview;
     use GeneratesCorporateDocumentNumbers;
     use HandlesUploads;
 
@@ -59,12 +61,15 @@ class MinuteController extends Controller
     public function show(Minute $minute)
     {
         $minute->load('notice');
+        $templatePreviewPath = $this->generateTemplatePreviewPdf($minute);
 
         return view('corporate.minutes.preview', [
             'minute' => $minute,
             'backRoute' => route('minutes'),
             'editRoute' => route('minutes.edit', $minute),
             'deleteRoute' => route('minutes.destroy', $minute),
+            'templatePreviewUrl' => $templatePreviewPath ? route('uploads.show', ['path' => $templatePreviewPath]) : null,
+            'templatePreviewDownloadUrl' => $templatePreviewPath ? route('uploads.show', ['path' => $templatePreviewPath, 'download' => 1]) : null,
         ]);
     }
 
@@ -236,7 +241,7 @@ class MinuteController extends Controller
             ['name' => 'time_ended', 'label' => 'Time Ended', 'type' => 'time'],
             ['name' => 'location', 'label' => 'Location', 'type' => 'text'],
             ['name' => 'call_link', 'label' => 'Call Link', 'type' => 'text'],
-            ['name' => 'recording_notes', 'label' => 'Recording Notes', 'type' => 'text'],
+            ['name' => 'recording_notes', 'label' => 'Recording Notes', 'type' => 'textarea'],
             ['name' => 'script_text', 'label' => 'Script Text', 'type' => 'textarea'],
             ['name' => 'meeting_no', 'label' => 'Meeting Number', 'type' => 'text'],
             ['name' => 'chairman', 'label' => 'Chairman', 'type' => 'text'],
@@ -261,7 +266,7 @@ class MinuteController extends Controller
             'time_ended' => ['nullable'],
             'location' => ['nullable', 'string', 'max:255'],
             'call_link' => ['nullable', 'string', 'max:255'],
-            'recording_notes' => ['nullable', 'string', 'max:255'],
+            'recording_notes' => ['nullable', 'string'],
             'script_text' => ['nullable', 'string'],
             'meeting_no' => ['nullable', 'string', 'max:255'],
             'chairman' => ['nullable', 'string', 'max:255'],
@@ -325,6 +330,8 @@ class MinuteController extends Controller
 
     private function workspacePayload(Minute $minute): array
     {
+        $templatePreviewPath = $this->generateTemplatePreviewPdf($minute);
+
         return [
             'message' => 'Workspace files saved.',
             'tentative_audio_url' => $minute->tentative_audio_path ? route('uploads.show', ['path' => $minute->tentative_audio_path]) : null,
@@ -341,6 +348,8 @@ class MinuteController extends Controller
             'script_file_filename' => $minute->script_file_path ? basename($minute->script_file_path) : null,
             'recording_notes' => $minute->recording_notes,
             'script_text' => $minute->script_text,
+            'template_preview_url' => $templatePreviewPath ? route('uploads.show', ['path' => $templatePreviewPath]) : null,
+            'template_preview_download_url' => $templatePreviewPath ? route('uploads.show', ['path' => $templatePreviewPath, 'download' => 1]) : null,
             'recording_clips' => collect($minute->recording_clips ?? [])->map(fn ($path) => [
                 'id' => $path,
                 'url' => route('uploads.show', ['path' => $path]),
@@ -348,6 +357,16 @@ class MinuteController extends Controller
                 'filename' => basename($path),
             ])->values()->all(),
         ];
+    }
+
+    private function generateTemplatePreviewPdf(Minute $minute): ?string
+    {
+        $targetPath = 'uploads/minutes/template-preview-' . $minute->id . '.pdf';
+
+        return $this->generatePdfPreview('corporate.minutes.pdf', [
+            'minute' => $minute,
+            'minutesDocumentTitle' => strtoupper(trim('Minutes of the ' . ($minute->type_of_meeting ?: 'Special') . ' ' . ($minute->governing_body ?: 'Meeting'))),
+        ], $targetPath);
     }
 
     private function syncRecordingClips(Request $request, Minute $minute): array

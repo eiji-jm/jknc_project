@@ -33,21 +33,20 @@
     <style>
         body {
             margin: 0;
-            background: #f3f4f6;
+            background: #ffffff;
             font-family: Georgia, "Times New Roman", serif;
             color: #000;
         }
         .page {
-            width: 840px;
-            min-height: 1188px;
-            margin: 24px auto;
+            width: 794px;
+            min-height: 1123px;
+            margin: 0 auto;
             background: #fff;
-            border: 1px solid #d1d5db;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
             box-sizing: border-box;
-            padding: 48px;
+            padding: 56px 64px 48px;
             font-size: 15px;
             line-height: 1.85;
+            overflow: hidden;
         }
         .center {
             text-align: center;

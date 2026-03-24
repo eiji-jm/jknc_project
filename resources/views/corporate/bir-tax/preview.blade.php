@@ -2,11 +2,31 @@
 
 @section('content')
 @php
-    $draftUrl = $tax->document_path ? route('uploads.show', ['path' => $tax->document_path]) : ($generatedDraftUrl ?? null);
-    $approvedUrl = $tax->approved_document_path ? route('uploads.show', ['path' => $tax->approved_document_path]) : null;
+    $uploadUrl = function (?string $path): ?string {
+        if (!$path) {
+            return null;
+        }
+
+        $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn ($segment) => $segment !== '')));
+
+        return url('/uploads/' . implode('/', $segments));
+    };
+    $draftUrl = $tax->document_path ? $uploadUrl($tax->document_path) : ($generatedDraftUrl ?? null);
+    $approvedUrl = $tax->approved_document_path ? $uploadUrl($tax->approved_document_path) : null;
+    $draftDocuments = collect($tax->draft_documents ?? [])->filter(fn ($entry) => !empty($entry['path']))->values();
+    $approvedDocuments = collect($tax->approved_documents ?? [])->filter(fn ($entry) => !empty($entry['path']))->values();
+    $latestDraft = $draftDocuments->last();
+    $latestApproved = $approvedDocuments->last();
+    $draftOptions = $draftDocuments->map(function ($entry, $index) {
+        return [
+            'url' => $uploadUrl($entry['path']),
+            'label' => $entry['name'] ?? ('Draft Revision ' . ($index + 1)),
+            'uploaded_at' => $entry['uploaded_at'] ?? null,
+        ];
+    })->values();
 @endphp
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: '{{ $approvedUrl ? 'approved' : 'draft' }}', selectedDraftUrl: @js($draftOptions->last()['url'] ?? $draftUrl) }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <a href="{{ $backRoute }}" class="text-gray-500 hover:text-gray-700">
@@ -17,6 +37,10 @@
                 <div class="text-xs text-gray-500">TIN {{ $tax->tin ?? '-' }}</div>
             </div>
             <div class="flex-1"></div>
+            <div class="inline-flex rounded-full bg-gray-100 p-1">
+                <button type="button" class="px-3 py-1.5 text-xs font-semibold rounded-full" :class="activeVersion === 'draft' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" @click="activeVersion = 'draft'">Draft</button>
+                <button type="button" class="px-3 py-1.5 text-xs font-semibold rounded-full" :class="activeVersion === 'approved' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" @click="activeVersion = 'approved'">Approved</button>
+            </div>
             <a href="{{ $editRoute }}" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Edit</a>
             <form method="POST" action="{{ $deleteRoute }}" onsubmit="return confirm('Delete this BIR & Tax entry?');">
                 @csrf
@@ -27,27 +51,55 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3 space-y-4">
-                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div x-show="activeVersion === 'draft'" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-slate-900">Draft BIR & Tax File</div>
-                            <div class="text-xs text-slate-500">The internal draft uploaded from the slider appears here.</div>
+                            <div class="text-xs text-slate-500">Choose any saved draft revision to review it here.</div>
                         </div>
                     </div>
+                    @if ($draftOptions->count() > 1)
+                        <div class="mt-3">
+                            <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Revision Selector</label>
+                            <select x-model="selectedDraftUrl" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+                                @foreach ($draftOptions as $option)
+                                    <option value="{{ $option['url'] }}">
+                                        {{ $option['label'] }}@if($option['uploaded_at']) • {{ $option['uploaded_at'] }}@endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    @if ($latestDraft)
+                        <div class="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                            Latest draft: <span class="font-semibold text-slate-900">{{ $latestDraft['name'] ?? basename($latestDraft['path']) }}</span>
+                            @if (!empty($latestDraft['uploaded_at']))
+                                <span class="text-slate-400">• {{ $latestDraft['uploaded_at'] }}</span>
+                            @endif
+                        </div>
+                    @endif
                     @if ($draftUrl)
-                        <iframe src="{{ $draftUrl }}" class="mt-4 w-full h-[700px] border rounded bg-white"></iframe>
+                        <iframe :src="selectedDraftUrl" class="mt-4 w-full h-[700px] border rounded bg-white"></iframe>
                     @else
                         <div class="mt-4 w-full h-[700px] border rounded flex items-center justify-center bg-gray-50 text-gray-400 text-sm">No draft file available yet.</div>
                     @endif
                 </div>
 
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div x-show="activeVersion === 'approved'" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-slate-900">Approved BIR & Tax File</div>
-                            <div class="text-xs text-slate-500">Upload now from the slider or add the approved PDF later from this preview.</div>
+                            <div class="text-xs text-slate-500">Only the latest uploaded approved file appears here even if multiple approved PDFs were saved.</div>
                         </div>
                     </div>
+                    @if ($latestApproved)
+                        <div class="mt-3 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-emerald-700">
+                            Latest approved: <span class="font-semibold text-slate-900">{{ $latestApproved['name'] ?? basename($latestApproved['path']) }}</span>
+                            @if (!empty($latestApproved['uploaded_at']))
+                                <span class="text-slate-400">• {{ $latestApproved['uploaded_at'] }}</span>
+                            @endif
+                        </div>
+                    @endif
                     @if ($approvedUrl)
                         <iframe src="{{ $approvedUrl }}" class="mt-4 w-full h-[700px] border rounded bg-white"></iframe>
                     @else
@@ -66,21 +118,81 @@
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Registered Address</span><div class="font-medium text-gray-900">{{ $tax->registered_address ?? '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Form Type</span><div class="font-medium text-gray-900">{{ $tax->form_type ?? '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Deadline</span><div class="font-medium text-gray-900">{{ optional($tax->due_date)->format('M d, Y') ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Uploaded</span><div class="font-medium text-gray-900">{{ optional($tax->date_uploaded)->format('M d, Y') ?? '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Status</span><div class="font-medium text-gray-900">{{ $tax->display_status }}</div></div>
                     </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-xl p-4">
+                    <div class="text-sm font-semibold text-gray-900">Add More Draft Files</div>
+                    <div class="mt-1 text-xs text-gray-500">You can keep uploading more draft revisions. Users can switch between them from the selector above.</div>
+                    <form method="POST" action="{{ $updateRoute }}" enctype="multipart/form-data" class="mt-4 space-y-3">
+                        @csrf
+                        @method('PUT')
+                        <input type="file" name="document_paths[]" accept="application/pdf" multiple class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-white hover:file:bg-slate-800">
+                        <button type="submit" class="w-full rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                            Upload Draft Revision{{ $draftDocuments->count() === 1 ? '' : 's' }}
+                        </button>
+                    </form>
+                    @if ($draftDocuments->isNotEmpty())
+                        <div class="mt-3 text-xs text-gray-500">Draft files saved: {{ $draftDocuments->count() }}</div>
+                    @endif
                 </div>
 
                 <div class="bg-white border border-emerald-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900">Upload Approved File Later</div>
-                    <div class="mt-1 text-xs text-gray-500">Use this when the approved BIR & Tax PDF becomes available after the draft was already saved.</div>
+                    <div class="mt-1 text-xs text-gray-500">Use this when approved PDFs become available. The newest approved PDF becomes the visible approved preview.</div>
                     <form method="POST" action="{{ $updateRoute }}" enctype="multipart/form-data" class="mt-4 space-y-3">
                         @csrf
                         @method('PUT')
-                        <input type="file" name="approved_document_path" accept="application/pdf" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                        <input type="file" name="approved_document_paths[]" accept="application/pdf" multiple class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
                         <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                            {{ $tax->approved_document_path ? 'Update Approved File' : 'Upload Approved File' }}
+                            {{ $tax->approved_document_path ? 'Upload Approved Revision' : 'Upload Approved File' }}
                         </button>
                     </form>
+                    @if ($approvedDocuments->isNotEmpty())
+                        <div class="mt-3 text-xs text-gray-500">Approved files saved: {{ $approvedDocuments->count() }}</div>
+                    @endif
+                </div>
+
+                <div class="bg-white border border-amber-200 rounded-xl p-4">
+                    <div class="text-sm font-semibold text-gray-900">Authority Notes</div>
+                    <div class="mt-1 text-xs text-gray-500">Each note is saved separately with its own visibility permission. Users will only see notes allowed for their role.</div>
+                    <form method="POST" action="{{ route('bir-tax.notes.store', $tax) }}" class="mt-4 space-y-3">
+                        @csrf
+                        <div>
+                            <label class="text-xs text-gray-600">Visible To Role</label>
+                            <select name="visible_to_role" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                                <option value="Admin">Admin</option>
+                                <option value="Employee">Employee</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">New Note</label>
+                            <textarea name="body" rows="5" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Write compliance notes, filing remarks, or special instructions here..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">Send Note</button>
+                    </form>
+
+                    <div class="mt-4 space-y-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Visible Note List</div>
+                        @forelse (($visibleAuthorityNotes ?? collect()) as $note)
+                            <div class="rounded-lg border border-amber-100 bg-amber-50 px-3 py-3">
+                                <div class="flex items-center justify-between gap-3 text-[11px] text-gray-500">
+                                    <div>
+                                        <span class="font-semibold text-gray-800">{{ $note->user?->name ?? 'Unknown User' }}</span>
+                                        <span>({{ $note->user?->role ?? 'No Role' }})</span>
+                                    </div>
+                                    <div>{{ optional($note->created_at)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</div>
+                                </div>
+                                <div class="mt-1 text-[11px] uppercase tracking-wide text-amber-700">Visible to {{ $note->visible_to_role }}</div>
+                                <div class="mt-2 whitespace-pre-line text-sm text-gray-900">{{ $note->body }}</div>
+                            </div>
+                        @empty
+                            <div class="rounded-lg border border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500">
+                                No visible authority notes yet for your role.
+                            </div>
+                        @endforelse
+                    </div>
                 </div>
 
             </div>

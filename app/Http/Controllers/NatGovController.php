@@ -41,9 +41,23 @@ class NatGovController extends Controller
     public function store(Request $request)
     {
         $data = $this->validateData($request);
-        $data['document_path'] = $this->handleUpload($request, 'document_path');
+        [$data['document_path'], $data['draft_documents']] = $this->appendUploadedFiles(
+            $request,
+            'document_path',
+            'document_paths',
+            [],
+            null,
+            'uploads/natgov/drafts'
+        );
         if (Schema::hasColumn('nat_govs', 'approved_document_path')) {
-            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path');
+            [$data['approved_document_path'], $data['approved_documents']] = $this->appendUploadedFiles(
+                $request,
+                'approved_document_path',
+                'approved_document_paths',
+                [],
+                null,
+                'uploads/natgov/approved'
+            );
         }
 
         $natgov = NatGov::create($this->filterPersistableData($data));
@@ -72,6 +86,7 @@ class NatGovController extends Controller
         return view('corporate.natgov.preview', [
             'natgov' => $natgov,
             'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
+            'visibleAuthorityNotes' => $this->visibleAuthorityNotes($natgov),
             'backRoute' => route('natgov'),
             'editRoute' => route('natgov.edit', $natgov),
             'deleteRoute' => route('natgov.destroy', $natgov),
@@ -94,9 +109,23 @@ class NatGovController extends Controller
     public function update(Request $request, NatGov $natgov)
     {
         $data = $this->validateData($request);
-        $data['document_path'] = $this->handleUpload($request, 'document_path', $natgov->document_path);
+        [$data['document_path'], $data['draft_documents']] = $this->appendUploadedFiles(
+            $request,
+            'document_path',
+            'document_paths',
+            $natgov->draft_documents ?? [],
+            $natgov->document_path,
+            'uploads/natgov/drafts'
+        );
         if (Schema::hasColumn('nat_govs', 'approved_document_path')) {
-            $data['approved_document_path'] = $this->handleUpload($request, 'approved_document_path', $natgov->approved_document_path);
+            [$data['approved_document_path'], $data['approved_documents']] = $this->appendUploadedFiles(
+                $request,
+                'approved_document_path',
+                'approved_document_paths',
+                $natgov->approved_documents ?? [],
+                $natgov->approved_document_path,
+                'uploads/natgov/approved'
+            );
         }
 
         $natgov->update($this->filterPersistableData($data));
@@ -120,10 +149,28 @@ class NatGovController extends Controller
         return redirect()->route('natgov')->with('success', 'NatGov entry deleted.');
     }
 
+    public function storeAuthorityNote(Request $request, NatGov $natgov)
+    {
+        $data = $request->validate([
+            'visible_to_role' => ['required', 'string', 'in:Admin,Employee'],
+            'body' => ['required', 'string'],
+        ]);
+
+        $natgov->authorityNotes()->create([
+            'user_id' => auth()->id(),
+            'visible_to_role' => $data['visible_to_role'],
+            'body' => $data['body'],
+        ]);
+
+        return redirect()
+            ->route('natgov.preview', $natgov)
+            ->with('success', 'Authority note added.');
+    }
+
     private function fields(): array
     {
         return [
-            ['name' => 'client', 'label' => 'Client', 'type' => 'text'],
+            ['name' => 'client', 'label' => 'Company', 'type' => 'text'],
             ['name' => 'tin', 'label' => 'TIN', 'type' => 'text'],
             ['name' => 'agency', 'label' => 'Government Body/Agency', 'type' => 'text'],
             ['name' => 'registration_status', 'label' => 'Registration Status', 'type' => 'text'],
@@ -135,6 +182,8 @@ class NatGovController extends Controller
             ['name' => 'date_uploaded', 'label' => 'Date Uploaded', 'type' => 'date'],
             ['name' => 'document_path', 'label' => 'Upload Draft NatGov Document (PDF)', 'type' => 'file'],
             ['name' => 'approved_document_path', 'label' => 'Upload Approved NatGov Document (PDF)', 'type' => 'file'],
+            ['name' => 'notes_visible_to', 'label' => 'Notes Visible To Authority', 'type' => 'text'],
+            ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea'],
         ];
     }
 
@@ -152,7 +201,13 @@ class NatGovController extends Controller
             'uploaded_by' => ['nullable', 'string', 'max:255'],
             'date_uploaded' => ['nullable', 'date'],
             'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'document_paths' => ['nullable', 'array'],
+            'document_paths.*' => ['file', 'mimes:pdf', 'max:5120'],
             'approved_document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
+            'approved_document_paths' => ['nullable', 'array'],
+            'approved_document_paths.*' => ['file', 'mimes:pdf', 'max:5120'],
+            'notes_visible_to' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
         ]);
     }
 
@@ -180,5 +235,17 @@ class NatGovController extends Controller
         return collect($data)
             ->filter(fn ($value, $key) => Schema::hasColumn('nat_govs', $key))
             ->all();
+    }
+
+    private function visibleAuthorityNotes(NatGov $natgov)
+    {
+        $role = auth()->user()?->role;
+
+        return $natgov->authorityNotes()
+            ->with('user:id,name,role')
+            ->when($role && $role !== 'SuperAdmin', function ($query) use ($role) {
+                $query->where('visible_to_role', $role);
+            })
+            ->get();
     }
 }

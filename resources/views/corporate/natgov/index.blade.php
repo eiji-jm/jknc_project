@@ -24,10 +24,8 @@
 
         {{-- SEARCH SECTION --}}
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input type="text" placeholder="Search client..." class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+            <div class="grid grid-cols-1 gap-3">
                 <input type="text" placeholder="Search agency..." class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                <input type="date" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
             </div>
         </div>
 
@@ -37,7 +35,7 @@
                 <table class="min-w-full">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50">
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Client</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Company</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">TIN</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Govt Body/Agency</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Registration Status</th>
@@ -45,8 +43,6 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Deadline</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Registration No.</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Uploaded By</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date Uploaded</th>
                             
                         </tr>
                     </thead>
@@ -60,13 +56,11 @@
             <td class="px-4 py-3">{{ optional($natgov->registration_date)->format('M d, Y') }}</td>
             <td class="px-4 py-3">{{ optional($natgov->deadline_date)->format('M d, Y') }}</td>
             <td class="px-4 py-3">{{ $natgov->registration_no }}</td>
-            <td class="px-4 py-3">{{ $natgov->status }}</td>
-            <td class="px-4 py-3">{{ $natgov->uploaded_by }}</td>
-            <td class="px-4 py-3">{{ optional($natgov->date_uploaded)->format('M d, Y') }}</td>
+            <td class="px-4 py-3">{{ $natgov->display_status }}</td>
         </tr>
     @empty
         <tr>
-            <td colspan="10" class="px-4 py-6 text-center text-sm text-gray-500">No NatGov entries found.</td>
+            <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">No NatGov entries found.</td>
         </tr>
     @endforelse
 </tbody>
@@ -103,8 +97,8 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="text-xs text-gray-600">Client</label>
-                        <input type="text" name="client" value="{{ old('client', $companyDefaults['client']) }}" data-company-default="{{ $companyDefaults['client'] }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Client">
+                        <label class="text-xs text-gray-600">Company</label>
+                        <input type="text" name="client" value="{{ old('client', $companyDefaults['client']) }}" data-company-default="{{ $companyDefaults['client'] }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Company">
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">TIN</label>
@@ -112,7 +106,12 @@
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Govt Body/Agency</label>
-                        <input type="text" name="agency" value="{{ old('agency') }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Agency">
+                        <select name="agency" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                            <option value="">Select agency</option>
+                            @foreach (['SSS', 'Pag-IBIG', 'PHILHEALTH', 'Dole'] as $agencyOption)
+                                <option value="{{ $agencyOption }}" @selected(old('agency') === $agencyOption)>{{ $agencyOption }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div>
                         <label class="text-xs text-gray-600">Registration Status</label>
@@ -143,12 +142,14 @@
                         <input type="date" name="date_uploaded" value="{{ old('date_uploaded') }}" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-gray-600">Upload Draft NatGov PDF</label>
-                        <input type="file" name="document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-white hover:file:bg-slate-800">
+                        <label class="text-xs text-gray-600">Upload Draft NatGov PDFs</label>
+                        <input type="file" name="document_paths[]" accept="application/pdf" multiple class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-white hover:file:bg-slate-800">
+                        <div class="mt-1 text-[11px] text-gray-500">You can upload multiple draft PDFs. The newest file will be the one shown in the draft preview.</div>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-gray-600">Upload Approved NatGov PDF</label>
-                        <input type="file" name="approved_document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                        <label class="text-xs text-gray-600">Upload Approved NatGov PDFs</label>
+                        <input type="file" name="approved_document_paths[]" accept="application/pdf" multiple class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
+                        <div class="mt-1 text-[11px] text-gray-500">You can upload multiple approved PDFs. The newest file will be the one shown in the approved preview.</div>
                     </div>
                 </div>
             </div>

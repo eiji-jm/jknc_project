@@ -23,6 +23,8 @@
     ])->values();
     $canApproveMinutes = auth()->user()?->role === 'Admin';
     $minutesDocumentTitle = strtoupper(trim('Minutes of the ' . ($minute->type_of_meeting ?: 'Special') . ' ' . ($minute->governing_body ?: 'Meeting')));
+    $templatePreviewUrl = $templatePreviewUrl ?? null;
+    $templatePreviewDownloadUrl = $templatePreviewDownloadUrl ?? null;
 @endphp
 <style>
     @media print {
@@ -50,7 +52,8 @@
             </div>
             <div class="flex-1"></div>
             <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 p-1">
-                <button type="button" data-preview-tab-button="ongoing" class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition">On-Going Preview</button>
+                <button type="button" data-preview-tab-button="template" class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition">Template Builder</button>
+                <button type="button" data-preview-tab-button="ongoing" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">On-Going Preview</button>
                 <button type="button" data-preview-tab-button="final" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">Final Preview</button>
             </div>
             <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $minute->approved_by ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
@@ -70,8 +73,8 @@
             </form>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-            <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-6 p-6">
+            <div class="space-y-4">
                 <section data-preview-tab="ongoing" class="space-y-4">
                     <div class="bg-gray-900 rounded-xl overflow-hidden">
                         <div class="bg-gray-800 px-4 py-3 flex items-center gap-2 border-b border-gray-700">
@@ -188,49 +191,135 @@
                                 <div id="minutes-script-empty" class="mt-3 text-sm text-gray-500">Upload a supporting script, transcript, or speaking guide.</div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                        <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
+                        <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
                             <div>
-                                <div class="text-sm font-semibold text-gray-900">Minutes Body Builder</div>
-                                <div class="text-xs text-gray-500">Write the minutes here with document tools. This content feeds the minutes template preview below.</div>
+                                <div class="text-sm font-semibold text-gray-900">Meeting Script</div>
+                                <div class="text-xs text-gray-500">Keep the speaking script or transcript inside the on-going meeting workspace.</div>
                             </div>
-                            <div class="flex-1"></div>
-                            <select id="notes-font" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
-                                <option value="Arial">Arial</option>
-                                <option value="Times New Roman">Times New Roman</option>
-                                <option value="Georgia">Georgia</option>
-                                <option value="Verdana">Verdana</option>
-                                <option value="Courier New">Courier New</option>
-                            </select>
-                            <select id="notes-size" class="border border-gray-300 rounded-lg px-2 py-1 text-xs">
-                                <option value="1">10</option>
-                                <option value="2">12</option>
-                                <option value="3" selected>14</option>
-                                <option value="4">16</option>
-                                <option value="5">18</option>
-                            </select>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="bold">Bold</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="italic">Italic</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="underline">Underline</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertUnorderedList">Bullets</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertOrderedList">Numbering</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyLeft">Left</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyCenter">Center</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyRight">Right</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="hiliteColor" data-value="yellow">Highlight</button>
-                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="removeFormat">Clear</button>
+                            <textarea id="minutes-script-editor" rows="10" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm" placeholder="Write the script, discussion outline, or final speaking flow here...">{{ $minute->script_text ?? '' }}</textarea>
                         </div>
-                        <div id="notes-editor" class="minutes-rich-editor min-h-[280px] p-4 text-sm leading-7 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here...">{!! $minute->recording_notes ?: '' !!}</div>
                     </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                        <div>
-                            <div class="text-sm font-semibold text-gray-900">Meeting Script</div>
-                            <div class="text-xs text-gray-500">Keep a clean speaking script or transcript beside the live notes.</div>
+                </section>
+
+                <section data-preview-tab="template" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(420px,0.95fr)] gap-6 min-h-[calc(100vh-15rem)]">
+                        <div class="rounded-2xl border border-slate-200 overflow-hidden bg-[#f8fafc] flex flex-col">
+                            <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2 bg-white">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900">Template Builder Page</div>
+                                    <div class="text-xs text-gray-500">This page follows the `resources/doc_templates/[TEMPLATE-SKBL] Minutes of Special Meeting_ (Title).docx` structure and updates in real time.</div>
+                                </div>
+                                <div class="flex-1"></div>
+                                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Live Template</span>
+                            </div>
+                            <div class="flex-1 overflow-auto p-6">
+                                <div class="mx-auto max-w-[860px] rounded-sm bg-white px-14 py-12 shadow-[0_18px_50px_rgba(15,23,42,0.08)]" style="font-family: Georgia, 'Times New Roman', serif;">
+                                    <div class="text-center">
+                                        <div class="text-[22px] font-bold uppercase tracking-[0.03em]">JOHN KELLY &amp; COMPANY</div>
+                                        <div class="mt-1 text-[15px]">COMPANY REG. NO.: 2025120230900-02</div>
+                                        <div class="mt-1 text-[15px]">3RD FLOOR, UNIT 305 CEBU HOLDINGS CENTER CARDINAL ROSALES AVE., CEBU BUSINESS PARK HIPPODROMO, CEBU CITY, 6000</div>
+                                        <div class="mt-10 text-[20px] font-bold">{{ $minute->type_of_meeting ?: 'Special' }} {{ $minute->governing_body ?: 'Directors' }} Meeting</div>
+                                        <div class="mt-2 text-[18px]">of</div>
+                                        <div class="mt-2 text-[20px] font-bold uppercase">JOHN KELLY &amp; COMPANY</div>
+                                        <div class="mt-8 text-[16px] italic">Held at</div>
+                                        <div class="mt-1 text-[16px] italic">{{ $minute->location ?: '________________' }}</div>
+                                        <div class="mt-5 text-[16px] italic">On</div>
+                                        <div class="mt-1 text-[16px] italic">{{ optional($minute->date_of_meeting)->format('F d, Y') ?: '________________' }}</div>
+                                    </div>
+
+                                    <div class="mt-10">
+                                        <div class="text-[15px] font-bold">Attending:</div>
+                                        <table class="mt-3 w-full table-fixed border-collapse text-[14px] leading-6">
+                                            <tbody>
+                                                <tr>
+                                                    <td class="w-[24%] py-1 font-semibold">Directors:</td>
+                                                    <td class="w-[40%] py-1">{{ $minute->chairman ?: '________________' }}</td>
+                                                    <td class="py-1">President/Chairman</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-1"></td>
+                                                    <td class="py-1">{{ $minute->secretary ?: '________________' }}</td>
+                                                    <td class="py-1">Corporate Secretary</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-1 font-semibold">Other Attendee:</td>
+                                                    <td class="py-1">{{ $minute->uploaded_by ?: '________________' }}</td>
+                                                    <td class="py-1">Recorder</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="mt-10">
+                                        <div class="text-[15px] font-bold">Minutes Proper:</div>
+                                        <div id="minutes-template-editor" class="minutes-rich-editor mt-4 min-h-[360px] whitespace-pre-wrap text-[15px] leading-8 text-slate-900 outline-none" contenteditable="true" data-placeholder="Type the minutes following the template here..."></div>
+                                    </div>
+
+                                    <table class="mt-12 w-full table-fixed border-collapse text-[14px] leading-6">
+                                        <tbody>
+                                            <tr>
+                                                <td class="w-[20%] font-semibold">Prepared by:</td>
+                                                <td class="w-[32%] border-b border-slate-300">{{ $minute->secretary ?: '________________' }}</td>
+                                                <td class="w-[16%]"></td>
+                                                <td class="w-[32%] border-b border-slate-300">{{ $minute->chairman ?: '________________' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td></td>
+                                                <td class="pt-2 text-center">Corporate Secretary</td>
+                                                <td></td>
+                                                <td class="pt-2 text-center">President/Chairman</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                        <textarea id="minutes-script-editor" rows="10" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm" placeholder="Write the script, discussion outline, or final speaking flow here...">{{ $minute->script_text ?? '' }}</textarea>
+                        <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col">
+                            <div class="flex-1 overflow-y-auto">
+                                <div class="px-6 py-5 space-y-5">
+                                    <div class="rounded-2xl border border-gray-200 overflow-hidden sticky top-0 bg-white z-10 shadow-sm">
+                                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                                            <div class="text-sm font-semibold text-gray-900">Minutes Body Builder</div>
+                                            <div class="mt-1 text-xs text-gray-500">Write the minutes here with formatting tools. The template and final preview use this exact content.</div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-3 bg-white">
+                                            <select id="notes-font" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                                <option value="Arial">Arial</option>
+                                                <option value="Times New Roman">Times New Roman</option>
+                                                <option value="Georgia">Georgia</option>
+                                                <option value="Verdana">Verdana</option>
+                                                <option value="Courier New">Courier New</option>
+                                            </select>
+                                            <select id="notes-size" class="rounded-lg border border-gray-300 px-2 py-1 text-xs">
+                                                <option value="1">10</option>
+                                                <option value="2">12</option>
+                                                <option value="3" selected>14</option>
+                                                <option value="4">16</option>
+                                                <option value="5">18</option>
+                                            </select>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="bold">Bold</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="italic">Italic</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="underline">Underline</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertUnorderedList">Bullets</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="insertOrderedList">Numbering</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyLeft">Left</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyCenter">Center</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="justifyRight">Right</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="hiliteColor" data-value="yellow">Highlight</button>
+                                            <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-cmd="removeFormat">Clear</button>
+                                        </div>
+                                        <div id="notes-editor" class="minutes-rich-editor min-h-[360px] p-4 text-sm leading-7 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here...">{!! $minute->recording_notes ?: '' !!}</div>
+                                    </div>
+
+                                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                        <div class="text-sm font-semibold text-gray-900">Template Notes</div>
+                                        <div class="mt-1 text-xs text-gray-500">This builder page mirrors the minutes template arrangement: centered heading, `Held at`, `On`, attendance section, minutes proper, and sign-off area.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -322,43 +411,26 @@
                             </div>
                         </div>
 
-                        <div class="mt-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.7fr)] gap-4">
+                        <div class="mt-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-4">
                             <div class="rounded-xl border border-slate-200 bg-white p-5">
                                 <div class="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
                                     <div>
-                                        <div class="text-sm font-semibold text-slate-900">Minutes Template Preview</div>
-                                        <div class="mt-1 text-xs text-slate-500">Editable preview based on `resources/doc_templates/[TEMPLATE-SKBL] Minutes of Special Meeting_ (Title).docx`.</div>
+                                        <div class="text-sm font-semibold text-slate-900">Minutes Template PDF Preview</div>
+                                        <div class="mt-1 text-xs text-slate-500">PDF version generated from the template builder content used in the final minutes packet.</div>
                                     </div>
                                     <div class="text-right text-[11px] leading-5 text-slate-500">
                                         <div>{{ $minute->minutes_ref ?? '-' }}</div>
                                         <div>{{ optional($minute->date_of_meeting)->format('F d, Y') ?? '-' }}</div>
                                     </div>
                                 </div>
-                                <div class="mt-5 rounded-2xl border border-slate-200 bg-[#fbfbfd] px-10 py-9 shadow-sm">
-                                    <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">John Kelly &amp; Company</div>
-                                    <div class="mt-2 text-2xl font-semibold uppercase tracking-[0.18em] text-slate-900">{{ $minutesDocumentTitle }}</div>
-                                    <div class="mt-6 grid grid-cols-[150px_1fr] gap-x-6 gap-y-2 text-sm leading-6 text-slate-700">
-                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Date</div>
-                                        <div>{{ optional($minute->date_of_meeting)->format('F d, Y') ?? '-' }}</div>
-                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Time</div>
-                                        <div>{{ $minute->time_started ?? '-' }} - {{ $minute->time_ended ?? '-' }}</div>
-                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Location</div>
-                                        <div>{{ $minute->location ?? '-' }}</div>
-                                        <div class="font-semibold uppercase tracking-wide text-slate-500">Presiding</div>
-                                        <div>{{ $minute->chairman ?? '-' }}</div>
-                                    </div>
-                                    <div id="final-notes-output" class="minutes-rich-editor prose prose-slate mt-8 min-h-[340px] max-w-none text-[15px] leading-8 text-slate-800 outline-none" contenteditable="true" data-placeholder="Type the minutes of meeting here and it will save as the live minutes document..."></div>
-                                    <div id="final-notes-empty" class="hidden"></div>
-                                    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-slate-700">
-                                        <div>
-                                            <div class="border-t border-slate-300 pt-3 font-semibold text-slate-900">{{ $minute->chairman ?? 'Chairman' }}</div>
-                                            <div class="text-xs uppercase tracking-wide text-slate-500">Chairman</div>
-                                        </div>
-                                        <div>
-                                            <div class="border-t border-slate-300 pt-3 font-semibold text-slate-900">{{ $minute->secretary ?? 'Corporate Secretary' }}</div>
-                                            <div class="text-xs uppercase tracking-wide text-slate-500">Corporate Secretary</div>
-                                        </div>
-                                    </div>
+                                <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                                    @if($templatePreviewUrl)
+                                        <iframe id="minutes-template-pdf-frame" src="{{ $templatePreviewUrl }}" class="h-[720px] w-full bg-white"></iframe>
+                                        <div id="minutes-template-pdf-empty" class="hidden px-6 py-10 text-sm text-slate-500">The PDF preview will appear here after the final preview is generated.</div>
+                                    @else
+                                        <iframe id="minutes-template-pdf-frame" src="" class="hidden h-[720px] w-full bg-white"></iframe>
+                                        <div id="minutes-template-pdf-empty" class="px-6 py-10 text-sm text-slate-500">The PDF preview will appear here after the final preview is generated.</div>
+                                    @endif
                                 </div>
                             </div>
                             <div class="rounded-xl border border-slate-200 bg-white p-5">
@@ -370,101 +442,10 @@
                     </div>
                 </section>
             </div>
-
-            <div class="space-y-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">Meeting Details</div>
-                    <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Governing Body</span><div class="font-medium text-gray-900">{{ $minute->governing_body ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting Type</span><div class="font-medium text-gray-900">{{ $minute->type_of_meeting ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date</span><div class="font-medium text-gray-900">{{ optional($minute->date_of_meeting)->format('Y-m-d') ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Time</span><div class="font-medium text-gray-900">{{ $minute->time_started ?? '-' }} - {{ $minute->time_ended ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Location</span><div class="font-medium text-gray-900">{{ $minute->location ?? '-' }}</div></div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">References</div>
-                    <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Minutes Ref</span><div class="font-medium text-gray-900">{{ $minute->minutes_ref ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notice Ref</span><div class="font-medium text-gray-900">{{ $minute->notice_ref ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting No.</span><div class="font-medium text-gray-900">{{ $minute->meeting_no ?? '-' }}</div></div>
-                    </div>
-                </div>
-
-                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">Signatories</div>
-                    <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Chairman</span><div class="font-medium text-gray-900">{{ $minute->chairman ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Secretary</span><div class="font-medium text-gray-900">{{ $minute->secretary ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Approved By</span><div class="font-medium text-gray-900">{{ $minute->approved_by ?? '-' }}</div></div>
-                    </div>
-                </div>
-                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">Approved Minutes</div>
-                    <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Approved By</span><div class="font-medium text-gray-900">{{ $minute->approved_by ?? '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Signed Copy</span><div class="font-medium text-gray-900">{{ $minute->approved_minutes_path ? 'Uploaded' : 'Not uploaded' }}</div></div>
-                        @if($approvedMinutesUrl)
-                            <a href="{{ $approvedMinutesUrl }}" target="_blank" class="inline-flex rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">View Approved Minutes</a>
-                        @endif
-                        @if($approvedMinutesDownloadUrl)
-                            <a href="{{ $approvedMinutesDownloadUrl }}" class="inline-flex rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-50">Download Signed Copy</a>
-                        @endif
-                    </div>
-                </div>
-                @if($canApproveMinutes)
-                    <div id="minutes-approval-card" class="bg-white border border-emerald-200 rounded-xl p-4">
-                        <div class="text-sm font-semibold text-gray-900">Approval Action</div>
-                        <div class="mt-1 text-xs text-gray-500">Only admins can approve minutes. Approving will record your name as the approving authority.</div>
-                        <form method="POST" action="{{ route('minutes.approve', $minute) }}" enctype="multipart/form-data" class="mt-4 space-y-3">
-                            @csrf
-                            <div>
-                                <label class="text-xs text-gray-600">Approved / Signed Minutes PDF</label>
-                                <input type="file" name="approved_minutes_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white hover:file:bg-emerald-700">
-                            </div>
-                            <button type="submit" class="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                                {{ $minute->approved_by ? 'Update Approval' : 'Approve Minutes' }}
-                            </button>
-                        </form>
-                    </div>
-                @endif
-                <div class="space-y-2">
-                    <button type="button" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg" onclick="handleMinutesDownload(@js($documentDownloadUrl))">Download PDF</button>
-                    <button type="button" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" onclick="handleMinutesPrint(@js($documentUrl))">Print</button>
-                </div>
-            </div>
         </div>
     </div>
 </div>
-
 <script>
-    function handleMinutesDownload(url) {
-        if (url) {
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = '';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            return;
-        }
-
-        window.print();
-    }
-
-    function handleMinutesPrint(url) {
-        if (url) {
-            const win = window.open(url, '_blank');
-            if (win) {
-                window.setTimeout(() => win.print(), 800);
-            }
-            return;
-        }
-
-        window.print();
-    }
-
     (() => {
         const buttons = Array.from(document.querySelectorAll('[data-preview-tab-button]'));
         const tabs = Array.from(document.querySelectorAll('[data-preview-tab]'));
@@ -487,17 +468,18 @@
             button.addEventListener('click', () => setActiveTab(button.dataset.previewTabButton));
         });
 
-        setActiveTab('ongoing');
+        setActiveTab('template');
     })();
 
     const editor = document.getElementById('notes-editor');
     const fontSelect = document.getElementById('notes-font');
     const sizeSelect = document.getElementById('notes-size');
     const scriptEditor = document.getElementById('minutes-script-editor');
-    const finalNotesOutput = document.getElementById('final-notes-output');
-    const finalNotesEmpty = document.getElementById('final-notes-empty');
+    const templateEditor = document.getElementById('minutes-template-editor');
     const finalScriptOutput = document.getElementById('final-script-output');
     const finalScriptEmpty = document.getElementById('final-script-empty');
+    const templatePdfFrame = document.getElementById('minutes-template-pdf-frame');
+    const templatePdfEmpty = document.getElementById('minutes-template-pdf-empty');
 
     let activeMinutesEditor = editor;
 
@@ -506,23 +488,18 @@
             editor.innerHTML = html;
         }
 
-        if (source !== 'preview' && finalNotesOutput) {
-            finalNotesOutput.innerHTML = html;
-        }
-
-        if (finalNotesOutput) {
-            finalNotesOutput.classList.remove('hidden');
-        }
-        if (finalNotesEmpty) {
-            finalNotesEmpty.classList.toggle('hidden', true);
+        if (source !== 'template' && templateEditor) {
+            templateEditor.innerHTML = html;
         }
     };
 
     const syncFinalNotes = (source = 'builder') => {
-        if (!editor || !finalNotesOutput || !finalNotesEmpty) return;
+        if (!editor) return;
         const html = source === 'preview'
-            ? finalNotesOutput.innerHTML
-            : editor.innerHTML;
+            ? ''
+            : source === 'template'
+                ? (templateEditor?.innerHTML || '')
+                : editor.innerHTML;
         updateMinutesEditors(html, source);
     };
 
@@ -534,13 +511,30 @@
         finalScriptEmpty.classList.toggle('hidden', text !== '');
     };
 
+    const syncTemplatePdfPreview = (url = null, downloadUrl = null) => {
+        if (!templatePdfFrame || !templatePdfEmpty) {
+            return;
+        }
+
+        if (!url) {
+            templatePdfFrame.classList.add('hidden');
+            templatePdfFrame.removeAttribute('src');
+            templatePdfEmpty.classList.remove('hidden');
+            return;
+        }
+
+        templatePdfFrame.src = url;
+        templatePdfFrame.classList.remove('hidden');
+        templatePdfEmpty.classList.add('hidden');
+    };
+
     if (editor) {
         editor.addEventListener('focus', () => { activeMinutesEditor = editor; });
         editor.addEventListener('input', () => syncFinalNotes('builder'));
     }
-    if (finalNotesOutput) {
-        finalNotesOutput.addEventListener('focus', () => { activeMinutesEditor = finalNotesOutput; });
-        finalNotesOutput.addEventListener('input', () => syncFinalNotes('preview'));
+    if (templateEditor) {
+        templateEditor.addEventListener('focus', () => { activeMinutesEditor = templateEditor; });
+        templateEditor.addEventListener('input', () => syncFinalNotes('template'));
     }
     if (scriptEditor) scriptEditor.addEventListener('input', syncFinalScript);
 
@@ -548,7 +542,7 @@
         button.addEventListener('click', () => {
             (activeMinutesEditor || editor)?.focus();
             document.execCommand(button.dataset.cmd, false, button.dataset.value || null);
-            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
+            syncFinalNotes(activeMinutesEditor === templateEditor ? 'template' : 'builder');
         });
     });
 
@@ -556,7 +550,7 @@
         fontSelect.addEventListener('change', () => {
             (activeMinutesEditor || editor)?.focus();
             document.execCommand('fontName', false, fontSelect.value);
-            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
+            syncFinalNotes(activeMinutesEditor === templateEditor ? 'template' : 'builder');
         });
     }
 
@@ -564,12 +558,13 @@
         sizeSelect.addEventListener('change', () => {
             (activeMinutesEditor || editor)?.focus();
             document.execCommand('fontSize', false, sizeSelect.value);
-            syncFinalNotes(activeMinutesEditor === finalNotesOutput ? 'preview' : 'builder');
+            syncFinalNotes(activeMinutesEditor === templateEditor ? 'template' : 'builder');
         });
     }
 
     syncFinalNotes();
     syncFinalScript();
+    syncTemplatePdfPreview(@js($templatePreviewUrl), @js($templatePreviewDownloadUrl));
 
     (() => {
         const startButton = document.getElementById('record-start-btn');
@@ -1156,6 +1151,10 @@
             if (payload.script_text !== undefined && scriptEditor) {
                 scriptEditor.value = payload.script_text || '';
                 syncFinalScript();
+            }
+
+            if (payload.template_preview_url !== undefined) {
+                syncTemplatePdfPreview(payload.template_preview_url, payload.template_preview_download_url || payload.template_preview_url);
             }
         };
 

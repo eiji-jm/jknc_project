@@ -185,7 +185,7 @@ class StockTransferCertificateController extends Controller
             'availableInstallments' => $availableInstallments,
             'stockNumberDirectory' => $stockNumberDirectory,
             'nextIssuanceRequestReference' => $this->hasIssuanceRequestsTable()
-                ? $this->nextSequenceFor(StockTransferIssuanceRequest::class, 'reference_no', 'REQ-')
+                ? $this->nextIssuanceRequestReference()
                 : 'REQ-0001',
             'defaultRequestedAt' => $manilaNow->format('Y-m-d\TH:i'),
         ]);
@@ -629,14 +629,8 @@ class StockTransferCertificateController extends Controller
             'issued_by' => ['nullable', 'string', 'max:255'],
             'certificate_id' => ['required', 'integer', 'exists:stock_transfer_certificates,id'],
             'notes' => ['nullable', 'string'],
+            'document_path' => ['nullable', 'file', 'mimes:pdf', 'max:5120'],
         ]);
-
-        $ledger = $this->resolveLedger(null, $data['requester']);
-        if (!$ledger) {
-            return back()->withErrors([
-                'requester' => 'Requester must already exist in the Index.',
-            ])->withInput();
-        }
 
         $certificate = StockTransferCertificate::query()
             ->whereKey($data['certificate_id'])
@@ -655,8 +649,17 @@ class StockTransferCertificateController extends Controller
             ])->withInput();
         }
 
-        StockTransferIssuanceRequest::create([
-            'reference_no' => $data['reference_no'] ?: $this->nextSequenceFor(StockTransferIssuanceRequest::class, 'reference_no', 'REQ-'),
+        if (blank($data['requester']) && !blank($certificate->stockholder_name)) {
+            $data['requester'] = $certificate->stockholder_name;
+        }
+
+        $documentPath = null;
+        if (Schema::hasColumn('stock_transfer_issuance_requests', 'document_path')) {
+            $documentPath = $this->handleUpload($request, 'document_path');
+        }
+
+        $requestPayload = [
+            'reference_no' => $this->nextIssuanceRequestReference(),
             'requested_at' => $data['requested_at'] ?: now(),
             'request_type' => $data['request_type'],
             'issuance_type' => $data['issuance_type'],
@@ -666,7 +669,13 @@ class StockTransferCertificateController extends Controller
             'certificate_id' => $certificate->id,
             'status' => 'pending',
             'notes' => $data['notes'] ?? null,
-        ]);
+        ];
+
+        if (Schema::hasColumn('stock_transfer_issuance_requests', 'document_path')) {
+            $requestPayload['document_path'] = $documentPath;
+        }
+
+        StockTransferIssuanceRequest::create($requestPayload);
 
         return redirect()->route('stock-transfer-book.certificates')->with('success', 'Issuance request added.');
     }
@@ -675,9 +684,22 @@ class StockTransferCertificateController extends Controller
     {
         $stockTransferIssuanceRequest->load(['certificate', 'journal', 'ledger']);
 
+        $generatedPreviewPath = null;
+        $generatedPreviewPath = $this->generatePdfPreview(
+            'corporate.stock-transfer-book.issuance-request-pdf',
+            ['requestRecord' => $stockTransferIssuanceRequest],
+            'generated-previews/stock-transfer-book/issuance-requests/' . ($stockTransferIssuanceRequest->reference_no ?: $stockTransferIssuanceRequest->id) . '.pdf'
+        );
+
         return view('corporate.stock-transfer-book.issuance-request-preview', [
             'requestRecord' => $stockTransferIssuanceRequest,
             'backRoute' => route('stock-transfer-book.certificates'),
+            'uploadedRequestUrl' => $stockTransferIssuanceRequest->document_path
+                ? route('uploads.show', ['path' => $stockTransferIssuanceRequest->document_path])
+                : null,
+            'generatedPreviewUrl' => $generatedPreviewPath
+                ? route('uploads.show', ['path' => $generatedPreviewPath])
+                : null,
         ]);
     }
 

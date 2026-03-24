@@ -18,6 +18,7 @@ class StockTransferIssuanceRequest extends Model
         'certificate_id',
         'status',
         'notes',
+        'document_path',
         'approved_at',
         'approved_by',
         'journal_id',
