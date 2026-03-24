@@ -2,10 +2,19 @@
 
 @section('content')
 <div class="w-full h-full px-6 py-5" x-data="{ showCreateUser: false }">
+    @php
+        $authUser = auth()->user();
+    @endphp
 
     @if(session('success'))
         <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
         </div>
     @endif
 
@@ -131,11 +140,10 @@
 
     {{-- PAGE WRAPPER --}}
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
-
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
                 <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Users</h1>
-                <p class="text-sm text-gray-500 mt-1">Manage login credentials and roles</p>
+                <p class="text-sm text-gray-500 mt-1">Manage login credentials, permissions, and roles</p>
             </div>
 
             <button
@@ -155,31 +163,129 @@
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Name</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Email</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Role</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Permissions</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Created At</th>
+                            <th class="px-4 py-3 font-semibold">Actions</th>
                         </tr>
                     </thead>
 
                     <tbody class="bg-white text-gray-700">
                         @forelse($users as $user)
-                            <tr class="border-t border-gray-200 hover:bg-gray-50">
+                            <tr class="border-t border-gray-200 hover:bg-gray-50 align-top">
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $user->id }}</td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $user->name }}</td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $user->email }}</td>
+
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    @php
-                                        $roleClasses = $user->role === 'Admin'
-                                            ? 'bg-blue-50 text-blue-700'
-                                            : 'bg-gray-100 text-gray-700';
-                                    @endphp
-                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $roleClasses }}">
-                                        {{ $user->role }}
-                                    </span>
+                                    @if($authUser->canManageRoles() && !$user->isSuperAdmin())
+                                        <form action="{{ route('admin.users.update', $user->id) }}" method="POST" class="space-y-2">
+                                            @csrf
+
+                                            <select
+                                                name="role"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                            >
+                                                <option value="Admin" {{ $user->role === 'Admin' ? 'selected' : '' }}>Admin</option>
+                                                <option value="Employee" {{ $user->role === 'Employee' ? 'selected' : '' }}>Employee</option>
+                                            </select>
+
+                                            @if($authUser->isSuperAdmin())
+                                                <div class="space-y-1 text-xs">
+                                                    <label class="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="can_edit_user_roles"
+                                                            value="1"
+                                                            {{ $user->can_edit_user_roles ? 'checked' : '' }}
+                                                        >
+                                                        <span>Can edit user roles</span>
+                                                    </label>
+
+                                                    <label class="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="can_delete_users"
+                                                            value="1"
+                                                            {{ $user->can_delete_users ? 'checked' : '' }}
+                                                        >
+                                                        <span>Can delete users</span>
+                                                    </label>
+                                                </div>
+                                            @endif
+
+                                            <button
+                                                type="submit"
+                                                class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition"
+                                            >
+                                                Update
+                                            </button>
+                                        </form>
+                                    @else
+                                        @php
+                                            $roleClasses = $user->role === 'Admin'
+                                                ? 'bg-blue-50 text-blue-700'
+                                                : ($user->role === 'Superadmin'
+                                                    ? 'bg-purple-50 text-purple-700'
+                                                    : 'bg-gray-100 text-gray-700');
+                                        @endphp
+
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium {{ $roleClasses }}">
+                                            {{ $user->role }}
+                                        </span>
+                                    @endif
                                 </td>
-                                <td class="px-4 py-3">{{ $user->created_at?->format('Y-m-d') }}</td>
+
+                                <td class="px-4 py-3 border-r border-gray-200 text-xs">
+                                    <div class="space-y-1">
+                                        <div>
+                                            <span class="font-medium text-gray-600">Edit Roles:</span>
+                                            <span class="{{ $user->can_edit_user_roles ? 'text-green-600' : 'text-gray-400' }}">
+                                                {{ $user->can_edit_user_roles ? 'Yes' : 'No' }}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <span class="font-medium text-gray-600">Delete Users:</span>
+                                            <span class="{{ $user->can_delete_users ? 'text-green-600' : 'text-gray-400' }}">
+                                                {{ $user->can_delete_users ? 'Yes' : 'No' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    {{ $user->created_at?->format('Y-m-d') }}
+                                </td>
+
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        @if($authUser->canDeleteUsers() && $authUser->id !== $user->id && !$user->isSuperAdmin())
+                                            <form
+                                                action="{{ route('admin.users.destroy', $user->id) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Delete this user?')"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-xs text-gray-400">
+                                                {{ $authUser->id === $user->id ? 'Current user' : 'No action' }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                                     No users found.
                                 </td>
                             </tr>
