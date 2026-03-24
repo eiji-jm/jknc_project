@@ -39,6 +39,35 @@
                     GIS
                 </a>
 
+                <a href=""
+                   title="Notices of Meeting"
+                   class="min-w-[118px] max-w-[118px] px-4 py-3 text-sm font-medium border-t border-b border-r border-gray-200 hover:bg-gray-50 flex items-center justify-center">
+                    <span class="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                        Notices of Meeting...
+                    </span>
+                </a>
+
+                <a href=""
+                   title="Minutes of Meeting"
+                   class="min-w-[118px] max-w-[118px] px-4 py-3 text-sm font-medium border-t border-b border-r border-gray-200 hover:bg-gray-50 flex items-center justify-center">
+                    <span class="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                        Minutes of Meeting...
+                    </span>
+                </a>
+
+                <a href=""
+                   class="min-w-[130px] px-6 py-3 text-sm font-medium border-t border-b border-r border-gray-200 text-center hover:bg-gray-50">
+                    Resolution
+                </a>
+
+                <a href=""
+                   title="Secretary Certificate"
+                   class="min-w-[118px] max-w-[118px] px-4 py-3 text-sm font-medium border-t border-b border-r border-gray-200 hover:bg-gray-50 flex items-center justify-center">
+                    <span class="block w-full overflow-hidden text-ellipsis whitespace-nowrap text-center">
+                        Secretary...
+                    </span>
+                </a>
+
             </div>
 
             <div class="flex-1"></div>
