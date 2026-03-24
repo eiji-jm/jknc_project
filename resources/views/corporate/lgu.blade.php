@@ -9,27 +9,8 @@
 
         {{-- TOP BAR --}}
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
-            <div class="flex-1 min-w-0 overflow-x-auto">
-                <div id="permitTabs" class="inline-flex min-w-max border border-gray-300 rounded-md overflow-hidden bg-white">
-                    <button type="button" class="permit-tab active px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="All Documents">
-                        All Documents
-                    </button>
-                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Mayor's Permit">
-                        Mayor's Permit
-                    </button>
-                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Barangay Business Permit">
-                        Barangay Business Permit
-                    </button>
-                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Fire Permit">
-                        Fire Permit
-                    </button>
-                    <button type="button" class="permit-tab px-5 py-2 text-sm border-r border-gray-300 bg-white hover:bg-gray-50" data-filter="Sanitary Permit">
-                        Sanitary Permit
-                    </button>
-                    <button type="button" class="permit-tab px-5 py-2 text-sm bg-white hover:bg-gray-50" data-filter="OBO">
-                        OBO Permit
-                    </button>
-                </div>
+            <div class="flex items-center flex-1 min-w-0">
+                <h1 class="text-lg font-semibold text-gray-900">LGU</h1>
             </div>
 
             <button onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0">
@@ -75,10 +56,38 @@
                             <th class="w-44 p-3 text-left">Expiration Date</th>
                             <th class="w-32 p-3 text-left">Uploader</th>
                             <th class="w-32 p-3 text-left">TIN</th>
-                            <th id="permitTypeHeader" class="w-40 p-3 text-left cursor-pointer hover:bg-gray-100">
-                                <div class="flex items-center gap-2">
+                            <th class="w-40 p-3 text-left relative">
+                                <button
+                                    type="button"
+                                    id="permitTypeHeaderBtn"
+                                    class="w-full flex items-center gap-2 hover:text-gray-900"
+                                >
                                     <span>Permit Type</span>
-                                    <span id="permitTypeSortIndicator">↕</span>
+                                    <span>▼</span>
+                                </button>
+
+                                <div
+                                    id="permitTypeHeaderMenu"
+                                    class="hidden absolute left-3 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden"
+                                >
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="All Permit Types">
+                                        All Permit Types
+                                    </button>
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Mayor's Permit">
+                                        Mayor's Permit
+                                    </button>
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Barangay Business Permit">
+                                        Barangay Business Permit
+                                    </button>
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Fire Permit">
+                                        Fire Permit
+                                    </button>
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="Sanitary Permit">
+                                        Sanitary Permit
+                                    </button>
+                                    <button type="button" class="header-permit-option w-full text-left px-4 py-2 text-sm hover:bg-gray-50" data-filter="OBO">
+                                        OBO Permit
+                                    </button>
                                 </div>
                             </th>
                             <th class="w-40 p-3 text-left">Document Type</th>
@@ -123,33 +132,40 @@
             </div>
         </div>
 
-        {{-- ADD VIEW --}}
-        <div id="addSection" class="hidden p-4 flex-grow overflow-hidden">
-            <div class="h-full flex gap-4">
-                {{-- LEFT: LIVE PREVIEW --}}
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div class="h-full bg-white">
-                        <div id="emptyPreviewState" class="h-full flex items-center justify-center text-gray-400 text-sm">
-                            Upload a PDF or image to preview it here.
-                        </div>
+        {{-- ADD SLIDE OVER --}}
+        <div id="addSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
+            <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
 
-                        <iframe id="livePdfPreview" class="w-full h-full hidden bg-white" frameborder="0"></iframe>
+            <div class="absolute inset-y-0 right-0 flex max-w-full">
+                <div
+                    id="addPanel"
+                    class="w-screen max-w-[80vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                >
+                    {{-- LEFT: LIVE PREVIEW --}}
+                    <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
+                        <div class="h-full bg-white border border-gray-200 rounded-xl overflow-hidden">
+                            <div id="emptyPreviewState" class="h-full flex items-center justify-center text-gray-400 text-sm">
+                                Upload a PDF or image to preview it here.
+                            </div>
 
-                        <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-white">
-                            <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
+                            <iframe id="livePdfPreview" class="w-full h-full hidden bg-white" frameborder="0"></iframe>
+
+                            <div id="liveImagePreviewWrapper" class="hidden h-full items-center justify-center bg-white">
+                                <img id="liveImagePreview" src="" alt="Preview" class="max-w-full max-h-full object-contain">
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- RIGHT: FORM --}}
-                <div class="w-[360px] shrink-0 flex flex-col gap-4">
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
-                        <h2 class="text-[20px] font-semibold text-gray-900">Add Permit Entry</h2>
-                        <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
-                    </div>
+                    {{-- RIGHT: FORM --}}
+                    <div class="w-full max-w-sm bg-white flex flex-col h-full">
+                        <div class="p-6 border-b flex items-center justify-between shrink-0">
+                            <h2 class="font-bold text-lg text-gray-900">Add Permit Entry</h2>
+                            <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">
+                                Close
+                            </button>
+                        </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 flex-1 overflow-y-auto">
-                        <div class="space-y-4">
+                        <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
                             <div>
                                 <label class="block text-sm font-medium mb-1">TIN</label>
                                 <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
@@ -222,16 +238,16 @@
                                 <p id="selectedFileName" class="mt-2 text-xs text-gray-500">No file selected</p>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
-                        <button onclick="closeAddSection()" class="flex-1 border py-2 rounded">Cancel</button>
-                        <button
-                            onclick="addPermit().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
-                            class="flex-1 bg-blue-600 text-white py-2 rounded"
-                        >
-                            Save
-                        </button>
+                        <div class="p-6 border-t flex gap-2 shrink-0">
+                            <button onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
+                            <button
+                                onclick="addPermit().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
+                                class="flex-1 bg-blue-600 text-white rounded py-2"
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -241,12 +257,6 @@
 </div>
 
 <style>
-    .permit-tab.active {
-        background-color: #eff6ff;
-        color: #2563eb;
-        font-weight: 600;
-    }
-
     .status-tab.active {
         background-color: #eff6ff;
         color: #2563eb;
@@ -256,27 +266,39 @@
 </style>
 
 <script>
-let currentPermitFilter = 'All Documents';
 let currentStatusFilter = 'All';
+let currentHeaderPermitTypeFilter = 'All Permit Types';
 let permitRows = [];
-let permitTypeSortDirection = 'asc';
 let livePreviewObjectUrl = null;
 
 function showOnlySection(sectionId) {
     document.getElementById('tableSection').classList.add('hidden');
     document.getElementById('previewSection').classList.add('hidden');
-    document.getElementById('addSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
 function openAddSection() {
     resetFormDefaults();
-    showOnlySection('addSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addSection.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        addPanel.classList.remove('translate-x-full');
+    });
 }
 
 function closeAddSection() {
     resetFormDefaults();
-    showOnlySection('tableSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addPanel.classList.add('translate-x-full');
+
+    setTimeout(() => {
+        addSection.classList.add('hidden');
+    }, 300);
 }
 
 function closePreview() {
@@ -364,9 +386,8 @@ document.getElementById('documentInput').addEventListener('change', function (e)
     handleLivePreview(file);
 });
 
-async function fetchPermits(filterValue) {
-    const url = `/permits?filter=${encodeURIComponent(filterValue)}`;
-    const res = await fetch(url);
+async function fetchPermits() {
+    const res = await fetch('/permits');
     return await res.json();
 }
 
@@ -383,6 +404,10 @@ function drawTableRows() {
     tableBody.innerHTML = '';
 
     let filteredRows = [...permitRows];
+
+    if (currentHeaderPermitTypeFilter !== 'All Permit Types') {
+        filteredRows = filteredRows.filter(item => (item.permit_type || '') === currentHeaderPermitTypeFilter);
+    }
 
     if (currentStatusFilter !== 'All') {
         filteredRows = filteredRows.filter(item => {
@@ -404,6 +429,7 @@ function drawTableRows() {
     filteredRows.forEach(item => {
         const classes = getStatusClasses(item.status);
         const safePermitNumber = JSON.stringify(item.permit_number ?? '');
+        const safePermitType = JSON.stringify(item.permit_type ?? '');
         const isClickable = !!item.document_path;
 
         tableBody.innerHTML += `
@@ -423,10 +449,13 @@ function drawTableRows() {
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3">${item.tin ?? ''}</td>
                 <td class="p-3">
-                    ${isClickable
-                        ? `<span class="text-blue-600 hover:underline">${item.permit_type ?? ''}</span>`
-                        : `${item.permit_type ?? ''}`
-                    }
+                    <button
+                        type="button"
+                        onclick='event.stopPropagation(); applyHeaderPermitTypeFilter(${safePermitType})'
+                        class="text-blue-600 hover:underline"
+                    >
+                        ${item.permit_type ?? ''}
+                    </button>
                 </td>
                 <td class="p-3">${item.document_type ?? ''}</td>
                 <td class="p-3">
@@ -468,12 +497,10 @@ function openPreviewByPermitNumber(permitNumber) {
     showOnlySection('previewSection');
 }
 
-async function renderTable(filterValue) {
-    currentPermitFilter = filterValue;
-    const permitData = await fetchPermits(filterValue);
+async function renderTable() {
+    const permitData = await fetchPermits();
     permitRows = permitData || [];
     drawTableRows();
-    setActivePermitTab(filterValue);
 }
 
 async function addPermit() {
@@ -526,32 +553,8 @@ async function addPermit() {
         return false;
     }
 
-    await renderTable(currentPermitFilter);
+    await renderTable();
     return true;
-}
-
-function sortPermitRows() {
-    permitRows.sort((a, b) => {
-        const valueA = (a.permit_type || '').toLowerCase();
-        const valueB = (b.permit_type || '').toLowerCase();
-
-        if (permitTypeSortDirection === 'asc') {
-            return valueA.localeCompare(valueB);
-        }
-        return valueB.localeCompare(valueA);
-    });
-
-    document.getElementById('permitTypeSortIndicator').textContent = permitTypeSortDirection === 'asc' ? '↑' : '↓';
-    drawTableRows();
-}
-
-function setActivePermitTab(filterValue) {
-    document.querySelectorAll('.permit-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.dataset.filter === filterValue) {
-            tab.classList.add('active');
-        }
-    });
 }
 
 function setActiveStatusTab(statusValue) {
@@ -563,16 +566,31 @@ function setActiveStatusTab(statusValue) {
     });
 }
 
-document.getElementById('permitTypeHeader').addEventListener('click', () => {
-    permitTypeSortDirection = permitTypeSortDirection === 'asc' ? 'desc' : 'asc';
-    sortPermitRows();
+function applyHeaderPermitTypeFilter(filterValue) {
+    currentHeaderPermitTypeFilter = filterValue;
+    drawTableRows();
+    closePermitTypeHeaderMenu();
+    showOnlySection('tableSection');
+}
+
+function togglePermitTypeHeaderMenu() {
+    document.getElementById('permitTypeHeaderMenu').classList.toggle('hidden');
+}
+
+function closePermitTypeHeaderMenu() {
+    document.getElementById('permitTypeHeaderMenu').classList.add('hidden');
+}
+
+document.getElementById('permitTypeHeaderBtn').addEventListener('click', (event) => {
+    event.stopPropagation();
+    togglePermitTypeHeaderMenu();
 });
 
-document.querySelectorAll('.permit-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const filterValue = tab.dataset.filter;
-        renderTable(filterValue);
-        showOnlySection('tableSection');
+document.querySelectorAll('.header-permit-option').forEach(option => {
+    option.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const filterValue = option.dataset.filter;
+        applyHeaderPermitTypeFilter(filterValue);
     });
 });
 
@@ -585,7 +603,16 @@ document.querySelectorAll('.status-tab').forEach(tab => {
     });
 });
 
-renderTable(currentPermitFilter);
+document.addEventListener('click', function (event) {
+    const headerBtn = document.getElementById('permitTypeHeaderBtn');
+    const headerMenu = document.getElementById('permitTypeHeaderMenu');
+
+    if (!headerBtn.contains(event.target) && !headerMenu.contains(event.target)) {
+        closePermitTypeHeaderMenu();
+    }
+});
+
+renderTable();
 setActiveStatusTab(currentStatusFilter);
 </script>
 @endsection

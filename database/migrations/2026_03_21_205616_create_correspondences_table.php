@@ -15,8 +15,8 @@ return new class extends Migration
             $table->string('user');
             $table->string('tin')->nullable();
             $table->string('subject');
-            $table->string('from')->nullable();
-            $table->string('to')->nullable();
+            $table->string('sender_type')->default('From');
+            $table->string('sender')->nullable();
             $table->string('department')->nullable();
             $table->text('details')->nullable();
             $table->date('date')->nullable();

@@ -53,8 +53,8 @@
                             <th class="w-36 p-3 text-left">Date Sent</th>
                             <th class="w-28 p-3 text-left">Time Sent</th>
                             <th class="w-40 p-3 text-left">Department</th>
-                            <th class="w-36 p-3 text-left">From</th>
-                            <th class="w-36 p-3 text-left">To</th>
+                            <th class="w-40 p-3 text-left">From</th>
+                            <th class="w-40 p-3 text-left">To</th>
                             <th class="w-44 p-3 text-left">Subject</th>
                             <th class="w-36 p-3 text-left">Respond Before</th>
                             <th class="w-28 p-3 text-left">Sent Via</th>
@@ -68,11 +68,14 @@
         </div>
 
         {{-- PREVIEW VIEW --}}
-        {{-- PREVIEW VIEW --}}
         <div id="previewSection" class="hidden p-4 flex-grow overflow-hidden">
             <div class="h-full flex gap-4">
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <iframe id="previewFrame" class="w-full h-full bg-white" frameborder="0"></iframe>
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-auto p-6">
+                    <div class="preview-canvas">
+                        <div class="preview-paper-shell">
+                            <iframe id="previewFrame" class="preview-paper-frame" frameborder="0"></iframe>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="w-[320px] shrink-0 flex flex-col gap-4">
@@ -172,74 +175,75 @@
             </div>
         </div>
 
-        {{-- ADD VIEW --}}
-        <div id="addSection" class="hidden p-4 flex-grow overflow-hidden">
-            <div class="h-full flex gap-4">
-                {{-- LEFT: LIVE PREVIEW --}}
-                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div class="h-full bg-white flex items-center justify-center">
-                        <div class="text-center px-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Correspondence Entry Preview</h3>
-                            <p class="text-sm text-gray-500">
-                                Fill out the form on the right to add a new correspondence entry.
-                            </p>
+        {{-- ADD SLIDE OVER --}}
+        <div id="addSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
+            <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
+
+            <div class="absolute inset-y-0 right-0 flex max-w-full">
+                <div
+                    id="addPanel"
+                    class="w-screen max-w-[85vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                >
+                    {{-- LEFT: LIVE TEMPLATE PREVIEW --}}
+                    <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200 overflow-auto">
+                        <div class="h-full bg-white border border-gray-200 rounded-xl overflow-auto p-6">
+                            <div class="preview-canvas">
+                                <div class="preview-paper-shell">
+                                    <iframe id="draftPreviewFrame" class="preview-paper-frame" frameborder="0"></iframe>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {{-- RIGHT: FORM --}}
-                <div class="w-[360px] shrink-0 flex flex-col gap-4">
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
-                        <h2 class="text-[20px] font-semibold text-gray-900">Add Correspondence Entry</h2>
-                        <button
-                            type="button"
-                            onclick="closeAddSection()"
-                            class="text-sm text-gray-500 hover:text-gray-700"
-                        >
-                            Close
-                        </button>
-                    </div>
+                    {{-- RIGHT: FORM --}}
+                    <div class="w-full max-w-[320px] bg-white flex flex-col h-full">
+                        <div class="p-6 border-b flex items-center justify-between shrink-0">
+                            <h2 class="font-bold text-lg text-gray-900">Add Correspondence Entry</h2>
+                            <button
+                                type="button"
+                                onclick="closeAddSection()"
+                                class="text-sm text-gray-500 hover:text-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6 flex-1 overflow-y-auto">
-                        <div class="space-y-4">
+                        <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
                             <div>
                                 <label class="block text-sm font-medium mb-1">TIN</label>
-                                <input id="tinInput" class="w-full border rounded-md p-2" placeholder="TIN">
+                                <input id="tinInput" class="w-full border rounded-md p-2 preview-sync" placeholder="TIN">
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium mb-1">Subject</label>
-                                <input id="subjectInput" class="w-full border rounded-md p-2" placeholder="Subject">
+                                <input id="subjectInput" class="w-full border rounded-md p-2 preview-sync" placeholder="Subject">
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-1">From</label>
-                                <input id="fromInput" class="w-full border rounded-md p-2" placeholder="From">
+                                <label class="block text-sm font-medium mb-1">From / To</label>
+                                <select id="senderTypeInput" class="w-full border rounded-md p-2 preview-sync">
+                                    <option value="From">From</option>
+                                    <option value="To">To</option>
+                                </select>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-1">To</label>
-                                <input id="toInput" class="w-full border rounded-md p-2" placeholder="To">
+                                <label class="block text-sm font-medium mb-1">Sender</label>
+                                <input
+                                    id="senderInput"
+                                    class="w-full border rounded-md p-2 preview-sync"
+                                    placeholder="Enter sender"
+                                >
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium mb-1">Department / Stakeholder</label>
-                                <input id="departmentInput" class="w-full border rounded-md p-2" placeholder="Department / Stakeholder">
+                                <input id="departmentInput" class="w-full border rounded-md p-2 preview-sync" placeholder="Department / Stakeholder">
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium mb-1">Details</label>
-                                <textarea id="detailsInput" class="w-full border rounded-md p-2 min-h-[120px]" placeholder="Enter details"></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Date Sent</label>
-                                <input id="dateInput" type="date" class="w-full border rounded-md p-2">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Time Sent</label>
-                                <input id="timeInput" type="time" class="w-full border rounded-md p-2">
+                                <textarea id="detailsInput" class="w-full border rounded-md p-2 min-h-[120px] preview-sync" placeholder="Enter details"></textarea>
                             </div>
 
                             <div class="border rounded-md p-3 bg-gray-50">
@@ -263,7 +267,7 @@
                                 <input
                                     id="deadlineInput"
                                     type="date"
-                                    class="w-full border rounded-md p-2"
+                                    class="w-full border rounded-md p-2 preview-sync"
                                     :disabled="!hasDeadline"
                                     :class="!hasDeadline ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''"
                                 >
@@ -271,25 +275,23 @@
 
                             <div>
                                 <label class="block text-sm font-medium mb-1">Sent Via</label>
-                                <select id="sentViaInput" class="w-full border rounded-md p-2">
+                                <select id="sentViaInput" class="w-full border rounded-md p-2 preview-sync">
                                     <option value="Email">Email</option>
                                     <option value="LBC">LBC</option>
                                     <option value="Internal">Internal</option>
                                 </select>
                             </div>
                         </div>
-                    </div>
 
-                    
-
-                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
-                        <button onclick="closeAddSection()" class="flex-1 border py-2 rounded">Cancel</button>
-                        <button
-                            onclick="addCorrespondence().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
-                            class="flex-1 bg-blue-600 text-white py-2 rounded"
-                        >
-                            Save
-                        </button>
+                        <div class="p-6 border-t flex gap-2 shrink-0">
+                            <button onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
+                            <button
+                                onclick="addCorrespondence().then(success => { if (success) { closeAddSection(); resetFormDefaults(); } })"
+                                class="flex-1 bg-blue-600 text-white rounded py-2"
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -304,11 +306,38 @@
         color: #2563eb;
         font-weight: 600;
     }
+
+    .preview-canvas {
+        min-width: max-content;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .preview-paper-shell {
+        width: 794px;
+        height: 1123px;
+        background: white;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .preview-paper-frame {
+        width: 100%;
+        height: 100%;
+        background: white;
+        display: block;
+    }
 </style>
 
 <script>
 let currentType = "Letters";
 let correspondenceRows = [];
+let previewRefreshTimer = null;
 
 const previewRoutes = {
     "Letters": "letters",
@@ -322,36 +351,43 @@ const previewRoutes = {
 function showOnlySection(sectionId) {
     document.getElementById('tableSection').classList.add('hidden');
     document.getElementById('previewSection').classList.add('hidden');
-    document.getElementById('addSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
 }
 
 function openAddSection() {
     resetFormDefaults();
-    showOnlySection('addSection');
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addSection.classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+        addPanel.classList.remove('translate-x-full');
+        refreshDraftPreview();
+    });
 }
 
 function closeAddSection() {
-    showOnlySection('tableSection');
+    document.getElementById('draftPreviewFrame').src = '';
+    const addSection = document.getElementById('addSection');
+    const addPanel = document.getElementById('addPanel');
+
+    addPanel.classList.add('translate-x-full');
+
+    setTimeout(() => {
+        addSection.classList.add('hidden');
+        showOnlySection('tableSection');
+    }, 300);
 }
 
 function resetFormDefaults() {
     document.getElementById('tinInput').value = '';
     document.getElementById('subjectInput').value = '';
-    document.getElementById('fromInput').value = '';
-    document.getElementById('toInput').value = '';
+    document.getElementById('senderTypeInput').value = 'From';
+    document.getElementById('senderInput').value = '';
     document.getElementById('departmentInput').value = '';
     document.getElementById('detailsInput').value = '';
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-
-    document.getElementById('dateInput').value = `${year}-${month}-${day}`;
-    document.getElementById('timeInput').value = `${hours}:${minutes}`;
     document.getElementById('hasDeadlineInput').checked = true;
     document.getElementById('deadlineInput').value = '';
     document.getElementById('deadlineInput').disabled = false;
@@ -385,6 +421,14 @@ function getStatusClasses(status) {
     };
 }
 
+function getFromValue(item) {
+    return item.sender_type === 'From' ? (item.sender ?? '') : '';
+}
+
+function getToValue(item) {
+    return item.sender_type === 'To' ? (item.sender ?? '') : '';
+}
+
 function openPreview(index) {
     const item = correspondenceRows[index];
     if (!item) return;
@@ -401,8 +445,8 @@ function openPreview(index) {
     document.getElementById('infoUser').textContent = item.user ?? '';
     document.getElementById('infoTin').textContent = item.tin ?? 'N/A';
     document.getElementById('infoSubject').textContent = item.subject ?? '';
-    document.getElementById('infoFrom').textContent = item.from ?? '';
-    document.getElementById('infoTo').textContent = item.to ?? '';
+    document.getElementById('infoFrom').textContent = getFromValue(item) || 'N/A';
+    document.getElementById('infoTo').textContent = getToValue(item) || 'N/A';
     document.getElementById('infoDepartment').textContent = item.department ?? '';
     document.getElementById('infoDate').textContent = item.date ?? '';
     document.getElementById('infoTime').textContent = item.time ?? '';
@@ -417,6 +461,43 @@ function closePreview() {
     document.getElementById('previewFrame').src = '';
     document.getElementById('openPreviewBtn').href = '#';
     showOnlySection('tableSection');
+}
+
+function buildDraftPreviewUrl() {
+    const routeSlug = previewRoutes[currentType];
+    if (!routeSlug) return '';
+
+    const hasDeadline = document.getElementById('hasDeadlineInput').checked;
+
+    const params = new URLSearchParams({
+        type: currentType,
+        tin: document.getElementById('tinInput').value ?? '',
+        subject: document.getElementById('subjectInput').value ?? '',
+        sender_type: document.getElementById('senderTypeInput').value ?? 'From',
+        sender: document.getElementById('senderInput').value ?? '',
+        department: document.getElementById('departmentInput').value ?? '',
+        details: document.getElementById('detailsInput').value ?? '',
+        deadline: hasDeadline ? (document.getElementById('deadlineInput').value ?? '') : '',
+        sent_via: document.getElementById('sentViaInput').value ?? 'Email',
+    });
+
+    return `/correspondence/draft-preview/${routeSlug}?${params.toString()}`;
+}
+
+function refreshDraftPreview() {
+    const frame = document.getElementById('draftPreviewFrame');
+    const url = buildDraftPreviewUrl();
+    if (!url) return;
+    frame.src = url;
+}
+
+function refreshDraftPreviewDebounced() {
+    clearTimeout(previewRefreshTimer);
+    previewRefreshTimer = setTimeout(() => {
+        if (!document.getElementById('addSection').classList.contains('hidden')) {
+            refreshDraftPreview();
+        }
+    }, 250);
 }
 
 async function renderTable(type) {
@@ -448,8 +529,8 @@ async function renderTable(type) {
                 <td class="p-3">${item.date ?? ''}</td>
                 <td class="p-3">${item.time ?? ''}</td>
                 <td class="p-3">${item.department ?? ''}</td>
-                <td class="p-3">${item.from ?? ''}</td>
-                <td class="p-3">${item.to ?? ''}</td>
+                <td class="p-3">${getFromValue(item) || ''}</td>
+                <td class="p-3">${getToValue(item) || ''}</td>
                 <td class="p-3">${item.subject ?? ''}</td>
                 <td class="p-3">${item.deadline ?? 'No Deadline'}</td>
                 <td class="p-3">${item.sent_via ?? ''}</td>
@@ -474,18 +555,16 @@ async function renderTable(type) {
 async function addCorrespondence() {
     const tin = document.getElementById('tinInput').value;
     const subject = document.getElementById('subjectInput').value;
-    const from = document.getElementById('fromInput').value;
-    const to = document.getElementById('toInput').value;
+    const senderType = document.getElementById('senderTypeInput').value;
+    const sender = document.getElementById('senderInput').value;
     const department = document.getElementById('departmentInput').value;
     const details = document.getElementById('detailsInput').value;
-    const date = document.getElementById('dateInput').value;
-    const time = document.getElementById('timeInput').value;
     const hasDeadline = document.getElementById('hasDeadlineInput').checked;
     const deadline = hasDeadline ? document.getElementById('deadlineInput').value : null;
     const sentVia = document.getElementById('sentViaInput').value;
 
-    if (!subject || !from || !to) {
-        alert('Please fill in Subject, From, and To.');
+    if (!subject || !sender) {
+        alert('Please fill in Subject and Sender.');
         return false;
     }
 
@@ -500,12 +579,10 @@ async function addCorrespondence() {
             type: currentType,
             tin: tin,
             subject: subject,
-            from: from,
-            to: to,
+            sender_type: senderType,
+            sender: sender,
             department: department,
             details: details,
-            date: date,
-            time: time,
             deadline: deadline,
             sent_via: sentVia
         })
@@ -534,10 +611,34 @@ document.querySelectorAll('.correspondence-tab').forEach(tab => {
         const type = tab.dataset.type;
         setActiveCorrespondenceTab(type);
         renderTable(type);
-        showOnlySection('tableSection');
+
+        if (!document.getElementById('addSection').classList.contains('hidden')) {
+            refreshDraftPreview();
+        } else {
+            showOnlySection('tableSection');
+        }
     });
 });
 
+document.querySelectorAll('.preview-sync').forEach(el => {
+    el.addEventListener('input', refreshDraftPreviewDebounced);
+    el.addEventListener('change', refreshDraftPreviewDebounced);
+});
+
+document.getElementById('hasDeadlineInput').addEventListener('change', () => {
+    const deadlineInput = document.getElementById('deadlineInput');
+
+    if (document.getElementById('hasDeadlineInput').checked) {
+        deadlineInput.disabled = false;
+        deadlineInput.classList.remove('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    } else {
+        deadlineInput.value = '';
+        deadlineInput.disabled = true;
+        deadlineInput.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed');
+    }
+
+    refreshDraftPreviewDebounced();
+});
 
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {

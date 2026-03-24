@@ -99,7 +99,7 @@
             <p class="header-line">REPUBLIC OF THE PHILIPPINES</p>
             <p class="header-line">CITY OF CEBU</p>
             <p class="header-line">OFFICE OF THE MAYOR</p>
-            <div class="title">BUSINESS PERMIT</div>
+            <div class="title">Business Permit</div>
         </div>
 
         <div class="section">

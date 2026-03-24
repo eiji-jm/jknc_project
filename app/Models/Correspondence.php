@@ -12,10 +12,9 @@ class Correspondence extends Model
         'uploaded_date',
         'user',
         'tin',
-        'document_type',
         'subject',
-        'from',
-        'to',
+        'sender_type',
+        'sender',
         'department',
         'details',
         'date',
@@ -31,7 +30,6 @@ class Correspondence extends Model
         'uploaded_date' => 'date:Y-m-d',
         'date' => 'date:Y-m-d',
         'deadline' => 'date:Y-m-d',
-        'time' => 'datetime:H:i',
     ];
 
     public function getComputedStatusAttribute()
@@ -41,5 +39,15 @@ class Correspondence extends Model
         }
 
         return $this->deadline->lt(Carbon::today()) ? 'Closed' : 'Open';
+    }
+
+    public function getFromValueAttribute()
+    {
+        return $this->sender_type === 'From' ? $this->sender : null;
+    }
+
+    public function getToValueAttribute()
+    {
+        return $this->sender_type === 'To' ? $this->sender : null;
     }
 }
