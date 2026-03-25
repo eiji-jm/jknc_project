@@ -10,6 +10,7 @@ use App\Models\SecCoi;
 use App\Models\SecAoi;
 use App\Models\Bylaw;
 use App\Models\GisRecord;
+use App\Models\Permit;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -44,6 +45,7 @@ class CorporateApprovalController extends Controller
             'sec-aoi' => 'SEC-AOI',
             'bylaws'  => 'Bylaws',
             'gis'     => 'GIS',
+            'lgu'     => 'LGU',
             default   => 'Corporate Module',
         };
     }
@@ -55,7 +57,16 @@ class CorporateApprovalController extends Controller
             'sec-aoi' => $record->corporation_name ?? '',
             'bylaws'  => $record->corporation_name ?? '',
             'gis'     => $record->corporation_name ?? '',
+            'lgu'     => ($record->permit_type ?? 'LGU Permit') . ' - ' . ($record->document_type ?? ''),
             default   => '',
+        };
+    }
+
+    private function getReferenceNumber($record, string $module): string
+    {
+        return match ($module) {
+            'lgu'     => $record->permit_number ?? '',
+            default   => $record->company_reg_no ?? '',
         };
     }
 
@@ -76,7 +87,7 @@ class CorporateApprovalController extends Controller
                 $employee->name,
                 $this->getModuleName($module),
                 $this->getCorporationName($record, $module),
-                $record->company_reg_no ?? '',
+                $this->getReferenceNumber($record, $module),
                 $decision,
                 $reviewNote
             )
@@ -201,6 +212,30 @@ class CorporateApprovalController extends Controller
             ]);
         }
 
+        foreach (Permit::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+
+            if (!$this->canAppearInAdminDashboard($workflow)) {
+                continue;
+            }
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'LGU',
+                'title' => ($row->permit_type ?? 'LGU Permit') . ' - ' . ($row->document_type ?? ''),
+                'company_reg_no' => $row->permit_number,
+                'uploaded_by' => $row->user,
+                'date_uploaded' => $row->created_at ? $row->created_at->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('corporate.lgu'),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'lgu', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'lgu', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'lgu', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'lgu', 'id' => $row->id]),
+            ]);
+        }
+
         $items = $items->sortByDesc('id')->values();
 
         $pendingCount = $items->where('status', 'Submitted')->count();
@@ -224,6 +259,7 @@ class CorporateApprovalController extends Controller
             'sec-aoi' => SecAoi::findOrFail($id),
             'bylaws'  => Bylaw::findOrFail($id),
             'gis'     => GisRecord::findOrFail($id),
+            'lgu'     => Permit::findOrFail($id),
             default   => abort(404),
         };
     }
@@ -238,13 +274,19 @@ class CorporateApprovalController extends Controller
             return $response;
         }
 
-        $record->update([
+        $payload = [
             'approval_status' => 'Approved',
             'workflow_status' => 'Accepted',
             'approved_by' => Auth::id(),
             'approved_at' => now(),
             'review_note' => null,
-        ]);
+        ];
+
+        if ($module === 'lgu' && empty($record->approved_date_of_registration)) {
+            $payload['approved_date_of_registration'] = $record->date_of_registration ?: now()->toDateString();
+        }
+
+        $record->update($payload);
 
         $this->sendStatusEmail($record, $module, 'Approved', null);
 

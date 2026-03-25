@@ -125,10 +125,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/corporate/stock-transfer-book/installment/store', [StockTransferBookController::class, 'storeInstallment'])->name('stock-transfer-book.installment.store');
 
     Route::get('/permits/template/mayors-permit/{id}', [PermitController::class, 'showMayorPermitTemplate'])->name('permits.template.mayors-permit');
-    Route::get('/permits/template/barangay-business-permit/{id}', [PermitController::class, 'showBarangayBusinessPermitTemplate'])->name('permits.template.barangay-business-permit');
-    Route::get('/permits/template/fire-permit/{id}', [PermitController::class, 'showFirePermitTemplate'])->name('permits.template.fire-permit');
-    Route::get('/permits/template/sanitary-permit/{id}', [PermitController::class, 'showSanitaryPermitTemplate'])->name('permits.template.sanitary-permit');
-    Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
+Route::get('/permits/template/barangay-business-permit/{id}', [PermitController::class, 'showBarangayBusinessPermitTemplate'])->name('permits.template.barangay-business-permit');
+Route::get('/permits/template/fire-permit/{id}', [PermitController::class, 'showFirePermitTemplate'])->name('permits.template.fire-permit');
+Route::get('/permits/template/sanitary-permit/{id}', [PermitController::class, 'showSanitaryPermitTemplate'])->name('permits.template.sanitary-permit');
+Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
+
+Route::get('/corporate/lgu', [PermitController::class, 'page'])->name('corporate.lgu');
+Route::get('/permits', [PermitController::class, 'index'])->name('permits.index');
+Route::post('/permits', [PermitController::class, 'store'])->name('permits.store');
+Route::get('/permits/{id}', [PermitController::class, 'show'])->name('permits.show');
+Route::put('/permits/{id}/update', [PermitController::class, 'update'])->name('permits.update');
+Route::post('/permits/{id}/upload-document', [PermitController::class, 'uploadDocument'])->name('permits.upload.document');
+Route::post('/permits/{id}/submit', [PermitController::class, 'submit'])->name('permits.submit');
 
     Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
     Route::post('/correspondence', [CorrespondenceController::class, 'store']);

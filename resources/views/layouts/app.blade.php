@@ -318,11 +318,11 @@
                             NatGov
                         </a>
 
-                        <a href="{{ route('lgu') }}"
-                        class="block px-3 py-2 rounded-lg transition
-                        {{ request()->is('lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        LGU
-                        </a>
+                        <a href="{{ route('corporate.lgu') }}"
+    class="block px-3 py-2 rounded-lg transition
+    {{ request()->is('corporate/lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+    LGU
+</a>
 
                         <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
                             <a href="{{ route('accounting') }}"
