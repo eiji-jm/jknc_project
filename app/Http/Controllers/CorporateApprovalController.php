@@ -13,6 +13,7 @@ use App\Models\GisRecord;
 use App\Models\Permit;
 use App\Models\Accounting;
 use App\Models\Banking;
+use App\Models\Operation;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -50,6 +51,7 @@ class CorporateApprovalController extends Controller
             'lgu' => 'LGU',
             'accounting' => 'Accounting',
             'banking' => 'Banking',
+            'operations' => 'Operations',
             default => 'Corporate Module',
         };
     }
@@ -64,6 +66,7 @@ class CorporateApprovalController extends Controller
             'lgu' => ($record->permit_type ?? 'LGU Permit') . ' - ' . ($record->document_type ?? ''),
             'accounting' => ($record->client ?? 'Accounting Record') . ' - ' . ($record->statement_type ?? ''),
             'banking' => ($record->client ?? 'Banking Record') . ' - ' . ($record->bank ?? ''),
+            'operations' => ($record->client ?? 'Operations Record') . ' - ' . ($record->operation_type ?? ''),
             default => '',
         };
     }
@@ -74,6 +77,7 @@ class CorporateApprovalController extends Controller
             'lgu' => $record->permit_number ?? '',
             'accounting' => $record->tin ?? '',
             'banking' => $record->tin ?? '',
+            'operations' => $record->tin ?? '',
             default => $record->company_reg_no ?? '',
         };
     }
@@ -277,6 +281,30 @@ class CorporateApprovalController extends Controller
             ]);
         }
 
+        foreach (Operation::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'Operations',
+                'title' => ($row->client ?? 'Operations Record') . ' - ' . ($row->operation_type ?? ''),
+                'company_reg_no' => $row->tin ?? '',
+                'uploaded_by' => $row->user,
+                'date_uploaded' => $row->date_uploaded ? \Carbon\Carbon::parse($row->date_uploaded)->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('operations', [
+                    'record' => $row->id,
+                    'tab' => strtolower($workflow),
+                ]),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'operations', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'operations', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'operations', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'operations', 'id' => $row->id]),
+            ]);
+        }
+
         $items = $items->sortByDesc('id')->values();
 
         $pendingCount = $items->where('status', 'Submitted')->count();
@@ -303,6 +331,7 @@ class CorporateApprovalController extends Controller
             'lgu' => Permit::findOrFail($id),
             'accounting' => Accounting::findOrFail($id),
             'banking' => Banking::findOrFail($id),
+            'operations' => Operation::findOrFail($id),
             default => abort(404),
         };
     }

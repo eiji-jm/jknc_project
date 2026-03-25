@@ -161,7 +161,10 @@ Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])-
     Route::post('/banking/{id}/submit', [BankingController::class, 'submit'])->name('banking.submit');
 
     Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
-    Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
+Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
+Route::get('/operations/{id}', [OperationController::class, 'show'])->name('operations.show');
+Route::put('/operations/{id}/update', [OperationController::class, 'update'])->name('operations.update');
+Route::post('/operations/{id}/submit', [OperationController::class, 'submit'])->name('operations.submit');
 
     Route::get('/lgu', function () {
         return view('corporate.lgu');
