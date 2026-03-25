@@ -156,6 +156,9 @@ Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])-
 
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
+    Route::get('/banking/{id}', [BankingController::class, 'show'])->name('banking.show');
+    Route::put('/banking/{id}/update', [BankingController::class, 'update'])->name('banking.update');
+    Route::post('/banking/{id}/submit', [BankingController::class, 'submit'])->name('banking.submit');
 
     Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
     Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
