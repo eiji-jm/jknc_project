@@ -2,19 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $title }}</title>
+    <title>{{ $title }} - Correspondence</title>
     <style>
         @page {
-            size: A4 portrait;
-            margin: 18mm;
+            margin: 18mm 18mm 20mm 18mm;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 12px;
-            color: #111827;
-            line-height: 1.6;
             margin: 0;
+            font-family: DejaVu Sans, sans-serif;
+            color: #111827;
+            font-size: 12px;
+            line-height: 1.75;
         }
 
         .page {
@@ -23,142 +26,220 @@
 
         .header {
             border-bottom: 1px solid #d1d5db;
-            padding-bottom: 16px;
+            padding-bottom: 18px;
             margin-bottom: 28px;
+            overflow: hidden;
         }
 
-        .company {
-            font-size: 22px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
+        .header-left {
+            float: left;
+            width: 58%;
         }
 
-        .sub {
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-
-        .right-meta {
+        .header-right {
+            float: right;
+            width: 38%;
             text-align: right;
-            font-size: 12px;
+            font-size: 11px;
+            color: #4b5563;
             line-height: 1.6;
+        }
+
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 0.04em;
+            margin: 0 0 4px 0;
+        }
+
+        .subhead {
+            font-size: 11px;
+            color: #6b7280;
+            margin: 0;
         }
 
         .title {
             text-align: center;
-            font-size: 20px;
+            font-size: 17px;
             font-weight: bold;
-            letter-spacing: 3px;
-            margin: 10px 0 28px;
-            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            margin: 0 0 28px 0;
         }
 
-        .meta-table {
-            width: 100%;
-            border-collapse: collapse;
+        .meta {
             margin-bottom: 28px;
         }
 
-        .meta-table td {
-            padding: 6px 0;
-            vertical-align: top;
+        .meta-row {
+            width: 100%;
+            margin-bottom: 10px;
         }
 
         .meta-label {
-            width: 130px;
+            display: inline-block;
+            width: 120px;
             font-weight: bold;
             text-transform: uppercase;
+            vertical-align: top;
         }
 
         .meta-value {
-            border-bottom: 1px dotted #9ca3af;
-            padding-left: 8px;
+            display: inline-block;
+            width: calc(100% - 130px);
+            border-bottom: 1px dotted #d1d5db;
+            padding-bottom: 3px;
+            vertical-align: top;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            white-space: normal;
         }
 
-        .body {
-            min-height: 380px;
+        .body-content,
+        .body-content * {
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: normal;
+            white-space: normal;
         }
 
-        .body p {
-            margin: 10px 0;
+        .body-content {
+            min-height: 300px;
+            font-size: 12px;
+            line-height: 1.9;
         }
 
-        .body ul, .body ol {
-            margin: 10px 0 10px 24px;
+        .body-content p {
+            margin: 0 0 12px 0;
+            line-height: 1.9;
+        }
+
+        .body-content ul,
+        .body-content ol {
+            margin: 0 0 12px 20px;
+            padding-left: 18px;
+        }
+
+        .body-content li {
+            margin-bottom: 5px;
+            line-height: 1.8;
+        }
+
+        .body-content img,
+        .body-content video,
+        .body-content iframe,
+        .body-content table {
+            max-width: 100% !important;
+        }
+
+        .body-content table {
+            width: 100% !important;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .body-content td,
+        .body-content th {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            white-space: normal;
         }
 
         .signature {
             margin-top: 60px;
         }
 
-        .line {
-            width: 260px;
+        .signature-line {
+            width: 220px;
             border-bottom: 1px solid #6b7280;
-            margin-top: 50px;
+            margin-top: 42px;
+            margin-bottom: 6px;
         }
 
-        .sign-name {
-            margin-top: 8px;
+        .signature-name {
             font-weight: bold;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
         }
     </style>
 </head>
 <body>
     <div class="page">
-        <table width="100%" class="header">
-            <tr>
-                <td>
-                    <div class="company">JOHN KELLY &amp; COMPANY</div>
-                    <div class="sub">Correspondence Preview</div>
-                </td>
-                <td class="right-meta">
-                    <div><strong>Ref No:</strong> {{ $correspondence->id ? 'COR-' . str_pad($correspondence->id, 5, '0', STR_PAD_LEFT) : 'AUTO-INCREMENT' }}</div>
-                    <div><strong>Date:</strong> {{ $correspondence->date ? \Carbon\Carbon::parse($correspondence->date)->format('F d, Y') : '________________' }}</div>
-                    <div><strong>Type:</strong> {{ $correspondence->type ?? $title }}</div>
-                </td>
-            </tr>
-        </table>
+        <div class="header clearfix">
+            <div class="header-left">
+                <p class="company-name">JOHN KELLY &amp; COMPANY</p>
+                <p class="subhead">Correspondence Preview</p>
+            </div>
 
-        <div class="title">{{ $title }}</div>
+            <div class="header-right">
+                <div>Ref No:
+                    <strong>
+                        {{ $correspondence->id ? 'COR-' . str_pad($correspondence->id, 5, '0', STR_PAD_LEFT) : 'AUTO-INCREMENT' }}
+                    </strong>
+                </div>
+                <div>Date:
+                    <strong>{{ optional($correspondence->date)->format('Y-m-d') ?? now()->format('Y-m-d') }}</strong>
+                </div>
+                <div>Type:
+                    <strong>{{ $title }}</strong>
+                </div>
+            </div>
+        </div>
 
-        <table class="meta-table">
-            <tr>
-                <td class="meta-label">TIN</td>
-                <td class="meta-value">{{ $correspondence->tin ?? '______________________________' }}</td>
-            </tr>
-            <tr>
-                <td class="meta-label">{{ $correspondence->sender_type ?? 'From' }}</td>
-                <td class="meta-value">{{ $correspondence->sender ?? '______________________________' }}</td>
-            </tr>
-            <tr>
-                <td class="meta-label">Department</td>
-                <td class="meta-value">{{ $correspondence->department ?? '______________________________' }}</td>
-            </tr>
-            <tr>
-                <td class="meta-label">Subject</td>
-                <td class="meta-value"><strong>{{ $correspondence->subject ?? '______________________________' }}</strong></td>
-            </tr>
-            <tr>
-                <td class="meta-label">Sent Via</td>
-                <td class="meta-value">{{ $correspondence->sent_via ?? 'Email' }}</td>
-            </tr>
-            @if($correspondence->deadline)
-                <tr>
-                    <td class="meta-label">Respond Before</td>
-                    <td class="meta-value">{{ \Carbon\Carbon::parse($correspondence->deadline)->format('F d, Y') }}</td>
-                </tr>
+        <div class="title">{{ strtoupper($title) }}</div>
+
+        <div class="meta">
+            <div class="meta-row">
+                <span class="meta-label">TIN</span>
+                <span class="meta-value">{{ $correspondence->tin ?: '______________________________' }}</span>
+            </div>
+
+            <div class="meta-row">
+                <span class="meta-label">{{ $correspondence->sender_type ?: 'From' }}</span>
+                <span class="meta-value">{{ $correspondence->sender ?: '______________________________' }}</span>
+            </div>
+
+            <div class="meta-row">
+                <span class="meta-label">Department</span>
+                <span class="meta-value">{{ $correspondence->department ?: '______________________________' }}</span>
+            </div>
+
+            <div class="meta-row">
+                <span class="meta-label">Subject</span>
+                <span class="meta-value"><strong>{{ $correspondence->subject ?: '______________________________' }}</strong></span>
+            </div>
+
+            <div class="meta-row">
+                <span class="meta-label">Sent Via</span>
+                <span class="meta-value">{{ $correspondence->sent_via ?: '______________________________' }}</span>
+            </div>
+
+            @if(!empty($correspondence->deadline))
+                <div class="meta-row">
+                    <span class="meta-label">Respond Before</span>
+                    <span class="meta-value">
+                        {{ \Carbon\Carbon::parse($correspondence->deadline)->format('Y-m-d') }}
+                    </span>
+                </div>
             @endif
-        </table>
+        </div>
 
-        <div class="body">
-            {!! $correspondence->details ?: '<p style="color:#9ca3af;">Write the formal communication here...</p>' !!}
+        <div class="body-content">
+            {!! !empty(trim(strip_tags($correspondence->details ?? '')))
+                ? $correspondence->details
+                : '<p style="color:#9ca3af;">Write the formal communication here...</p>' !!}
         </div>
 
         <div class="signature">
             <div>Respectfully,</div>
-            <div class="line"></div>
-            <div class="sign-name">{{ $correspondence->user ?? 'Authorized Representative' }}</div>
+            <div class="signature-line"></div>
+            <div class="signature-name">{{ $correspondence->user ?? 'System' }}</div>
         </div>
     </div>
 </body>

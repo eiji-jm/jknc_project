@@ -164,7 +164,7 @@
                     x-transition:leave-end="-translate-x-full"
                     class="w-[70%] h-full bg-[#f5f6f8] overflow-y-auto p-6 border-r border-gray-200"
                 >
-                    <div class="max-w-[850px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
+                    <div class="max-w-[900px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
                         <button
                             type="button"
                             id="download-preview-pdf"
@@ -175,8 +175,11 @@
                         </button>
                     </div>
 
-                    <div class="max-w-[850px] mx-auto">
-                        <div id="correspondence-preview-pdf" class="bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
+                    <div class="max-w-[900px] mx-auto flex justify-center">
+                        <div
+                            id="correspondence-preview-pdf"
+                            class="correspondence-a4-page bg-white border border-gray-300 shadow"
+                        >
                             <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
                                 <div>
                                     <h1 class="text-[22px] font-bold tracking-wide text-gray-900">JOHN KELLY &amp; COMPANY</h1>
@@ -197,46 +200,49 @@
                             <div class="space-y-3 text-[14px] text-gray-800 mb-10">
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">TIN</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewTin || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewTin || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide" x-text="previewSenderLabel"></p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewSender || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewSender || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Department</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDepartment || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewDepartment || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Subject</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1 font-semibold" x-text="previewSubject || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 font-semibold break-words" x-text="previewSubject || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Sent Via</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewSentVia || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewSentVia || '______________________________'"></p>
                                 </div>
 
                                 <template x-if="hasDeadline">
                                     <div class="grid grid-cols-[120px_1fr] gap-3">
                                         <p class="font-semibold uppercase tracking-wide">Respond Before</p>
-                                        <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDeadline || '______________________________'"></p>
+                                        <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewDeadline || '______________________________'"></p>
                                     </div>
                                 </template>
                             </div>
 
-                            <div class="text-[15px] leading-8 text-gray-900 min-h-[420px]">
-                                <div class="prose prose-sm max-w-none [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4" x-html="previewBody"></div>
+                            <div class="correspondence-body text-[15px] text-gray-900">
+                                <div
+                                    class="body-content"
+                                    x-html="previewBody"
+                                ></div>
                             </div>
 
                             <div class="mt-16 space-y-10 text-[14px] text-gray-800">
                                 <div>
                                     <p>Respectfully,</p>
                                     <div class="mt-12 border-b border-gray-400 w-[260px]"></div>
-                                    <p class="mt-2 font-semibold" x-text="previewPreparedBy || '________________'"></p>
+                                    <p class="mt-2 font-semibold break-words" x-text="previewPreparedBy || '________________'"></p>
                                 </div>
                             </div>
                         </div>
@@ -313,7 +319,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1">Body</label>
-                            <div id="editor"></div>
+                            <div id="editor" class="bg-white"></div>
                             <input type="hidden" id="detailsInput">
                         </div>
 
@@ -356,9 +362,101 @@
 </div>
 
 <style>
+    .correspondence-a4-page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 18mm 18mm 20mm 18mm;
+        box-sizing: border-box;
+        background: #fff;
+    }
+
+    .correspondence-body {
+        min-height: 420px;
+        line-height: 1.85;
+    }
+
+    .body-content,
+    .body-content * {
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+    }
+
+    .body-content p {
+        margin: 0 0 14px 0;
+        line-height: 1.85;
+    }
+
+    .body-content ul,
+    .body-content ol {
+        margin: 0 0 14px 22px;
+        padding-left: 18px;
+    }
+
+    .body-content li {
+        margin-bottom: 6px;
+        line-height: 1.8;
+    }
+
+    .body-content img,
+    .body-content video,
+    .body-content iframe,
+    .body-content table {
+        max-width: 100%;
+    }
+
+    .body-content table {
+        width: 100% !important;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+
+    .body-content td,
+    .body-content th {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+
+    #editor {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    #editor .ql-toolbar.ql-snow {
+        border: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    #editor .ql-container.ql-snow {
+        border: 0;
+        font-size: 15px;
+    }
 
     #editor .ql-editor {
-        min-height: 180px;
+        min-height: 320px;
+        max-height: none;
+        padding: 16px 18px;
+        line-height: 1.85;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    #editor .ql-editor p,
+    #editor .ql-editor li {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    #editor .ql-editor img,
+    #editor .ql-editor table {
+        max-width: 100%;
     }
 </style>
 @endsection
@@ -411,10 +509,12 @@ function showSliderSuccess(message) {
 function clearSliderMessages() {
     const errorBox = document.getElementById('sliderErrorBox');
     const successBox = document.getElementById('sliderSuccessBox');
+
     if (errorBox) {
         errorBox.classList.add('hidden');
         errorBox.innerHTML = '';
     }
+
     if (successBox) {
         successBox.classList.add('hidden');
         successBox.innerHTML = '';
@@ -436,6 +536,7 @@ function openAddSection() {
     if (alpineData) {
         alpineData.showSlideOver = true;
     }
+
     resetFormDefaults();
     clearSliderMessages();
 }
@@ -445,6 +546,7 @@ function closeAddSection() {
     if (alpineData) {
         alpineData.showSlideOver = false;
     }
+
     resetFormDefaults();
     clearSliderMessages();
     showOnlySection('tableSection');
@@ -484,7 +586,7 @@ function resetFormDefaults() {
     }
 
     if (window.correspondenceQuill) {
-        window.correspondenceQuill.root.innerHTML = '';
+        window.correspondenceQuill.setContents([]);
     }
 
     document.getElementById('detailsInput').value = '';
@@ -696,10 +798,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         quill.on('text-change', function () {
             const html = quill.root.innerHTML;
-            hiddenInput.value = html;
+            const plainText = quill.getText().trim();
+
+            hiddenInput.value = plainText ? html : '';
 
             if (alpineData) {
-                alpineData.previewBody = quill.getText().trim()
+                alpineData.previewBody = plainText
                     ? html
                     : '<p style="color:#9ca3af;">Write the formal communication here...</p>';
             }
@@ -717,11 +821,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const safeFileName = subject.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').toLowerCase();
 
             html2pdf().set({
-                margin: [0.3, 0.3, 0.3, 0.3],
+                margin: [0, 0, 0, 0],
                 filename: `${safeFileName}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }).from(element).save();
         });

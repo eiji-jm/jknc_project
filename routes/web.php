@@ -31,10 +31,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
     Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
-    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
-    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
     Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
     Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
