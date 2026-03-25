@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Contact;
 use App\Models\SpecimenSignature;
 use App\Models\User;
@@ -107,24 +108,12 @@ class ContactsController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $kycFilter = (string) $request->query('kyc', 'All');
-        $perPage = (int) $request->query('per_page', 10);
-        $perPage = in_array($perPage, [5, 10, 25, 50], true) ? $perPage : 10;
+        $perPage = 5;
 
         $query = Contact::query();
 
         if ($search !== '') {
-            $query->where(function ($builder) use ($search) {
-                $builder
-                    ->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('company_name', 'like', "%{$search}%")
-                    ->orWhere('position', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('contact_address', 'like', "%{$search}%")
-                    ->orWhere('company_address', 'like', "%{$search}%")
-                    ->orWhere('owner_name', 'like', "%{$search}%");
-            });
+            $this->applyContactSearchFilter($query, $search);
         }
 
         if (in_array($kycFilter, self::KYC_STATUSES, true)) {
@@ -133,11 +122,32 @@ class ContactsController extends Controller
             $kycFilter = 'All';
         }
 
-        $contacts = $query
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->paginate($perPage)
-            ->withQueryString();
+        if ($search !== '') {
+            $query
+                ->orderByRaw(
+                    "CASE
+                        WHEN LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) LIKE ? THEN 0
+                        WHEN LOWER(first_name) LIKE ? THEN 1
+                        WHEN LOWER(last_name) LIKE ? THEN 2
+                        WHEN LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) LIKE ? THEN 3
+                        ELSE 4
+                    END",
+                    [
+                        Str::lower($search).'%',
+                        Str::lower($search).'%',
+                        Str::lower($search).'%',
+                        '%'.Str::lower($search).'%',
+                    ]
+                )
+                ->orderBy('first_name')
+                ->orderBy('last_name');
+        } else {
+            $query
+                ->orderBy('first_name')
+                ->orderBy('last_name');
+        }
+
+        $contacts = $query->paginate($perPage)->withQueryString();
 
         $mockContact = $this->mockContact();
         $mockSearchBlob = collect([
@@ -344,6 +354,22 @@ class ContactsController extends Controller
         }
 
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
+    }
+
+    public function bulkDelete(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_contacts' => ['required', 'array', 'min:1'],
+            'selected_contacts.*' => ['required', 'integer'],
+        ]);
+
+        $deletedCount = Contact::query()
+            ->whereIn('id', $validated['selected_contacts'])
+            ->delete();
+
+        return redirect()
+            ->route('contacts.index')
+            ->with('success', $deletedCount === 1 ? '1 contact deleted successfully.' : "{$deletedCount} contacts deleted successfully.");
     }
 
     public function update(Request $request, string $contact): RedirectResponse
@@ -609,7 +635,19 @@ class ContactsController extends Controller
             'specimenSignature' => $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first(),
             'kycRequirementState' => $this->kycRequirementState($contactModel, $specimenSignature),
             'kycActivityLogs' => $this->buildKycActivityLogs($contactModel),
+            'companySearch' => trim((string) $request->query('company_search', '')),
+            'companyTabCompanies' => $this->relatedCompaniesForContact($contactModel, trim((string) $request->query('company_search', ''))),
         ]);
+    }
+
+    public function unlinkCompany(Request $request, string $contact, string $company): RedirectResponse
+    {
+        $contactModel = Contact::query()->findOrFail($contact);
+        $contactModel->companies()->detach((int) $company);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'company'])
+            ->with('success', 'Company unlinked from contact successfully.');
     }
 
     public function sendCifClientForm(Request $request, string $contact): RedirectResponse
@@ -1384,6 +1422,48 @@ class ContactsController extends Controller
         return $this->defaultCifData($contact);
     }
 
+    private function relatedCompaniesForContact(Contact $contact, string $search = ''): array
+    {
+        $relatedCompanies = Company::query()
+            ->with(['latestBif:id,company_id,line_of_business,status'])
+            ->select(['companies.id', 'companies.company_name', 'companies.phone', 'companies.owner_name'])
+            ->when(
+                method_exists($contact, 'companies'),
+                fn ($query) => $query->whereHas('contacts', fn ($relation) => $relation->where('contacts.id', $contact->id))
+            )
+            ->get();
+
+        if ($relatedCompanies->isEmpty() && filled($contact->company_name)) {
+            $relatedCompanies = Company::query()
+                ->with(['latestBif:id,company_id,line_of_business,status'])
+                ->select(['id', 'company_name', 'phone', 'owner_name'])
+                ->where('company_name', 'like', $contact->company_name)
+                ->get();
+        }
+
+        $items = $relatedCompanies
+            ->unique('id')
+            ->map(function (Company $company) {
+                $bif = $company->latestBif;
+
+                return [
+                    'id' => $company->id,
+                    'company_name' => $company->company_name,
+                    'industry' => $bif->line_of_business ?? 'N/A',
+                    'phone' => $company->phone ?: '-',
+                    'owner' => $company->owner_name ?: '-',
+                    'status' => $bif?->status ?: 'Active',
+                    'show_url' => route('company.show', $company->id),
+                ];
+            });
+
+        if ($search !== '') {
+            $items = $items->filter(fn (array $item) => Str::contains(Str::lower($item['company_name']), Str::lower($search)));
+        }
+
+        return $items->values()->all();
+    }
+
     private function defaultCifData(Contact $contact): array
     {
         return [
@@ -2085,6 +2165,24 @@ class ContactsController extends Controller
             'message' => "KYC profile loaded by {$actor}",
             'timestamp' => optional($contact->created_at)->format('F d, Y • h:i A') ?: null,
         ]];
+    }
+
+    private function applyContactSearchFilter($query, string $search): void
+    {
+        $query->where(function ($builder) use ($search) {
+            $builder
+                ->where('first_name', 'like', "%{$search}%")
+                ->orWhere('last_name', 'like', "%{$search}%")
+                ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?", ["%{$search}%"])
+                ->orWhereRaw("CONCAT(COALESCE(last_name, ''), ' ', COALESCE(first_name, '')) LIKE ?", ["%{$search}%"])
+                ->orWhere('company_name', 'like', "%{$search}%")
+                ->orWhere('position', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('phone', 'like', "%{$search}%")
+                ->orWhere('contact_address', 'like', "%{$search}%")
+                ->orWhere('company_address', 'like', "%{$search}%")
+                ->orWhere('owner_name', 'like', "%{$search}%");
+        });
     }
 
     private function findContactByClientToken(string $type, string $token): Contact

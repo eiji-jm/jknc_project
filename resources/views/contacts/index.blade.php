@@ -2,6 +2,20 @@
 
 @section('content')
 @php
+    $highlightMatch = function (string $value) use ($search): string {
+        if ($search === '') {
+            return e($value);
+        }
+
+        $escapedSearch = preg_quote($search, '/');
+
+        return preg_replace(
+            "/({$escapedSearch})/i",
+            '<mark class="rounded bg-yellow-200 px-0.5 text-inherit">$1</mark>',
+            e($value)
+        ) ?: e($value);
+    };
+
     $statusPillClasses = [
         'Verified' => 'bg-green-100 text-green-700 border border-green-200',
         'Pending Verification' => 'bg-amber-100 text-amber-700 border border-amber-200',
@@ -26,14 +40,16 @@
         </div>
     @endif
 
-    <form method="GET" action="{{ route('contacts.index') }}" class="mb-4 flex flex-wrap items-center gap-3">
+    <form id="contactsSearchForm" method="GET" action="{{ route('contacts.index') }}" class="mb-4 flex flex-wrap items-center gap-3">
         <div class="relative w-full max-w-md">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
             <input
+                id="contactsSearchInput"
                 type="text"
                 name="search"
                 value="{{ $search }}"
                 placeholder="Search Contacts..."
+                autocomplete="off"
                 class="h-10 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
         </div>
@@ -48,9 +64,6 @@
                 <option value="{{ $status }}" {{ $kycFilter === $status ? 'selected' : '' }}>{{ $status }}</option>
             @endforeach
         </select>
-
-        <input type="hidden" name="per_page" value="{{ $perPage }}">
-
         <button
             type="button"
             id="openCreateContactModal"
@@ -64,6 +77,7 @@
         <div class="flex items-center gap-2 text-sm">
             <span class="font-medium text-gray-800"><span id="selectedCount">0</span> selected</span>
             <button id="openAssignOwnerModal" type="button" class="h-8 rounded-md border border-gray-200 bg-white px-3 hover:bg-gray-50">Assign Owner</button>
+            <button id="openDeleteSelectedModal" type="button" class="h-8 rounded-md border border-red-200 bg-white px-3 text-red-600 hover:bg-red-50">Delete Selected</button>
             <select class="h-8 rounded-md border border-gray-200 bg-white px-2">
                 <option>Mark KYC Status</option>
                 <option>Verified</option>
@@ -106,7 +120,7 @@
                                 <div class="flex items-center gap-2">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">{{ $initials }}</div>
                                     <a href="{{ route('contacts.show', $contact) }}" class="font-medium text-gray-900 hover:text-blue-700">
-                                        {{ trim($contact->first_name.' '.$contact->last_name) }}
+                                        {!! $highlightMatch(trim($contact->first_name.' '.$contact->last_name)) !!}
                                     </a>
                                 </div>
                             </td>
@@ -152,18 +166,12 @@
         <span>Pending: <span class="text-amber-600">{{ $statusCounts['Pending Verification'] }}</span></span>
         <span>Not Submitted: {{ $statusCounts['Not Submitted'] }}</span>
         <span>Rejected: <span class="text-red-600">{{ $statusCounts['Rejected'] }}</span></span>
-        <div class="ml-auto flex items-center gap-2 text-xs text-gray-600">
-            <form method="GET" action="{{ route('contacts.index') }}" class="flex items-center gap-2">
-                <span>Rows</span>
-                <select name="per_page" class="h-7 rounded border border-gray-200 px-2 text-xs" onchange="this.form.submit()">
-                    @foreach ([5, 10, 25, 50] as $size)
-                        <option value="{{ $size }}" {{ (int) $perPage === $size ? 'selected' : '' }}>{{ $size }}</option>
-                    @endforeach
-                </select>
-                <input type="hidden" name="search" value="{{ $search }}">
-                <input type="hidden" name="kyc" value="{{ $kycFilter }}">
-            </form>
-            <span>{{ $contacts->firstItem() ?? 0 }}-{{ $contacts->lastItem() ?? 0 }} of {{ $contacts->total() }}</span>
+        <div class="ml-auto flex items-center gap-2 text-sm text-gray-600">
+            <a href="{{ $contacts->onFirstPage() ? '#' : $contacts->previousPageUrl() }}" class="rounded-md border border-gray-200 px-3 py-1 {{ $contacts->onFirstPage() ? 'pointer-events-none opacity-40' : 'hover:bg-gray-50' }}">Prev</a>
+            @foreach ($contacts->getUrlRange(1, $contacts->lastPage()) as $page => $url)
+                <a href="{{ $url }}" class="rounded-md border px-3 py-1 {{ $contacts->currentPage() === $page ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 hover:bg-gray-50' }}">{{ $page }}</a>
+            @endforeach
+            <a href="{{ $contacts->hasMorePages() ? $contacts->nextPageUrl() : '#' }}" class="rounded-md border border-gray-200 px-3 py-1 {{ $contacts->hasMorePages() ? 'hover:bg-gray-50' : 'pointer-events-none opacity-40' }}">Next</a>
         </div>
     </div>
 </div>
@@ -176,6 +184,30 @@
     'createdAtDisplay' => $createdAtDisplay ?? now()->format('F j, Y • g:i A'),
     'defaultBusinessDate' => $defaultBusinessDate ?? now()->toDateString(),
 ])
+
+<div id="deleteSelectedModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+    <button id="deleteSelectedOverlay" type="button" aria-label="Close delete contacts modal" class="absolute inset-0 bg-slate-900/45"></button>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div class="border-b border-gray-100 px-6 py-5">
+                <h2 class="text-xl font-semibold text-gray-900">Delete Selected Contacts</h2>
+                <p class="mt-1 text-sm text-gray-500">This action will permanently delete the selected contact records.</p>
+            </div>
+            <form id="bulkDeleteForm" method="POST" action="{{ route('contacts.bulk-delete') }}">
+                @csrf
+                @method('DELETE')
+                <div id="bulkDeleteSelectedContacts"></div>
+                <div class="px-6 py-5 text-sm text-gray-700">
+                    Are you sure you want to delete <span id="bulkDeleteCountText" class="font-semibold text-gray-900">0 contacts</span>?
+                </div>
+                <div class="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                    <button id="cancelDeleteSelectedModal" type="button" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="submit" class="h-10 rounded-lg bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-700">Delete Selected</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <div id="assignOwnerModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
     <button id="assignOwnerOverlay" type="button" aria-label="Close assign owner panel" class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
@@ -313,7 +345,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const actionBar = document.getElementById('selectionActionBar');
     const selectedCount = document.getElementById('selectedCount');
     const clearSelection = document.getElementById('clearSelection');
+    const deleteSelectedModal = document.getElementById('deleteSelectedModal');
+    const deleteSelectedOverlay = document.getElementById('deleteSelectedOverlay');
+    const openDeleteSelectedModalButton = document.getElementById('openDeleteSelectedModal');
+    const cancelDeleteSelectedModalButton = document.getElementById('cancelDeleteSelectedModal');
+    const bulkDeleteSelectedContacts = document.getElementById('bulkDeleteSelectedContacts');
+    const bulkDeleteCountText = document.getElementById('bulkDeleteCountText');
+    const contactsSearchForm = document.getElementById('contactsSearchForm');
+    const contactsSearchInput = document.getElementById('contactsSearchInput');
     let createdAtIntervalId = null;
+    let searchDebounceId = null;
 
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -430,6 +471,45 @@ document.addEventListener('DOMContentLoaded', function () {
             assignOwnerOverlay?.classList.remove('opacity-0');
             assignOwnerPanel.classList.remove('translate-x-full');
         });
+    };
+
+    const closeDeleteSelectedModal = () => {
+        if (!deleteSelectedModal) {
+            return;
+        }
+
+        deleteSelectedModal.classList.add('hidden');
+        deleteSelectedModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden');
+    };
+
+    const openDeleteSelectedModal = () => {
+        const selectedContacts = rowChecks.filter((item) => item.checked);
+        if (selectedContacts.length === 0 || !deleteSelectedModal) {
+            return;
+        }
+
+        if (bulkDeleteSelectedContacts) {
+            bulkDeleteSelectedContacts.innerHTML = selectedContacts
+                .map((item) => `<input type="hidden" name="selected_contacts[]" value="${item.value}">`)
+                .join('');
+        }
+
+        if (bulkDeleteCountText) {
+            bulkDeleteCountText.textContent = `${selectedContacts.length} ${selectedContacts.length === 1 ? 'contact' : 'contacts'}`;
+        }
+
+        deleteSelectedModal.classList.remove('hidden');
+        deleteSelectedModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const submitContactsSearch = () => {
+        if (!contactsSearchForm) {
+            return;
+        }
+
+        contactsSearchForm.submit();
     };
 
     const openAssignOwnerModalFromIds = (contactIds) => {
@@ -619,11 +699,14 @@ document.addEventListener('DOMContentLoaded', function () {
     closeModalButton?.addEventListener('click', closeModal);
     cancelModalButton?.addEventListener('click', closeModal);
     openAssignOwnerModalButton?.addEventListener('click', openAssignOwnerModal);
+    openDeleteSelectedModalButton?.addEventListener('click', openDeleteSelectedModal);
     closeAssignOwnerModalButton?.addEventListener('click', closeAssignOwnerModal);
     cancelAssignOwnerModalButton?.addEventListener('click', closeAssignOwnerModal);
+    cancelDeleteSelectedModalButton?.addEventListener('click', closeDeleteSelectedModal);
 
     contactOverlay?.addEventListener('click', closeModal);
     assignOwnerOverlay?.addEventListener('click', closeAssignOwnerModal);
+    deleteSelectedOverlay?.addEventListener('click', closeDeleteSelectedModal);
 
     ownerTrigger?.addEventListener('click', function () {
         ownerMenu.classList.toggle('hidden');
@@ -655,6 +738,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const email = (option.dataset.ownerEmail || '').toLowerCase();
             option.classList.toggle('hidden', keyword !== '' && !name.includes(keyword) && !email.includes(keyword));
         });
+    });
+
+    contactsSearchInput?.addEventListener('input', function () {
+        window.clearTimeout(searchDebounceId);
+        searchDebounceId = window.setTimeout(submitContactsSearch, 700);
+    });
+
+    contactsSearchInput?.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            window.clearTimeout(searchDebounceId);
+            submitContactsSearch();
+        }
     });
 
     assignOwnerOptions.forEach((option) => {
@@ -711,6 +807,7 @@ document.addEventListener('DOMContentLoaded', function () {
             closeCreateFieldDropdownFn();
             closeCreateFieldModalFn();
             closeAssignOwnerModal();
+            closeDeleteSelectedModal();
         }
     });
 
