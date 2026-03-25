@@ -11,6 +11,7 @@ use App\Models\SecAoi;
 use App\Models\Bylaw;
 use App\Models\GisRecord;
 use App\Models\Permit;
+use App\Models\Accounting;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -46,6 +47,7 @@ class CorporateApprovalController extends Controller
             'bylaws'  => 'Bylaws',
             'gis'     => 'GIS',
             'lgu'     => 'LGU',
+            'accounting' => 'Accounting',
             default   => 'Corporate Module',
         };
     }
@@ -58,6 +60,7 @@ class CorporateApprovalController extends Controller
             'bylaws'  => $record->corporation_name ?? '',
             'gis'     => $record->corporation_name ?? '',
             'lgu'     => ($record->permit_type ?? 'LGU Permit') . ' - ' . ($record->document_type ?? ''),
+            'accounting' => ($record->client ?? 'Accounting Record') . ' - ' . ($record->statement_type ?? ''),
             default   => '',
         };
     }
@@ -65,8 +68,9 @@ class CorporateApprovalController extends Controller
     private function getReferenceNumber($record, string $module): string
     {
         return match ($module) {
-            'lgu'     => $record->permit_number ?? '',
-            default   => $record->company_reg_no ?? '',
+            'lgu'        => $record->permit_number ?? '',
+            'accounting' => $record->tin ?? '',
+            default      => $record->company_reg_no ?? '',
         };
     }
 
@@ -118,10 +122,7 @@ class CorporateApprovalController extends Controller
 
         foreach (SecCoi::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
-
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
-            }
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
 
             $items->push((object) [
                 'id' => $row->id,
@@ -142,10 +143,7 @@ class CorporateApprovalController extends Controller
 
         foreach (SecAoi::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
-
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
-            }
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
 
             $items->push((object) [
                 'id' => $row->id,
@@ -166,10 +164,7 @@ class CorporateApprovalController extends Controller
 
         foreach (Bylaw::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
-
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
-            }
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
 
             $items->push((object) [
                 'id' => $row->id,
@@ -190,10 +185,7 @@ class CorporateApprovalController extends Controller
 
         foreach (GisRecord::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
-
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
-            }
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
 
             $items->push((object) [
                 'id' => $row->id,
@@ -214,10 +206,7 @@ class CorporateApprovalController extends Controller
 
         foreach (Permit::latest()->get() as $row) {
             $workflow = $this->normalizeWorkflow($row);
-
-            if (!$this->canAppearInAdminDashboard($workflow)) {
-                continue;
-            }
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
 
             $items->push((object) [
                 'id' => $row->id,
@@ -233,6 +222,30 @@ class CorporateApprovalController extends Controller
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'lgu', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'lgu', 'id' => $row->id]),
                 'archive_route' => route('corporate.approvals.archive', ['module' => 'lgu', 'id' => $row->id]),
+            ]);
+        }
+
+        foreach (Accounting::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'Accounting',
+                'title' => ($row->client ?? 'Accounting Record') . ' - ' . ($row->statement_type ?? ''),
+                'company_reg_no' => $row->tin ?? '',
+                'uploaded_by' => $row->user,
+                'date_uploaded' => $row->date ? \Carbon\Carbon::parse($row->date)->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('accounting', [
+                    'record' => $row->id,
+                    'tab' => strtolower($workflow),
+                 ]),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'accounting', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'accounting', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'accounting', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'accounting', 'id' => $row->id]),
             ]);
         }
 
@@ -255,12 +268,13 @@ class CorporateApprovalController extends Controller
     private function resolveModel($module, $id)
     {
         return match ($module) {
-            'sec-coi' => SecCoi::findOrFail($id),
-            'sec-aoi' => SecAoi::findOrFail($id),
-            'bylaws'  => Bylaw::findOrFail($id),
-            'gis'     => GisRecord::findOrFail($id),
-            'lgu'     => Permit::findOrFail($id),
-            default   => abort(404),
+            'sec-coi'    => SecCoi::findOrFail($id),
+            'sec-aoi'    => SecAoi::findOrFail($id),
+            'bylaws'     => Bylaw::findOrFail($id),
+            'gis'        => GisRecord::findOrFail($id),
+            'lgu'        => Permit::findOrFail($id),
+            'accounting' => Accounting::findOrFail($id),
+            default      => abort(404),
         };
     }
 
@@ -281,10 +295,6 @@ class CorporateApprovalController extends Controller
             'approved_at' => now(),
             'review_note' => null,
         ];
-
-        if ($module === 'lgu' && empty($record->approved_date_of_registration)) {
-            $payload['approved_date_of_registration'] = $record->date_of_registration ?: now()->toDateString();
-        }
 
         $record->update($payload);
 

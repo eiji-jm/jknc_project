@@ -149,7 +149,10 @@ Route::post('/permits/{id}/submit', [PermitController::class, 'submit'])->name('
     Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
-    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');
+Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
+Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
 
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
