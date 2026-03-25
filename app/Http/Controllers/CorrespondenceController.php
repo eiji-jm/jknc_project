@@ -10,10 +10,17 @@ use Carbon\Carbon;
 
 class CorrespondenceController extends Controller
 {
-    public function index($type)
+    public function index(Request $request)
     {
-        $data = Correspondence::where('type', $type)
+        $query = Correspondence::query();
+
+        if ($request->filled('type') && $request->type !== 'All') {
+            $query->where('type', $request->type);
+        }
+
+        $data = $query
             ->orderBy('uploaded_date', 'desc')
+            ->orderBy('id', 'desc')
             ->get()
             ->map(function ($item) {
                 return [
@@ -41,7 +48,7 @@ class CorrespondenceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'type' => 'required|string',
+            'type' => 'required|in:Letters,Demand Letter,Request Letter,Follow Up Letter,Memo,Notice',
             'tin' => 'nullable|string',
             'subject' => 'required|string',
             'sender_type' => 'required|in:From,To',
@@ -66,44 +73,19 @@ class CorrespondenceController extends Controller
             'time' => now()->format('H:i:s'),
             'deadline' => $validated['deadline'] ?? null,
             'sent_via' => $validated['sent_via'] ?? 'Email',
-            'status' => 'Open',
         ]);
 
         return response()->json([
+            'success' => true,
             'id' => $entry->id,
-            'type' => $entry->type,
-            'uploaded_date' => $entry->uploaded_date?->format('Y-m-d'),
-            'user' => $entry->user,
-            'tin' => $entry->tin,
-            'subject' => $entry->subject,
-            'sender_type' => $entry->sender_type,
-            'sender' => $entry->sender,
-            'department' => $entry->department,
-            'details' => $entry->details,
-            'date' => $entry->date?->format('Y-m-d'),
-            'time' => $entry->time ? Carbon::parse($entry->time)->format('H:i') : null,
-            'deadline' => $entry->deadline?->format('Y-m-d'),
-            'sent_via' => $entry->sent_via,
+            'message' => 'Correspondence saved successfully.',
             'status' => $entry->computed_status,
         ], 201);
     }
 
-    protected function resolveTemplateView(string $slug): string
+    protected function typeMap(): array
     {
-        return match ($slug) {
-            'letters' => 'correspondence.templates.letters',
-            'demand-letter' => 'correspondence.templates.demand-letter',
-            'request-letter' => 'correspondence.templates.request-letter',
-            'follow-up-letter' => 'correspondence.templates.follow-up-letter',
-            'memo' => 'correspondence.templates.memo',
-            'notice' => 'correspondence.templates.notice',
-            default => abort(404),
-        };
-    }
-
-    protected function buildDraftCorrespondence(Request $request, string $slug): object
-    {
-        $typeMap = [
+        return [
             'letters' => 'Letters',
             'demand-letter' => 'Demand Letter',
             'request-letter' => 'Request Letter',
@@ -111,10 +93,24 @@ class CorrespondenceController extends Controller
             'memo' => 'Memo',
             'notice' => 'Notice',
         ];
+    }
 
+    protected function resolveTemplateTitle(string $slug): string
+    {
+        $map = $this->typeMap();
+
+        if (!array_key_exists($slug, $map)) {
+            abort(404);
+        }
+
+        return $map[$slug];
+    }
+
+    protected function buildDraftCorrespondence(Request $request, string $slug): object
+    {
         return (object) [
             'id' => null,
-            'type' => $typeMap[$slug] ?? 'Letters',
+            'type' => $this->resolveTemplateTitle($slug),
             'uploaded_date' => now(),
             'user' => Auth::check() ? Auth::user()->name : 'System',
             'tin' => $request->query('tin'),
@@ -133,68 +129,18 @@ class CorrespondenceController extends Controller
     public function showDraftPreview(Request $request, string $slug)
     {
         $correspondence = $this->buildDraftCorrespondence($request, $slug);
-        $view = $this->resolveTemplateView($slug);
+        $title = $this->resolveTemplateTitle($slug);
 
-        return view($view, compact('correspondence'));
+        return view('correspondence.templates.base-template', compact('correspondence', 'title'));
     }
 
-    public function showLettersTemplate($id)
+    public function showTemplate(string $slug, int $id)
     {
         $correspondence = Correspondence::findOrFail($id);
+        $title = $this->resolveTemplateTitle($slug);
 
-        $pdf = Pdf::loadView('correspondence.templates.letters', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('letters-' . $correspondence->id . '.pdf');
-    }
-
-    public function showDemandLetterTemplate($id)
-    {
-        $correspondence = Correspondence::findOrFail($id);
-
-        $pdf = Pdf::loadView('correspondence.templates.demand-letter', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('demand-letter-' . $correspondence->id . '.pdf');
-    }
-
-    public function showRequestLetterTemplate($id)
-    {
-        $correspondence = Correspondence::findOrFail($id);
-
-        $pdf = Pdf::loadView('correspondence.templates.request-letter', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('request-letter-' . $correspondence->id . '.pdf');
-    }
-
-    public function showFollowUpLetterTemplate($id)
-    {
-        $correspondence = Correspondence::findOrFail($id);
-
-        $pdf = Pdf::loadView('correspondence.templates.follow-up-letter', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('follow-up-letter-' . $correspondence->id . '.pdf');
-    }
-
-    public function showMemoTemplate($id)
-    {
-        $correspondence = Correspondence::findOrFail($id);
-
-        $pdf = Pdf::loadView('correspondence.templates.memo', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('memo-' . $correspondence->id . '.pdf');
-    }
-
-    public function showNoticeTemplate($id)
-    {
-        $correspondence = Correspondence::findOrFail($id);
-
-        $pdf = Pdf::loadView('correspondence.templates.notice', compact('correspondence'))
-            ->setPaper('a4', 'portrait');
-
-        return $pdf->stream('notice-' . $correspondence->id . '.pdf');
+        return Pdf::loadView('correspondence.templates.base-template', compact('correspondence', 'title'))
+            ->setPaper('a4', 'portrait')
+            ->stream(strtolower($slug . '-' . $correspondence->id . '.pdf'));
     }
 }

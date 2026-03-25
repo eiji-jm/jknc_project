@@ -10,12 +10,12 @@ class AccountingController extends Controller
 {
     public function index(Request $request)
     {
-        $filter = $request->get('filter', 'PNL');
+        $statementType = $request->get('statement_type');
 
         $query = Accounting::query();
 
-        if ($filter !== 'All Documents') {
-            $query->where('type', $filter);
+        if ($statementType && $statementType !== 'All Statement Types') {
+            $query->where('statement_type', $statementType);
         }
 
         $data = $query->orderByDesc('date')
@@ -28,7 +28,7 @@ class AccountingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'type' => 'required|string',
+            'statement_type' => 'required|in:PNL,Balance Sheet,Cash Flow,Income Statement,AFS',
             'client' => 'required|string',
             'tin' => 'nullable|string',
             'date' => 'required|date',
@@ -39,11 +39,11 @@ class AccountingController extends Controller
         $path = $file->store('accounting_documents', 'public');
 
         $entry = Accounting::create([
-            'type' => $request->type,
+            'statement_type' => $request->statement_type,
             'client' => $request->client,
             'tin' => $request->tin,
             'date' => $request->date,
-            'user' => Auth::user()->name ?? 'Unknown User',
+            'user' => Auth::check() ? Auth::user()->name : 'Unknown User',
             'status' => 'Open',
             'document_name' => $file->getClientOriginalName(),
             'document_path' => 'storage/' . $path,

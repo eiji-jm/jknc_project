@@ -18,12 +18,11 @@ return new class extends Migration
             $table->string('sender_type')->default('From');
             $table->string('sender')->nullable();
             $table->string('department')->nullable();
-            $table->text('details')->nullable();
+            $table->longText('details')->nullable();
             $table->date('date')->nullable();
             $table->time('time')->nullable();
             $table->date('deadline')->nullable();
             $table->string('sent_via')->default('Email');
-            $table->string('status')->default('Open');
             $table->timestamps();
         });
     }

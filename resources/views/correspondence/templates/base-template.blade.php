@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Letters</title>
+    <title>{{ $title }}</title>
     <style>
         @page {
             size: A4 portrait;
@@ -84,6 +84,10 @@
             margin: 10px 0;
         }
 
+        .body ul, .body ol {
+            margin: 10px 0 10px 24px;
+        }
+
         .signature {
             margin-top: 60px;
         }
@@ -111,12 +115,12 @@
                 <td class="right-meta">
                     <div><strong>Ref No:</strong> {{ $correspondence->id ? 'COR-' . str_pad($correspondence->id, 5, '0', STR_PAD_LEFT) : 'AUTO-INCREMENT' }}</div>
                     <div><strong>Date:</strong> {{ $correspondence->date ? \Carbon\Carbon::parse($correspondence->date)->format('F d, Y') : '________________' }}</div>
-                    <div><strong>Type:</strong> {{ $correspondence->type ?? 'Letters' }}</div>
+                    <div><strong>Type:</strong> {{ $correspondence->type ?? $title }}</div>
                 </td>
             </tr>
         </table>
 
-        <div class="title">Letters</div>
+        <div class="title">{{ $title }}</div>
 
         <table class="meta-table">
             <tr>
@@ -140,15 +144,15 @@
                 <td class="meta-value">{{ $correspondence->sent_via ?? 'Email' }}</td>
             </tr>
             @if($correspondence->deadline)
-            <tr>
-                <td class="meta-label">Respond Before</td>
-                <td class="meta-value">{{ \Carbon\Carbon::parse($correspondence->deadline)->format('F d, Y') }}</td>
-            </tr>
+                <tr>
+                    <td class="meta-label">Respond Before</td>
+                    <td class="meta-value">{{ \Carbon\Carbon::parse($correspondence->deadline)->format('F d, Y') }}</td>
+                </tr>
             @endif
         </table>
 
         <div class="body">
-            {!! $correspondence->details ?: '<p style="color:#9ca3af;">Write the correspondence details here...</p>' !!}
+            {!! $correspondence->details ?: '<p style="color:#9ca3af;">Write the formal communication here...</p>' !!}
         </div>
 
         <div class="signature">

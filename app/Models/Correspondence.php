@@ -21,7 +21,6 @@ class Correspondence extends Model
         'time',
         'deadline',
         'sent_via',
-        'status',
     ];
 
     protected $appends = ['computed_status'];
@@ -39,15 +38,5 @@ class Correspondence extends Model
         }
 
         return $this->deadline->lt(Carbon::today()) ? 'Closed' : 'Open';
-    }
-
-    public function getFromValueAttribute()
-    {
-        return $this->sender_type === 'From' ? $this->sender : null;
-    }
-
-    public function getToValueAttribute()
-    {
-        return $this->sender_type === 'To' ? $this->sender : null;
     }
 }
