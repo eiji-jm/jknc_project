@@ -9,10 +9,8 @@
         </div>
     @endif
 
-    {{-- PAGE WRAPPER --}}
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
 
-        {{-- HEADER --}}
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
                 <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Admin Dashboard</h1>
@@ -29,8 +27,7 @@
             </div>
         </div>
 
-        {{-- SUMMARY CARDS --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 px-5 pt-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 px-5 pt-5">
             <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <div class="flex items-center justify-between">
                     <div>
@@ -78,9 +75,20 @@
                     </div>
                 </div>
             </div>
+
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-gray-600 uppercase">Expired</p>
+                        <h2 class="text-3xl font-bold text-gray-700 mt-2">{{ $expiredCount ?? 0 }}</h2>
+                    </div>
+                    <div class="w-11 h-11 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">
+                        <i class="fas fa-box-archive"></i>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        {{-- FILTER BAR --}}
         <div class="px-5 pt-5">
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 xl:justify-between">
                 <div class="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
@@ -115,6 +123,7 @@
                         <option>Approved</option>
                         <option>Rejected</option>
                         <option>Needs Revision</option>
+                        <option>Expired</option>
                     </select>
                 </div>
 
@@ -129,7 +138,6 @@
             </div>
         </div>
 
-        {{-- TABLE --}}
         <div class="px-5 py-5 flex-1 flex flex-col">
             <div class="border border-gray-200 rounded-xl overflow-hidden flex-1">
                 <table class="w-full text-sm text-left border-collapse">
@@ -163,8 +171,10 @@
                                 $moduleLabel = 'Town Hall';
                                 $moduleClasses = 'bg-blue-50 text-blue-700';
 
-                                $priority = 'Medium';
-                                $priorityClasses = 'bg-yellow-50 text-yellow-700';
+                                $priority = $communication->priority ?? 'Low';
+                                $priorityClasses = $priority === 'High'
+                                    ? 'bg-red-50 text-red-700'
+                                    : 'bg-yellow-50 text-yellow-700';
                             @endphp
 
                             <tr class="border-t border-gray-200 hover:bg-gray-50">
@@ -207,33 +217,41 @@
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    <span class="px-2 py-1 text-xs rounded-full {{ $approvalClasses }} font-medium">
-                                        {{ $approval }}
-                                    </span>
+                                    @if($communication->is_archived)
+                                        <span class="px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700 font-medium">
+                                            Expired
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 text-xs rounded-full {{ $approvalClasses }} font-medium">
+                                            {{ $approval }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-center gap-2">
-                                        <form action="{{ route('townhall.approve', $communication->id) }}" method="POST">
-                                            @csrf
-                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
-                                                Approve
-                                            </button>
-                                        </form>
+                                        @if(!$communication->is_archived)
+                                            <form action="{{ route('townhall.approve', $communication->id) }}" method="POST">
+                                                @csrf
+                                                <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
+                                                    Approve
+                                                </button>
+                                            </form>
 
-                                        <form action="{{ route('townhall.reject', $communication->id) }}" method="POST">
-                                            @csrf
-                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
-                                                Reject
-                                            </button>
-                                        </form>
+                                            <form action="{{ route('townhall.reject', $communication->id) }}" method="POST">
+                                                @csrf
+                                                <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
+                                                    Reject
+                                                </button>
+                                            </form>
 
-                                        <form action="{{ route('townhall.revise', $communication->id) }}" method="POST">
-                                            @csrf
-                                            <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">
-                                                Revise
-                                            </button>
-                                        </form>
+                                            <form action="{{ route('townhall.revise', $communication->id) }}" method="POST">
+                                                @csrf
+                                                <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">
+                                                    Revise
+                                                </button>
+                                            </form>
+                                        @endif
 
                                         <a
                                             href="{{ route('townhall.show', $communication->id) }}"
@@ -255,13 +273,13 @@
                 </table>
             </div>
 
-            {{-- FOOTER --}}
             <div class="mt-3 flex items-center justify-between text-[11px] text-gray-500 px-1">
                 <div class="flex items-center gap-6">
                     <span>Total Files <span class="text-gray-800 font-semibold">{{ $communications->total() }}</span></span>
                     <span>Pending <span class="text-yellow-600 font-semibold">{{ $pendingCount }}</span></span>
                     <span>Approved <span class="text-green-600 font-semibold">{{ $approvedCount }}</span></span>
                     <span>Rejected <span class="text-red-600 font-semibold">{{ $rejectedCount }}</span></span>
+                    <span>Expired <span class="text-gray-700 font-semibold">{{ $expiredCount ?? 0 }}</span></span>
                 </div>
 
                 <div class="flex items-center gap-4">

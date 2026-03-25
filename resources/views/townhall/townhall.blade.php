@@ -13,7 +13,8 @@
     previewSubject: '',
     previewBody: '<p style=&quot;color:#9ca3af;&quot;>Write the formal communication here...</p>',
     previewCc: '',
-    previewAdditional: ''
+    previewAdditional: '',
+    previewExpiry: ''
 }">
 
     @if(session('success'))
@@ -33,7 +34,6 @@
     @endif
 
     @if(Auth::user()->hasPermission('create_townhall'))
-    {{-- FORM + LIVE PREVIEW OVERLAY --}}
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
         <div class="absolute inset-0 bg-black/40" @click="showSlideOver = false"></div>
 
@@ -106,6 +106,11 @@
                             <div class="grid grid-cols-[120px_1fr] gap-3">
                                 <p class="font-semibold uppercase tracking-wide">Subject</p>
                                 <p class="border-b border-dotted border-gray-300 pb-1 font-semibold" x-text="previewSubject || '______________________________'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">Expiry</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewExpiry || '______________________________'"></p>
                             </div>
                         </div>
 
@@ -301,6 +306,20 @@
                         </p>
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Expiry Date & Time</label>
+                        <input
+                            type="datetime-local"
+                            name="expires_at"
+                            x-model="previewExpiry"
+                            value="{{ old('expires_at') }}"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                        <p class="mt-1 text-xs text-gray-400">
+                            Communication will automatically archive after this date and time
+                        </p>
+                    </div>
+
                     <div class="px-0 py-4 border-t border-gray-200 flex items-center gap-3">
                         <button
                             type="button"
@@ -359,6 +378,7 @@
                         <tr>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Ref#</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Date</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Expiry</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Department/Stakeholder</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">From</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Subject</th>
@@ -377,7 +397,24 @@
                                 onclick="window.location='{{ route('townhall.show', $communication->id) }}'"
                             >
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->communication_date }}</td>
+
+                                <td class="px-3 py-3 border-r border-gray-200">
+                                    {{ $communication->communication_date
+                                        ? \Carbon\Carbon::parse($communication->communication_date)->format('M d, Y')
+                                        : '—' }}
+                                </td>
+
+                                <td class="px-3 py-3 border-r border-gray-200">
+                                    @if($communication->expires_at)
+                                        <div>{{ \Carbon\Carbon::parse($communication->expires_at)->format('M d, Y') }}</div>
+                                        <div class="text-[11px] text-gray-400">
+                                            {{ \Carbon\Carbon::parse($communication->expires_at)->format('h:i A') }}
+                                        </div>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->department_stakeholder }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->from_name }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>
@@ -399,18 +436,24 @@
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @php
-                                        $approval = $communication->approval_status ?? 'Pending';
-                                        $approvalClasses = match($approval) {
-                                            'Approved' => 'bg-green-50 text-green-700',
-                                            'Rejected' => 'bg-red-50 text-red-700',
-                                            'Needs Revision' => 'bg-blue-50 text-blue-700',
-                                            default => 'bg-yellow-50 text-yellow-700',
-                                        };
-                                    @endphp
-                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $approvalClasses }}">
-                                        {{ $approval }}
-                                    </span>
+                                    @if($communication->is_archived)
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium bg-gray-200 text-gray-700">
+                                            Expired
+                                        </span>
+                                    @else
+                                        @php
+                                            $approval = $communication->approval_status ?? 'Pending';
+                                            $approvalClasses = match($approval) {
+                                                'Approved' => 'bg-green-50 text-green-700',
+                                                'Rejected' => 'bg-red-50 text-red-700',
+                                                'Needs Revision' => 'bg-blue-50 text-blue-700',
+                                                default => 'bg-yellow-50 text-yellow-700',
+                                            };
+                                        @endphp
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium {{ $approvalClasses }}">
+                                            {{ $approval }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
@@ -440,7 +483,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-3 py-8 text-center text-gray-500">
+                                <td colspan="11" class="px-3 py-8 text-center text-gray-500">
                                     No Town Hall communications found.
                                 </td>
                             </tr>
