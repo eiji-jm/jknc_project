@@ -8,6 +8,7 @@ use App\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
 use App\Http\Controllers\OperationController;
+use App\Http\Controllers\LegalController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -34,6 +35,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
     Route::post('/correspondence', [CorrespondenceController::class, 'store']);
 
+    Route::get('/legal/data', [LegalController::class, 'index'])->name('legal.index');
+    Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
+
+    Route::get('/legal', function () {
+        return view('corporate.legal');
+    })->name('legal');
+
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
     Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
 
@@ -58,6 +66,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/banking', function () {
         return view('corporate.banking');
     })->name('banking');
+
+    Route::get('/legal', function () {
+        return view('corporate.legal');
+    })->name('legal');
 
     Route::get('/operations', function () {
         return view('corporate.operations');

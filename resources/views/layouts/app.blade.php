@@ -168,6 +168,12 @@ class="block px-3 py-2 rounded-lg transition
 Banking
 </a>
 
+<a href="{{ route('legal') }}"
+class="block px-3 py-2 rounded-lg transition
+{{ request()->is('legal') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+Legal
+</a>
+
 <a href="{{ route('operations') }}"
 class="block px-3 py-2 rounded-lg transition
 {{ request()->is('operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
