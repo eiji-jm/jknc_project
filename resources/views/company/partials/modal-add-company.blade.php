@@ -31,6 +31,35 @@
             </div>
 
             <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                <h3 class="text-base font-semibold text-gray-900">Primary Contact Link</h3>
+                <p class="mb-4 text-xs text-gray-500">Select the approved contact record to link this company profile.</p>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Contact <span class="text-red-500">*</span></label>
+                    <select name="contact_id" x-on:change="hydrateFromContact($event)" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
+                        <option value="">Select contact</option>
+                        @foreach (($companyCreateContacts ?? collect()) as $contact)
+                            @php
+                                $contactName = trim(collect([$contact->first_name, $contact->last_name])->filter()->implode(' '));
+                                $contactCompany = $contact->company_name ? ' • '.$contact->company_name : '';
+                                $contactStatus = strtoupper((string) ($contact->cif_status ?? 'draft'));
+                            @endphp
+                            <option
+                                value="{{ $contact->id }}"
+                                data-company-name="{{ $contact->company_name }}"
+                                data-email="{{ $contact->email }}"
+                                data-phone="{{ $contact->phone }}"
+                                data-address="{{ $contact->contact_address }}"
+                                data-tin="{{ $contact->tin }}"
+                                @selected((string) old('contact_id') === (string) $contact->id)
+                            >
+                                {{ $contactName !== '' ? $contactName : 'Contact #'.$contact->id }}{{ $contactCompany }} • CIF: {{ $contactStatus }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                 <h3 class="text-base font-semibold text-gray-900">Header Information</h3>
                 <p class="mb-4 text-xs text-gray-500">Classify the client onboarding event before recording the business profile.</p>
                 <div class="space-y-3">
@@ -329,6 +358,10 @@ function companyBifForm() {
             this.syncEmployeeTotal();
             if (!Array.isArray(this.signatories) || this.signatories.length === 0) this.signatories = [this.emptyRow()];
             if (!Array.isArray(this.ubos) || this.ubos.length === 0) this.ubos = [this.emptyRow()];
+            const selectedContact = document.querySelector('select[name="contact_id"]');
+            if (selectedContact && selectedContact.value) {
+                this.hydrateFromContact({ target: selectedContact });
+            }
         },
         emptyRow() {
             return { full_name: '', address: '', nationality: '', date_of_birth: '', tin: '', position: '' };
@@ -337,6 +370,31 @@ function companyBifForm() {
         removeSignatory(index) { if (this.signatories.length > 1) this.signatories.splice(index, 1); },
         addUbo() { this.ubos.push(this.emptyRow()); },
         removeUbo(index) { if (this.ubos.length > 1) this.ubos.splice(index, 1); },
+        fillIfBlank(fieldName, value) {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            if (!input) return;
+            if (String(input.value || '').trim() !== '') return;
+            if (String(value || '').trim() === '') return;
+            input.value = value;
+        },
+        hydrateFromContact(event) {
+            const option = event?.target?.selectedOptions?.[0];
+            if (!option) return;
+
+            const companyName = option.dataset.companyName || '';
+            const email = option.dataset.email || '';
+            const phone = option.dataset.phone || '';
+            const address = option.dataset.address || '';
+            const tin = option.dataset.tin || '';
+
+            this.fillIfBlank('business_name', companyName);
+            this.fillIfBlank('authorized_contact_person_email', email);
+            this.fillIfBlank('authorized_contact_person_phone', phone);
+            this.fillIfBlank('business_phone', phone);
+            this.fillIfBlank('mobile_no', phone);
+            this.fillIfBlank('business_address', address);
+            this.fillIfBlank('tin_no', tin);
+        },
         syncEmployeeTotal() {
             this.employees.total = (Number(this.employees.male) || 0) + (Number(this.employees.female) || 0) + (Number(this.employees.pwd) || 0);
         },

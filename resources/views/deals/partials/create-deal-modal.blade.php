@@ -96,8 +96,16 @@
         'deal_form' => 'Deal Form',
         'business_information_form' => 'Business Information Form',
         'client_information_form' => 'Client Information Form',
-        'service_task_activation_routing_tracker' => 'Service Task Activation & Routing Tracker (Start)',
-        'others' => 'Others',
+    ];
+    $requirementBadgeStyles = [
+        'provided' => 'bg-green-100 text-green-700 border border-green-200',
+        'pending_approval' => 'bg-amber-100 text-amber-700 border border-amber-200',
+        'missing' => 'bg-red-100 text-red-700 border border-red-200',
+    ];
+    $requirementBadgeLabels = [
+        'provided' => 'Provided',
+        'pending_approval' => 'Pending Approval',
+        'missing' => 'Missing',
     ];
     $requiredActions = [
         'Document Review',
@@ -344,30 +352,26 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Client Requirements</h3>
+                            <p class="mt-1 text-xs text-gray-500">Status is computed automatically from Contact, CIF approval, and Company linkage.</p>
                             <div class="mt-3 overflow-x-auto">
                                 <table class="min-w-full border border-gray-200 text-sm">
                                     <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-600">
                                         <tr>
                                             <th class="border border-gray-200 px-3 py-2 text-left">Requirement</th>
-                                            <th class="border border-gray-200 px-3 py-2 text-center">Provided</th>
-                                            <th class="border border-gray-200 px-3 py-2 text-center">Pending</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-center">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach ($requirementRows as $key => $label)
                                             @php
-                                                $current = old(
-                                                    "requirements_status.$key",
-                                                    data_get($draft, "requirements_status_map.$key", data_get($draft, "requirements_status.$key"))
-                                                );
+                                                $status = strtolower((string) data_get($draft, "requirements_status_map.$key", 'missing'));
+                                                $badgeClass = $requirementBadgeStyles[$status] ?? $requirementBadgeStyles['missing'];
+                                                $badgeLabel = $requirementBadgeLabels[$status] ?? $requirementBadgeLabels['missing'];
                                             @endphp
-                                            <tr>
+                                            <tr data-requirement-row="{{ $key }}">
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                </td>
-                                                <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500">
+                                                    <span data-requirement-badge="{{ $key }}" class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $badgeClass }}">{{ $badgeLabel }}</span>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -546,6 +550,11 @@ document.addEventListener('DOMContentLoaded', function () {
     ].filter(Boolean);
     const totalInput = document.getElementById('total_estimated_engagement_value');
     const contactRecords = @json($contactRecords);
+    const requirementBadgeMap = {
+        provided: { label: 'Provided', className: 'bg-green-100 text-green-700 border border-green-200' },
+        pending_approval: { label: 'Pending Approval', className: 'bg-amber-100 text-amber-700 border border-amber-200' },
+        missing: { label: 'Missing', className: 'bg-red-100 text-red-700 border border-red-200' },
+    };
 
     const fieldMap = {
         salutation: 'deal_salutation',
@@ -561,6 +570,31 @@ document.addEventListener('DOMContentLoaded', function () {
         company_name: 'deal_company_name',
         company_address: 'deal_company_address',
         position: 'deal_position',
+    };
+
+    const renderRequirementBadge = (key, status) => {
+        const badge = document.querySelector(`[data-requirement-badge="${key}"]`);
+        if (!badge) {
+            return;
+        }
+        const normalized = requirementBadgeMap[status] ? status : 'missing';
+        const config = requirementBadgeMap[normalized];
+        badge.className = `inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${config.className}`;
+        badge.textContent = config.label;
+    };
+
+    const updateRequirementBadges = (record) => {
+        const hasContact = !!record && Number(record.id) > 0;
+        const cifStatus = String(record?.cif_status || '').toLowerCase();
+        const cifRequirementStatus = cifStatus === 'approved'
+            ? 'provided'
+            : (cifStatus === 'pending' ? 'pending_approval' : 'missing');
+        const hasCompany = Boolean(record?.has_company);
+
+        renderRequirementBadge('client_contact_form', hasContact ? 'provided' : 'missing');
+        renderRequirementBadge('deal_form', hasContact ? 'provided' : 'missing');
+        renderRequirementBadge('client_information_form', hasContact ? cifRequirementStatus : 'missing');
+        renderRequirementBadge('business_information_form', hasCompany ? 'provided' : 'missing');
     };
 
     const closeOwnerMenu = () => ownerMenu?.classList.add('hidden');
@@ -720,6 +754,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 contactResults.classList.add('hidden');
                 setDependentDisabled(false);
+                updateRequirementBadges(record);
             });
         });
     };
@@ -787,6 +822,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     setDependentDisabled(!contactIdInput?.value);
+    if (contactIdInput?.value) {
+        const selectedContact = contactRecords.find((item) => Number(item.id) === Number(contactIdInput.value));
+        updateRequirementBadges(selectedContact || null);
+    } else {
+        updateRequirementBadges(null);
+    }
     applyOtherFieldToggles();
     updateEstimatedTotal();
 
@@ -795,4 +836,3 @@ document.addEventListener('DOMContentLoaded', function () {
     @endif
 });
 </script>
-

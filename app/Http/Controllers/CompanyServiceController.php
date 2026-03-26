@@ -410,7 +410,7 @@ class CompanyServiceController extends Controller
         }
 
         $service->fill([
-            'company_id' => $companyId ?: null,
+            'company_id' => $companyId,
             'service_name' => $validated['service_name'],
             'service_description' => $validated['service_description'],
             'service_activity_output' => $validated['service_activity_output'],
@@ -478,7 +478,9 @@ class CompanyServiceController extends Controller
         ];
 
         if (! $companyLocked) {
-            $companyRule = Schema::hasTable('companies') ? ['nullable', 'integer', 'exists:companies,id'] : ['nullable', 'integer'];
+            $companyRule = Schema::hasTable('companies')
+                ? ['required', 'integer', 'exists:companies,id']
+                : ['required', 'integer'];
             $rules['company_id'] = $companyRule;
         }
 

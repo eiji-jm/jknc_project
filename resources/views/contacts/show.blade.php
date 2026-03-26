@@ -201,8 +201,6 @@
                                         @csrf
                                         <button id="submitForVerificationBtn" type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
                                     </form>
-                                    <button id="approveKycBtn" type="button" class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300">Approve</button>
-                                    <button id="rejectKycBtn" type="button" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300">Reject</button>
                                     <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
                                     <div class="pt-2">
                                         <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">KYC Activity</p>
@@ -665,7 +663,10 @@
                                     </div>
                                 `).join('');
                                 const canReview = kyc.submitted && ['Pending Verification','For Review'].includes(kyc.status);
-                                q('approveKycBtn').disabled = !canReview; q('rejectKycBtn').disabled = !canReview;
+                                const approveBtn = q('approveKycBtn');
+                                const rejectBtn = q('rejectKycBtn');
+                                if (approveBtn) approveBtn.disabled = !canReview;
+                                if (rejectBtn) rejectBtn.disabled = !canReview;
                                 q('kycRejectionNote').classList.toggle('hidden', !kyc.rejectionReason);
                                 q('kycRejectionNote').textContent = kyc.rejectionReason ? `Rejection reason: ${kyc.rejectionReason}` : '';
                             };
@@ -827,7 +828,7 @@
                                     return;
                                 }
                             });
-                            q('approveKycBtn').addEventListener('click', () => {
+                            q('approveKycBtn')?.addEventListener('click', () => {
                                 if (!kyc.submitted) {
                                     q('kycActionWarning').textContent = 'Submit for verification first before approving.';
                                     q('kycActionWarning').classList.remove('hidden');
@@ -836,7 +837,7 @@
                                 }
                                 kyc.status = 'Approved'; kyc.dateVerified = todayIso; kyc.verifiedBy = mockUser; kyc.rejectionReason = ''; addLog(`Approved KYC by ${mockUser}`); render();
                             });
-                            q('rejectKycBtn').addEventListener('click', () => {
+                            q('rejectKycBtn')?.addEventListener('click', () => {
                                 if (!kyc.submitted) {
                                     q('kycActionWarning').textContent = 'Submit for verification first before rejecting.';
                                     q('kycActionWarning').classList.remove('hidden');

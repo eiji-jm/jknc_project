@@ -12,6 +12,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -92,23 +93,56 @@ class CompanyController extends Controller
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
             'lookupModules' => $this->lookupModules(),
+            'companyCreateContacts' => Schema::hasTable('contacts')
+                ? Contact::query()
+                    ->orderBy('first_name')
+                    ->orderBy('last_name')
+                    ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'contact_address', 'company_name', 'cif_no', 'tin', 'cif_status'])
+                : collect(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateCompany($request);
+        $contact = Contact::query()->findOrFail((int) $validated['contact_id']);
+
+        if (strtolower((string) $contact->cif_status) !== 'approved') {
+            return redirect()
+                ->back()
+                ->withErrors(['contact_id' => 'CIF must be approved before creating a company.'])
+                ->withInput();
+        }
+
+        $cifData = $this->loadContactCifData($contact);
+        $autofill = $this->buildCompanyAutofillPayload($contact, $cifData);
+        $normalizedValidated = array_merge($validated, array_filter([
+            'business_phone' => $validated['business_phone'] ?: ($autofill['business_phone'] ?? null),
+            'mobile_no' => $validated['mobile_no'] ?: ($autofill['mobile_no'] ?? null),
+            'business_address' => $validated['business_address'] ?: ($autofill['business_address'] ?? null),
+            'authorized_contact_person_name' => $validated['authorized_contact_person_name'] ?: ($autofill['authorized_contact_person_name'] ?? null),
+            'authorized_contact_person_email' => $validated['authorized_contact_person_email'] ?: ($autofill['authorized_contact_person_email'] ?? null),
+            'authorized_contact_person_phone' => $validated['authorized_contact_person_phone'] ?: ($autofill['authorized_contact_person_phone'] ?? null),
+            'authorized_contact_person_position' => $validated['authorized_contact_person_position'] ?: ($autofill['authorized_contact_person_position'] ?? null),
+            'tin_no' => $validated['tin_no'] ?: ($autofill['tin_no'] ?? null),
+            'zip_code' => $validated['zip_code'] ?: ($autofill['zip_code'] ?? null),
+            'nationality_status' => $validated['nationality_status'] ?: ($autofill['nationality_status'] ?? null),
+            'business_name' => $validated['business_name'] ?: ($autofill['business_name'] ?? null),
+        ], static fn ($value) => filled($value)));
+
         $company = Company::query()->create([
-            'company_name' => $validated['business_name'],
-            'phone' => $validated['business_phone'] ?: ($validated['mobile_no'] ?: null),
-            'address' => $validated['business_address'] ?: null,
+            'company_name' => $normalizedValidated['business_name'],
+            'phone' => $normalizedValidated['business_phone'] ?: ($normalizedValidated['mobile_no'] ?: null),
+            'email' => $normalizedValidated['authorized_contact_person_email'] ?? ($contact->email ?: null),
+            'address' => $normalizedValidated['business_address'] ?: null,
+            'primary_contact_id' => $contact->id,
             'owner_name' => $request->user()?->name ?? 'Owner 1',
         ]);
 
         $bif = CompanyBif::query()->create([
-            ...$this->makeCompanyPayload($validated),
+            ...$this->makeCompanyPayload($normalizedValidated),
             'company_id' => $company->id,
-            'title' => 'Business Information Form - '.$validated['business_name'],
+            'title' => 'Business Information Form - '.$normalizedValidated['business_name'],
             'status' => 'approved',
             'submitted_at' => now(),
             'approved_at' => now(),
@@ -969,9 +1003,51 @@ class CompanyController extends Controller
         return $companyData;
     }
 
+    private function loadContactCifData(Contact $contact): array
+    {
+        $path = 'contact-cif-data/'.$contact->id.'.json';
+
+        if (! Storage::disk('local')->exists($path)) {
+            return [];
+        }
+
+        return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+    }
+
+    private function buildCompanyAutofillPayload(Contact $contact, array $cifData): array
+    {
+        $fullName = trim(collect([
+            $cifData['first_name'] ?? $contact->first_name,
+            $cifData['middle_name'] ?? $contact->middle_name,
+            $cifData['last_name'] ?? $contact->last_name,
+            $cifData['name_extension'] ?? $contact->name_extension,
+        ])->filter()->implode(' '));
+
+        $citizenshipType = strtolower((string) ($cifData['citizenship_type'] ?? ''));
+        $nationalityStatus = $citizenshipType === 'foreigner' ? 'foreign' : 'filipino';
+
+        return [
+            'business_name' => $contact->company_name,
+            'business_phone' => $cifData['mobile'] ?? $contact->phone,
+            'mobile_no' => $cifData['mobile'] ?? $contact->phone,
+            'business_address' => collect([
+                $cifData['present_address_line1'] ?? null,
+                $cifData['present_address_line2'] ?? null,
+            ])->filter()->implode(', '),
+            'zip_code' => $cifData['zip_code'] ?? null,
+            'tin_no' => $cifData['tin'] ?? $contact->tin,
+            'authorized_contact_person_name' => $fullName !== '' ? $fullName : trim($contact->first_name.' '.$contact->last_name),
+            'authorized_contact_person_email' => $cifData['email'] ?? $contact->email,
+            'authorized_contact_person_phone' => $cifData['mobile'] ?? $contact->phone,
+            'authorized_contact_person_position' => $cifData['nature_of_work_business'] ?? $contact->position,
+            'nationality_status' => $nationalityStatus,
+        ];
+    }
+
     private function validateCompany(Request $request): array
     {
         return $request->validate([
+            'contact_id' => ['required', 'integer', 'exists:contacts,id'],
             'bif_no' => ['nullable', 'string', 'max:255'],
             'bif_date' => ['required', 'date'],
             'client_type' => ['required', 'string', 'in:new_client,existing_client,change_information'],

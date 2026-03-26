@@ -54,23 +54,25 @@
 
     <div class="border-b border-gray-700 bg-blue-900 px-3 py-1 text-center text-[12px] font-semibold text-white">Client Requirements</div>
     <div class="grid grid-cols-12 border-b border-gray-700 text-[10px]">
-        <div class="col-span-6 border-r border-gray-700 p-2 font-semibold">Requirement</div>
-        <div class="col-span-3 border-r border-gray-700 p-2 text-center font-semibold">Provided</div>
-        <div class="col-span-3 p-2 text-center font-semibold">Pending</div>
+        <div class="col-span-8 border-r border-gray-700 p-2 font-semibold">Requirement</div>
+        <div class="col-span-4 p-2 text-center font-semibold">Status</div>
     </div>
     @foreach ([
         'client_contact_form' => 'Client Contact Form',
         'deal_form' => 'Deal Form',
         'business_information_form' => 'Business Information Form',
         'client_information_form' => 'Client Information Form',
-        'service_task_activation_routing_tracker' => 'Service Task Activation & Routing Tracker (Start)',
-        'others' => 'Others',
     ] as $key => $label)
         @php $status = strtolower((string) ($statusMap[$key] ?? '')); @endphp
         <div class="grid grid-cols-12 border-b border-gray-700 text-[10px]">
-            <div class="col-span-6 border-r border-gray-700 p-2">{{ $label }}</div>
-            <div class="col-span-3 border-r border-gray-700 p-2 text-center">{{ $status === 'provided' ? 'Yes' : '-' }}</div>
-            <div class="col-span-3 p-2 text-center">{{ $status === 'pending' ? 'Yes' : '-' }}</div>
+            <div class="col-span-8 border-r border-gray-700 p-2">{{ $label }}</div>
+            <div class="col-span-4 p-2 text-center">
+                {{ match ($status) {
+                    'provided' => 'Provided',
+                    'pending_approval' => 'Pending Approval',
+                    default => 'Missing',
+                } }}
+            </div>
         </div>
     @endforeach
 

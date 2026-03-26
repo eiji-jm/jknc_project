@@ -331,6 +331,7 @@ class ContactsController extends Controller
             'phone' => $validated['mobile_number'] ?? null,
             'description' => $validated['inquiry'] ?? ($validated['description'] ?? null),
             'kyc_status' => 'Not Submitted',
+            'cif_status' => 'draft',
             'created_by' => $request->user()?->name ?? ($owner['name'] ?? 'Admin User'),
             'owner_name' => $owner['name'],
         ];
@@ -1259,9 +1260,14 @@ class ContactsController extends Controller
                 ->withErrors(['kyc' => 'Please complete the signed CIF document, Two Valid IDs, Specimen Signature, and TIN before submitting for verification.']);
         }
 
-        $contactModel->forceFill([
+        $statusPayload = [
             'kyc_status' => 'Pending Verification',
-        ])->save();
+        ];
+        if (Schema::hasColumn('contacts', 'cif_status')) {
+            $statusPayload['cif_status'] = 'pending';
+        }
+
+        $contactModel->forceFill($statusPayload)->save();
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
@@ -1360,6 +1366,7 @@ class ContactsController extends Controller
             'company_name' => 'Consulting Group',
             'owner_name' => 'John Admin',
             'kyc_status' => 'Not Submitted',
+            'cif_status' => 'draft',
             'lead_source' => 'Website',
             'referred_by' => 'John Smith',
             'service_inquiry_type' => 'Partner Referral',

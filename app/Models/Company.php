@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Contact;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,6 +17,7 @@ class Company extends Model
         'website',
         'description',
         'address',
+        'primary_contact_id',
         'owner_name',
     ];
 
@@ -36,5 +39,10 @@ class Company extends Model
     public function latestBif(): HasOne
     {
         return $this->hasOne(CompanyBif::class)->latestOfMany();
+    }
+
+    public function primaryContact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class, 'primary_contact_id');
     }
 }

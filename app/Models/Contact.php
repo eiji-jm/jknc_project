@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Company;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
@@ -54,6 +55,7 @@ class Contact extends Model
         'email',
         'phone',
         'kyc_status',
+        'cif_status',
         'owner_name',
         'last_activity_at',
         'lead_source',
@@ -91,6 +93,11 @@ class Contact extends Model
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    public function companies(): HasMany
+    {
+        return $this->hasMany(Company::class, 'primary_contact_id');
     }
 
     public function specimenSignature(): HasOne

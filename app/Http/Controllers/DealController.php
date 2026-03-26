@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Company;
 use App\Models\Deal;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -117,6 +118,8 @@ class DealController extends Controller
                             'company_name' => $contact->company_name,
                             'company_address' => $contact->company_address,
                             'position' => $contact->position,
+                            'cif_status' => strtolower((string) ($contact->cif_status ?? 'draft')),
+                            'has_company' => Company::query()->where('primary_contact_id', $contact->id)->exists(),
                         ];
                     })
                     ->filter(fn (array $record): bool => $record['label'] !== '' || filled($record['company_name']))
@@ -277,6 +280,7 @@ class DealController extends Controller
 
         $createdDeal = Deal::query()->create([
             ...$validated,
+            ...$this->dealApprovalAttributes(),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
@@ -315,6 +319,7 @@ class DealController extends Controller
         $deal = Deal::query()->findOrFail($id);
         $deal->fill([
             ...$validated,
+            ...$this->dealApprovalAttributes(),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
@@ -363,7 +368,7 @@ class DealController extends Controller
                     'deal_owner' => $storedDeal->assigned_consultant ?: 'Unassigned',
                     'created_date' => optional($storedDeal->created_at)->format('n/j/Y') ?: '-',
                     'last_modified' => optional($storedDeal->updated_at)->format('Y-m-d h:i A') ?: '-',
-                    'deal_status' => $storedDeal->proposal_decision === 'decline engagement' ? 'Lost' : 'Open',
+                    'deal_status' => 'Approved',
                     'service' => [
                         'service_type' => $storedDeal->services ?: '-',
                         'product_type' => $storedDeal->products ?: '-',
@@ -454,7 +459,7 @@ class DealController extends Controller
                 'deal_owner' => $deal['owner_name'],
                 'created_date' => now()->format('n/j/Y'),
                 'last_modified' => now()->format('Y-m-d h:i A'),
-                'deal_status' => 'Open',
+                'deal_status' => 'Approved',
                 'service' => [
                     'service_type' => $mockPayload['services'] ?? '-',
                     'product_type' => $mockPayload['products'] ?? '-',
@@ -534,7 +539,7 @@ class DealController extends Controller
             'deal_owner' => $deal['owner_name'],
             'created_date' => '2/22/2026',
             'last_modified' => '2026-02-24 01:49 PM',
-            'deal_status' => $deal['stage'] === 'Closed Lost' ? 'Lost' : 'Open',
+            'deal_status' => 'Approved',
             'service' => [
                 'service_type' => 'Tax Advisory',
                 'product_type' => 'Compliance Audit',
@@ -610,7 +615,7 @@ class DealController extends Controller
                 'deal_owner' => 'John Admin',
                 'created_date' => '2026-03-17',
                 'last_modified' => '2026-03-17 10:00 AM',
-                'deal_status' => 'Open',
+                'deal_status' => 'Approved',
                 'service' => [
                     'service_type' => 'Tax Advisory',
                     'product_type' => 'Compliance Audit',
@@ -870,6 +875,8 @@ class DealController extends Controller
                     'company_name' => $contact->company_name,
                     'company_address' => $contact->company_address,
                     'position' => $contact->position,
+                    'cif_status' => strtolower((string) ($contact->cif_status ?? 'draft')),
+                    'has_company' => Company::query()->where('primary_contact_id', $contact->id)->exists(),
                 ];
             })->filter(fn (array $record): bool => $record['label'] !== '' || filled($record['company_name']))->values()->all();
 
@@ -903,7 +910,9 @@ class DealController extends Controller
         $normalized['product_options'] = $this->normalizeListValue($payload['product_options'] ?? ($payload['products'] ?? null));
         $normalized['required_actions_options'] = $this->normalizeListValue($payload['required_actions_options'] ?? ($payload['required_actions'] ?? null));
         $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
-        $normalized['requirements_status_map'] = $this->normalizeRequirementStatusMap($payload['requirements_status_map'] ?? ($payload['requirements_status'] ?? null));
+        $normalized['requirements_status_map'] = $this->computeRequirementStatusMap(
+            isset($payload['contact_id']) ? (int) $payload['contact_id'] : null
+        );
 
         foreach ([
             'estimated_professional_fee',
@@ -936,33 +945,28 @@ class DealController extends Controller
             ->all();
     }
 
-    private function normalizeRequirementStatusMap(mixed $value): array
+    private function computeRequirementStatusMap(?int $contactId): array
     {
-        if (is_array($value)) {
-            return collect($value)
-                ->mapWithKeys(fn ($status, $key) => [(string) $key => strtolower((string) $status)])
-                ->filter(fn ($status) => in_array($status, ['provided', 'pending'], true))
-                ->all();
+        $contact = null;
+        if ($contactId !== null && $contactId > 0 && Schema::hasTable('contacts')) {
+            $contact = Contact::query()->find($contactId);
         }
 
-        if (! is_string($value) || trim($value) === '') {
-            return [];
-        }
+        $cifStatus = strtolower((string) ($contact?->cif_status ?? ''));
+        $hasCompany = $contactId !== null && $contactId > 0 && Schema::hasTable('companies')
+            ? Company::query()->where('primary_contact_id', $contactId)->exists()
+            : false;
 
-        $parsed = [];
-        foreach (explode(';', $value) as $pair) {
-            $parts = explode(':', $pair, 2);
-            if (count($parts) !== 2) {
-                continue;
-            }
-            $key = str_replace(' ', '_', trim(strtolower($parts[0])));
-            $status = trim(strtolower($parts[1]));
-            if (in_array($status, ['provided', 'pending'], true)) {
-                $parsed[$key] = $status;
-            }
-        }
-
-        return $parsed;
+        return [
+            'client_contact_form' => $contactId !== null && $contactId > 0 ? 'provided' : 'missing',
+            'deal_form' => $contactId !== null && $contactId > 0 ? 'provided' : 'missing',
+            'client_information_form' => match ($cifStatus) {
+                'approved' => 'provided',
+                'pending' => 'pending_approval',
+                default => 'missing',
+            },
+            'business_information_form' => $hasCompany ? 'provided' : 'missing',
+        ];
     }
 
     private function validateDealPayload(Request $request): array
@@ -986,10 +990,6 @@ class DealController extends Controller
             'products_other' => ['nullable', 'string', 'max:255'],
             'scope_of_work' => ['nullable', 'string'],
             'engagement_type' => ['nullable', 'string', 'max:255'],
-            'requirements_status' => ['nullable'],
-            'requirements_status.*' => ['nullable', 'in:provided,pending'],
-            'requirements_status_map' => ['nullable', 'array'],
-            'requirements_status_map.*' => ['nullable', 'in:provided,pending'],
             'required_actions' => ['nullable', 'string'],
             'required_actions_options' => ['nullable', 'array'],
             'required_actions_options.*' => ['string', 'max:255'],
@@ -1085,14 +1085,6 @@ class DealController extends Controller
             $validated['products_other'] ?? null,
             'Others: '
         ));
-        $requirementsStatusInput = $validated['requirements_status_map'] ?? ($validated['requirements_status'] ?? []);
-        if (! is_array($requirementsStatusInput)) {
-            $requirementsStatusInput = [];
-        }
-        $validated['requirements_status_map'] = $requirementsStatusInput;
-        $validated['requirements_status'] = $this->truncateStringForColumn(
-            $this->stringifyRequirements($requirementsStatusInput)
-        );
         $validated['required_actions'] = $this->composeMultiSelectString(
             $validated['required_actions_options'] ?? [],
             $validated['required_actions_other'] ?? null,
@@ -1126,16 +1118,6 @@ class DealController extends Controller
         }
 
         return $cleanSelected->isEmpty() ? null : $cleanSelected->implode(', ');
-    }
-
-    private function stringifyRequirements(array $requirements): ?string
-    {
-        $pairs = collect($requirements)
-            ->filter(fn ($status, $item): bool => filled($item) && in_array($status, ['provided', 'pending'], true))
-            ->map(fn ($status, $item): string => str_replace('_', ' ', (string) $item).': '.$status)
-            ->values();
-
-        return $pairs->isEmpty() ? null : $pairs->implode('; ');
     }
 
     private function truncateStringForColumn(?string $value, int $limit = 255): ?string
@@ -1174,6 +1156,7 @@ class DealController extends Controller
                 'company_name' => 'Consulting Group',
                 'company_address' => 'Ayala Avenue, Makati City',
                 'position' => 'CEO',
+                'cif_status' => 'approved',
                 'lead_source' => 'Website',
                 'referred_by' => 'John Smith',
                 'service_inquiry_type' => 'Partner Referral',
@@ -1181,6 +1164,15 @@ class DealController extends Controller
         }
 
         return null;
+    }
+
+    private function dealApprovalAttributes(): array
+    {
+        if (! Schema::hasTable('deals') || ! Schema::hasColumn('deals', 'deal_status')) {
+            return [];
+        }
+
+        return ['deal_status' => 'approved'];
     }
 
     private function buildPreviewPayload(array $validated, Contact $contact): array
@@ -1308,6 +1300,8 @@ class DealController extends Controller
             'company_name' => 'Consulting Group',
             'company_address' => 'Ayala Avenue, Makati City',
             'position' => 'CEO',
+            'cif_status' => 'approved',
+            'has_company' => true,
         ];
     }
 

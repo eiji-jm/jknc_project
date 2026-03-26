@@ -11,6 +11,7 @@ class Deal extends Model
         'contact_id',
         'deal_name',
         'stage',
+        'deal_status',
         'service_area',
         'services',
         'products',
