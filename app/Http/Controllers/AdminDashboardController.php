@@ -9,11 +9,16 @@ class AdminDashboardController extends Controller
 {
     public function index()
     {
-        if (!Auth::user()->hasPermission('access_admin_dashboard')) {
+        if (
+            !Auth::user()->hasPermission('access_admin_dashboard') &&
+            !Auth::user()->hasPermission('approve_townhall')
+        ) {
             abort(403, 'Unauthorized');
         }
 
-        $communications = TownHallCommunication::latest()->paginate(10);
+        $communications = TownHallCommunication::with(['uploader', 'approver'])
+            ->latest()
+            ->paginate(10);
 
         $pendingCount = TownHallCommunication::where('approval_status', 'Pending')
             ->where('is_archived', false)

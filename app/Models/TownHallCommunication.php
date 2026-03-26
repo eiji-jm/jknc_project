@@ -66,4 +66,14 @@ class TownHallCommunication extends Model
     {
         return $query->where('is_archived', true);
     }
+
+    public function uploader()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approved_by');
+    }
 }

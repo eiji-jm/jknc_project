@@ -274,7 +274,7 @@ class TownHallController extends Controller
             : 0;
 
         $hasAcknowledged = $communication->hasBeenAcknowledgedBy(Auth::id());
-        $requiresAcknowledgement = Auth::user()->role === 'Employee'
+        $requiresAcknowledgement = !Auth::user()->hasPermission('approve_townhall')
             && $communication->approval_status === 'Approved'
             && !$communication->is_archived;
 
@@ -376,8 +376,8 @@ class TownHallController extends Controller
             abort(403, 'This communication is not available for acknowledgment.');
         }
 
-        if (Auth::user()->role !== 'Employee') {
-            return redirect()->back()->with('success', 'Acknowledgment is not required for your role.');
+        if (Auth::user()->hasPermission('approve_townhall')) {
+            return redirect()->back()->with('success', 'Acknowledgment is not required for your access level.');
         }
 
         TownHallAcknowledgement::updateOrCreate(

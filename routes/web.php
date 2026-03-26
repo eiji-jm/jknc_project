@@ -23,24 +23,25 @@ Route::middleware('auth')->group(function () {
 
 
     /*
-    |--------------------------------------------------------------------------
-    | ADMIN DASHBOARD
-    |--------------------------------------------------------------------------
-    */
+|--------------------------------------------------------------------------
+| ADMIN DASHBOARD
+|--------------------------------------------------------------------------
+*/
     Route::middleware(['auth'])->group(function () {
+        Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+
         Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
         Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
         Route::post('/admin/users/{id}', [AdminUserController::class, 'update'])->name('admin.users.update');
         Route::delete('/admin/users/{id}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+
+        Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
+        Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
+
+        Route::get('/admin/user-permissions', [AdminUserPermissionController::class, 'index'])->name('admin.user-permissions');
+        Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
+        Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
     });
-    Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-    Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
-    Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
-    Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
-    Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
-    Route::get('/admin/user-permissions', [AdminUserPermissionController::class, 'index'])->name('admin.user-permissions');
-    Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
-    Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
 
 
     /*

@@ -33,6 +33,22 @@
 </head>
 
 <body class="bg-gray-50 font-sans">
+    @php
+        $user = Auth::user();
+
+        $canSeeAdminIcon =
+            $user->hasPermission('access_admin_dashboard') ||
+            $user->hasPermission('approve_townhall') ||
+            $user->hasPermission('manage_users');
+
+        $adminLandingRoute = null;
+
+        if ($user->hasPermission('manage_users')) {
+            $adminLandingRoute = route('admin.users');
+        } elseif ($user->hasPermission('access_admin_dashboard') || $user->hasPermission('approve_townhall')) {
+            $adminLandingRoute = route('admin.dashboard');
+        }
+    @endphp
 
     <!-- HEADER -->
     <header class="h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -105,8 +121,8 @@
         <!-- MINI SIDEBAR -->
         <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
 
-            @if(Auth::user()->hasPermission('access_admin_dashboard'))
-                <a href="{{ route('admin.users') }}"
+            @if($canSeeAdminIcon && $adminLandingRoute)
+                <a href="{{ $adminLandingRoute }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-user-shield text-base"></i>
@@ -174,28 +190,23 @@
                         </a>
 
                         <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                            {{-- DEPARTMENT --}}
                             <a href="{{ route('townhall.department') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Department
                             </a>
 
-                            {{-- ATTACHMENTS --}}
                             <a href="{{ route('townhall.attachments') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Attachments
-                        </a>
+                            </a>
                         </div>
                     </div>
                 </div>
             </aside>
 
-        @elseif(request()->routeIs('townhall.show'))
-            {{-- Collapsed / blank on memo view --}}
-
-        @elseif(request()->routeIs('admin.*') && Auth::user()->hasPermission('access_admin_dashboard'))
+        @elseif(request()->routeIs('admin.*') && $canSeeAdminIcon)
             <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
                 <div class="px-4 py-3 border-b border-gray-100">
@@ -207,17 +218,21 @@
                 <div class="flex-1 overflow-y-auto p-3">
                     <div class="space-y-1 text-sm">
 
-                        <a href="{{ route('admin.users') }}"
-                           class="block px-3 py-2 rounded-lg transition
-                           {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Users
-                        </a>
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.users') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Users
+                            </a>
+                        @endif
 
-                        <a href="{{ route('admin.role-permissions') }}"
-                           class="block px-3 py-2 rounded-lg transition
-                           {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Role Permissions
-                        </a>
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.role-permissions') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Role Permissions
+                            </a>
+                        @endif
 
                         @if(Auth::user()->hasPermission('manage_users'))
                             <a href="{{ route('admin.user-permissions') }}"
@@ -227,31 +242,35 @@
                             </a>
                         @endif
 
-                        <a href="{{ route('admin.dashboard') }}"
-                           class="block px-3 py-2 rounded-lg transition
-                           {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Town Hall
-                        </a>
+                        @if(Auth::user()->hasPermission('access_admin_dashboard') || Auth::user()->hasPermission('approve_townhall'))
+                            <a href="{{ route('admin.dashboard') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Town Hall
+                            </a>
+                        @endif
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Corporate
-                        </a>
+                        @if(Auth::user()->hasPermission('access_admin_dashboard'))
+                            <a href="#"
+                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                                Corporate
+                            </a>
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Activities
-                        </a>
+                            <a href="#"
+                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                                Activities
+                            </a>
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Contacts
-                        </a>
+                            <a href="#"
+                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                                Contacts
+                            </a>
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Company
-                        </a>
+                            <a href="#"
+                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                                Company
+                            </a>
+                        @endif
 
                     </div>
                 </div>

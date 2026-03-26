@@ -13,11 +13,11 @@ class AdminUserController extends Controller
     {
         $authUser = auth()->user();
 
-        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->isAdmin())) {
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
             abort(403, 'Unauthorized.');
         }
 
-        $users = User::where('role', '!=', 'Superadmin')
+        $users = User::whereRaw('LOWER(role) != ?', ['superadmin'])
             ->orderBy('name')
             ->paginate(10);
 
@@ -28,7 +28,7 @@ class AdminUserController extends Controller
     {
         $authUser = auth()->user();
 
-        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->isAdmin())) {
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
             abort(403, 'Unauthorized.');
         }
 
@@ -58,7 +58,7 @@ class AdminUserController extends Controller
         $authUser = auth()->user();
         $user = User::findOrFail($id);
 
-        if (!$authUser || !$authUser->canManageRoles()) {
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
             abort(403, 'You do not have permission to edit user roles.');
         }
 
@@ -67,7 +67,7 @@ class AdminUserController extends Controller
         }
 
         $validated = $request->validate([
-            'role' => ['required', Rule::in(['Admin', 'Employee'])],
+            'role' => ['required', Rule::in(['Admin', 'Employee', 'Client'])],
             'can_edit_user_roles' => ['nullable', 'boolean'],
             'can_delete_users' => ['nullable', 'boolean'],
         ]);
@@ -91,7 +91,7 @@ class AdminUserController extends Controller
         $authUser = auth()->user();
         $user = User::findOrFail($id);
 
-        if (!$authUser || !$authUser->canDeleteUsers()) {
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
             abort(403, 'You do not have permission to delete users.');
         }
 

@@ -195,18 +195,25 @@
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->from_name ?: '—' }}
+                                    {{ $communication->from_name ?: ($communication->uploader->name ?? '—') }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->communication_date ?: '—' }}
+                                    {{ $communication->communication_date
+                                        ? \Carbon\Carbon::parse($communication->communication_date)->format('M d, Y')
+                                        : '—' }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    @if($communication->approved_by)
-                                        Admin
+                                    @if($communication->approver)
+                                        <div class="font-medium text-gray-800">
+                                            {{ $communication->approver->name }}
+                                        </div>
+                                        <div class="text-xs text-gray-400">
+                                            Approver
+                                        </div>
                                     @else
-                                        Admin
+                                        <span class="text-gray-400 text-sm">—</span>
                                     @endif
                                 </td>
 
