@@ -13,11 +13,12 @@ class RolePermission extends Model
         'access_admin_dashboard',
         'create_townhall',
         'approve_townhall',
+        'create_corporate',
+        'approve_corporate',
         'access_townhall',
         'access_corporate',
         'access_activities',
         'access_contacts',
         'access_company',
-
     ];
 }
