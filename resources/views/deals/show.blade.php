@@ -27,11 +27,12 @@
         <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
             <a href="{{ route('deals.index') }}" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Deals</a>
             <span class="mx-1">/</span>
-            <span class="font-medium text-gray-900">{{ $deal['deal_name'] }}</span>
+            <span class="font-medium text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</span>
         </div>
 
         <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
             <div>
+                <p class="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700">{{ $deal['deal_code'] ?? 'DEAL' }}</p>
                 <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_name'] }}</h1>
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                     <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $stageBadgeClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $deal['stage'] }}</span>

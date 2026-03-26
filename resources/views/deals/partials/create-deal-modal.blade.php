@@ -117,6 +117,10 @@
     $selectedOwner = collect($owners)->firstWhere('id', (int) old('owner_id', $defaultOwnerId)) ?: collect($owners)->first();
     $selectedOwnerId = (int) ($selectedOwner['id'] ?? $defaultOwnerId ?? 0);
     $selectedOwnerName = $selectedOwner['name'] ?? $ownerLabel ?? 'Select Owner';
+    $currentUserName = auth()->user()->name ?? 'System';
+    $draftDealCode = old('deal_code', $draft['deal_code'] ?? 'Auto-generated after save');
+    $draftCreatedBy = old('created_by', $draft['created_by'] ?? $currentUserName);
+    $draftCreatedAt = old('created_at_label', $draft['created_at_label'] ?? now()->format('F d, Y • h:i:s A'));
 @endphp
 
 <div id="createDealModal" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
@@ -175,6 +179,25 @@
                             </div>
                         </div>
                     </div>
+
+                    <section class="rounded-2xl border border-gray-200 p-4">
+                        <h3 class="text-base font-semibold text-gray-900">Deal Information</h3>
+                        <p class="mb-4 text-xs text-gray-500">Auto-generated metadata appears here after the deal is saved.</p>
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Deal Code</p>
+                                <p id="deal_info_code" class="mt-1 text-sm text-gray-700">{{ $draftDealCode }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Created By</p>
+                                <p id="deal_info_created_by" class="mt-1 text-sm text-gray-700">{{ $draftCreatedBy }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Created At</p>
+                                <p id="deal_info_created_at" class="mt-1 text-sm text-gray-700">{{ $draftCreatedAt }}</p>
+                            </div>
+                        </div>
+                    </section>
 
                     <section class="rounded-2xl border border-gray-200 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Select Existing Contact / Client</h3>
@@ -572,6 +595,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('overflow-hidden');
+        document.dispatchEvent(new CustomEvent('deal-drawer:opened'));
         requestAnimationFrame(() => {
             overlay?.classList.remove('opacity-0');
             panel.classList.remove('translate-x-full');
@@ -587,6 +611,7 @@ document.addEventListener('DOMContentLoaded', function () {
         overlay?.classList.add('opacity-0');
         panel.classList.add('translate-x-full');
         document.body.classList.remove('overflow-hidden');
+        document.dispatchEvent(new CustomEvent('deal-drawer:closed'));
         window.setTimeout(() => {
             modal.classList.add('hidden');
             modal.setAttribute('aria-hidden', 'true');

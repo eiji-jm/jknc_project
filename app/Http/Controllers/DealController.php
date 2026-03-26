@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\DealStage;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -16,18 +19,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DealController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $stages = [
-            'Inquiry',
-            'Qualification',
-            'Consultation',
-            'Proposal',
-            'Negotiation',
-            'Payment',
-            'Activation',
-            'Closed Lost',
-        ];
+        $search = trim((string) $request->query('search', ''));
+        $stages = $this->dealStages();
 
         $deals = $this->mockDeals();
         $owners = $this->ownerOptions();
@@ -153,6 +148,7 @@ class DealController extends Controller
 
                         return [
                             'id' => $deal->id,
+                            'deal_code' => $deal->deal_code ?: $this->generateDealCode($deal->contact, $deal->id),
                             'deal_name' => $deal->deal_name,
                             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
                             'company_name' => $deal->company_name ?: (optional($deal->contact)->company_name ?: '-'),
@@ -160,6 +156,13 @@ class DealController extends Controller
                             'expected_close' => optional($deal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
                             'owner_name' => $deal->assigned_consultant ?: 'Unassigned',
                             'stage' => $deal->stage,
+                            'created_by' => $deal->created_by ?: optional(Auth::user())->name ?: 'System',
+                            'created_at_label' => optional($deal->created_at)->format('F d, Y • h:i:s A') ?: now()->format('F d, Y • h:i:s A'),
+                            'search_blob' => Str::lower(implode(' ', array_filter([
+                                $deal->deal_code,
+                                $deal->deal_name,
+                                $contactName,
+                            ]))),
                         ];
                     })
                     ->all();
@@ -178,12 +181,27 @@ class DealController extends Controller
             array_unshift($deals, $savedMockDeal);
         }
 
+        if ($search !== '') {
+            $deals = array_values(array_filter($deals, function (array $deal) use ($search): bool {
+                $blob = Str::lower(implode(' ', array_filter([
+                    $deal['deal_code'] ?? null,
+                    $deal['deal_name'] ?? null,
+                    $deal['contact_name'] ?? null,
+                    $deal['search_blob'] ?? null,
+                ])));
+
+                return Str::contains($blob, Str::lower($search));
+            }));
+        }
+
         $groupedByStage = [];
         foreach ($stages as $stage) {
-            $stageDeals = array_values(array_filter($deals, fn (array $deal): bool => $deal['stage'] === $stage));
+            $stageDeals = array_values(array_filter($deals, fn (array $deal): bool => $deal['stage'] === $stage['name']));
             $stageTotal = array_sum(array_column($stageDeals, 'amount'));
             $groupedByStage[] = [
-                'stage' => $stage,
+                'id' => $stage['id'],
+                'stage' => $stage['name'],
+                'color' => $stage['color'],
                 'total_amount' => $stageTotal,
                 'deals' => $stageDeals,
             ];
@@ -194,7 +212,8 @@ class DealController extends Controller
         return view('deals.index', [
             'stageColumns' => $groupedByStage,
             'totalDeals' => count($deals),
-            'stageOptions' => $stages,
+            'search' => $search,
+            'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $stages)),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
@@ -211,6 +230,124 @@ class DealController extends Controller
             'owners' => $owners,
             'defaultOwnerId' => $defaultOwnerId,
         ]);
+    }
+
+    public function storeStage(Request $request): JsonResponse
+    {
+        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'after_stage_id' => ['nullable', 'integer', 'exists:deal_stages,id'],
+        ]);
+
+        $insertAfterId = (int) ($validated['after_stage_id'] ?? 0);
+        $stages = DealStage::query()->orderBy('order')->get();
+        $insertIndex = $insertAfterId > 0 ? max(0, $stages->search(fn (DealStage $stage) => $stage->id === $insertAfterId) + 1) : $stages->count();
+
+        $stages->splice($insertIndex, 0, [new DealStage([
+            'name' => trim($validated['name']),
+            'order' => 0,
+            'color' => null,
+        ])]);
+
+        foreach ($stages->values() as $index => $stage) {
+            if ($stage->exists) {
+                $stage->update(['order' => $index + 1]);
+            } else {
+                $stage->order = $index + 1;
+                $stage->save();
+            }
+        }
+
+        $createdStage = DealStage::query()->where('name', trim($validated['name']))->firstOrFail();
+
+        return response()->json([
+            'stage' => [
+                'id' => $createdStage->id,
+                'name' => $createdStage->name,
+                'color' => $createdStage->color,
+            ],
+        ]);
+    }
+
+    public function updateStage(Request $request, DealStage $stage): JsonResponse
+    {
+        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:100'],
+            'color' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $originalName = $stage->name;
+        $updates = [];
+
+        if (array_key_exists('name', $validated) && filled($validated['name']) && $validated['name'] !== $stage->name) {
+            $updates['name'] = trim($validated['name']);
+        }
+
+        if (array_key_exists('color', $validated)) {
+            $updates['color'] = $validated['color'] ?: null;
+        }
+
+        if ($updates !== []) {
+            $stage->update($updates);
+        }
+
+        if (isset($updates['name']) && Schema::hasTable('deals')) {
+            Deal::query()->where('stage', $originalName)->update(['stage' => $updates['name']]);
+        }
+
+        return response()->json([
+            'stage' => [
+                'id' => $stage->id,
+                'name' => $stage->fresh()->name,
+                'color' => $stage->fresh()->color,
+            ],
+        ]);
+    }
+
+    public function moveStage(Request $request, DealStage $stage): JsonResponse
+    {
+        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+
+        $validated = $request->validate([
+            'direction' => ['required', 'in:left,right'],
+        ]);
+
+        $stages = DealStage::query()->orderBy('order')->get()->values();
+        $currentIndex = $stages->search(fn (DealStage $item) => $item->id === $stage->id);
+        $swapIndex = $validated['direction'] === 'left' ? $currentIndex - 1 : $currentIndex + 1;
+
+        if ($currentIndex === false || ! isset($stages[$swapIndex])) {
+            return response()->json(['ok' => true]);
+        }
+
+        $current = $stages[$currentIndex];
+        $swap = $stages[$swapIndex];
+        $currentOrder = $current->order;
+        $current->update(['order' => $swap->order]);
+        $swap->update(['order' => $currentOrder]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function destroyStage(DealStage $stage): JsonResponse
+    {
+        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+
+        if (Schema::hasTable('deals') && Deal::query()->where('stage', $stage->name)->exists()) {
+            return response()->json(['message' => 'Stage cannot be deleted while it has deals.'], 422);
+        }
+
+        $stage->delete();
+
+        DealStage::query()->orderBy('order')->get()->values()->each(function (DealStage $item, int $index) {
+            $item->update(['order' => $index + 1]);
+        });
+
+        return response()->json(['ok' => true]);
     }
 
     public function preview(Request $request): RedirectResponse
@@ -277,6 +414,8 @@ class DealController extends Controller
 
         $createdDeal = Deal::query()->create([
             ...$validated,
+            ...(Schema::hasColumn('deals', 'deal_code') ? ['deal_code' => $this->generateDealCode($contact)] : []),
+            ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
@@ -327,6 +466,9 @@ class DealController extends Controller
             'company_address' => $validated['company_address'] ?? $contact->company_address,
             'position' => $validated['position'] ?? $contact->position,
         ]);
+        if (Schema::hasColumn('deals', 'deal_code') && blank($deal->deal_code)) {
+            $deal->deal_code = $this->generateDealCode($contact, $deal->id);
+        }
         $deal->save();
 
         return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated successfully.');
@@ -339,6 +481,7 @@ class DealController extends Controller
             if ($storedDeal) {
                 $deal = [
                     'id' => $storedDeal->id,
+                    'deal_code' => $storedDeal->deal_code ?: $this->generateDealCode($storedDeal->contact, $storedDeal->id),
                     'deal_name' => $storedDeal->deal_name,
                     'contact_name' => trim(collect([$storedDeal->first_name, $storedDeal->last_name])->filter()->implode(' ')),
                     'company_name' => $storedDeal->company_name ?: (optional($storedDeal->contact)->company_name ?: '-'),
@@ -346,6 +489,8 @@ class DealController extends Controller
                     'expected_close' => optional($storedDeal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
                     'owner_name' => $storedDeal->assigned_consultant ?: 'Unassigned',
                     'stage' => $storedDeal->stage,
+                    'created_by' => $storedDeal->created_by ?: 'System',
+                    'created_at_label' => optional($storedDeal->created_at)->format('F d, Y • h:i:s A') ?: now()->format('F d, Y • h:i:s A'),
                 ];
 
                 $detail = [
@@ -428,6 +573,7 @@ class DealController extends Controller
             $mockDeal = session('deals.mock_saved', []);
             $deal = [
                 'id' => $id,
+                'deal_code' => $mockPayload['deal_code'] ?? ($mockDeal['deal_code'] ?? $this->generateDealCodeFromNames($mockPayload['first_name'] ?? '', $mockPayload['last_name'] ?? '', $id)),
                 'deal_name' => $mockPayload['deal_name'] ?? ($mockDeal['deal_name'] ?? 'Mock Deal'),
                 'contact_name' => trim(collect([$mockPayload['first_name'] ?? '', $mockPayload['last_name'] ?? ''])->filter()->implode(' ')) ?: ($mockDeal['contact_name'] ?? 'Linked Contact'),
                 'company_name' => $mockPayload['company_name'] ?? ($mockDeal['company_name'] ?? '-'),
@@ -710,11 +856,64 @@ class DealController extends Controller
         ]);
     }
 
+    private function dealStages(): array
+    {
+        $defaults = [
+            ['id' => null, 'name' => 'Inquiry', 'order' => 1, 'color' => '#2563eb'],
+            ['id' => null, 'name' => 'Qualification', 'order' => 2, 'color' => '#4f46e5'],
+            ['id' => null, 'name' => 'Consultation', 'order' => 3, 'color' => '#0891b2'],
+            ['id' => null, 'name' => 'Proposal', 'order' => 4, 'color' => '#d97706'],
+            ['id' => null, 'name' => 'Negotiation', 'order' => 5, 'color' => '#ea580c'],
+            ['id' => null, 'name' => 'Payment', 'order' => 6, 'color' => '#059669'],
+            ['id' => null, 'name' => 'Activation', 'order' => 7, 'color' => '#7c3aed'],
+            ['id' => null, 'name' => 'Closed Lost', 'order' => 8, 'color' => '#dc2626'],
+        ];
+
+        if (! Schema::hasTable('deal_stages')) {
+            return $defaults;
+        }
+
+        $stages = DealStage::query()
+            ->orderBy('order')
+            ->get(['id', 'name', 'order', 'color'])
+            ->map(fn (DealStage $stage): array => [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'order' => (int) $stage->order,
+                'color' => $stage->color,
+            ])
+            ->all();
+
+        if ($stages !== []) {
+            return $stages;
+        }
+
+        foreach ($defaults as $stage) {
+            DealStage::query()->create([
+                'name' => $stage['name'],
+                'order' => $stage['order'],
+                'color' => $stage['color'],
+            ]);
+        }
+
+        return DealStage::query()
+            ->orderBy('order')
+            ->get(['id', 'name', 'order', 'color'])
+            ->map(fn (DealStage $stage): array => [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'order' => (int) $stage->order,
+                'color' => $stage->color,
+            ])
+            ->all();
+    }
+
     private function mockDeals(): array
     {
         return [
             [
                 'id' => 501,
+                'deal_code' => 'DL-2026-001',
                 'deal_name' => 'Tax Advisory Compliance Audit Regular Retainer',
                 'contact_name' => 'David Lee',
                 'company_name' => 'Consulting Group',
@@ -725,6 +924,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 2,
+                'deal_code' => 'DL-2026-002',
                 'deal_name' => 'Data Analytics Platform',
                 'contact_name' => 'David Lee',
                 'company_name' => 'Consulting Group',
@@ -735,6 +935,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 3,
+                'deal_code' => 'RJ-2026-001',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -745,6 +946,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 4,
+                'deal_code' => 'RJ-2026-002',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -755,6 +957,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 5,
+                'deal_code' => 'RJ-2026-003',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -765,6 +968,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 6,
+                'deal_code' => 'RJ-2026-004',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -775,6 +979,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 7,
+                'deal_code' => 'RJ-2026-005',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -785,6 +990,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 8,
+                'deal_code' => 'MB-2026-001',
                 'deal_name' => 'Website Redesign Project',
                 'contact_name' => 'Michael Brown',
                 'company_name' => 'Startup Hub',
@@ -795,6 +1001,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 9,
+                'deal_code' => 'SW-2026-001',
                 'deal_name' => 'Security Audit Package',
                 'contact_name' => 'Sarah Williams',
                 'company_name' => 'Innovate Co.',
@@ -1274,6 +1481,7 @@ class DealController extends Controller
 
         return [
             'id' => (int) now()->format('His'),
+            'deal_code' => $this->generateDealCode($contact),
             'deal_name' => $validated['deal_name'],
             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
             'company_name' => $validated['company_name'] ?? $contact->company_name ?? '-',
@@ -1283,7 +1491,48 @@ class DealController extends Controller
                 : 'TBD',
             'owner_name' => $validated['assigned_consultant'] ?? 'Unassigned',
             'stage' => $validated['stage'] ?? 'Inquiry',
+            'created_by' => optional(Auth::user())->name ?: 'System',
+            'created_at_label' => now()->format('F d, Y • h:i:s A'),
         ];
+    }
+
+    private function generateDealCode(?Contact $contact, ?int $existingDealId = null): string
+    {
+        $initials = $this->dealCodeInitials(
+            (string) ($contact?->first_name ?? ''),
+            (string) ($contact?->last_name ?? '')
+        );
+        $year = now()->format('Y');
+        $prefix = "{$initials}-{$year}-";
+
+        if (Schema::hasTable('deals') && Schema::hasColumn('deals', 'deal_code')) {
+            $existingCodes = Deal::query()
+                ->when($existingDealId, fn ($query) => $query->where('id', '!=', $existingDealId))
+                ->where('deal_code', 'like', "{$prefix}%")
+                ->pluck('deal_code');
+
+            $maxSequence = $existingCodes
+                ->map(fn (string $code): int => (int) Str::afterLast($code, '-'))
+                ->max() ?? 0;
+
+            return $prefix.str_pad((string) ($maxSequence + 1), 3, '0', STR_PAD_LEFT);
+        }
+
+        return $prefix.str_pad((string) ($existingDealId ?: random_int(1, 999)), 3, '0', STR_PAD_LEFT);
+    }
+
+    private function generateDealCodeFromNames(string $firstName, string $lastName, int $seed): string
+    {
+        $initials = $this->dealCodeInitials($firstName, $lastName);
+
+        return "{$initials}-".now()->format('Y').'-'.str_pad((string) $seed, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function dealCodeInitials(string $firstName, string $lastName): string
+    {
+        $letters = strtoupper(mb_substr(trim($firstName), 0, 1).mb_substr(trim($lastName), 0, 1));
+
+        return str_pad($letters !== '' ? $letters : 'DL', 2, 'X');
     }
 
     private function mockContactRecord(): array

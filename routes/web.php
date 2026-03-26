@@ -108,6 +108,10 @@ Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.p
 Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
 Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
 Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
+Route::post('/deals/stages', [DealController::class, 'storeStage'])->name('deals.stages.store');
+Route::patch('/deals/stages/{stage}', [DealController::class, 'updateStage'])->name('deals.stages.update');
+Route::patch('/deals/stages/{stage}/move', [DealController::class, 'moveStage'])->name('deals.stages.move');
+Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])->name('deals.stages.destroy');
 Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
 Route::get('/deals/{id}/download', [DealController::class, 'download'])->name('deals.download');
 Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');

@@ -9,6 +9,8 @@ class Deal extends Model
 {
     protected $fillable = [
         'contact_id',
+        'deal_code',
+        'created_by',
         'deal_name',
         'stage',
         'service_area',
