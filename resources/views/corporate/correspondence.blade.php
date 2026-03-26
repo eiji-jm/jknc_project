@@ -18,12 +18,15 @@
         previewBody: '<p style=&quot;color:#9ca3af;&quot;>Write the formal communication here...</p>',
         previewDeadline: '',
         previewSentVia: 'Email',
-        previewPreparedBy: '{{ Auth::user()->name ?? 'System' }}'
+        previewPreparedBy: '{{ Auth::user()->name ?? 'System' }}',
+        closeAddSectionAlpine() {
+            this.showSlideOver = false;
+            closeAddSection();
+        }
     }"
 >
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
 
-        {{-- TOP BAR --}}
         <div class="px-5 py-4 flex items-center justify-between border-b border-gray-200">
             <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Correspondence</h1>
 
@@ -37,7 +40,30 @@
             </button>
         </div>
 
-        {{-- TABLE --}}
+        <div class="px-5 pt-4 bg-white border-b border-gray-100">
+            <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
+                <button onclick="applyWorkflowFilter('uploaded')" id="tab-uploaded" class="pb-3 whitespace-nowrap border-b-2 border-blue-600 font-medium text-gray-900">
+                    Uploaded
+                </button>
+                <button onclick="applyWorkflowFilter('submitted')" id="tab-submitted" class="pb-3 whitespace-nowrap">
+                    Submitted
+                </button>
+                <button onclick="applyWorkflowFilter('accepted')" id="tab-accepted" class="pb-3 whitespace-nowrap">
+                    Accepted
+                </button>
+                <button onclick="applyWorkflowFilter('reverted')" id="tab-reverted" class="pb-3 whitespace-nowrap">
+                    Reverted
+                </button>
+                <button onclick="applyWorkflowFilter('archived')" id="tab-archived" class="pb-3 whitespace-nowrap">
+                    Archived
+                </button>
+            </div>
+
+            <div id="statusMessage" class="mt-3 mb-4 border border-blue-200 bg-blue-50 text-blue-700 text-[14px] px-4 py-3 rounded-md">
+                These records are uploaded and ready for submission.
+            </div>
+        </div>
+
         <div id="tableSection" class="px-5 pb-4 flex-1 flex flex-col">
             <div class="border border-gray-200 rounded-md overflow-hidden flex-1 overflow-auto">
                 <table class="w-full text-sm text-left border-collapse">
@@ -96,6 +122,8 @@
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Respond Before</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Sent Via</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Status</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Workflow Status</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Approval Status</th>
                             <th class="px-3 py-3 font-semibold">Template</th>
                         </tr>
                     </thead>
@@ -104,7 +132,6 @@
             </div>
         </div>
 
-        {{-- SAVED PREVIEW --}}
         <div id="previewSection" class="hidden p-4 flex-grow overflow-hidden">
             <div class="h-full flex gap-4">
                 <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -136,9 +163,12 @@
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Respond Before</span><span id="infoDeadline" class="text-right font-medium text-gray-900"></span></div>
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Sent Via</span><span id="infoSentVia" class="text-right font-medium text-gray-900"></span></div>
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Status</span><span id="infoStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Workflow</span><span id="infoWorkflowStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Approval</span><span id="infoApprovalStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Review Note</span><span id="infoReviewNote" class="text-right font-medium text-gray-900 break-words"></span></div>
 
-                            <div class="pt-2 border-t border-gray-200">
-                                <a id="openPreviewBtn" href="#" target="_blank" class="text-sm text-blue-600 hover:underline">
+                            <div class="pt-2 border-t border-gray-200 space-y-3" id="previewActions">
+                                <a id="openPreviewBtn" href="#" target="_blank" class="text-sm text-blue-600 hover:underline block">
                                     Open in New Tab
                                 </a>
                             </div>
@@ -148,12 +178,10 @@
             </div>
         </div>
 
-        {{-- SLIDE OVER --}}
         <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
             <div class="absolute inset-0 bg-black/40" @click="closeAddSectionAlpine()"></div>
 
             <div class="absolute inset-0 flex">
-                {{-- LEFT PREVIEW --}}
                 <div
                     x-show="showSlideOver"
                     x-transition:enter="transform transition ease-in-out duration-300"
@@ -164,7 +192,7 @@
                     x-transition:leave-end="-translate-x-full"
                     class="w-[70%] h-full bg-[#f5f6f8] overflow-y-auto p-6 border-r border-gray-200"
                 >
-                    <div class="max-w-[850px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
+                    <div class="max-w-[900px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
                         <button
                             type="button"
                             id="download-preview-pdf"
@@ -175,8 +203,11 @@
                         </button>
                     </div>
 
-                    <div class="max-w-[850px] mx-auto">
-                        <div id="correspondence-preview-pdf" class="bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
+                    <div class="max-w-[900px] mx-auto flex justify-center">
+                        <div
+                            id="correspondence-preview-pdf"
+                            class="correspondence-a4-page bg-white border border-gray-300 shadow"
+                        >
                             <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
                                 <div>
                                     <h1 class="text-[22px] font-bold tracking-wide text-gray-900">JOHN KELLY &amp; COMPANY</h1>
@@ -197,53 +228,52 @@
                             <div class="space-y-3 text-[14px] text-gray-800 mb-10">
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">TIN</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewTin || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewTin || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide" x-text="previewSenderLabel"></p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewSender || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewSender || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Department</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDepartment || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewDepartment || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Subject</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1 font-semibold" x-text="previewSubject || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 font-semibold break-words" x-text="previewSubject || '______________________________'"></p>
                                 </div>
 
                                 <div class="grid grid-cols-[120px_1fr] gap-3">
                                     <p class="font-semibold uppercase tracking-wide">Sent Via</p>
-                                    <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewSentVia || '______________________________'"></p>
+                                    <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewSentVia || '______________________________'"></p>
                                 </div>
 
                                 <template x-if="hasDeadline">
                                     <div class="grid grid-cols-[120px_1fr] gap-3">
                                         <p class="font-semibold uppercase tracking-wide">Respond Before</p>
-                                        <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDeadline || '______________________________'"></p>
+                                        <p class="border-b border-dotted border-gray-300 pb-1 break-words" x-text="previewDeadline || '______________________________'"></p>
                                     </div>
                                 </template>
                             </div>
 
-                            <div class="text-[15px] leading-8 text-gray-900 min-h-[420px]">
-                                <div class="prose prose-sm max-w-none [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4" x-html="previewBody"></div>
+                            <div class="correspondence-body text-[15px] text-gray-900">
+                                <div class="body-content" x-html="previewBody"></div>
                             </div>
 
                             <div class="mt-16 space-y-10 text-[14px] text-gray-800">
                                 <div>
                                     <p>Respectfully,</p>
                                     <div class="mt-12 border-b border-gray-400 w-[260px]"></div>
-                                    <p class="mt-2 font-semibold" x-text="previewPreparedBy || '________________'"></p>
+                                    <p class="mt-2 font-semibold break-words" x-text="previewPreparedBy || '________________'"></p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- RIGHT FORM --}}
                 <div
                     x-show="showSlideOver"
                     x-transition:enter="transform transition ease-in-out duration-300"
@@ -313,7 +343,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1">Body</label>
-                            <div id="editor"></div>
+                            <div id="editor" class="bg-white"></div>
                             <input type="hidden" id="detailsInput">
                         </div>
 
@@ -351,23 +381,116 @@
                 </div>
             </div>
         </div>
-        {{-- END SLIDE OVER --}}
     </div>
 </div>
 
 <style>
+    .correspondence-a4-page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 18mm 18mm 20mm 18mm;
+        box-sizing: border-box;
+        background: #fff;
+    }
+
+    .correspondence-body {
+        min-height: 420px;
+        line-height: 1.85;
+    }
+
+    .body-content,
+    .body-content * {
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+    }
+
+    .body-content p {
+        margin: 0 0 14px 0;
+        line-height: 1.85;
+    }
+
+    .body-content ul,
+    .body-content ol {
+        margin: 0 0 14px 22px;
+        padding-left: 18px;
+    }
+
+    .body-content li {
+        margin-bottom: 6px;
+        line-height: 1.8;
+    }
+
+    .body-content img,
+    .body-content video,
+    .body-content iframe,
+    .body-content table {
+        max-width: 100%;
+    }
+
+    .body-content table {
+        width: 100% !important;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+
+    .body-content td,
+    .body-content th {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+
+    #editor {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    #editor .ql-toolbar.ql-snow {
+        border: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    #editor .ql-container.ql-snow {
+        border: 0;
+        font-size: 15px;
+    }
 
     #editor .ql-editor {
-        min-height: 180px;
+        min-height: 320px;
+        max-height: none;
+        padding: 16px 18px;
+        line-height: 1.85;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    #editor .ql-editor p,
+    #editor .ql-editor li {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    #editor .ql-editor img,
+    #editor .ql-editor table {
+        max-width: 100%;
     }
 </style>
 @endsection
 
 @push('scripts')
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 let currentTypeFilter = "All";
+let currentWorkflowFilter = "uploaded";
 let correspondenceRows = [];
 
 const previewRoutes = {
@@ -379,6 +502,14 @@ const previewRoutes = {
     "Notice": "notice"
 };
 
+const urlParams = new URLSearchParams(window.location.search);
+const autoOpenRecordId = urlParams.get('record');
+const autoOpenTab = (urlParams.get('tab') || '').toLowerCase();
+
+if (['uploaded', 'submitted', 'accepted', 'reverted', 'archived'].includes(autoOpenTab)) {
+    currentWorkflowFilter = autoOpenTab;
+}
+
 function getAlpineData() {
     const root = document.getElementById('correspondence-page');
     return root ? Alpine.$data(root) : null;
@@ -388,6 +519,40 @@ function showOnlySection(sectionId) {
     document.getElementById('tableSection').classList.add('hidden');
     document.getElementById('previewSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
+}
+
+function updateStatusMessage() {
+    const messageBox = document.getElementById('statusMessage');
+
+    if (currentWorkflowFilter === 'uploaded') {
+        messageBox.className = 'mt-3 mb-4 border border-blue-200 bg-blue-50 text-blue-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are uploaded and ready for submission.';
+    } else if (currentWorkflowFilter === 'submitted') {
+        messageBox.className = 'mt-3 mb-4 border border-yellow-200 bg-yellow-50 text-yellow-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are already submitted and waiting for admin approval.';
+    } else if (currentWorkflowFilter === 'accepted') {
+        messageBox.className = 'mt-3 mb-4 border border-green-200 bg-green-50 text-green-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records were already accepted.';
+    } else if (currentWorkflowFilter === 'reverted') {
+        messageBox.className = 'mt-3 mb-4 border border-red-200 bg-red-50 text-red-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records were reverted and can be corrected then resubmitted.';
+    } else {
+        messageBox.className = 'mt-3 mb-4 border border-gray-200 bg-gray-50 text-gray-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are archived.';
+    }
+}
+
+function setActiveTab() {
+    ['uploaded', 'submitted', 'accepted', 'reverted', 'archived'].forEach(tab => {
+        const el = document.getElementById(`tab-${tab}`);
+        if (!el) return;
+
+        if (tab === currentWorkflowFilter) {
+            el.className = 'pb-3 whitespace-nowrap border-b-2 border-blue-600 font-medium text-gray-900';
+        } else {
+            el.className = 'pb-3 whitespace-nowrap text-gray-700';
+        }
+    });
 }
 
 function showSliderError(message) {
@@ -411,10 +576,12 @@ function showSliderSuccess(message) {
 function clearSliderMessages() {
     const errorBox = document.getElementById('sliderErrorBox');
     const successBox = document.getElementById('sliderSuccessBox');
+
     if (errorBox) {
         errorBox.classList.add('hidden');
         errorBox.innerHTML = '';
     }
+
     if (successBox) {
         successBox.classList.add('hidden');
         successBox.innerHTML = '';
@@ -436,6 +603,7 @@ function openAddSection() {
     if (alpineData) {
         alpineData.showSlideOver = true;
     }
+
     resetFormDefaults();
     clearSliderMessages();
 }
@@ -445,6 +613,7 @@ function closeAddSection() {
     if (alpineData) {
         alpineData.showSlideOver = false;
     }
+
     resetFormDefaults();
     clearSliderMessages();
     showOnlySection('tableSection');
@@ -484,7 +653,7 @@ function resetFormDefaults() {
     }
 
     if (window.correspondenceQuill) {
-        window.correspondenceQuill.root.innerHTML = '';
+        window.correspondenceQuill.setContents([]);
     }
 
     document.getElementById('detailsInput').value = '';
@@ -501,12 +670,26 @@ function setTypeFilter(type) {
     renderTable();
 }
 
-async function fetchCorrespondence() {
-    const query = currentTypeFilter !== 'All'
-        ? `?type=${encodeURIComponent(currentTypeFilter)}`
-        : '';
+function applyWorkflowFilter(filterValue) {
+    currentWorkflowFilter = filterValue;
+    renderTable();
+}
 
-    const res = await fetch(`/correspondence/data${query}`);
+async function fetchCorrespondence() {
+    const params = new URLSearchParams();
+
+    if (currentTypeFilter !== 'All') {
+        params.append('type', currentTypeFilter);
+    }
+
+    params.append('workflow_status', currentWorkflowFilter);
+
+    const res = await fetch(`/correspondence/data?${params.toString()}`, {
+        headers: {
+            'Accept': 'application/json'
+        }
+    });
+
     return await res.json();
 }
 
@@ -520,6 +703,23 @@ function getStatusClasses(status) {
     }
 
     return { textClass: 'text-gray-500', dotClass: 'bg-gray-400' };
+}
+
+function getWorkflowClasses(status) {
+    if (status === 'Uploaded') return 'text-orange-600';
+    if (status === 'Submitted') return 'text-blue-600';
+    if (status === 'Accepted') return 'text-green-600';
+    if (status === 'Reverted') return 'text-yellow-600';
+    if (status === 'Archived') return 'text-gray-600';
+    return 'text-gray-500';
+}
+
+function getApprovalClasses(status) {
+    if (status === 'Approved') return 'text-green-600';
+    if (status === 'Rejected') return 'text-red-600';
+    if (status === 'Needs Revision') return 'text-yellow-600';
+    if (status === 'Pending') return 'text-blue-600';
+    return 'text-gray-500';
 }
 
 function getFromValue(item) {
@@ -554,13 +754,30 @@ function openPreview(index) {
     document.getElementById('infoDeadline').textContent = item.deadline ?? 'No Deadline';
     document.getElementById('infoSentVia').textContent = item.sent_via ?? '';
     document.getElementById('infoStatus').textContent = item.status ?? '';
+    document.getElementById('infoWorkflowStatus').textContent = item.workflow_status ?? '';
+    document.getElementById('infoApprovalStatus').textContent = item.approval_status ?? '';
+    document.getElementById('infoReviewNote').textContent = item.review_note ?? '—';
+
+    const actions = document.getElementById('previewActions');
+    actions.innerHTML = `
+        <a id="openPreviewBtn" href="${previewUrl}" target="_blank" class="text-sm text-blue-600 hover:underline block">
+            Open in New Tab
+        </a>
+    `;
+
+    if (item.can_submit) {
+        actions.innerHTML += `
+            <button type="button" onclick="submitCorrespondence(${item.id})" class="w-full bg-blue-600 text-white rounded-md py-2 hover:bg-blue-700">
+                Submit for Approval
+            </button>
+        `;
+    }
 
     showOnlySection('previewSection');
 }
 
 function closePreview() {
     document.getElementById('previewFrame').src = '';
-    document.getElementById('openPreviewBtn').href = '#';
     showOnlySection('tableSection');
 }
 
@@ -573,8 +790,11 @@ async function renderTable() {
     const data = await fetchCorrespondence();
     correspondenceRows = data || [];
 
+    updateStatusMessage();
+    setActiveTab();
+
     if (!correspondenceRows.length) {
-        tableBody.innerHTML = `<tr><td colspan="12" class="px-3 py-8 text-center text-gray-500">No correspondence records found.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="14" class="px-3 py-8 text-center text-gray-500">No correspondence records found.</td></tr>`;
         return;
     }
 
@@ -600,12 +820,21 @@ async function renderTable() {
                         ${item.status ?? ''}
                     </span>
                 </td>
+                <td class="px-3 py-3 border-r border-gray-200 ${getWorkflowClasses(item.workflow_status)} font-medium">${item.workflow_status ?? ''}</td>
+                <td class="px-3 py-3 border-r border-gray-200 ${getApprovalClasses(item.approval_status)} font-medium">${item.approval_status ?? ''}</td>
                 <td class="px-3 py-3">
                     ${canView ? `<button type="button" onclick="event.stopPropagation(); openPreview(${index})" class="text-blue-600 hover:underline">View</button>` : '—'}
                 </td>
             </tr>
         `;
     });
+
+    if (autoOpenRecordId) {
+        const targetIndex = correspondenceRows.findIndex(row => String(row.id) === String(autoOpenRecordId));
+        if (targetIndex !== -1) {
+            openPreview(targetIndex);
+        }
+    }
 }
 
 async function addCorrespondence() {
@@ -657,7 +886,8 @@ async function addCorrespondence() {
             return false;
         }
 
-        showSliderSuccess('Correspondence saved successfully.');
+        showSliderSuccess(data.message || 'Correspondence saved successfully.');
+        currentWorkflowFilter = 'uploaded';
         await renderTable();
         setSaveLoading(false);
         return true;
@@ -666,6 +896,28 @@ async function addCorrespondence() {
         setSaveLoading(false);
         return false;
     }
+}
+
+async function submitCorrespondence(id) {
+    const res = await fetch(`/correspondence/${id}/submit`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        alert(data.message || 'Unable to submit record.');
+        return;
+    }
+
+    alert(data.message || 'Submitted successfully.');
+    currentWorkflowFilter = 'submitted';
+    closePreview();
+    await renderTable();
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -696,10 +948,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         quill.on('text-change', function () {
             const html = quill.root.innerHTML;
-            hiddenInput.value = html;
+            const plainText = quill.getText().trim();
+
+            hiddenInput.value = plainText ? html : '';
 
             if (alpineData) {
-                alpineData.previewBody = quill.getText().trim()
+                alpineData.previewBody = plainText
                     ? html
                     : '<p style="color:#9ca3af;">Write the formal communication here...</p>';
             }
@@ -717,11 +971,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const safeFileName = subject.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').toLowerCase();
 
             html2pdf().set({
-                margin: [0.3, 0.3, 0.3, 0.3],
+                margin: [0, 0, 0, 0],
                 filename: `${safeFileName}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
             }).from(element).save();
         });
@@ -729,7 +983,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('click', function (e) {
         const menu = document.getElementById('typeFilterMenu');
-        if (menu && !menu.contains(e.target)) {
+        if (menu && !menu.contains(e.target) && !e.target.closest('button')) {
             menu.classList.add('hidden');
         }
     });

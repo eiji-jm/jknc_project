@@ -11,6 +11,7 @@ class Correspondence extends Model
         'type',
         'uploaded_date',
         'user',
+        'submitted_by',
         'tin',
         'subject',
         'sender_type',
@@ -21,6 +22,11 @@ class Correspondence extends Model
         'time',
         'deadline',
         'sent_via',
+        'workflow_status',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
 
     protected $appends = ['computed_status'];
@@ -29,6 +35,7 @@ class Correspondence extends Model
         'uploaded_date' => 'date:Y-m-d',
         'date' => 'date:Y-m-d',
         'deadline' => 'date:Y-m-d',
+        'approved_at' => 'datetime',
     ];
 
     public function getComputedStatusAttribute()

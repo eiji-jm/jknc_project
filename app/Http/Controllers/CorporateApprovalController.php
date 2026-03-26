@@ -14,6 +14,7 @@ use App\Models\Permit;
 use App\Models\Accounting;
 use App\Models\Banking;
 use App\Models\Operation;
+use App\Models\Correspondence;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -52,6 +53,7 @@ class CorporateApprovalController extends Controller
             'accounting' => 'Accounting',
             'banking' => 'Banking',
             'operations' => 'Operations',
+            'correspondence' => 'Correspondence',
             default => 'Corporate Module',
         };
     }
@@ -67,6 +69,7 @@ class CorporateApprovalController extends Controller
             'accounting' => ($record->client ?? 'Accounting Record') . ' - ' . ($record->statement_type ?? ''),
             'banking' => ($record->client ?? 'Banking Record') . ' - ' . ($record->bank ?? ''),
             'operations' => ($record->client ?? 'Operations Record') . ' - ' . ($record->operation_type ?? ''),
+            'correspondence' => ($record->type ?? 'Correspondence') . ' - ' . ($record->subject ?? ''),
             default => '',
         };
     }
@@ -78,6 +81,7 @@ class CorporateApprovalController extends Controller
             'accounting' => $record->tin ?? '',
             'banking' => $record->tin ?? '',
             'operations' => $record->tin ?? '',
+            'correspondence' => $record->tin ?? '',
             default => $record->company_reg_no ?? '',
         };
     }
@@ -246,10 +250,7 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->date ? \Carbon\Carbon::parse($row->date)->format('Y-m-d') : '',
                 'status' => $workflow,
                 'approval_status' => $row->approval_status,
-                'show_route' => route('accounting', [
-                    'record' => $row->id,
-                    'tab' => strtolower($workflow),
-                ]),
+                'show_route' => route('accounting', ['record' => $row->id, 'tab' => strtolower($workflow)]),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'accounting', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'accounting', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'accounting', 'id' => $row->id]),
@@ -270,10 +271,7 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->date_uploaded ? \Carbon\Carbon::parse($row->date_uploaded)->format('Y-m-d') : '',
                 'status' => $workflow,
                 'approval_status' => $row->approval_status,
-                'show_route' => route('banking', [
-                    'record' => $row->id,
-                    'tab' => strtolower($workflow),
-                ]),
+                'show_route' => route('banking', ['record' => $row->id, 'tab' => strtolower($workflow)]),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'banking', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'banking', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'banking', 'id' => $row->id]),
@@ -294,14 +292,35 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->date_uploaded ? \Carbon\Carbon::parse($row->date_uploaded)->format('Y-m-d') : '',
                 'status' => $workflow,
                 'approval_status' => $row->approval_status,
-                'show_route' => route('operations', [
-                    'record' => $row->id,
-                    'tab' => strtolower($workflow),
-                ]),
+                'show_route' => route('operations', ['record' => $row->id, 'tab' => strtolower($workflow)]),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'operations', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'operations', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'operations', 'id' => $row->id]),
                 'archive_route' => route('corporate.approvals.archive', ['module' => 'operations', 'id' => $row->id]),
+            ]);
+        }
+
+        foreach (Correspondence::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'Correspondence',
+                'title' => ($row->type ?? 'Correspondence') . ' - ' . ($row->subject ?? ''),
+                'company_reg_no' => $row->tin ?? '',
+                'uploaded_by' => $row->user,
+                'date_uploaded' => $row->uploaded_date ? \Carbon\Carbon::parse($row->uploaded_date)->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('correspondence', [
+                    'record' => $row->id,
+                    'tab' => strtolower($workflow),
+                ]),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'correspondence', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'correspondence', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'correspondence', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'correspondence', 'id' => $row->id]),
             ]);
         }
 
@@ -332,6 +351,7 @@ class CorporateApprovalController extends Controller
             'accounting' => Accounting::findOrFail($id),
             'banking' => Banking::findOrFail($id),
             'operations' => Operation::findOrFail($id),
+            'correspondence' => Correspondence::findOrFail($id),
             default => abort(404),
         };
     }

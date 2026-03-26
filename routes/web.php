@@ -138,15 +138,14 @@ Route::put('/permits/{id}/update', [PermitController::class, 'update'])->name('p
 Route::post('/permits/{id}/upload-document', [PermitController::class, 'uploadDocument'])->name('permits.upload.document');
 Route::post('/permits/{id}/submit', [PermitController::class, 'submit'])->name('permits.submit');
 
-    Route::get('/correspondence/{type}', [CorrespondenceController::class, 'index']);
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
-    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
-    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
-    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
-    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
     Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
+Route::post('/correspondence', [CorrespondenceController::class, 'store'])->name('correspondence.store');
+Route::get('/correspondence/{id}', [CorrespondenceController::class, 'show'])->name('correspondence.show');
+Route::put('/correspondence/{id}/update', [CorrespondenceController::class, 'update'])->name('correspondence.update');
+Route::post('/correspondence/{id}/submit', [CorrespondenceController::class, 'submit'])->name('correspondence.submit');
+
+Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
+Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
 Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
