@@ -122,13 +122,8 @@
         <!-- MINI SIDEBAR -->
         <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
 
-<<<<<<< HEAD
             @if($canSeeAdminIcon && $adminLandingRoute)
                 <a href="{{ $adminLandingRoute }}"
-=======
-            @if(Auth::user()->hasPermission('access_admin_dashboard'))
-                <a href="{{ route('admin.dashboard') }}"
->>>>>>> origin/CGI-Corporate/Form-UI
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-user-shield text-base"></i>
@@ -139,11 +134,7 @@
             @if(Auth::user()->hasPermission('access_townhall'))
                 <a href="{{ route('townhall') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-<<<<<<< HEAD
                   {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-=======
-                   {{ request()->routeIs('townhall') || request()->routeIs('townhall.show') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
->>>>>>> origin/CGI-Corporate/Form-UI
                     <i class="fas fa-bullhorn text-base"></i>
                     <span>Town Hall</span>
                 </a>
@@ -152,11 +143,7 @@
             @if(Auth::user()->hasPermission('access_corporate'))
                 <a href="{{ route('corporate') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
-<<<<<<< HEAD
-                   {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-=======
                    {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') || request()->routeIs('corporate.sec_aoi') || request()->routeIs('corporate.bylaws') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
->>>>>>> origin/CGI-Corporate/Form-UI
                     <i class="fas fa-building text-base"></i>
                     <span>Corporate</span>
                 </a>
@@ -189,11 +176,7 @@
         </aside>
 
         <!-- SECOND SIDEBAR -->
-<<<<<<< HEAD
         @if(request()->routeIs('townhall*'))
-=======
-        @if(Auth::user()->hasPermission('access_townhall') && (request()->routeIs('townhall') || request()->routeIs('townhall.show')))
->>>>>>> origin/CGI-Corporate/Form-UI
             <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
@@ -203,7 +186,6 @@
                     <div class="space-y-1 text-sm">
                         <a href="{{ route('townhall') }}"
                            class="block px-3 py-2 rounded-lg transition
-<<<<<<< HEAD
                            {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                             Communications
                         </a>
@@ -218,45 +200,6 @@
                             <a href="{{ route('townhall.attachments') }}"
                                class="block px-3 py-2 rounded-lg transition
                                {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-=======
-                           {{ request()->routeIs('townhall') || request()->routeIs('townhall.show') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Communications
-                        </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Status
-                        </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Department
-                        </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Recipient
-                        </a>
-
-                        <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Open
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Completed
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Overdue
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
->>>>>>> origin/CGI-Corporate/Form-UI
                                 Attachments
                             </a>
                         </div>
@@ -264,11 +207,7 @@
                 </div>
             </aside>
 
-<<<<<<< HEAD
         @elseif(request()->routeIs('admin.*') && $canSeeAdminIcon)
-=======
-        @elseif(Auth::user()->hasPermission('access_admin_dashboard') && request()->routeIs('admin.*'))
->>>>>>> origin/CGI-Corporate/Form-UI
             <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
 
                 <div class="px-4 py-3 border-b border-gray-100">
@@ -286,25 +225,17 @@
                                {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Users
                             </a>
-<<<<<<< HEAD
                         @endif
 
                         @if(Auth::user()->hasPermission('manage_users'))
-=======
-
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="{{ route('admin.role-permissions') }}"
                                class="block px-3 py-2 rounded-lg transition
                                {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                                 Role Permissions
                             </a>
-<<<<<<< HEAD
                         @endif
 
                         @if(Auth::user()->hasPermission('manage_users'))
-=======
-
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="{{ route('admin.user-permissions') }}"
                                class="block px-3 py-2 rounded-lg transition
                                {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
@@ -312,11 +243,7 @@
                             </a>
                         @endif
 
-<<<<<<< HEAD
                         @if(Auth::user()->hasPermission('access_admin_dashboard') || Auth::user()->hasPermission('approve_townhall'))
-=======
-                        @if(Auth::user()->hasPermission('approve_townhall'))
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="{{ route('admin.dashboard') }}"
                                class="block px-3 py-2 rounded-lg transition
                                {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
@@ -324,14 +251,6 @@
                             </a>
                         @endif
 
-<<<<<<< HEAD
-                        @if(Auth::user()->hasPermission('access_admin_dashboard'))
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Corporate
-                            </a>
-
-=======
                         @if(Auth::user()->hasPermission('approve_corporate'))
                             <a href="{{ route('admin.corporate.dashboard') }}"
                                class="block px-3 py-2 rounded-lg transition
@@ -341,29 +260,14 @@
                         @endif
 
                         @if(Auth::user()->hasPermission('access_activities'))
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
                                 Activities
                             </a>
-<<<<<<< HEAD
-
-=======
-                        @endif
-
-                        @if(Auth::user()->hasPermission('access_contacts'))
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
                                 Contacts
                             </a>
-<<<<<<< HEAD
-
-=======
-                        @endif
-
-                        @if(Auth::user()->hasPermission('access_company'))
->>>>>>> origin/CGI-Corporate/Form-UI
                             <a href="#"
                                class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
                                 Company
@@ -406,43 +310,6 @@
                             NatGov
                         </a>
 
-<<<<<<< HEAD
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            LGU
-                        </a>
-
-                        <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Accounting
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Priority
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Status
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Tag
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Task Name
-                            </a>
-
-                            <a href="#"
-                               class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                                Task Owner
-                            </a>
-=======
                         <a href="{{ route('corporate.lgu') }}"
     class="block px-3 py-2 rounded-lg transition
     {{ request()->is('corporate/lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
@@ -480,7 +347,6 @@
                             Correspondence
                             </a>
 
->>>>>>> origin/CGI-Corporate/Form-UI
                         </div>
 
                     </div>

@@ -39,7 +39,6 @@
                 <i class="fas fa-plus mr-1"></i> Add
             </button>
         </div>
-        
 
         <div class="px-5 pt-4 bg-white border-b border-gray-100">
             <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
@@ -443,6 +442,9 @@
         overflow-wrap: break-word;
         word-wrap: break-word;
         white-space: normal;
+        border: 1px solid #9ca3af;
+        padding: 8px 10px;
+        vertical-align: top;
     }
 
     #editor {
@@ -455,11 +457,13 @@
     #editor .ql-toolbar.ql-snow {
         border: 0;
         border-bottom: 1px solid #e5e7eb;
+        background: #fff;
     }
 
     #editor .ql-container.ql-snow {
         border: 0;
         font-size: 15px;
+        min-height: 320px;
     }
 
     #editor .ql-editor {
@@ -472,6 +476,11 @@
         white-space: pre-wrap;
     }
 
+    #editor .ql-editor.ql-blank::before {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
     #editor .ql-editor p,
     #editor .ql-editor li {
         overflow-wrap: break-word;
@@ -482,11 +491,177 @@
     #editor .ql-editor table {
         max-width: 100%;
     }
+
+    #editor .ql-editor table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+
+    #editor .ql-editor td,
+    #editor .ql-editor th {
+        border: 1px solid #9ca3af;
+        padding: 8px 10px;
+        vertical-align: top;
+    }
 </style>
 @endsection
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css" rel="stylesheet">
+
+<style>
+    .correspondence-a4-page {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 18mm 18mm 20mm 18mm;
+        box-sizing: border-box;
+        background: #fff;
+    }
+
+    .correspondence-body {
+        min-height: 420px;
+        line-height: 1.85;
+    }
+
+    .body-content,
+    .body-content * {
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: normal;
+        white-space: normal;
+    }
+
+    .body-content p {
+        margin: 0 0 14px 0;
+        line-height: 1.85;
+    }
+
+    .body-content ul,
+    .body-content ol {
+        margin: 0 0 14px 22px;
+        padding-left: 18px;
+    }
+
+    .body-content li {
+        margin-bottom: 6px;
+        line-height: 1.8;
+    }
+
+    .body-content img,
+    .body-content video,
+    .body-content iframe,
+    .body-content table {
+        max-width: 100%;
+    }
+
+    .body-content table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        margin: 12px 0 !important;
+    }
+
+    .body-content table colgroup,
+    .body-content table col {
+        width: auto !important;
+    }
+
+    .body-content td,
+    .body-content th {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: normal;
+        border: 1px solid #9ca3af;
+        padding: 8px 10px;
+        vertical-align: top;
+    }
+
+    #editor {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    #editor .ql-toolbar.ql-snow {
+        border: 0;
+        border-bottom: 1px solid #e5e7eb;
+        background: #fff;
+    }
+
+    #editor .ql-container.ql-snow {
+        border: 0;
+        font-size: 15px;
+        min-height: 320px;
+    }
+
+    #editor .ql-editor {
+        min-height: 320px;
+        max-height: none;
+        padding: 16px 18px;
+        line-height: 1.85;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    #editor .ql-editor.ql-blank::before {
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    #editor .ql-editor p,
+    #editor .ql-editor li {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    #editor .ql-editor img,
+    #editor .ql-editor table {
+        max-width: 100%;
+    }
+
+    #editor .ql-editor table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        margin: 12px 0 !important;
+    }
+
+    #editor .ql-editor table colgroup,
+    #editor .ql-editor table col {
+        width: auto !important;
+    }
+
+    #editor .ql-editor td,
+    #editor .ql-editor th {
+        border: 1px solid #9ca3af;
+        padding: 8px 10px;
+        vertical-align: top;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        white-space: normal;
+    }
+
+    .qlbt-operation-menu,
+    .ql-table-better-menu,
+    .quill-table-better-wrapper {
+        z-index: 9999 !important;
+    }
+</style>
+@endpush
+
 @push('scripts')
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
@@ -926,20 +1101,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const hiddenInput = document.getElementById('detailsInput');
     const rootEl = document.getElementById('correspondence-page');
 
-    if (editorEl && hiddenInput && rootEl) {
+    if (editorEl && hiddenInput && rootEl && window.Quill && window.QuillTableBetter) {
+        Quill.register({
+            'modules/table-better': QuillTableBetter
+        }, true);
+
         const quill = new Quill('#editor', {
             theme: 'snow',
             placeholder: 'Write the formal communication here...',
             modules: {
                 toolbar: [
                     [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
-                    ['bold', 'italic', 'underline'],
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
                     [{ color: [] }, { background: [] }],
                     [{ list: 'ordered' }, { list: 'bullet' }],
+                    [{ indent: '-1' }, { indent: '+1' }],
                     [{ align: [] }],
-                    ['link'],
+                    ['blockquote', 'link'],
+                    ['table-better'],
                     ['clean']
-                ]
+                ],
+                table: false,
+                'table-better': {
+                    language: 'en_US',
+                    menus: ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'copy', 'delete'],
+                    toolbarTable: true
+                },
+                keyboard: {
+                    bindings: QuillTableBetter.keyboardBindings
+                }
             }
         });
 
@@ -950,11 +1141,12 @@ document.addEventListener('DOMContentLoaded', function () {
         quill.on('text-change', function () {
             const html = quill.root.innerHTML;
             const plainText = quill.getText().trim();
+            const hasTable = !!quill.root.querySelector('table');
 
-            hiddenInput.value = plainText ? html : '';
+            hiddenInput.value = (plainText || hasTable) ? html : '';
 
             if (alpineData) {
-                alpineData.previewBody = plainText
+                alpineData.previewBody = (plainText || hasTable)
                     ? html
                     : '<p style="color:#9ca3af;">Write the formal communication here...</p>';
             }

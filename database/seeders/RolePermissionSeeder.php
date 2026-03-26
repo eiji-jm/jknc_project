@@ -63,5 +63,24 @@ class RolePermissionSeeder extends Seeder
                 'access_company' => false,
             ]
         );
+        RolePermission::updateOrCreate(
+            ['role' => 'Client'],
+            [
+                'manage_users' => false,
+                'access_admin_dashboard' => false,
+
+                'create_townhall' => false,
+                'approve_townhall' => false,
+
+                'create_corporate' => false,
+                'approve_corporate' => false,
+
+                'access_townhall' => true,
+                'access_corporate' => true,
+                'access_activities' => false,
+                'access_contacts' => false,
+                'access_company' => false,
+            ]
+        );
     }
 }
