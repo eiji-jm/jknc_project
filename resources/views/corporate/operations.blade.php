@@ -5,7 +5,9 @@
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
-            <div class="text-sm font-medium text-gray-700">Operations</div>
+            <div class="flex items-center flex-1 min-w-0">
+                <h1 class="text-lg font-semibold text-gray-900">Operations</h1>
+            </div>
 
             <button onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0">
                 + Add

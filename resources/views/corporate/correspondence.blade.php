@@ -27,8 +27,16 @@
 >
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
 
+<<<<<<< HEAD
         <div class="px-5 py-4 flex items-center justify-between border-b border-gray-200">
             <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Correspondence</h1>
+=======
+        {{-- TOP BAR --}}
+        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
+            <div class="flex items-center flex-1 min-w-0">
+                <h1 class="text-lg font-semibold text-gray-900">Correspondence</h1>
+            </div>
+>>>>>>> origin/Corporate/lgu-correspondence
 
             <button
                 type="button"
@@ -36,9 +44,10 @@
                 onclick="openAddSection()"
                 class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-full transition"
             >
-                <i class="fas fa-plus mr-1"></i> Add Correspondence
+                <i class="fas fa-plus mr-1"></i> Add
             </button>
         </div>
+        
 
         <div class="px-5 pt-4 bg-white border-b border-gray-100">
             <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
