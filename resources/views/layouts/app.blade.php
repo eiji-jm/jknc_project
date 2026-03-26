@@ -7,7 +7,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
     <style>
         [x-cloak] { display: none !important; }
@@ -30,6 +29,8 @@
             min-height: 260px;
         }
     </style>
+
+    @stack('styles')
 </head>
 
 <body class="bg-gray-50 font-sans">
@@ -358,7 +359,6 @@
     </div>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     @stack('scripts')
 </body>
 </html>
