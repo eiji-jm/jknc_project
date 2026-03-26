@@ -15,6 +15,7 @@ use App\Models\Accounting;
 use App\Models\Banking;
 use App\Models\Operation;
 use App\Models\Correspondence;
+use App\Models\Legal;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -54,6 +55,7 @@ class CorporateApprovalController extends Controller
             'banking' => 'Banking',
             'operations' => 'Operations',
             'correspondence' => 'Correspondence',
+            'legal' => 'Legal',
             default => 'Corporate Module',
         };
     }
@@ -70,6 +72,7 @@ class CorporateApprovalController extends Controller
             'banking' => ($record->client ?? 'Banking Record') . ' - ' . ($record->bank ?? ''),
             'operations' => ($record->client ?? 'Operations Record') . ' - ' . ($record->operation_type ?? ''),
             'correspondence' => ($record->type ?? 'Correspondence') . ' - ' . ($record->subject ?? ''),
+            'legal' => ($record->client ?? 'Legal Record') . ' - ' . ($record->legal_type ?? ''),
             default => '',
         };
     }
@@ -82,6 +85,7 @@ class CorporateApprovalController extends Controller
             'banking' => $record->tin ?? '',
             'operations' => $record->tin ?? '',
             'correspondence' => $record->tin ?? '',
+            'legal' => $record->tin ?? '',
             default => $record->company_reg_no ?? '',
         };
     }
@@ -313,14 +317,32 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->uploaded_date ? \Carbon\Carbon::parse($row->uploaded_date)->format('Y-m-d') : '',
                 'status' => $workflow,
                 'approval_status' => $row->approval_status,
-                'show_route' => route('correspondence', [
-                    'record' => $row->id,
-                    'tab' => strtolower($workflow),
-                ]),
+                'show_route' => route('correspondence', ['record' => $row->id, 'tab' => strtolower($workflow)]),
                 'approve_route' => route('corporate.approvals.approve', ['module' => 'correspondence', 'id' => $row->id]),
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'correspondence', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'correspondence', 'id' => $row->id]),
                 'archive_route' => route('corporate.approvals.archive', ['module' => 'correspondence', 'id' => $row->id]),
+            ]);
+        }
+
+        foreach (Legal::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'Legal',
+                'title' => ($row->client ?? 'Legal Record') . ' - ' . ($row->legal_type ?? ''),
+                'company_reg_no' => $row->tin ?? '',
+                'uploaded_by' => $row->user,
+                'date_uploaded' => $row->date ? \Carbon\Carbon::parse($row->date)->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('legal', ['record' => $row->id, 'tab' => strtolower($workflow)]),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'legal', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'legal', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'legal', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'legal', 'id' => $row->id]),
             ]);
         }
 
@@ -352,6 +374,7 @@ class CorporateApprovalController extends Controller
             'banking' => Banking::findOrFail($id),
             'operations' => Operation::findOrFail($id),
             'correspondence' => Correspondence::findOrFail($id),
+            'legal' => Legal::findOrFail($id),
             default => abort(404),
         };
     }

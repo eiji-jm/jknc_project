@@ -15,13 +15,20 @@ class Legal extends Model
         'document_name',
         'document_path',
         'user',
+        'submitted_by',
+        'workflow_status',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
-
-    protected $appends = ['status'];
 
     protected $casts = [
         'date' => 'date:Y-m-d',
+        'approved_at' => 'datetime',
     ];
+
+    protected $appends = ['status'];
 
     public function getStatusAttribute(): string
     {

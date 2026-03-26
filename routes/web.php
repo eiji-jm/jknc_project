@@ -149,11 +149,11 @@ Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::cl
 Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
 
 Route::get('/legal/data', [LegalController::class, 'index'])->name('legal.index');
-    Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
+Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
+Route::get('/legal/{id}', [LegalController::class, 'show'])->name('legal.show');
+Route::put('/legal/{id}/update', [LegalController::class, 'update'])->name('legal.update');
+Route::post('/legal/{id}/submit', [LegalController::class, 'submit'])->name('legal.submit');
 
-    Route::get('/legal', function () {
-        return view('corporate.legal');
-    })->name('legal');
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
 Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
 Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');

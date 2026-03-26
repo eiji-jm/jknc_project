@@ -101,6 +101,11 @@
                             <option value="Bylaws">Bylaws</option>
                             <option value="GIS">GIS</option>
                             <option value="LGU">LGU</option>
+                            <option value="Accounting">Accounting</option>
+                            <option value="Banking">Banking</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Correspondence">Correspondence</option>
+                            <option value="Legal">Legal</option>
                         </select>
                     </div>
 
