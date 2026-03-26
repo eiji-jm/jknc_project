@@ -46,7 +46,6 @@
                             <th class="w-32 p-3 text-left">Date</th>
                             <th class="w-36 p-3 text-left">Uploader</th>
                             <th class="w-48 p-3 text-left">Client</th>
-                            <th class="w-36 p-3 text-left">TIN</th>
                             <th class="w-44 p-3 text-left">Statement Type</th>
                             <th class="w-36 p-3 text-left">Workflow Status</th>
                             <th class="w-36 p-3 text-left">Approval Status</th>
@@ -92,10 +91,6 @@
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Client</span>
                                 <span id="infoClient" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">TIN</span>
-                                <span id="infoTin" class="text-right font-medium text-gray-900"></span>
                             </div>
                             <div class="flex justify-between gap-4">
                                 <span class="text-gray-500">Statement Type</span>
@@ -405,7 +400,7 @@ function drawTableRows() {
     if (!accountingRows.length) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="8" class="p-10 text-center text-gray-400 italic">No data found</td>
+                <td colspan="7" class="p-10 text-center text-gray-400 italic">No data found</td>
             </tr>
         `;
         return;
@@ -420,7 +415,6 @@ function drawTableRows() {
                 <td class="p-3">${item.date ?? ''}</td>
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3">${item.client ?? ''}</td>
-                <td class="p-3">${item.tin ?? ''}</td>
                 <td class="p-3">${item.statement_type ?? ''}</td>
                 <td class="p-3 ${workflowBadgeClass(item.workflow_status)} font-medium">${workflowLabel(item.workflow_status)}</td>
                 <td class="p-3 ${approvalBadgeClass(item.approval_status)} font-medium">${approvalLabel(item.approval_status)}</td>
@@ -484,7 +478,6 @@ function openPreview(id) {
     document.getElementById('infoDate').textContent = item.date ?? '';
     document.getElementById('infoUser').textContent = item.user ?? '';
     document.getElementById('infoClient').textContent = item.client ?? '';
-    document.getElementById('infoTin').textContent = item.tin ?? '';
     document.getElementById('infoStatementType').textContent = item.statement_type ?? '';
     document.getElementById('infoWorkflow').textContent = item.workflow_status ?? '';
     document.getElementById('infoApproval').textContent = item.approval_status ?? '';
