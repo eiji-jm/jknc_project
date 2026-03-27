@@ -9,67 +9,15 @@ use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
-    public function userPermission()
-    {
-        return $this->hasOne(\App\Models\UserPermission::class);
-    }
-
-    public function hasPermission(string $permission): bool
-    {
-        if ($this->role === 'SuperAdmin') {
-            return true;
-        }
-
-        if (!Schema::hasTable('user_permissions') || !Schema::hasTable('role_permissions')) {
-            return $this->fallbackPermission($permission);
-        }
-
-        $userPermission = $this->userPermission;
-        if ($userPermission && isset($userPermission->{$permission})) {
-            return (bool) $userPermission->{$permission};
-        }
-
-        $rolePermission = \App\Models\RolePermission::where('role', $this->role)->first();
-
-        return $rolePermission ? (bool) $rolePermission->{$permission} : false;
-    }
-
-    private function fallbackPermission(string $permission): bool
-    {
-        if ($this->role === 'Admin') {
-            return in_array($permission, [
-                'manage_users',
-                'access_admin_dashboard',
-                'approve_townhall',
-                'create_townhall',
-                'create_corporate',
-                'approve_corporate',
-                'access_townhall',
-                'access_corporate',
-                'access_activities',
-                'access_contacts',
-                'access_company',
-            ], true);
-        }
-
-        return in_array($permission, [
-            'access_townhall',
-            'access_corporate',
-            'access_activities',
-            'access_contacts',
-            'access_company',
-            'create_townhall',
-            'create_corporate',
-        ], true);
-    }
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role'
+        'role',
+        'can_edit_user_roles',
+        'can_delete_users',
     ];
 
     protected $hidden = [
@@ -82,6 +30,55 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_edit_user_roles' => 'boolean',
+            'can_delete_users' => 'boolean',
         ];
+    }
+
+    public function userPermission()
+    {
+        return $this->hasOne(\App\Models\UserPermission::class);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return strtolower((string) $this->role) === 'superadmin';
+    }
+
+    public function isAdmin(): bool
+    {
+        return strtolower((string) $this->role) === 'admin';
+    }
+
+    public function canManageRoles(): bool
+    {
+        return $this->isSuperAdmin() || ($this->isAdmin() && $this->can_edit_user_roles);
+    }
+
+    public function canDeleteUsers(): bool
+    {
+        return $this->isSuperAdmin() || ($this->isAdmin() && $this->can_delete_users);
+    }
+
+    public function isClient()
+    {
+        return strtolower($this->role) === 'client';
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if (strtolower((string) $this->role) === 'superadmin') {
+            return true;
+        }
+
+        $userPermission = $this->userPermission;
+
+        if ($userPermission && isset($userPermission->{$permission})) {
+            return (bool) $userPermission->{$permission};
+        }
+
+        $rolePermission = \App\Models\RolePermission::where('role', $this->role)->first();
+
+        return $rolePermission ? (bool) $rolePermission->{$permission} : false;
     }
 }

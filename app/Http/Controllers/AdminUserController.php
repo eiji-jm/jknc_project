@@ -4,25 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class AdminUserController extends Controller
 {
     public function index()
     {
-        $authUser = Auth::user();
+        $authUser = auth()->user();
 
-        if (!in_array($authUser->role, ['SuperAdmin', 'Admin'])) {
-            abort(403, 'Unauthorized');
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
+            abort(403, 'Unauthorized.');
         }
 
-        if (!$authUser->hasPermission('manage_users')) {
-            abort(403, 'Unauthorized');
-        }
-
-        $users = User::where('role', '!=', 'SuperAdmin')
-            ->latest()
+        $users = User::whereRaw('LOWER(role) != ?', ['superadmin'])
+            ->orderBy('name')
             ->paginate(10);
 
         return view('admin.users', compact('users'));
@@ -30,20 +26,16 @@ class AdminUserController extends Controller
 
     public function store(Request $request)
     {
-        $authUser = Auth::user();
+        $authUser = auth()->user();
 
-        if (!in_array($authUser->role, ['SuperAdmin', 'Admin'])) {
-            abort(403, 'Unauthorized');
-        }
-
-        if (!$authUser->hasPermission('manage_users')) {
-            abort(403, 'Unauthorized');
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
+            abort(403, 'Unauthorized.');
         }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', 'in:Admin,Employee'],
+            'role' => ['required', Rule::in(['Admin', 'Employee', 'Client'])],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
@@ -52,10 +44,69 @@ class AdminUserController extends Controller
             'email' => $validated['email'],
             'role' => $validated['role'],
             'password' => Hash::make($validated['password']),
+            'can_edit_user_roles' => false,
+            'can_delete_users' => false,
         ]);
 
         return redirect()
             ->route('admin.users')
             ->with('success', 'User created successfully.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $authUser = auth()->user();
+        $user = User::findOrFail($id);
+
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
+            abort(403, 'You do not have permission to edit user roles.');
+        }
+
+        if ($user->isSuperAdmin()) {
+            return back()->with('error', 'Superadmin role cannot be modified here.');
+        }
+
+        $validated = $request->validate([
+            'role' => ['required', Rule::in(['Admin', 'Employee', 'Client'])],
+            'can_edit_user_roles' => ['nullable', 'boolean'],
+            'can_delete_users' => ['nullable', 'boolean'],
+        ]);
+
+        $user->role = $validated['role'];
+
+        if ($authUser->isSuperAdmin()) {
+            $user->can_edit_user_roles = $request->boolean('can_edit_user_roles');
+            $user->can_delete_users = $request->boolean('can_delete_users');
+        }
+
+        $user->save();
+
+        return redirect()
+            ->route('admin.users')
+            ->with('success', 'User updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $authUser = auth()->user();
+        $user = User::findOrFail($id);
+
+        if (!$authUser || !$authUser->hasPermission('manage_users')) {
+            abort(403, 'You do not have permission to delete users.');
+        }
+
+        if ($authUser->id === $user->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        if ($user->isSuperAdmin()) {
+            return back()->with('error', 'Superadmin cannot be deleted here.');
+        }
+
+        $user->delete();
+
+        return redirect()
+            ->route('admin.users')
+            ->with('success', 'User deleted successfully.');
     }
 }

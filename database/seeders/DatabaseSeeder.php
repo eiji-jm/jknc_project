@@ -173,6 +173,14 @@ class DatabaseSeeder extends Seeder
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
+        $this->call([
+            SuperAdminSeeder::class,
+        ]);
+        User::factory()->create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+
+
         ]);
 
         $journalId1 = DB::table('stock_transfer_journals')->insertGetId([

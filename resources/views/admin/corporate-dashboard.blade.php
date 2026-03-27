@@ -38,6 +38,12 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
 
         <div class="px-5 py-4 border-b border-gray-200">
@@ -95,6 +101,12 @@
                             <option value="SEC-AOI">SEC-AOI</option>
                             <option value="Bylaws">Bylaws</option>
                             <option value="GIS">GIS</option>
+                            <option value="LGU">LGU</option>
+                            <option value="Accounting">Accounting</option>
+                            <option value="Banking">Banking</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Correspondence">Correspondence</option>
+                            <option value="Legal">Legal</option>
                         </select>
                     </div>
 
@@ -134,7 +146,7 @@
                         <tr>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Ref#</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Module</th>
-                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Corporation</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Corporation / Record</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Company Reg No.</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Uploaded By</th>
                             <th class="px-4 py-3 border-r border-gray-200 font-semibold">Date Uploaded</th>
