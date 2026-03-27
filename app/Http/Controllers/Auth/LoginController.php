@@ -36,7 +36,7 @@ class LoginController extends Controller
                 return redirect()->route('admin.users');
             }
 
-            return redirect()->route('townhall');
+            return redirect()->route('corporate');
 
         }
 
