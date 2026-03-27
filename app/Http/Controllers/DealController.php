@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -235,33 +236,18 @@ class DealController extends Controller
 
     public function storeStage(Request $request): JsonResponse
     {
-        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+        $this->ensureDealStagesInfrastructure();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('deal_stages', 'name')],
-            'after_stage_id' => ['nullable', 'integer', 'exists:deal_stages,id'],
         ]);
 
-        $insertAfterId = (int) ($validated['after_stage_id'] ?? 0);
-        $stages = DealStage::query()->orderBy('order')->get();
-        $insertIndex = $insertAfterId > 0 ? max(0, $stages->search(fn (DealStage $stage) => $stage->id === $insertAfterId) + 1) : $stages->count();
-
-        $stages->splice($insertIndex, 0, [new DealStage([
+        $nextOrder = ((int) DealStage::query()->max('order')) + 1;
+        $createdStage = DealStage::query()->create([
             'name' => trim($validated['name']),
-            'order' => 0,
+            'order' => $nextOrder,
             'color' => null,
-        ])]);
-
-        foreach ($stages->values() as $index => $stage) {
-            if ($stage->exists) {
-                $stage->update(['order' => $index + 1]);
-            } else {
-                $stage->order = $index + 1;
-                $stage->save();
-            }
-        }
-
-        $createdStage = DealStage::query()->where('name', trim($validated['name']))->firstOrFail();
+        ]);
 
         return response()->json([
             'stage' => [
@@ -275,7 +261,7 @@ class DealController extends Controller
 
     public function updateStage(Request $request, DealStage $stage): JsonResponse
     {
-        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+        $this->ensureDealStagesInfrastructure();
 
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:100', Rule::unique('deal_stages', 'name')->ignore($stage->id)],
@@ -313,7 +299,7 @@ class DealController extends Controller
 
     public function moveStage(Request $request, DealStage $stage): JsonResponse
     {
-        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+        $this->ensureDealStagesInfrastructure();
 
         $validated = $request->validate([
             'direction' => ['required', 'in:left,right'],
@@ -338,7 +324,7 @@ class DealController extends Controller
 
     public function destroyStage(DealStage $stage): JsonResponse
     {
-        abort_unless(Schema::hasTable('deal_stages'), 500, 'Deal stages table is not available.');
+        $this->ensureDealStagesInfrastructure();
 
         if (DealStage::query()->count() <= 1) {
             return response()->json(['message' => 'At least one stage must remain.'], 422);
@@ -1006,6 +992,8 @@ class DealController extends Controller
 
     private function dealStages(): array
     {
+        $this->ensureDealStagesInfrastructure();
+
         $defaults = [
             ['id' => null, 'name' => 'Inquiry', 'order' => 1, 'color' => '#2563eb'],
             ['id' => null, 'name' => 'Qualification', 'order' => 2, 'color' => '#4f46e5'],
@@ -1016,10 +1004,6 @@ class DealController extends Controller
             ['id' => null, 'name' => 'Activation', 'order' => 7, 'color' => '#7c3aed'],
             ['id' => null, 'name' => 'Closed Lost', 'order' => 8, 'color' => '#dc2626'],
         ];
-
-        if (! Schema::hasTable('deal_stages')) {
-            return $defaults;
-        }
 
         $stages = DealStage::query()
             ->orderBy('order')
@@ -1054,6 +1038,19 @@ class DealController extends Controller
                 'color' => $stage->color,
             ])
             ->all();
+    }
+
+    private function ensureDealStagesInfrastructure(): void
+    {
+        if (! Schema::hasTable('deal_stages')) {
+            Schema::create('deal_stages', function (Blueprint $table) {
+                $table->id();
+                $table->string('name')->unique();
+                $table->unsignedInteger('order')->default(0);
+                $table->string('color')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     private function mockDeals(): array
@@ -1237,7 +1234,7 @@ class DealController extends Controller
         }
 
         return [
-            'stageOptions' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
+            'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $this->dealStages())),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,

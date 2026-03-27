@@ -166,7 +166,7 @@
     <button id="stageMiniModalOverlay" type="button" class="absolute inset-0 bg-slate-900/35"></button>
     <div class="absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
         <h3 id="stageMiniModalTitle" class="text-base font-semibold text-gray-900">New Stage</h3>
-        <p id="stageMiniModalSubtitle" class="mt-1 text-xs text-gray-500">Add a new stage to the current board.</p>
+        <p id="stageMiniModalSubtitle" class="mt-1 text-xs text-gray-500">Add a new stage at the end of the pipeline.</p>
         <textarea id="stageMiniModalInput" rows="3" class="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
         <p id="stageMiniModalError" class="mt-2 hidden text-xs text-red-600"></p>
         <div class="mt-4 flex items-center justify-end gap-2">
@@ -714,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stageModal.classList.remove('hidden');
         stageModal.setAttribute('aria-hidden', 'false');
         stageModalTitle.textContent = 'New Stage';
-        stageModalSubtitle.textContent = 'Add a new stage after the selected column.';
+        stageModalSubtitle.textContent = 'Add a new stage at the end of the pipeline.';
         stageModalInput.value = '';
         stageModalInput.rows = 1;
         stageModalInput.focus();
@@ -741,14 +741,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const payload = await api(`{{ route('deals.stages.store') }}`, 'POST', {
-            name: stageName,
-            after_stage_id: activeStageSection?.dataset.stageId || null,
-        });
+        const payload = await api(`{{ route('deals.stages.store') }}`, 'POST', { name: stageName });
         const wrapper = document.createElement('div');
         wrapper.innerHTML = stageColumnMarkup(payload.stage);
         const column = wrapper.firstElementChild;
-        activeStageSection?.insertAdjacentElement('afterend', column);
+        board?.appendChild(column);
         ensureStageOption(payload.stage.name);
         closeStageMiniModal();
         refreshAllStageMeta();
