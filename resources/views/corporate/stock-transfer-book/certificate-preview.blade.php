@@ -60,7 +60,9 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-6">
             <div class="lg:col-span-3">
-                @if (!empty($generatedPreviewUrl))
+                @if (!empty($liveTemplateUrl))
+                    <iframe src="{{ $liveTemplateUrl }}" class="w-full h-[700px] border rounded bg-white"></iframe>
+                @elseif (!empty($generatedPreviewUrl))
                     <iframe src="{{ $generatedPreviewUrl }}" class="w-full h-[700px] border rounded bg-white"></iframe>
                 @elseif ($documentUrl)
                     <iframe src="{{ $documentUrl }}" class="w-full h-[700px] border rounded bg-white"></iframe>

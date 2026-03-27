@@ -17,6 +17,7 @@ use App\Models\StockTransferInstallment;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 
 class StockTransferCertificateController extends Controller
@@ -407,15 +408,14 @@ class StockTransferCertificateController extends Controller
                 ->get()
             : collect();
 
-        $generatedPreviewPath = $this->generatePdfPreview(
-            'corporate.stock-transfer-book.certificate-pdf',
-            ['certificate' => $stockTransferCertificate],
-            'generated-previews/stock-transfer-book/certificates/' . ($stockTransferCertificate->stock_number ?: $stockTransferCertificate->id) . '.pdf'
-        );
+        $generatedPreviewPath = $stockTransferCertificate->document_path
+            ? null
+            : $this->generateCertificateTemplatePdf($stockTransferCertificate);
 
         return view('corporate.stock-transfer-book.certificate-preview', [
             'certificate' => $stockTransferCertificate,
             'generatedPreviewUrl' => $generatedPreviewPath ? route('uploads.show', ['path' => $generatedPreviewPath]) : null,
+            'liveTemplateUrl' => !$stockTransferCertificate->document_path ? route('stock-transfer-book.certificates.template', $stockTransferCertificate) : null,
             'relatedJournals' => $relatedJournals,
             'relatedLedgers' => $relatedLedgers,
             'relatedInstallments' => $relatedInstallments,
@@ -440,15 +440,84 @@ class StockTransferCertificateController extends Controller
                 ->with('warning', 'Voided certificates cannot be issued.');
         }
 
+        $documentPath = $stockTransferCertificate->document_path;
+
+        if (!$documentPath) {
+            $documentPath = $this->generateCertificateTemplatePdf(
+                $stockTransferCertificate,
+                null,
+                'uploads/stock-transfer-book/certificates/' . ($stockTransferCertificate->stock_number ?: $stockTransferCertificate->id) . '.pdf'
+            );
+
+            if (!$documentPath) {
+                $documentPath = $this->ensureDefaultCertificateTemplatePreview(
+                    $stockTransferCertificate,
+                    'uploads/stock-transfer-book/certificates/' . ($stockTransferCertificate->stock_number ?: $stockTransferCertificate->id) . '.pdf'
+                );
+            }
+        }
+
         $stockTransferCertificate->update([
             'status' => 'issued',
             'released_at' => $stockTransferCertificate->released_at ?: now(),
             'date_issued' => $stockTransferCertificate->date_issued ?: now()->toDateString(),
+            'document_path' => $documentPath,
         ]);
 
         return redirect()
             ->route('stock-transfer-book.certificates.show', $stockTransferCertificate)
             ->with('success', 'Certificate issued and locked for editing.');
+    }
+
+    public function templatePreview(StockTransferCertificate $stockTransferCertificate)
+    {
+        return view('corporate.stock-transfer-book.certificate-template-pdf', [
+            'certificate' => $stockTransferCertificate,
+        ]);
+    }
+
+    protected function ensureDefaultCertificateTemplatePreview(StockTransferCertificate $certificate, ?string $targetPath = null): ?string
+    {
+        $templatePath = resource_path('doc_templates/Certificate-for-Shares-of-the-Capital-Stock.pdf');
+
+        if (!is_file($templatePath)) {
+            return null;
+        }
+
+        $targetPath = $targetPath ?: 'generated-previews/stock-transfer-book/certificates/' . ($certificate->stock_number ?: $certificate->id) . '.pdf';
+
+        Storage::disk('public')->put($targetPath, file_get_contents($templatePath));
+
+        return $targetPath;
+    }
+
+    protected function ensureCertificateTemplateAsset(): ?string
+    {
+        $templatePath = resource_path('doc_templates/Certificate-for-Shares-of-the-Capital-Stock.pdf');
+
+        if (!is_file($templatePath)) {
+            return null;
+        }
+
+        $targetPath = 'generated-previews/stock-transfer-book/certificates/_template/certificate-of-shares-capital-stock.pdf';
+
+        if (!Storage::disk('public')->exists($targetPath)) {
+            Storage::disk('public')->put($targetPath, file_get_contents($templatePath));
+        }
+
+        return $targetPath;
+    }
+
+    protected function generateCertificateTemplatePdf(StockTransferCertificate $certificate, ?string $templatePdfUrl = null, ?string $targetPath = null): ?string
+    {
+        return $this->generatePdfPreview(
+            'corporate.stock-transfer-book.certificate-template-pdf',
+            [
+                'certificate' => $certificate,
+                'templatePdfUrl' => $templatePdfUrl,
+            ],
+            $targetPath ?: 'generated-previews/stock-transfer-book/certificates/' . ($certificate->stock_number ?: $certificate->id) . '.pdf'
+        );
     }
 
     public function edit(StockTransferCertificate $stockTransferCertificate)
