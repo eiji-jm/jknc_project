@@ -1,35 +1,44 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AdminDashboardController;
-use App\Http\Controllers\AdminUserController;
-use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\BirTaxController;
+use App\Http\Controllers\TownHallController;
+use App\Http\Controllers\GisController;
+use App\Http\Controllers\CorporateFormationController;
+use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
+use App\Http\Controllers\DirectorOfficerController;
+use App\Http\Controllers\StockholderController;
+use App\Http\Controllers\UltimateBeneficialOwnerController;
+use App\Http\Controllers\CorporateApprovalController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\AdminUserPermissionController;
+use App\Http\Controllers\StockTransferBookController;
+use App\Http\Controllers\PermitController;
+use App\Http\Controllers\CorrespondenceController;
+use App\Http\Controllers\AccountingController;
+use App\Http\Controllers\BankingController;
+use App\Http\Controllers\OperationController;
+use App\Http\Controllers\LegalController;
+
+/* added from your member's web.php */
+use App\Http\Controllers\BirTaxController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CorporateDocumentDefaultsController;
-use App\Http\Controllers\CorporateApprovalController;
-use App\Http\Controllers\CorporateFormationController;
-use App\Http\Controllers\DirectorOfficerController;
-use App\Http\Controllers\GisController;
 use App\Http\Controllers\MinuteController;
 use App\Http\Controllers\NatGovController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\ResolutionController;
-use App\Http\Controllers\RolePermissionController;
-use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\SecretaryCertificateController;
 use App\Http\Controllers\StockTransferCertificateController;
 use App\Http\Controllers\StockTransferInstallmentController;
 use App\Http\Controllers\StockTransferJournalController;
 use App\Http\Controllers\StockTransferLedgerController;
 use App\Http\Controllers\StockTransferLookupController;
-use App\Http\Controllers\StockholderController;
-use App\Http\Controllers\TownHallController;
-use App\Http\Controllers\UltimateBeneficialOwnerController;
 use App\Http\Controllers\UploadedFileController;
 
 Route::get('/', function () {
@@ -38,28 +47,39 @@ Route::get('/', function () {
 
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->name('login.post');
+
 Route::get('/register', [RegisterController::class, 'show'])->name('register');
 Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
+
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Uploaded Files
+    |--------------------------------------------------------------------------
+    */
     Route::get('/uploads/{path}', [UploadedFileController::class, 'show'])
         ->where('path', '.*')
         ->name('uploads.show');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | Admin
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
     Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+
     Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
     Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
+
     Route::get('/admin/user-permissions', [AdminUserPermissionController::class, 'index'])->name('admin.user-permissions');
     Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
     Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
+
     Route::get('/admin/corporate-dashboard', [CorporateApprovalController::class, 'dashboard'])->name('admin.corporate.dashboard');
     Route::post('/admin/corporate-approvals/{module}/{id}/approve', [CorporateApprovalController::class, 'approve'])->name('corporate.approvals.approve');
     Route::post('/admin/corporate-approvals/{module}/{id}/reject', [CorporateApprovalController::class, 'reject'])->name('corporate.approvals.reject');
@@ -67,9 +87,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])->name('corporate.approvals.archive');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | Town Hall
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
     Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
@@ -79,9 +99,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
 
     /*
-    |----------------------------------------------------------------------
-    | Corporate
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
+    | Corporate - Company Information / GIS
+    |--------------------------------------------------------------------------
     */
     Route::get('/corporate', [GisController::class, 'companyInfo'])->name('corporate');
     Route::get('/corporate/company-general-information', [GisController::class, 'companyInfo'])->name('corporate.companyinfo');
@@ -94,14 +114,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/corporate/gis/capital-structure', [GisController::class, 'capitalStructure'])->name('gis.capital');
     Route::get('/corporate/gis/directors-officers', [GisController::class, 'directorsOfficers'])->name('gis.directors');
     Route::get('/corporate/gis/stockholders', [GisController::class, 'stockholders'])->name('gis.stockholders');
+
     Route::post('/gis/authorized/store', [CapitalStructureController::class, 'storeAuthorized'])->name('authorized.store');
     Route::post('/gis/subscribed/store', [CapitalStructureController::class, 'storeSubscribed'])->name('subscribed.store');
     Route::post('/gis/paidup/store', [CapitalStructureController::class, 'storePaidup'])->name('paidup.store');
     Route::post('/gis/director/store', [DirectorOfficerController::class, 'store'])->name('director.store');
     Route::post('/gis/stockholder/store', [StockholderController::class, 'store'])->name('stockholder.store');
+
     Route::post('/corporate/gis/{id}/upload-draft-file', [GisController::class, 'uploadDraftFile'])->name('corporate.gis.upload.draft');
     Route::post('/corporate/gis/{id}/upload-notary-file', [GisController::class, 'uploadNotaryFile'])->name('corporate.gis.upload.notary');
+    Route::post('/corporate/gis/{id}/submit', [GisController::class, 'submit'])->name('corporate.gis.submit');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Corporate Formation / SEC AOI / Bylaws
+    |--------------------------------------------------------------------------
+    */
     Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])->name('corporate.formation');
     Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])->name('corporate.formation.store');
     Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])->name('corporate.formation.show');
@@ -125,9 +153,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/corporate/bylaws/{id}/submit', [BylawController::class, 'submit'])->name('corporate.bylaws.submit');
 
     /*
-    |----------------------------------------------------------------------
-    | UBO / Contacts / STB
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
+    | UBO
+    |--------------------------------------------------------------------------
     */
     Route::get('/corporate/ubo', [UltimateBeneficialOwnerController::class, 'index'])->name('corporate.ubo');
     Route::get('/corporate/ubo/create', [UltimateBeneficialOwnerController::class, 'create'])->name('corporate.ubo.create');
@@ -137,6 +165,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/corporate/ubo/{ultimateBeneficialOwner}', [UltimateBeneficialOwnerController::class, 'update'])->name('corporate.ubo.update');
     Route::delete('/corporate/ubo/{ultimateBeneficialOwner}', [UltimateBeneficialOwnerController::class, 'destroy'])->name('corporate.ubo.destroy');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Contacts
+    |--------------------------------------------------------------------------
+    */
     Route::get('/contacts', [ContactController::class, 'index'])->name('contacts');
     Route::get('/contacts/create', [ContactController::class, 'create'])->name('contacts.create');
     Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
@@ -145,9 +178,16 @@ Route::middleware('auth')->group(function () {
     Route::put('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stock Transfer Book
+    |--------------------------------------------------------------------------
+    */
     Route::get('/stock-transfer-book', function () {
         return redirect()->route('stock-transfer-book.journal');
     })->name('stock-transfer-book');
+
+    Route::get('/stock-transfer-book/index', [StockTransferLedgerController::class, 'indexPage'])->name('stock-transfer-book.index');
 
     Route::get('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'index'])->name('stock-transfer-book.ledger');
     Route::get('/stock-transfer-book/ledger/create', [StockTransferLedgerController::class, 'create'])->name('stock-transfer-book.ledger.create');
@@ -156,7 +196,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-transfer-book/ledger/{stockTransferLedger}/edit', [StockTransferLedgerController::class, 'edit'])->name('stock-transfer-book.ledger.edit');
     Route::put('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'update'])->name('stock-transfer-book.ledger.update');
     Route::delete('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'destroy'])->name('stock-transfer-book.ledger.destroy');
-    Route::get('/stock-transfer-book/index', [StockTransferLedgerController::class, 'indexPage'])->name('stock-transfer-book.index');
 
     Route::get('/stock-transfer-book/journal', [StockTransferJournalController::class, 'index'])->name('stock-transfer-book.journal');
     Route::get('/stock-transfer-book/journal/create', [StockTransferJournalController::class, 'create'])->name('stock-transfer-book.journal.create');
@@ -184,17 +223,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}/edit', [StockTransferCertificateController::class, 'edit'])->name('stock-transfer-book.certificates.edit');
     Route::put('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'update'])->name('stock-transfer-book.certificates.update');
     Route::delete('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'destroy'])->name('stock-transfer-book.certificates.destroy');
+
     Route::post('/stock-transfer-book/certificates/requests', [StockTransferCertificateController::class, 'storeRequest'])->name('stock-transfer-book.certificates.requests.store');
     Route::get('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}', [StockTransferCertificateController::class, 'showRequest'])->name('stock-transfer-book.certificates.requests.show');
     Route::post('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}/approve', [StockTransferCertificateController::class, 'approveRequest'])->name('stock-transfer-book.certificates.requests.approve');
+
     Route::get('/stock-transfer-book/lookup', [StockTransferLookupController::class, 'lookup'])->name('stock-transfer-book.lookup');
     Route::get('/stock-transfer-book/defaults', [StockTransferLookupController::class, 'defaults'])->name('stock-transfer-book.defaults');
+
     Route::get('/corporate-document-defaults', CorporateDocumentDefaultsController::class)->name('corporate-document-defaults');
 
     /*
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | Corporate Registers
-    |----------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
     Route::get('/notices', [NoticeController::class, 'index'])->name('notices');
     Route::get('/notices/create', [NoticeController::class, 'create'])->name('notices.create');
@@ -250,4 +292,83 @@ Route::middleware('auth')->group(function () {
     Route::put('/natgov/{natgov}', [NatGovController::class, 'update'])->name('natgov.update');
     Route::post('/natgov/{natgov}/authority-notes', [NatGovController::class, 'storeAuthorityNote'])->name('natgov.notes.store');
     Route::delete('/natgov/{natgov}', [NatGovController::class, 'destroy'])->name('natgov.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | LGU / Permits
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/corporate/lgu', [PermitController::class, 'page'])->name('corporate.lgu');
+
+    Route::get('/permits', [PermitController::class, 'index'])->name('permits.index');
+    Route::post('/permits', [PermitController::class, 'store'])->name('permits.store');
+    Route::get('/permits/{id}', [PermitController::class, 'show'])->name('permits.show');
+    Route::put('/permits/{id}/update', [PermitController::class, 'update'])->name('permits.update');
+    Route::post('/permits/{id}/upload-document', [PermitController::class, 'uploadDocument'])->name('permits.upload.document');
+    Route::post('/permits/{id}/submit', [PermitController::class, 'submit'])->name('permits.submit');
+
+    Route::get('/permits/template/mayors-permit/{id}', [PermitController::class, 'showMayorPermitTemplate'])->name('permits.template.mayors-permit');
+    Route::get('/permits/template/barangay-business-permit/{id}', [PermitController::class, 'showBarangayBusinessPermitTemplate'])->name('permits.template.barangay-business-permit');
+    Route::get('/permits/template/fire-permit/{id}', [PermitController::class, 'showFirePermitTemplate'])->name('permits.template.fire-permit');
+    Route::get('/permits/template/sanitary-permit/{id}', [PermitController::class, 'showSanitaryPermitTemplate'])->name('permits.template.sanitary-permit');
+    Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accounting
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting');
+    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+    Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');
+    Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
+    Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Banking
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/banking', [BankingController::class, 'index'])->name('banking');
+    Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
+    Route::get('/banking/{id}', [BankingController::class, 'show'])->name('banking.show');
+    Route::put('/banking/{id}/update', [BankingController::class, 'update'])->name('banking.update');
+    Route::post('/banking/{id}/submit', [BankingController::class, 'submit'])->name('banking.submit');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Legal
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/legal', [LegalController::class, 'index'])->name('legal');
+    Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
+    Route::get('/legal/{id}', [LegalController::class, 'show'])->name('legal.show');
+    Route::put('/legal/{id}/update', [LegalController::class, 'update'])->name('legal.update');
+    Route::post('/legal/{id}/submit', [LegalController::class, 'submit'])->name('legal.submit');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Operations
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/operations', [OperationController::class, 'index'])->name('operations');
+    Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
+    Route::get('/operations/{id}', [OperationController::class, 'show'])->name('operations.show');
+    Route::put('/operations/{id}/update', [OperationController::class, 'update'])->name('operations.update');
+    Route::post('/operations/{id}/submit', [OperationController::class, 'submit'])->name('operations.submit');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Correspondence
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/correspondence', [CorrespondenceController::class, 'index'])->name('correspondence');
+    Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
+    Route::post('/correspondence', [CorrespondenceController::class, 'store'])->name('correspondence.store');
+    Route::get('/correspondence/{id}', [CorrespondenceController::class, 'show'])->name('correspondence.show');
+    Route::put('/correspondence/{id}/update', [CorrespondenceController::class, 'update'])->name('correspondence.update');
+    Route::post('/correspondence/{id}/submit', [CorrespondenceController::class, 'submit'])->name('correspondence.submit');
+
+    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
+    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
 });
