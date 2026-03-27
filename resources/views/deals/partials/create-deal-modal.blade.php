@@ -110,9 +110,192 @@
         'Internal Approval',
     ];
     $selectedServiceAreas = old('service_area_options', $draft['service_area_options'] ?? []);
-    $selectedServices = old('service_options', $draft['service_options'] ?? []);
-    $selectedProducts = old('product_options', $draft['product_options'] ?? []);
+    if (! is_array($selectedServiceAreas)) {
+        $selectedServiceAreas = [];
+    }
+    $serviceAreaOtherEntries = old('service_area_other', $draft['service_area_other'] ?? []);
+    if (! is_array($serviceAreaOtherEntries)) {
+        $serviceAreaOtherEntries = is_string($serviceAreaOtherEntries) && trim($serviceAreaOtherEntries) !== ''
+            ? [trim($serviceAreaOtherEntries)]
+            : [];
+    }
+    if (count($serviceAreaOtherEntries) === 0) {
+        $serviceAreaOtherEntries = collect($selectedServiceAreas)
+            ->filter(fn ($value): bool => is_string($value) && Str::startsWith(trim((string) $value), 'Others: '))
+            ->map(fn ($value): string => trim(Str::after(trim((string) $value), 'Others: ')))
+            ->filter(fn ($value): bool => $value !== '')
+            ->values()
+            ->all();
+    }
+    $serviceAreaOtherEntries = collect($serviceAreaOtherEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $selectedServiceAreas = collect($selectedServiceAreas)
+        ->filter(fn ($value): bool => is_string($value) && ! Str::startsWith(trim((string) $value), 'Others: '))
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    if (count($serviceAreaOtherEntries) > 0 && ! in_array('Others', $selectedServiceAreas, true)) {
+        $selectedServiceAreas[] = 'Others';
+    }
+    $rawSelectedServices = old('service_options', $draft['service_options'] ?? []);
+    if (! is_array($rawSelectedServices)) {
+        $rawSelectedServices = [];
+    }
+    $selectedServices = collect($rawSelectedServices)
+        ->filter(fn ($value): bool => is_string($value) && ! Str::startsWith(trim($value), ['Custom: ', 'Others: ']))
+        ->values()
+        ->all();
+    $serviceIdentificationCustomEntries = old('service_identification_custom');
+    if (! is_array($serviceIdentificationCustomEntries)) {
+        $serviceIdentificationCustomEntries = collect($rawSelectedServices)
+            ->filter(fn ($value): bool => is_string($value) && Str::startsWith(trim($value), ['Custom: ', 'Others: ']))
+            ->map(function ($value): string {
+                $clean = trim((string) $value);
+                if (Str::startsWith($clean, 'Custom: ')) {
+                    return trim(Str::after($clean, 'Custom: '));
+                }
+
+                return trim(Str::after($clean, 'Others: '));
+            })
+            ->filter(fn ($value): bool => $value !== '')
+            ->values()
+            ->all();
+    }
+    $legacyServicesOther = old('services_other', $draft['services_other'] ?? []);
+    if (is_string($legacyServicesOther) && trim($legacyServicesOther) !== '') {
+        array_unshift($serviceIdentificationCustomEntries, trim($legacyServicesOther));
+    } elseif (is_array($legacyServicesOther)) {
+        foreach ($legacyServicesOther as $legacyServiceOtherEntry) {
+            if (is_string($legacyServiceOtherEntry) && trim($legacyServiceOtherEntry) !== '') {
+                array_unshift($serviceIdentificationCustomEntries, trim($legacyServiceOtherEntry));
+            }
+        }
+    }
+    $serviceIdentificationCustomEntries = collect($serviceIdentificationCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasServiceIdentificationCustomEntries = count($serviceIdentificationCustomEntries) > 0;
+    $showServiceIdentificationCustomEntries = $hasServiceIdentificationCustomEntries;
+    $rawSelectedProducts = old('product_options', $draft['product_options'] ?? []);
+    if (! is_array($rawSelectedProducts)) {
+        $rawSelectedProducts = [];
+    }
+    $selectedProducts = collect($rawSelectedProducts)
+        ->filter(fn ($value): bool => is_string($value) && ! Str::startsWith(trim($value), ['Custom: ', 'Others: ']))
+        ->values()
+        ->all();
+    $selectedProductCustomEntries = old('products_other_entries');
+    if (! is_array($selectedProductCustomEntries)) {
+        $selectedProductCustomEntries = collect($rawSelectedProducts)
+            ->filter(fn ($value): bool => is_string($value) && Str::startsWith(trim($value), ['Custom: ', 'Others: ']))
+            ->map(function ($value): string {
+                $clean = trim((string) $value);
+                if (Str::startsWith($clean, 'Custom: ')) {
+                    return trim(Str::after($clean, 'Custom: '));
+                }
+
+                return trim(Str::after($clean, 'Others: '));
+            })
+            ->filter(fn ($value): bool => $value !== '')
+            ->values()
+            ->all();
+    }
+    $legacyProductsOther = old('products_other', $draft['products_other'] ?? '');
+    if (is_string($legacyProductsOther) && trim($legacyProductsOther) !== '') {
+        array_unshift($selectedProductCustomEntries, trim($legacyProductsOther));
+    }
+    $selectedProductCustomEntries = collect($selectedProductCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasCustomProductEntries = count($selectedProductCustomEntries) > 0;
+    if ($hasCustomProductEntries && ! in_array('Others', $selectedProducts, true)) {
+        $selectedProducts[] = 'Others';
+    }
     $selectedRequiredActions = old('required_actions_options', $draft['required_actions_options'] ?? []);
+    $requiredActionsCustomEntries = old('required_actions_custom', $draft['required_actions_custom'] ?? []);
+    if (! is_array($requiredActionsCustomEntries)) {
+        $requiredActionsCustomEntries = [];
+    }
+    $legacyRequiredActionsOther = old('required_actions_other', $draft['required_actions_other'] ?? '');
+    if (is_string($legacyRequiredActionsOther) && trim($legacyRequiredActionsOther) !== '') {
+        array_unshift($requiredActionsCustomEntries, trim($legacyRequiredActionsOther));
+    }
+    $requiredActionsCustomEntries = collect($requiredActionsCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasRequiredActionsCustomEntries = count($requiredActionsCustomEntries) > 0;
+    $showRequiredActionsCustomEntries = $hasRequiredActionsCustomEntries || filled($legacyRequiredActionsOther);
+    $clientRequirementsCustomEntries = old('client_requirements_custom', $draft['client_requirements_custom'] ?? []);
+    if (! is_array($clientRequirementsCustomEntries)) {
+        $clientRequirementsCustomEntries = [];
+    }
+    $clientRequirementsCustomEntries = collect($clientRequirementsCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasClientRequirementsCustomEntries = count($clientRequirementsCustomEntries) > 0;
+    $clientRequirementsOthersStatus = old(
+        'requirements_status.others',
+        data_get($draft, 'requirements_status_map.others', data_get($draft, 'requirements_status.others'))
+    );
+    if ($hasClientRequirementsCustomEntries && ! in_array($clientRequirementsOthersStatus, ['provided', 'pending'], true)) {
+        $clientRequirementsOthersStatus = 'pending';
+    }
+    $showClientRequirementsCustomEntries = in_array($clientRequirementsOthersStatus, ['provided', 'pending'], true) || $hasClientRequirementsCustomEntries;
+    $parsedClientRequirementCustomRows = collect($clientRequirementsCustomEntries)->map(function ($entry) {
+        $raw = trim((string) $entry);
+        if ($raw === '') {
+            return null;
+        }
+
+        if (preg_match('/^Other:\s*(.*?)\s*\|\s*(Provided|Pending)$/i', $raw, $matches) === 1) {
+            return [
+                'label' => trim($matches[1]),
+                'status' => strtolower(trim($matches[2])) === 'provided' ? 'provided' : 'pending',
+                'raw' => 'Other: '.trim($matches[1]).' | '.(strtolower(trim($matches[2])) === 'provided' ? 'Provided' : 'Pending'),
+            ];
+        }
+
+        return [
+            'label' => Str::startsWith($raw, 'Other: ') ? trim(Str::after($raw, 'Other: ')) : $raw,
+            'status' => 'pending',
+            'raw' => Str::startsWith($raw, 'Other: ') ? $raw.' | Pending' : 'Other: '.$raw.' | Pending',
+        ];
+    })->filter()->values()->all();
+    $paymentTermsCustomEntries = old('payment_terms_custom', $draft['payment_terms_custom'] ?? []);
+    if (! is_array($paymentTermsCustomEntries)) {
+        $paymentTermsCustomEntries = [];
+    }
+    $legacyPaymentTermsOther = old('payment_terms_other', $draft['payment_terms_other'] ?? '');
+    if (is_string($legacyPaymentTermsOther) && trim($legacyPaymentTermsOther) !== '' && ! Str::startsWith(trim($legacyPaymentTermsOther), 'Custom: ')) {
+        array_unshift($paymentTermsCustomEntries, trim($legacyPaymentTermsOther));
+    }
+    $paymentTermsCustomEntries = collect($paymentTermsCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(function ($value): string {
+            $clean = trim((string) $value);
+            return Str::startsWith($clean, 'Custom: ') ? trim(Str::after($clean, 'Custom: ')) : $clean;
+        })
+        ->filter(fn ($value): bool => $value !== '')
+        ->unique()
+        ->values()
+        ->all();
+    $hasPaymentTermsCustomEntries = count($paymentTermsCustomEntries) > 0;
     $selectedSupportRequired = old('support_required_options', $draft['support_required_options'] ?? []);
     $selectedOwner = collect($owners)->firstWhere('id', (int) old('owner_id', $defaultOwnerId)) ?: collect($owners)->first();
     $selectedOwnerId = (int) ($selectedOwner['id'] ?? $defaultOwnerId ?? 0);
@@ -297,14 +480,22 @@
                                     <div class="grid gap-2 sm:grid-cols-2">
                                         @foreach ($serviceAreaOptions as $option)
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="deal_service_area_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="service-area-other-wrapper" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                 <span>{{ $option }}</span>
                                             </label>
                                         @endforeach
                                     </div>
-                                    <div id="deal_service_area_other_wrap" class="{{ in_array('Others', $selectedServiceAreas, true) ? '' : 'hidden' }} mt-3">
-                                        <label for="service_area_other" class="mb-1 block text-sm font-medium text-gray-700">Others (Indicate Areas)</label>
-                                        <input id="service_area_other" name="service_area_other" value="{{ old('service_area_other', $draft['service_area_other'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <div id="service-area-other-wrapper" class="other-wrapper {{ (in_array('Others', $selectedServiceAreas, true) || count($serviceAreaOtherEntries) > 0) ? '' : 'hidden' }} mt-2">
+                                        <input id="service-area-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="service_area_other[]" placeholder="Enter custom service area and press Enter">
+                                        <div id="service-area-other-tags" class="tags-container mt-2 flex flex-wrap gap-2">
+                                            @foreach ($serviceAreaOtherEntries as $item)
+                                                <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
+                                                    <span>{{ $item }}</span>
+                                                    <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
+                                                    <input type="hidden" name="service_area_other[]" value="{{ $item }}">
+                                                </span>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 </div>
 
@@ -325,9 +516,21 @@
                                             </div>
                                         @endforeach
                                     </div>
-                                    <div>
-                                        <label for="services_other" class="mb-1 block text-sm font-medium text-gray-700">Others (Indicate Services)</label>
-                                        <input id="services_other" name="services_other" value="{{ old('services_other', $draft['services_other'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                        <input id="services-other-toggle" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $showServiceIdentificationCustomEntries ? 'checked' : '' }}>
+                                        <span>Others</span>
+                                    </label>
+                                    <div id="services-other-wrapper" class="other-wrapper {{ $showServiceIdentificationCustomEntries ? '' : 'hidden' }} mt-2 space-y-2">
+                                        <input id="services-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="services_other[]" placeholder="Enter custom service and press Enter">
+                                        <div id="services-other-tags" class="tags-container flex flex-wrap gap-2">
+                                            @foreach ($serviceIdentificationCustomEntries as $customEntry)
+                                                <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
+                                                    <span>{{ $customEntry }}</span>
+                                                    <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
+                                                    <input type="hidden" name="services_other[]" value="{{ $customEntry }}">
+                                                </span>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -343,11 +546,25 @@
                                     </label>
                                 @endforeach
                             </div>
-                            <div id="deal_products_other_wrap" class="{{ in_array('Others', $selectedProducts, true) ? '' : 'hidden' }} mt-3">
-                                <label for="products_other" class="mb-1 block text-sm font-medium text-gray-700">Others (Indicate Product)</label>
-                                <input id="products_other" name="products_other" value="{{ old('products_other', $draft['products_other'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            <div id="deal_products_other_wrap" class="other-wrapper {{ (in_array('Others', $selectedProducts, true) || $hasCustomProductEntries) ? '' : 'hidden' }} mt-3">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Others (Custom Product)</label>
+                                <input id="products-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="products_other_entries[]" placeholder="Enter custom product and press Enter">
+                                <div id="products-other-tags" class="tags-container mt-2 flex flex-wrap gap-2">
+                                    @foreach ($selectedProductCustomEntries as $customEntry)
+                                        <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
+                                            <span>{{ $customEntry }}</span>
+                                            <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
+                                            <input type="hidden" name="products_other_entries[]" value="{{ $customEntry }}">
+                                        </span>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div class="mt-3">
+                        </section>
+
+                        <section class="rounded-2xl border border-gray-200 p-4">
+                            <h3 class="text-base font-semibold text-gray-900">Scope of Work</h3>
+                            <p class="mb-2 text-xs text-gray-500">Describe the detailed scope of the engagement</p>
+                            <div>
                                 <label for="scope_of_work" class="mb-1 block text-sm font-medium text-gray-700">Scope of Work</label>
                                 <textarea id="scope_of_work" name="scope_of_work" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('scope_of_work', $draft['scope_of_work'] ?? '') }}</textarea>
                             </div>
@@ -368,7 +585,7 @@
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Client Requirements</h3>
                             <div class="mt-3 overflow-x-auto">
-                                <table class="min-w-full border border-gray-200 text-sm">
+                                <table id="clientRequirementsTable" class="min-w-full border border-gray-200 text-sm">
                                     <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-600">
                                         <tr>
                                             <th class="border border-gray-200 px-3 py-2 text-left">Requirement</th>
@@ -383,19 +600,40 @@
                                                     "requirements_status.$key",
                                                     data_get($draft, "requirements_status_map.$key", data_get($draft, "requirements_status.$key"))
                                                 );
+                                                if ($key === 'others' && ! in_array($current, ['provided', 'pending'], true)) {
+                                                    $current = $clientRequirementsOthersStatus;
+                                                }
                                             @endphp
-                                            <tr>
+                                            <tr @if ($key === 'others') data-client-others-row @endif>
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" @if ($key === 'others') data-client-others-radio @endif>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500">
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" @if ($key === 'others') data-client-others-radio @endif>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        @foreach ($parsedClientRequirementCustomRows as $index => $customRow)
+                                            <tr data-client-custom-row data-client-custom-label="{{ $customRow['label'] }}">
+                                                <td class="border border-gray-200 px-3 py-2 text-gray-700">
+                                                    Other: {{ $customRow['label'] }}
+                                                    <input type="hidden" name="client_requirements_custom[]" value="{{ $customRow['raw'] }}" data-client-custom-hidden>
+                                                    <button type="button" class="ml-2 text-xs text-gray-500 hover:text-gray-700" data-client-custom-remove>&times;</button>
+                                                </td>
+                                                <td class="border border-gray-200 px-3 py-2 text-center">
+                                                    <input type="radio" name="client_requirements_custom_status_{{ $index }}" value="provided" @checked(($customRow['status'] ?? 'pending') === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-custom-status="provided">
+                                                </td>
+                                                <td class="border border-gray-200 px-3 py-2 text-center">
+                                                    <input type="radio" name="client_requirements_custom_status_{{ $index }}" value="pending" @checked(($customRow['status'] ?? 'pending') === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-custom-status="pending">
                                                 </td>
                                             </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
+                            </div>
+                            <div id="client_requirements_container" class="{{ $showClientRequirementsCustomEntries ? '' : 'hidden' }} mt-3">
+                                <input id="client_requirements_input" type="text" placeholder="Enter custom requirement and press Enter" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                             </div>
                         </section>
 
@@ -408,10 +646,22 @@
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                    <input id="required_actions_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $showRequiredActionsCustomEntries ? 'checked' : '' }}>
+                                    <span>Others</span>
+                                </label>
                             </div>
-                            <div class="mt-3">
-                                <label for="required_actions_other" class="mb-1 block text-sm font-medium text-gray-700">Other Internal Requirements</label>
-                                <textarea id="required_actions_other" name="required_actions_other" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('required_actions_other', $draft['required_actions_other'] ?? '') }}</textarea>
+                            <div id="required_actions_container" class="other-wrapper {{ $showRequiredActionsCustomEntries ? '' : 'hidden' }} mt-3">
+                                <input id="required_actions_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="required_actions_custom[]" placeholder="Enter custom required action and press Enter">
+                                <div id="required_actions_tags" class="tags-container mt-2 flex flex-wrap gap-2">
+                                    @foreach ($requiredActionsCustomEntries as $customEntry)
+                                        <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
+                                            <span>{{ $customEntry }}</span>
+                                            <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
+                                            <input type="hidden" name="required_actions_custom[]" value="{{ $customEntry }}">
+                                        </span>
+                                    @endforeach
+                                </div>
                             </div>
                         </section>
 
@@ -435,9 +685,19 @@
                                     </label>
                                 @endforeach
                             </div>
-                            <div id="deal_payment_terms_other_wrap" class="{{ old('payment_terms', $draft['payment_terms'] ?? '') === 'Others' ? '' : 'hidden' }} mt-3">
-                                <label for="payment_terms_other" class="mb-1 block text-sm font-medium text-gray-700">Other Payment Terms</label>
-                                <input id="payment_terms_other" name="payment_terms_other" value="{{ old('payment_terms_other', $draft['payment_terms_other'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            <div id="deal_payment_terms_other_wrap" class="{{ old('payment_terms', $draft['payment_terms'] ?? '') === 'Others' || $hasPaymentTermsCustomEntries ? '' : 'hidden' }} mt-3">
+                                <div id="payment_terms_container">
+                                    <input id="payment_terms_input" type="text" placeholder="Enter custom payment term and press Enter" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="payment_terms_custom[]">
+                                    <div id="payment_terms_tags" class="mt-2 flex flex-wrap gap-2">
+                                        @foreach ($paymentTermsCustomEntries as $customEntry)
+                                            <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
+                                                <span>{{ $customEntry }}</span>
+                                                <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
+                                                <input type="hidden" name="payment_terms_custom[]" value="{{ $customEntry }}">
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                         </section>
                         <section class="rounded-2xl border border-gray-200 p-4">
@@ -663,6 +923,227 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
+    const createTag = (value, inputName) => {
+        const wrapper = document.createElement('span');
+        wrapper.className = 'custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700';
+        wrapper.setAttribute('data-tag-item', '');
+
+        const text = document.createElement('span');
+        text.textContent = value;
+        wrapper.appendChild(text);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-tag text-gray-500 hover:text-gray-700';
+        removeBtn.setAttribute('data-tag-remove', '');
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => {
+            wrapper.remove();
+        });
+        wrapper.appendChild(removeBtn);
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = inputName;
+        hidden.value = value;
+        wrapper.appendChild(hidden);
+
+        return wrapper;
+    };
+
+    const initOthersTagInput = ({
+        triggerElements,
+        container,
+        input,
+        tagsContainer,
+        inputName,
+        isEnabled,
+    }) => {
+        if (!container || !input || !tagsContainer) {
+            return;
+        }
+        const resolvedInputName = inputName || input.dataset.name;
+        if (!resolvedInputName) {
+            return;
+        }
+
+        const existingTagRemovers = Array.from(tagsContainer.querySelectorAll('[data-tag-remove]'));
+        existingTagRemovers.forEach((button) => {
+            button.addEventListener('click', () => {
+                button.closest('[data-tag-item]')?.remove();
+            });
+        });
+
+        const syncVisibility = () => {
+            const enabled = isEnabled();
+            container.classList.toggle('hidden', !enabled);
+            if (!enabled) {
+                input.value = '';
+                Array.from(tagsContainer.querySelectorAll('[data-tag-item]')).forEach((tag) => tag.remove());
+            }
+        };
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+
+            const value = String(input.value || '').trim();
+            if (value === '' || !isEnabled()) {
+                return;
+            }
+
+            const existingValues = Array.from(tagsContainer.querySelectorAll(`input[name="${resolvedInputName}"]`))
+                .map((hidden) => String(hidden.value || '').trim().toLowerCase());
+            if (existingValues.includes(value.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+
+            tagsContainer.appendChild(createTag(value, resolvedInputName));
+            input.value = '';
+        });
+
+        triggerElements.forEach((trigger) => {
+            trigger.addEventListener('change', syncVisibility);
+        });
+
+        syncVisibility();
+    };
+
+    const normalizeClientRequirementRowHidden = (row) => {
+        const hiddenInput = row.querySelector('input[data-client-custom-hidden]');
+        if (!hiddenInput) {
+            return;
+        }
+        const label = String(row.dataset.clientCustomLabel || '').trim();
+        if (label === '') {
+            return;
+        }
+        const selectedStatus = row.querySelector('input[data-client-custom-status]:checked')?.value === 'provided'
+            ? 'Provided'
+            : 'Pending';
+        hiddenInput.value = `Other: ${label} | ${selectedStatus}`;
+    };
+
+    const attachClientRequirementRowHandlers = (row) => {
+        Array.from(row.querySelectorAll('input[data-client-custom-status]')).forEach((radio) => {
+            radio.addEventListener('change', () => normalizeClientRequirementRowHidden(row));
+        });
+        row.querySelector('[data-client-custom-remove]')?.addEventListener('click', () => {
+            row.remove();
+        });
+        normalizeClientRequirementRowHidden(row);
+    };
+
+    const initClientRequirementsOthers = () => {
+        const othersRadios = Array.from(document.querySelectorAll('input[data-client-others-radio]'));
+        const container = document.getElementById('client_requirements_container');
+        const input = document.getElementById('client_requirements_input');
+        const tableBody = document.querySelector('#clientRequirementsTable tbody');
+        if (!container || !input || !tableBody || othersRadios.length === 0) {
+            return;
+        }
+
+        const isEnabled = () => othersRadios.some((radio) => radio.checked);
+
+        const syncVisibility = () => {
+            const hasCustomRows = tableBody.querySelector('[data-client-custom-row]') !== null;
+            container.classList.toggle('hidden', !(isEnabled() || hasCustomRows));
+            if (!isEnabled() && !hasCustomRows) {
+                input.value = '';
+            }
+        };
+
+        const createCustomRow = (label) => {
+            const row = document.createElement('tr');
+            row.setAttribute('data-client-custom-row', '');
+            row.dataset.clientCustomLabel = label;
+
+            const uid = `client_requirements_custom_status_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+            const requirementCell = document.createElement('td');
+            requirementCell.className = 'border border-gray-200 px-3 py-2 text-gray-700';
+            requirementCell.textContent = `Other: ${label}`;
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'client_requirements_custom[]';
+            hidden.setAttribute('data-client-custom-hidden', '');
+            requirementCell.appendChild(hidden);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'ml-2 text-xs text-gray-500 hover:text-gray-700';
+            removeBtn.setAttribute('data-client-custom-remove', '');
+            removeBtn.textContent = '×';
+            requirementCell.appendChild(removeBtn);
+
+            const providedCell = document.createElement('td');
+            providedCell.className = 'border border-gray-200 px-3 py-2 text-center';
+            const providedRadio = document.createElement('input');
+            providedRadio.type = 'radio';
+            providedRadio.name = uid;
+            providedRadio.value = 'provided';
+            providedRadio.className = 'h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500';
+            providedRadio.setAttribute('data-client-custom-status', 'provided');
+            providedCell.appendChild(providedRadio);
+
+            const pendingCell = document.createElement('td');
+            pendingCell.className = 'border border-gray-200 px-3 py-2 text-center';
+            const pendingRadio = document.createElement('input');
+            pendingRadio.type = 'radio';
+            pendingRadio.name = uid;
+            pendingRadio.value = 'pending';
+            pendingRadio.checked = true;
+            pendingRadio.className = 'h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500';
+            pendingRadio.setAttribute('data-client-custom-status', 'pending');
+            pendingCell.appendChild(pendingRadio);
+
+            row.appendChild(requirementCell);
+            row.appendChild(providedCell);
+            row.appendChild(pendingCell);
+
+            return row;
+        };
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+
+            const value = String(input.value || '').trim();
+            if (value === '' || !isEnabled()) {
+                return;
+            }
+
+            const existingLabels = Array.from(tableBody.querySelectorAll('[data-client-custom-row]'))
+                .map((row) => String(row.dataset.clientCustomLabel || '').trim().toLowerCase());
+            if (existingLabels.includes(value.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+
+            const row = createCustomRow(value);
+            tableBody.appendChild(row);
+            attachClientRequirementRowHandlers(row);
+            input.value = '';
+            syncVisibility();
+        });
+
+        othersRadios.forEach((radio) => {
+            radio.addEventListener('change', syncVisibility);
+        });
+
+        Array.from(tableBody.querySelectorAll('[data-client-custom-row]')).forEach((row) => {
+            attachClientRequirementRowHandlers(row);
+        });
+
+        syncVisibility();
+    };
+
     const setFieldValue = (fieldId, value) => {
         const field = document.getElementById(fieldId);
         if (!field) {
@@ -784,6 +1265,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
     Array.from(document.querySelectorAll('[data-other-target]')).forEach((input) => {
         input.addEventListener('change', applyOtherFieldToggles);
+    });
+    document.querySelectorAll('.other-input').forEach((input) => {
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+            }
+        });
+    });
+    document.getElementById('services-other-toggle')?.addEventListener('change', function () {
+        document.getElementById('services-other-wrapper')?.classList.toggle('hidden', !this.checked);
+    });
+    initOthersTagInput({
+        triggerElements: Array.from(document.querySelectorAll('input[name="service_area_options[]"][value="Others"]')),
+        container: document.getElementById('service-area-other-wrapper'),
+        input: document.getElementById('service-area-other-input'),
+        tagsContainer: document.getElementById('service-area-other-tags'),
+        inputName: 'service_area_other[]',
+        isEnabled: () => Boolean(document.querySelector('input[name="service_area_options[]"][value="Others"]')?.checked),
+    });
+    initOthersTagInput({
+        triggerElements: [document.getElementById('services-other-toggle')].filter(Boolean),
+        container: document.getElementById('services-other-wrapper'),
+        input: document.getElementById('services-other-input'),
+        tagsContainer: document.getElementById('services-other-tags'),
+        inputName: 'services_other[]',
+        isEnabled: () => Boolean(document.getElementById('services-other-toggle')?.checked),
+    });
+    initOthersTagInput({
+        triggerElements: Array.from(document.querySelectorAll('input[name="product_options[]"][value="Others"]')),
+        container: document.getElementById('deal_products_other_wrap'),
+        input: document.getElementById('products-other-input'),
+        tagsContainer: document.getElementById('products-other-tags'),
+        inputName: 'products_other_entries[]',
+        isEnabled: () => Boolean(document.querySelector('input[name="product_options[]"][value="Others"]')?.checked),
+    });
+    initOthersTagInput({
+        triggerElements: [document.getElementById('required_actions_others')].filter(Boolean),
+        container: document.getElementById('required_actions_container'),
+        input: document.getElementById('required_actions_input'),
+        tagsContainer: document.getElementById('required_actions_tags'),
+        inputName: 'required_actions_custom[]',
+        isEnabled: () => Boolean(document.getElementById('required_actions_others')?.checked),
+    });
+    initClientRequirementsOthers();
+    initOthersTagInput({
+        triggerElements: Array.from(document.querySelectorAll('input[name="payment_terms"]')),
+        container: document.getElementById('deal_payment_terms_other_wrap'),
+        input: document.getElementById('payment_terms_input'),
+        tagsContainer: document.getElementById('payment_terms_tags'),
+        inputName: 'payment_terms_custom[]',
+        isEnabled: () => Boolean(document.querySelector('input[name="payment_terms"][value="Others"]')?.checked),
     });
 
     openBtn?.addEventListener('click', openModal);

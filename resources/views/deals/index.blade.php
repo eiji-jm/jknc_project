@@ -113,16 +113,10 @@
                                 data-view-url="{{ route('deals.show', $deal['id']) }}"
                                 data-edit-url="{{ route('deals.update', $deal['id']) }}"
                                 >
-                                <label class="deal-card-checkbox pointer-events-none absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white/95 shadow-sm opacity-0 transition duration-150 group-hover/deal:pointer-events-auto group-hover/deal:opacity-100">
+                                <label class="deal-card-checkbox pointer-events-none absolute right-9 top-2 z-10 flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white/95 shadow-sm opacity-0 transition duration-150 group-hover/deal:pointer-events-auto group-hover/deal:opacity-100">
                                     <input type="checkbox" class="deal-select-checkbox h-3.5 w-3.5" data-deal-select="{{ $deal['id'] }}">
                                 </label>
                                 <div class="deal-quick-actions pointer-events-none absolute right-2 top-2 flex items-center gap-1 opacity-0 transition duration-150 group-hover/deal:pointer-events-auto group-hover/deal:opacity-100">
-                                    <a href="{{ route('deals.show', $deal['id']) }}" class="flex h-6 w-6 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:text-blue-700 hover:bg-blue-50" title="View">
-                                        <i class="far fa-eye text-[11px]"></i>
-                                    </a>
-                                    <button type="button" class="deal-edit-btn flex h-6 w-6 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:text-blue-700 hover:bg-blue-50" title="Edit">
-                                        <i class="far fa-pen-to-square text-[11px]"></i>
-                                    </button>
                                     <button type="button" class="deal-more-btn flex h-6 w-6 items-center justify-center rounded border border-gray-200 bg-white text-gray-500 hover:text-blue-700 hover:bg-blue-50" title="More actions">
                                         <i class="fas fa-ellipsis-h text-[11px]"></i>
                                     </button>
@@ -138,8 +132,8 @@
                                     href="{{ route('deals.show', $deal['id']) }}"
                                     class="block"
                                 >
-                                    <p class="pl-6 pr-24 text-[14px] font-semibold tracking-wide text-blue-700">{{ $deal['deal_code'] ?? 'DEAL' }}</p>
-                                    <h3 class="mt-1 pl-6 pr-24 text-sm font-medium leading-snug text-gray-600 [overflow-wrap:break-word] line-clamp-2">{{ $deal['deal_name'] }}</h3>
+                                    <p class="pr-16 text-[14px] font-semibold tracking-wide text-blue-700">{{ $deal['deal_code'] ?? 'DEAL' }}</p>
+                                    <h3 class="mt-1 pr-16 text-sm font-medium leading-snug text-gray-600 [overflow-wrap:break-word] line-clamp-2">{{ $deal['deal_name'] }}</h3>
                                     <p class="mt-2 text-xs text-gray-700">{{ $deal['contact_name'] }}</p>
                                     <p class="text-[11px] text-gray-400">{{ $deal['company_name'] }}</p>
 
@@ -342,6 +336,29 @@ document.addEventListener('DOMContentLoaded', () => {
             option.value = stageName;
             option.textContent = stageName;
             stageInput.appendChild(option);
+        }
+    };
+
+    const replaceStageOption = (oldName, newName) => {
+        if (!stageInput || !oldName || !newName) {
+            return;
+        }
+        const existingOption = Array.from(stageInput.options).find((option) => option.value === oldName);
+        if (existingOption) {
+            existingOption.value = newName;
+            existingOption.textContent = newName;
+            return;
+        }
+        ensureStageOption(newName);
+    };
+
+    const removeStageOption = (stageName) => {
+        if (!stageInput || !stageName) {
+            return;
+        }
+        const existingOption = Array.from(stageInput.options).find((option) => option.value === stageName);
+        if (existingOption) {
+            existingOption.remove();
         }
     };
 
@@ -596,6 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title.textContent = payload.stage.name;
             input.value = payload.stage.name;
             syncStageReferences(section, payload.stage.name);
+            replaceStageOption(originalName, payload.stage.name);
         } else {
             input.value = originalName;
         }
@@ -805,7 +823,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await api(`{{ url('/deals/stages') }}/${activeStageSection.dataset.stageId}`, 'DELETE');
+            const removedStageName = activeStageSection.dataset.stageColumn || '';
             activeStageSection.remove();
+            removeStageOption(removedStageName);
             closeDeleteStageModal();
             refreshAllStageMeta();
         } catch (error) {
