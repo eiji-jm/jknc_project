@@ -106,6 +106,16 @@
                             <option value="Operations">Operations</option>
                             <option value="Correspondence">Correspondence</option>
                             <option value="Legal">Legal</option>
+                            <option value="Notices">Notices</option>
+                            <option value="Minutes">Minutes</option>
+                            <option value="Resolutions">Resolutions</option>
+                            <option value="Secretary Certificates">Secretary Certificates</option>
+                            <option value="BIR & Tax">BIR & Tax</option>
+                            <option value="NatGov">NatGov</option>
+                            <option value="Stock Transfer Book - Index">STB Index</option>
+                            <option value="Stock Transfer Book - Journal">STB Journal</option>
+                            <option value="Stock Transfer Book - Installment">STB Installment</option>
+                            <option value="Stock Transfer Book - Certificate">STB Certificate</option>
                         </select>
                     </div>
 
@@ -177,7 +187,11 @@
                                 })">
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $item->id }}</td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $item->module }}</td>
-                                <td class="px-4 py-3 border-r border-gray-200">{{ $item->title }}</td>
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <a href="{{ $item->show_route }}" class="text-blue-700 hover:text-blue-900 hover:underline">
+                                        {{ $item->title }}
+                                    </a>
+                                </td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $item->company_reg_no }}</td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $item->uploaded_by }}</td>
                                 <td class="px-4 py-3 border-r border-gray-200">{{ $item->date_uploaded }}</td>
@@ -188,7 +202,7 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-center gap-2 flex-wrap">
-                                        @if($item->status !== 'Accepted' && $item->status !== 'Archived')
+                                        @if(($item->supports_actions ?? true) && $item->status !== 'Accepted' && $item->status !== 'Archived')
                                             <form action="{{ $item->approve_route }}" method="POST">
                                                 @csrf
                                                 <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
@@ -218,6 +232,12 @@
                                                     Archive
                                                 </button>
                                             </form>
+                                        @endif
+
+                                        @if(!($item->supports_actions ?? true))
+                                            <span class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600">
+                                                Review in module
+                                            </span>
                                         @endif
 
                                         <a href="{{ $item->show_route }}"

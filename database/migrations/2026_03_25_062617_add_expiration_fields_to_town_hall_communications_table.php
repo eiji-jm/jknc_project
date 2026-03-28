@@ -9,16 +9,32 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('townhall_communications', function (Blueprint $table) {
+            $expiresAfter = Schema::hasColumn('townhall_communications', 'ack_deadline_at')
+                ? 'ack_deadline_at'
+                : null;
+
             if (!Schema::hasColumn('townhall_communications', 'expires_at')) {
-                $table->dateTime('expires_at')->nullable()->after('ack_deadline_at');
+                $expiresColumn = $table->dateTime('expires_at')->nullable();
+
+                if ($expiresAfter) {
+                    $expiresColumn->after($expiresAfter);
+                }
             }
 
             if (!Schema::hasColumn('townhall_communications', 'is_archived')) {
-                $table->boolean('is_archived')->default(false)->after('expires_at');
+                $archivedColumn = $table->boolean('is_archived')->default(false);
+
+                if (Schema::hasColumn('townhall_communications', 'expires_at')) {
+                    $archivedColumn->after('expires_at');
+                }
             }
 
             if (!Schema::hasColumn('townhall_communications', 'archived_at')) {
-                $table->dateTime('archived_at')->nullable()->after('is_archived');
+                $archivedAtColumn = $table->dateTime('archived_at')->nullable();
+
+                if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+                    $archivedAtColumn->after('is_archived');
+                }
             }
         });
     }

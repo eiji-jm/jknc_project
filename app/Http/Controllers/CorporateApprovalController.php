@@ -9,13 +9,23 @@ use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
 use App\Models\Bylaw;
+use App\Models\BirTax;
 use App\Models\GisRecord;
+use App\Models\Minute;
+use App\Models\NatGov;
+use App\Models\Notice;
 use App\Models\Permit;
+use App\Models\Resolution;
+use App\Models\SecretaryCertificate;
 use App\Models\Accounting;
 use App\Models\Banking;
 use App\Models\Operation;
 use App\Models\Correspondence;
 use App\Models\Legal;
+use App\Models\StockTransferCertificate;
+use App\Models\StockTransferInstallment;
+use App\Models\StockTransferJournal;
+use App\Models\StockTransferLedger;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -88,6 +98,33 @@ class CorporateApprovalController extends Controller
             'legal' => $record->tin ?? '',
             default => $record->company_reg_no ?? '',
         };
+    }
+
+    private function dashboardStatusBadge(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+
+        return match ($status) {
+            'Accepted', 'Approved', 'Released', 'Issued', 'Completed', 'Paid' => 'Accepted',
+            'Reverted', 'Rejected', 'Cancelled', 'Voided' => 'Reverted',
+            'Archived' => 'Archived',
+            'Submitted', 'Pending', 'Draft' => 'Submitted',
+            default => in_array($normalized, ['active', 'open', 'released', 'issued', 'approved', 'completed', 'paid'], true)
+                ? 'Accepted'
+                : (in_array($normalized, ['cancelled', 'canceled', 'voided', 'rejected', 'reverted'], true)
+                    ? 'Reverted'
+                    : (in_array($normalized, ['submitted', 'pending', 'draft'], true)
+                        ? 'Submitted'
+                        : ($status ?: 'Submitted'))),
+        };
+    }
+
+    private function addDocumentWorkflowItem(\Illuminate\Support\Collection $items, array $data): void
+    {
+        $data['status'] = $this->dashboardStatusBadge($data['status'] ?? 'Submitted');
+        $data['supports_actions'] = $data['supports_actions'] ?? false;
+        $data['show_route'] = $data['show_route'] ?? '#';
+        $items->push((object) $data);
     }
 
     private function sendStatusEmail($record, string $module, string $decision, ?string $reviewNote = null): void
@@ -343,6 +380,182 @@ class CorporateApprovalController extends Controller
                 'reject_route' => route('corporate.approvals.reject', ['module' => 'legal', 'id' => $row->id]),
                 'revise_route' => route('corporate.approvals.revise', ['module' => 'legal', 'id' => $row->id]),
                 'archive_route' => route('corporate.approvals.archive', ['module' => 'legal', 'id' => $row->id]),
+            ]);
+        }
+
+        foreach (Notice::latest()->get() as $row) {
+            if (empty($row->document_path)) {
+                continue;
+            }
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Notices',
+                'title' => $row->notice_number ?: ('Notice #' . $row->id),
+                'company_reg_no' => $row->notice_number ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_updated ? \Carbon\Carbon::parse($row->date_updated)->format('Y-m-d') : ($row->date_of_notice ? $row->date_of_notice->format('Y-m-d') : ''),
+                'status' => 'Submitted',
+                'approval_status' => 'Pending',
+                'show_route' => route('notices.preview', $row),
+            ]);
+        }
+
+        foreach (Minute::latest()->get() as $row) {
+            if (empty($row->document_path) && empty($row->approved_minutes_path)) {
+                continue;
+            }
+
+            $status = $row->approved_minutes_path ? 'Accepted' : 'Submitted';
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Minutes',
+                'title' => $row->minutes_ref ?: ('Minutes #' . $row->id),
+                'company_reg_no' => $row->minutes_ref ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
+                'show_route' => route('minutes.preview', $row),
+            ]);
+        }
+
+        foreach (Resolution::latest()->get() as $row) {
+            if (empty($row->draft_file_path) && empty($row->notarized_file_path)) {
+                continue;
+            }
+
+            $status = $row->notarized_file_path ? 'Accepted' : 'Submitted';
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Resolutions',
+                'title' => $row->resolution_no ?: ('Resolution #' . $row->id),
+                'company_reg_no' => $row->resolution_no ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
+                'show_route' => route('resolutions.preview', $row),
+            ]);
+        }
+
+        foreach (SecretaryCertificate::latest()->get() as $row) {
+            if (empty($row->document_path)) {
+                continue;
+            }
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Secretary Certificates',
+                'title' => $row->certificate_no ?: ('Secretary Certificate #' . $row->id),
+                'company_reg_no' => $row->certificate_no ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => 'Submitted',
+                'approval_status' => 'Pending',
+                'show_route' => route('secretary-certificates.preview', $row),
+            ]);
+        }
+
+        foreach (BirTax::latest()->get() as $row) {
+            if (empty($row->document_path) && empty($row->approved_document_path)) {
+                continue;
+            }
+
+            $status = $row->approved_document_path ? 'Accepted' : 'Submitted';
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'BIR & Tax',
+                'title' => $row->tax_payer ?: ($row->tin ?: ('BIR & Tax #' . $row->id)),
+                'company_reg_no' => $row->tin ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
+                'show_route' => route('bir-tax.preview', $row),
+            ]);
+        }
+
+        foreach (NatGov::latest()->get() as $row) {
+            if (empty($row->document_path) && empty($row->approved_document_path)) {
+                continue;
+            }
+
+            $status = $row->approved_document_path ? 'Accepted' : 'Submitted';
+
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'NatGov',
+                'title' => $row->client ?: ($row->registration_no ?: ('NatGov #' . $row->id)),
+                'company_reg_no' => $row->registration_no ?? '',
+                'uploaded_by' => $row->uploaded_by,
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
+                'show_route' => route('natgov.preview', $row),
+            ]);
+        }
+
+        foreach (StockTransferLedger::query()->latest()->get() as $row) {
+            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Stock Transfer Book - Index',
+                'title' => trim(collect([$row->first_name, $row->middle_name, $row->family_name])->filter()->implode(' ')) ?: ('Index #' . $row->id),
+                'company_reg_no' => $row->certificate_no ?? '',
+                'uploaded_by' => $row->created_by ?? '',
+                'date_uploaded' => $row->date_registered ? $row->date_registered->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
+                'show_route' => route('stock-transfer-book.ledger.show', $row),
+            ]);
+        }
+
+        foreach (StockTransferJournal::latest()->get() as $row) {
+            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Stock Transfer Book - Journal',
+                'title' => $row->journal_no ?: ('Journal #' . $row->id),
+                'company_reg_no' => $row->certificate_no ?? '',
+                'uploaded_by' => '',
+                'date_uploaded' => $row->entry_date ? $row->entry_date->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
+                'show_route' => route('stock-transfer-book.journal.show', $row),
+            ]);
+        }
+
+        foreach (StockTransferInstallment::latest()->get() as $row) {
+            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Stock Transfer Book - Installment',
+                'title' => $row->stock_number ?: ('Installment #' . $row->id),
+                'company_reg_no' => $row->stock_number ?? '',
+                'uploaded_by' => '',
+                'date_uploaded' => $row->installment_date ? $row->installment_date->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
+                'show_route' => route('stock-transfer-book.installment.show', $row),
+            ]);
+        }
+
+        foreach (StockTransferCertificate::latest()->get() as $row) {
+            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
+            $this->addDocumentWorkflowItem($items, [
+                'id' => $row->id,
+                'module' => 'Stock Transfer Book - Certificate',
+                'title' => $row->stock_number ?: ('Certificate #' . $row->id),
+                'company_reg_no' => $row->stock_number ?? '',
+                'uploaded_by' => $row->uploaded_by ?? '',
+                'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
+                'status' => $status,
+                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
+                'show_route' => route('stock-transfer-book.certificates.show', $row),
             ]);
         }
 

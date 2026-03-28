@@ -287,7 +287,6 @@
 
                 <div class="flex-1 overflow-y-auto p-3">
                     <div class="space-y-1 text-sm">
-
                         <a href="{{ route('corporate') }}"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request()->routeIs('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
@@ -297,7 +296,110 @@
                         <a href="{{ route('corporate.formation') }}"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Corporate/Formation
+                            Corporate Formation
+                        </a>
+
+                        <a href="{{ route('corporate.sec_aoi') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('corporate.sec_aoi*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            SEC-AOI
+                        </a>
+
+                        <a href="{{ route('corporate.bylaws') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('corporate.bylaws*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            By-laws
+                        </a>
+
+                        <a href="{{ route('corporate.lgu') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('corporate/lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            LGU
+                        </a>
+
+                        <a href="{{ route('stock-transfer-book') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('stock-transfer-book*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Stock Transfer Book
+                        </a>
+                        <a href="{{ route('stock-transfer-book.index') }}"
+                           class="block px-3 py-2 rounded-lg transition pl-6
+                           {{ request()->routeIs('stock-transfer-book.index*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Index
+                        </a>
+                        <a href="{{ route('stock-transfer-book.journal') }}"
+                           class="block px-3 py-2 rounded-lg transition pl-6
+                           {{ request()->routeIs('stock-transfer-book.journal*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Journal
+                        </a>
+                        <a href="{{ route('stock-transfer-book.ledger') }}"
+                           class="block px-3 py-2 rounded-lg transition pl-6
+                           {{ request()->routeIs('stock-transfer-book.ledger*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Ledger
+                        </a>
+                        <a href="{{ route('stock-transfer-book.installment') }}"
+                           class="block px-3 py-2 rounded-lg transition pl-6
+                           {{ request()->routeIs('stock-transfer-book.installment*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Installment
+                        </a>
+                        <a href="{{ route('stock-transfer-book.certificates') }}"
+                           class="block px-3 py-2 rounded-lg transition pl-6
+                           {{ request()->routeIs('stock-transfer-book.certificates*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Certificates
+                        </a>
+
+                        <a href="{{ route('notices') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('notices*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Notices of Meeting
+                        </a>
+
+                        <a href="{{ route('minutes') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('minutes*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Minutes of Meeting
+                        </a>
+
+                        <a href="{{ route('resolutions') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('resolutions*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Resolutions
+                        </a>
+
+                        <a href="{{ route('secretary-certificates') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('secretary-certificates*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Secretary Certificates
+                        </a>
+
+                        <a href="{{ route('accounting') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('accounting') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Accounting
+                        </a>
+
+                        <a href="{{ route('banking') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('banking') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Banking
+                        </a>
+
+                        <a href="{{ route('legal') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('legal') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Legal
+                        </a>
+
+                        <a href="{{ route('operations') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Operations
+                        </a>
+
+                        <a href="{{ route('correspondence') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('correspondence') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Correspondence
                         </a>
 
                         <a href="#"
@@ -309,46 +411,6 @@
                            class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
                             NatGov
                         </a>
-
-                        <a href="{{ route('corporate.lgu') }}"
-    class="block px-3 py-2 rounded-lg transition
-    {{ request()->is('corporate/lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-    LGU
-</a>
-
-                        <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                            <a href="{{ route('accounting') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->is('accounting') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Accounting
-                            </a>
-
-                            <a href="{{ route('banking') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->is('banking') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Banking
-                            </a>
-
-                            <a href="{{ route('legal') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->is('legal') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Legal
-                            </a>
-
-                            <a href="{{ route('operations') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->is('operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Operations
-                            </a>
-
-                            <a href="{{ route('correspondence') }}"
-                            class="block px-3 py-2 rounded-lg transition
-                            {{ request()->is('correspondence') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            Correspondence
-                            </a>
-
-                        </div>
-
                     </div>
                 </div>
             </aside>
