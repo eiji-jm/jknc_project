@@ -102,7 +102,7 @@ class Contact extends Model
         return $this->hasMany(Deal::class);
     }
 
-    public function companies(): HasMany
+    public function primaryCompanies(): HasMany
     {
         return $this->hasMany(Company::class, 'primary_contact_id');
     }
