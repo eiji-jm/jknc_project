@@ -9,6 +9,9 @@ class Deal extends Model
 {
     protected $fillable = [
         'contact_id',
+        'deal_code',
+        'stage_id',
+        'created_by',
         'deal_name',
         'stage',
         'deal_status',
@@ -68,5 +71,10 @@ class Deal extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    public function stage(): BelongsTo
+    {
+        return $this->belongsTo(DealStage::class, 'stage_id');
     }
 }

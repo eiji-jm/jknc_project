@@ -48,7 +48,6 @@ Route::get('/cif/respond/{token}', [ContactsController::class, 'clientCifForm'])
 Route::post('/cif/respond/{token}', [ContactsController::class, 'submitClientCifForm'])->name('contacts.cif.client.submit');
 Route::get('/specimen/respond/{token}', [ContactsController::class, 'clientSpecimenForm'])->name('contacts.specimen.client.show');
 Route::post('/specimen/respond/{token}', [ContactsController::class, 'submitClientSpecimenForm'])->name('contacts.specimen.client.submit');
-
 Route::get('/activities', function () {
     return view('activities.index');
 })->name('activities');
@@ -110,6 +109,7 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
 Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
+Route::delete('/contacts/bulk-delete', [ContactsController::class, 'bulkDelete'])->name('contacts.bulk-delete');
 Route::match(['put', 'patch'], '/contacts/{contact}', [ContactsController::class, 'update'])->name('contacts.update');
 Route::post('/contacts/assign-owner', [ContactsController::class, 'assignOwner'])->name('contacts.assign-owner');
 Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
@@ -124,6 +124,7 @@ Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sen
 Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
 Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
 Route::get('/contacts/{contact}/cif/download', [ContactsController::class, 'downloadCif'])->name('contacts.cif.download');
+Route::delete('/contacts/{contact}/companies/{company}', [ContactsController::class, 'unlinkCompany'])->name('contacts.companies.unlink');
 Route::get('/contacts/{id}/kyc/specimen-signature', [ContactsController::class, 'specimenSignature'])->name('contacts.specimen-signature');
 Route::post('/contacts/{id}/kyc/specimen-signature', [ContactsController::class, 'saveSpecimenSignature'])->name('contacts.specimen-signature.save');
 Route::get('/contacts/{id}/kyc/specimen-signature/download', [ContactsController::class, 'downloadSpecimenSignature'])->name('contacts.specimen-signature.download');
@@ -134,6 +135,12 @@ Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.p
 Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
 Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
 Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
+Route::post('/deals/stages', [DealController::class, 'storeStage'])->name('deals.stages.store');
+Route::patch('/deals/stages/{stage}', [DealController::class, 'updateStage'])->name('deals.stages.update');
+Route::patch('/deals/stages/{stage}/move', [DealController::class, 'moveStage'])->name('deals.stages.move');
+Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])->name('deals.stages.destroy');
+Route::patch('/deals/{id}/stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update');
+Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
 Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
 Route::get('/deals/{id}/download', [DealController::class, 'download'])->name('deals.download');
 Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');

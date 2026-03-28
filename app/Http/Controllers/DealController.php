@@ -5,30 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Company;
 use App\Models\Deal;
+use App\Models\DealStage;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DealController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $stages = [
-            'Inquiry',
-            'Qualification',
-            'Consultation',
-            'Proposal',
-            'Negotiation',
-            'Payment',
-            'Activation',
-            'Closed Lost',
-        ];
+        $search = trim((string) $request->query('search', ''));
+        $stages = $this->dealStages();
 
         $deals = $this->mockDeals();
         $owners = $this->ownerOptions();
@@ -156,6 +153,7 @@ class DealController extends Controller
 
                         return [
                             'id' => $deal->id,
+                            'deal_code' => $deal->deal_code ?: $this->generateDealCode($deal->contact, $deal->id),
                             'deal_name' => $deal->deal_name,
                             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
                             'company_name' => $deal->company_name ?: (optional($deal->contact)->company_name ?: '-'),
@@ -163,6 +161,13 @@ class DealController extends Controller
                             'expected_close' => optional($deal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
                             'owner_name' => $deal->assigned_consultant ?: 'Unassigned',
                             'stage' => $deal->stage,
+                            'created_by' => $deal->created_by ?: optional(Auth::user())->name ?: 'System',
+                            'created_at_label' => optional($deal->created_at)->format('F d, Y • h:i:s A') ?: now()->format('F d, Y • h:i:s A'),
+                            'search_blob' => Str::lower(implode(' ', array_filter([
+                                $deal->deal_code,
+                                $deal->deal_name,
+                                $contactName,
+                            ]))),
                         ];
                     })
                     ->all();
@@ -181,12 +186,27 @@ class DealController extends Controller
             array_unshift($deals, $savedMockDeal);
         }
 
+        if ($search !== '') {
+            $deals = array_values(array_filter($deals, function (array $deal) use ($search): bool {
+                $blob = Str::lower(implode(' ', array_filter([
+                    $deal['deal_code'] ?? null,
+                    $deal['deal_name'] ?? null,
+                    $deal['contact_name'] ?? null,
+                    $deal['search_blob'] ?? null,
+                ])));
+
+                return Str::contains($blob, Str::lower($search));
+            }));
+        }
+
         $groupedByStage = [];
         foreach ($stages as $stage) {
-            $stageDeals = array_values(array_filter($deals, fn (array $deal): bool => $deal['stage'] === $stage));
+            $stageDeals = array_values(array_filter($deals, fn (array $deal): bool => $deal['stage'] === $stage['name']));
             $stageTotal = array_sum(array_column($stageDeals, 'amount'));
             $groupedByStage[] = [
-                'stage' => $stage,
+                'id' => $stage['id'],
+                'stage' => $stage['name'],
+                'color' => $stage['color'],
                 'total_amount' => $stageTotal,
                 'deals' => $stageDeals,
             ];
@@ -200,7 +220,8 @@ class DealController extends Controller
         return view('deals.index', [
             'stageColumns' => $groupedByStage,
             'totalDeals' => count($deals),
-            'stageOptions' => $stages,
+            'search' => $search,
+            'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $stages)),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
@@ -217,6 +238,210 @@ class DealController extends Controller
             'owners' => $owners,
             'defaultOwnerId' => $defaultOwnerId,
         ]);
+    }
+
+    public function storeStage(Request $request): JsonResponse
+    {
+        $this->ensureDealStagesInfrastructure();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('deal_stages', 'name')],
+        ]);
+
+        $nextOrder = ((int) DealStage::query()->max('order')) + 1;
+        $createdStage = DealStage::query()->create([
+            'name' => trim($validated['name']),
+            'order' => $nextOrder,
+            'color' => null,
+        ]);
+
+        return response()->json([
+            'stage' => [
+                'id' => $createdStage->id,
+                'name' => $createdStage->name,
+                'order' => (int) $createdStage->order,
+                'color' => $createdStage->color,
+            ],
+        ]);
+    }
+
+    public function updateStage(Request $request, DealStage $stage): JsonResponse
+    {
+        $this->ensureDealStagesInfrastructure();
+
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:100', Rule::unique('deal_stages', 'name')->ignore($stage->id)],
+            'color' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $originalName = $stage->name;
+        $updates = [];
+
+        if (array_key_exists('name', $validated) && filled($validated['name']) && $validated['name'] !== $stage->name) {
+            $updates['name'] = trim($validated['name']);
+        }
+
+        if (array_key_exists('color', $validated)) {
+            $updates['color'] = $validated['color'] ?: null;
+        }
+
+        if ($updates !== []) {
+            $stage->update($updates);
+        }
+
+        if (isset($updates['name']) && Schema::hasTable('deals')) {
+            Deal::query()->where('stage', $originalName)->update(['stage' => $updates['name']]);
+        }
+
+        return response()->json([
+            'stage' => [
+                'id' => $stage->id,
+                'name' => $stage->fresh()->name,
+                'order' => (int) $stage->fresh()->order,
+                'color' => $stage->fresh()->color,
+            ],
+        ]);
+    }
+
+    public function moveStage(Request $request, DealStage $stage): JsonResponse
+    {
+        $this->ensureDealStagesInfrastructure();
+
+        $validated = $request->validate([
+            'direction' => ['required', 'in:left,right'],
+        ]);
+
+        $stages = DealStage::query()->orderBy('order')->get()->values();
+        $currentIndex = $stages->search(fn (DealStage $item) => $item->id === $stage->id);
+        $swapIndex = $validated['direction'] === 'left' ? $currentIndex - 1 : $currentIndex + 1;
+
+        if ($currentIndex === false || ! isset($stages[$swapIndex])) {
+            return response()->json(['ok' => true]);
+        }
+
+        $current = $stages[$currentIndex];
+        $swap = $stages[$swapIndex];
+        $currentOrder = $current->order;
+        $current->update(['order' => $swap->order]);
+        $swap->update(['order' => $currentOrder]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function destroyStage(DealStage $stage): JsonResponse
+    {
+        $this->ensureDealStagesInfrastructure();
+
+        if (DealStage::query()->count() <= 1) {
+            return response()->json(['message' => 'At least one stage must remain.'], 422);
+        }
+
+        if (Schema::hasTable('deals')) {
+            $hasStageIdColumn = Schema::hasColumn('deals', 'stage_id');
+            $hasStageNameColumn = Schema::hasColumn('deals', 'stage');
+            $hasLinkedDeals = Deal::query()->where(function ($query) use ($stage, $hasStageIdColumn, $hasStageNameColumn) {
+                if ($hasStageIdColumn) {
+                    $query->orWhere('stage_id', $stage->id);
+                }
+                if ($hasStageNameColumn) {
+                    $query->orWhere('stage', $stage->name);
+                }
+            })->exists();
+
+            if ($hasLinkedDeals) {
+                return response()->json(['message' => 'Stage cannot be deleted while it has deals.'], 422);
+            }
+        }
+
+        $deletedStageId = $stage->id;
+        $stage->delete();
+
+        DealStage::query()->orderBy('order')->get()->values()->each(function (DealStage $item, int $index) {
+            $item->update(['order' => $index + 1]);
+        });
+
+        return response()->json([
+            'ok' => true,
+            'deleted_stage_id' => $deletedStageId,
+        ]);
+    }
+
+    public function updateDealStage(Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        abort_unless(Schema::hasTable('deals'), 500, 'Deals table is not available.');
+
+        $validated = $request->validate([
+            'stage_id' => ['required'],
+        ]);
+
+        $stageInput = trim((string) ($validated['stage_id'] ?? ''));
+        if ($stageInput === '') {
+            return response()->json(['success' => false, 'message' => 'No stage selected'], 400);
+        }
+
+        $deal = Deal::query()->findOrFail($id);
+        $hasStageTable = Schema::hasTable('deal_stages');
+        $stage = null;
+        $resolvedStageName = $stageInput;
+
+        if ($hasStageTable) {
+            if (is_numeric($stageInput)) {
+                $stage = DealStage::query()->findOrFail((int) $stageInput);
+            } else {
+                $stage = DealStage::query()->where('name', $stageInput)->first();
+            }
+        }
+
+        if ($stage) {
+            $resolvedStageName = $stage->name;
+        }
+
+        $updates = [];
+        if ($stage && Schema::hasColumn('deals', 'stage_id')) {
+            $updates['stage_id'] = $stage->id;
+        }
+        if (Schema::hasColumn('deals', 'stage')) {
+            $updates['stage'] = $resolvedStageName;
+        }
+
+        abort_if($updates === [], 500, 'Deals stage columns are not available.');
+
+        $deal->update($updates);
+
+        $stages = collect($this->dealStages())->values();
+        $currentStage = $stage
+            ? ($stages->firstWhere('id', $stage->id) ?: [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'order' => 0,
+                'color' => $stage->color,
+            ])
+            : ($stages->firstWhere('name', $resolvedStageName) ?: [
+                'id' => null,
+                'name' => $resolvedStageName,
+                'order' => 0,
+                'color' => null,
+            ]);
+
+        $payload = [
+            'success' => true,
+            'message' => 'Stage updated successfully',
+            'deal' => [
+                'id' => $deal->id,
+                'stage' => $resolvedStageName,
+                'stage_id' => $stage?->id,
+            ],
+            'current_stage' => $currentStage,
+            'stages' => $stages->all(),
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('deals.show', $id)
+            ->with('stage_success', $payload['message']);
     }
 
     public function preview(Request $request): RedirectResponse
@@ -286,6 +511,9 @@ class DealController extends Controller
         $createdDeal = Deal::query()->create([
             ...$validated,
             ...$this->dealApprovalAttributes(),
+            ...(Schema::hasColumn('deals', 'deal_code') ? ['deal_code' => $this->generateDealCode($contact)] : []),
+            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
+            ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
@@ -325,6 +553,7 @@ class DealController extends Controller
         $deal->fill([
             ...$validated,
             ...$this->dealApprovalAttributes(),
+            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
             'first_name' => $validated['first_name'] ?? $contact->first_name,
@@ -337,6 +566,9 @@ class DealController extends Controller
             'company_address' => $validated['company_address'] ?? $contact->company_address,
             'position' => $validated['position'] ?? $contact->position,
         ]);
+        if (Schema::hasColumn('deals', 'deal_code') && blank($deal->deal_code)) {
+            $deal->deal_code = $this->generateDealCode($contact, $deal->id);
+        }
         $deal->save();
 
         return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated successfully.');
@@ -345,18 +577,57 @@ class DealController extends Controller
     public function show(int $id): View
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with('contact')->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage'])->find($id);
             if ($storedDeal) {
+                $stages = $this->dealStages();
+                $currentStage = null;
+                if (Schema::hasColumn('deals', 'stage_id')) {
+                    if (! $storedDeal->stage_id && filled($storedDeal->stage)) {
+                        $mappedStageId = $this->resolveStageIdByName((string) $storedDeal->stage);
+                        if ($mappedStageId) {
+                            $storedDeal->stage_id = $mappedStageId;
+                            $storedDeal->save();
+                            $storedDeal->refresh();
+                        }
+                    }
+
+                    if ($storedDeal->stage_id) {
+                        $currentStage = $stages->firstWhere('id', $storedDeal->stage_id);
+                    }
+                }
+
+                if (! $currentStage && filled($storedDeal->stage)) {
+                    $currentStage = collect($stages)->firstWhere('name', $storedDeal->stage);
+                }
+
+                if (! $currentStage) {
+                    $currentStage = collect($stages)->first();
+                }
+
+                if (! $currentStage) {
+                    abort(500, 'Deal stage is missing from the stage list. Create deal stages first.');
+                }
+
+                if (Schema::hasColumn('deals', 'stage_id') && (int) ($storedDeal->stage_id ?? 0) !== (int) $currentStage['id']) {
+                    $storedDeal->stage_id = $currentStage['id'];
+                    $storedDeal->save();
+                }
+
+                $resolvedStageName = $currentStage['name'];
                 $normalizedStoredDeal = $this->normalizeDealFormData($storedDeal->toArray());
                 $deal = [
                     'id' => $storedDeal->id,
+                    'deal_code' => $storedDeal->deal_code ?: $this->generateDealCode($storedDeal->contact, $storedDeal->id),
                     'deal_name' => $storedDeal->deal_name,
                     'contact_name' => trim(collect([$storedDeal->first_name, $storedDeal->last_name])->filter()->implode(' ')),
                     'company_name' => $storedDeal->company_name ?: (optional($storedDeal->contact)->company_name ?: '-'),
                     'amount' => (int) round((float) ($storedDeal->total_estimated_engagement_value ?? 0)),
                     'expected_close' => optional($storedDeal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
                     'owner_name' => $storedDeal->assigned_consultant ?: 'Unassigned',
-                    'stage' => $storedDeal->stage,
+                    'stage' => $resolvedStageName,
+                    'stage_id' => $currentStage['id'] ?? null,
+                    'created_by' => $storedDeal->created_by ?: 'System',
+                    'created_at_label' => optional($storedDeal->created_at)->format('F d, Y • h:i:s A') ?: now()->format('F d, Y • h:i:s A'),
                 ];
 
                 $detail = [
@@ -370,7 +641,7 @@ class DealController extends Controller
                     'contact_number' => $storedDeal->mobile ?: '-',
                     'client_type' => $storedDeal->customer_type ?: '-',
                     'industry' => $storedDeal->service_area ?: '-',
-                    'deal_stage' => $storedDeal->stage,
+                    'deal_stage' => $resolvedStageName,
                     'deal_owner' => $storedDeal->assigned_consultant ?: 'Unassigned',
                     'created_date' => optional($storedDeal->created_at)->format('n/j/Y') ?: '-',
                     'last_modified' => optional($storedDeal->updated_at)->format('Y-m-d h:i A') ?: '-',
@@ -402,8 +673,8 @@ class DealController extends Controller
                         ])),
                     ],
                     'progress' => [
-                        'stages' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
-                        'current_stage' => $storedDeal->stage,
+                        'stages' => $stages,
+                        'current_stage' => $currentStage,
                     ],
                     'timeline' => [
                         [
@@ -415,7 +686,7 @@ class DealController extends Controller
                     ],
                     'stage_history' => [
                         [
-                            'stage' => $storedDeal->stage,
+                            'stage' => $resolvedStageName,
                             'amount' => (int) round((float) ($storedDeal->total_estimated_engagement_value ?? 0)),
                             'duration' => $storedDeal->estimated_duration ?: '-',
                             'modified_by' => $storedDeal->assigned_consultant ?: 'System',
@@ -429,6 +700,7 @@ class DealController extends Controller
                     'detail' => $detail,
                     'dealFormData' => $normalizedStoredDeal,
                     ...$this->dealPanelContext($normalizedStoredDeal),
+                    'stages' => $stages,
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
             }
@@ -438,8 +710,11 @@ class DealController extends Controller
         if (is_array($mockPayload) && (int) ($mockPayload['id'] ?? 0) === $id) {
             $mockPayload = $this->normalizeDealFormData($mockPayload);
             $mockDeal = session('deals.mock_saved', []);
+            $stages = $this->dealStages();
+            $currentStage = $this->resolveCurrentStageForDeal($mockPayload['stage'] ?? ($mockDeal['stage'] ?? 'Inquiry'), null);
             $deal = [
                 'id' => $id,
+                'deal_code' => $mockPayload['deal_code'] ?? ($mockDeal['deal_code'] ?? $this->generateDealCodeFromNames($mockPayload['first_name'] ?? '', $mockPayload['last_name'] ?? '', $id)),
                 'deal_name' => $mockPayload['deal_name'] ?? ($mockDeal['deal_name'] ?? 'Mock Deal'),
                 'contact_name' => trim(collect([$mockPayload['first_name'] ?? '', $mockPayload['last_name'] ?? ''])->filter()->implode(' ')) ?: ($mockDeal['contact_name'] ?? 'Linked Contact'),
                 'company_name' => $mockPayload['company_name'] ?? ($mockDeal['company_name'] ?? '-'),
@@ -449,6 +724,7 @@ class DealController extends Controller
                     : ($mockDeal['expected_close'] ?? 'TBD'),
                 'owner_name' => $mockPayload['assigned_consultant'] ?? ($mockDeal['owner_name'] ?? 'Unassigned'),
                 'stage' => $mockPayload['stage'] ?? ($mockDeal['stage'] ?? 'Inquiry'),
+                'stage_id' => $currentStage['id'] ?? null,
             ];
 
             $detail = [
@@ -494,8 +770,8 @@ class DealController extends Controller
                     ])),
                 ],
                 'progress' => [
-                    'stages' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
-                    'current_stage' => $deal['stage'],
+                    'stages' => $stages,
+                    'current_stage' => $currentStage,
                 ],
                 'timeline' => [
                     [
@@ -521,6 +797,7 @@ class DealController extends Controller
                 'detail' => $detail,
                 'dealFormData' => $mockPayload,
                 ...$this->dealPanelContext($mockPayload),
+                'stages' => $stages,
                 'openDealModal' => (bool) request()->boolean('edit_deal'),
             ]);
         }
@@ -531,6 +808,8 @@ class DealController extends Controller
             throw new NotFoundHttpException();
         }
 
+        $stages = $this->dealStages();
+        $currentStage = $this->resolveCurrentStageForDeal($deal['stage'], null);
         $detail = [
             'related_contact' => $deal['contact_name'],
             'related_company' => $deal['company_name'],
@@ -571,8 +850,8 @@ class DealController extends Controller
                 'assigned_members' => ['Admin User', 'Karen User', 'John Adams'],
             ],
             'progress' => [
-                'stages' => ['Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'],
-                'current_stage' => 'Qualification',
+                'stages' => $stages,
+                'current_stage' => $currentStage,
             ],
             'timeline' => [
                 [
@@ -647,8 +926,8 @@ class DealController extends Controller
                     'assigned_members' => ['Admin User', 'Karen User'],
                 ],
                 'progress' => [
-                    'stages' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
-                    'current_stage' => 'Inquiry',
+                    'stages' => $stages,
+                    'current_stage' => $currentStage,
                 ],
                 'timeline' => [
                     [
@@ -673,6 +952,7 @@ class DealController extends Controller
         return view('deals.show', [
             'deal' => $deal,
             'detail' => $detail,
+            'stages' => $stages,
             'dealFormData' => $this->normalizeDealFormData([
                 ...$deal,
                 'contact_id' => 101,
@@ -722,11 +1002,75 @@ class DealController extends Controller
         ]);
     }
 
+    private function dealStages(): array
+    {
+        $this->ensureDealStagesInfrastructure();
+
+        $defaults = [
+            ['id' => null, 'name' => 'Inquiry', 'order' => 1, 'color' => '#2563eb'],
+            ['id' => null, 'name' => 'Qualification', 'order' => 2, 'color' => '#4f46e5'],
+            ['id' => null, 'name' => 'Consultation', 'order' => 3, 'color' => '#0891b2'],
+            ['id' => null, 'name' => 'Proposal', 'order' => 4, 'color' => '#d97706'],
+            ['id' => null, 'name' => 'Negotiation', 'order' => 5, 'color' => '#ea580c'],
+            ['id' => null, 'name' => 'Payment', 'order' => 6, 'color' => '#059669'],
+            ['id' => null, 'name' => 'Activation', 'order' => 7, 'color' => '#7c3aed'],
+            ['id' => null, 'name' => 'Closed Lost', 'order' => 8, 'color' => '#dc2626'],
+        ];
+
+        $stages = DealStage::query()
+            ->orderBy('order')
+            ->get(['id', 'name', 'order', 'color'])
+            ->map(fn (DealStage $stage): array => [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'order' => (int) $stage->order,
+                'color' => $stage->color,
+            ])
+            ->all();
+
+        if ($stages !== []) {
+            return $stages;
+        }
+
+        foreach ($defaults as $stage) {
+            DealStage::query()->create([
+                'name' => $stage['name'],
+                'order' => $stage['order'],
+                'color' => $stage['color'],
+            ]);
+        }
+
+        return DealStage::query()
+            ->orderBy('order')
+            ->get(['id', 'name', 'order', 'color'])
+            ->map(fn (DealStage $stage): array => [
+                'id' => $stage->id,
+                'name' => $stage->name,
+                'order' => (int) $stage->order,
+                'color' => $stage->color,
+            ])
+            ->all();
+    }
+
+    private function ensureDealStagesInfrastructure(): void
+    {
+        if (! Schema::hasTable('deal_stages')) {
+            Schema::create('deal_stages', function (Blueprint $table) {
+                $table->id();
+                $table->string('name')->unique();
+                $table->unsignedInteger('order')->default(0);
+                $table->string('color')->nullable();
+                $table->timestamps();
+            });
+        }
+    }
+
     private function mockDeals(): array
     {
         return [
             [
                 'id' => 501,
+                'deal_code' => 'DL-2026-001',
                 'deal_name' => 'Tax Advisory Compliance Audit Regular Retainer',
                 'contact_name' => 'David Lee',
                 'company_name' => 'Consulting Group',
@@ -737,6 +1081,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 2,
+                'deal_code' => 'DL-2026-002',
                 'deal_name' => 'Data Analytics Platform',
                 'contact_name' => 'David Lee',
                 'company_name' => 'Consulting Group',
@@ -747,6 +1092,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 3,
+                'deal_code' => 'RJ-2026-001',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -757,6 +1103,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 4,
+                'deal_code' => 'RJ-2026-002',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -767,6 +1114,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 5,
+                'deal_code' => 'RJ-2026-003',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -777,6 +1125,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 6,
+                'deal_code' => 'RJ-2026-004',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -787,6 +1136,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 7,
+                'deal_code' => 'RJ-2026-005',
                 'deal_name' => 'Cloud Migration Services',
                 'contact_name' => 'Robert Johnson',
                 'company_name' => 'Global Enterprises',
@@ -797,6 +1147,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 8,
+                'deal_code' => 'MB-2026-001',
                 'deal_name' => 'Website Redesign Project',
                 'contact_name' => 'Michael Brown',
                 'company_name' => 'Startup Hub',
@@ -807,6 +1158,7 @@ class DealController extends Controller
             ],
             [
                 'id' => 9,
+                'deal_code' => 'SW-2026-001',
                 'deal_name' => 'Security Audit Package',
                 'contact_name' => 'Sarah Williams',
                 'company_name' => 'Innovate Co.',
@@ -896,7 +1248,7 @@ class DealController extends Controller
         }
 
         return [
-            'stageOptions' => ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'],
+            'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $this->dealStages())),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
@@ -913,9 +1265,14 @@ class DealController extends Controller
         $normalized = $payload;
 
         $normalized['service_area_options'] = $this->normalizeListValue($payload['service_area_options'] ?? ($payload['service_area'] ?? null));
+        $normalized['service_area_other'] = $this->parseCustomEntries($payload['service_area_other'] ?? ($payload['service_area'] ?? null));
         $normalized['service_options'] = $this->normalizeListValue($payload['service_options'] ?? ($payload['services'] ?? null));
         $normalized['product_options'] = $this->normalizeListValue($payload['product_options'] ?? ($payload['products'] ?? null));
+        $normalized['service_identification_custom'] = $this->parseCustomEntries($payload['service_identification_custom'] ?? ($payload['services'] ?? null));
+        $normalized['client_requirements_custom'] = $this->parseClientRequirementCustomEntries($payload['client_requirements_custom'] ?? ($payload['requirements_status'] ?? null));
         $normalized['required_actions_options'] = $this->normalizeListValue($payload['required_actions_options'] ?? ($payload['required_actions'] ?? null));
+        $normalized['required_actions_custom'] = $this->parseCustomEntries($payload['required_actions_custom'] ?? ($payload['required_actions'] ?? null));
+        $normalized['payment_terms_custom'] = $this->parseCustomEntries($payload['payment_terms_custom'] ?? ($payload['payment_terms_other'] ?? null));
         $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
         $normalized['requirements_status_map'] = $this->computeRequirementStatusMap(
             isset($payload['contact_id']) ? (int) $payload['contact_id'] : null
@@ -988,25 +1345,41 @@ class DealController extends Controller
             'products' => ['nullable', 'string', 'max:4000'],
             'service_area_options' => ['nullable', 'array'],
             'service_area_options.*' => ['string', 'max:255'],
-            'service_area_other' => ['nullable', 'string', 'max:255'],
+            'service_area_other' => ['nullable'],
+            'service_area_other.*' => ['nullable', 'string', 'max:255'],
             'service_options' => ['nullable', 'array'],
             'service_options.*' => ['string', 'max:255'],
-            'services_other' => ['nullable', 'string', 'max:255'],
+            'services_other' => ['nullable'],
+            'services_other.*' => ['nullable', 'string', 'max:255'],
+            'service_identification_custom' => ['nullable', 'array'],
+            'service_identification_custom.*' => ['nullable', 'string', 'max:255'],
             'product_options' => ['nullable', 'array'],
             'product_options.*' => ['string', 'max:255'],
             'products_other' => ['nullable', 'string', 'max:255'],
+            'products_other_entries' => ['nullable', 'array'],
+            'products_other_entries.*' => ['nullable', 'string', 'max:255'],
             'scope_of_work' => ['nullable', 'string'],
             'engagement_type' => ['nullable', 'string', 'max:255'],
+            'requirements_status' => ['nullable'],
+            'requirements_status.*' => ['nullable', 'in:provided,pending'],
+            'requirements_status_map' => ['nullable', 'array'],
+            'requirements_status_map.*' => ['nullable', 'in:provided,pending'],
+            'client_requirements_custom' => ['nullable', 'array'],
+            'client_requirements_custom.*' => ['nullable', 'string', 'max:255'],
             'required_actions' => ['nullable', 'string'],
             'required_actions_options' => ['nullable', 'array'],
             'required_actions_options.*' => ['string', 'max:255'],
             'required_actions_other' => ['nullable', 'string'],
+            'required_actions_custom' => ['nullable', 'array'],
+            'required_actions_custom.*' => ['nullable', 'string', 'max:255'],
             'estimated_professional_fee' => ['nullable'],
             'estimated_government_fees' => ['nullable'],
             'estimated_service_support_fee' => ['nullable'],
             'total_estimated_engagement_value' => ['nullable'],
             'payment_terms' => ['nullable', 'string', 'max:255'],
             'payment_terms_other' => ['nullable', 'string', 'max:255'],
+            'payment_terms_custom' => ['nullable', 'array'],
+            'payment_terms_custom.*' => ['nullable', 'string', 'max:255'],
             'planned_start_date' => ['nullable', 'date'],
             'estimated_duration' => ['nullable', 'string', 'max:255'],
             'estimated_completion_date' => ['nullable', 'date'],
@@ -1077,25 +1450,72 @@ class DealController extends Controller
             $validated[$moneyField] = is_numeric($normalized) ? (float) $normalized : null;
         }
 
-        $validated['service_area'] = $this->truncateStringForColumn($this->composeMultiSelectString(
-            $validated['service_area_options'] ?? [],
-            $validated['service_area_other'] ?? null,
-            'Others: '
-        ));
-        $validated['services'] = $this->truncateStringForColumn($this->composeMultiSelectString(
-            $validated['service_options'] ?? [],
-            $validated['services_other'] ?? null,
-            'Others: '
-        ));
-        $validated['products'] = $this->truncateStringForColumn($this->composeMultiSelectString(
-            $validated['product_options'] ?? [],
-            $validated['products_other'] ?? null,
-            'Others: '
-        ));
-        $validated['required_actions'] = $this->composeMultiSelectString(
-            $validated['required_actions_options'] ?? [],
-            $validated['required_actions_other'] ?? null,
-            'Other Internal Requirements: '
+        $serviceAreaSelections = collect($validated['service_area_options'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim((string) $value) !== '' && trim((string) $value) !== 'Others')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+        $serviceAreaOtherEntries = collect(is_array($validated['service_area_other'] ?? null) ? $validated['service_area_other'] : [$validated['service_area_other'] ?? null])
+            ->filter(fn ($value): bool => is_string($value) && trim((string) $value) !== '')
+            ->map(fn ($value): string => 'Others: '.trim((string) $value))
+            ->values();
+        if (($validated['service_area_options'] ?? []) && in_array('Others', $validated['service_area_options'], true) && $serviceAreaOtherEntries->isEmpty()) {
+            $serviceAreaSelections->push('Others');
+        }
+        $validated['service_area'] = $this->truncateStringForColumn(
+            $serviceAreaSelections->merge($serviceAreaOtherEntries)->filter()->values()->implode(', ')
+        );
+        $serviceSelections = collect($validated['service_options'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+        $serviceCustomEntries = collect($validated['service_identification_custom'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        $legacyServicesOtherEntries = collect(is_array($validated['services_other'] ?? null) ? $validated['services_other'] : [$validated['services_other'] ?? null])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        $serviceCustomEntries = $legacyServicesOtherEntries->merge($serviceCustomEntries)->unique()->values();
+        $validated['services'] = $this->truncateStringForColumn(
+            $serviceSelections->merge($serviceCustomEntries)->filter()->values()->implode(', ')
+        );
+        $productSelections = collect($validated['product_options'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '' && trim($value) !== 'Others')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+        $customProductEntries = collect($validated['products_other_entries'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        if (filled($validated['products_other'] ?? null)) {
+            $customProductEntries->prepend('Custom: '.trim((string) $validated['products_other']));
+        }
+        $validated['products'] = $this->truncateStringForColumn(
+            $productSelections->merge($customProductEntries)->filter()->values()->implode(', ')
+        );
+        $requirementsStatusInput = $validated['requirements_status_map'] ?? ($validated['requirements_status'] ?? []);
+        if (! is_array($requirementsStatusInput)) {
+            $requirementsStatusInput = [];
+        }
+        $validated['requirements_status_map'] = $requirementsStatusInput;
+        $clientRequirementsCustom = $this->parseClientRequirementCustomEntries($validated['client_requirements_custom'] ?? []);
+        $validated['requirements_status'] = $this->truncateStringForColumn(
+            $this->stringifyRequirements($requirementsStatusInput, $clientRequirementsCustom)
+        );
+        $requiredActionsSelections = collect($validated['required_actions_options'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+        $requiredActionsCustom = collect($validated['required_actions_custom'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        if (filled($validated['required_actions_other'] ?? null)) {
+            $requiredActionsCustom->prepend('Custom: '.trim((string) $validated['required_actions_other']));
+        }
+        $validated['required_actions'] = $this->truncateStringForColumn(
+            $requiredActionsSelections->merge($requiredActionsCustom)->filter()->values()->implode(', ')
         );
         $validated['support_required'] = $this->truncateStringForColumn($this->composeMultiSelectString(
             $validated['support_required_options'] ?? [],
@@ -1106,7 +1526,24 @@ class DealController extends Controller
             $validated['middle_name'] = $validated['middle_initial'];
         }
 
-        if (($validated['payment_terms'] ?? null) !== 'Others') {
+        $paymentTermsCustom = collect($validated['payment_terms_custom'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        if (filled($validated['payment_terms_other'] ?? null)) {
+            $legacyPaymentTermOther = trim((string) $validated['payment_terms_other']);
+            $paymentTermsCustom->prepend(
+                Str::startsWith($legacyPaymentTermOther, 'Custom: ')
+                    ? $legacyPaymentTermOther
+                    : 'Custom: '.$legacyPaymentTermOther
+            );
+        }
+        $validated['payment_terms_other'] = $paymentTermsCustom->isEmpty()
+            ? null
+            : $this->truncateStringForColumn($paymentTermsCustom->unique()->values()->implode(', '), 255);
+        if (! $paymentTermsCustom->isEmpty()) {
+            $validated['payment_terms'] = 'Others';
+        } elseif (($validated['payment_terms'] ?? null) !== 'Others') {
             $validated['payment_terms_other'] = null;
         }
 
@@ -1127,6 +1564,115 @@ class DealController extends Controller
         return $cleanSelected->isEmpty() ? null : $cleanSelected->implode(', ');
     }
 
+    private function stringifyRequirements(array $requirements, array $customEntries = []): ?string
+    {
+        $pairs = collect($requirements)
+            ->filter(fn ($status, $item): bool => filled($item) && in_array($status, ['provided', 'pending'], true))
+            ->map(fn ($status, $item): string => str_replace('_', ' ', (string) $item).': '.$status)
+            ->values();
+
+        $custom = collect($customEntries)
+            ->filter(fn ($entry): bool => is_string($entry) && trim($entry) !== '')
+            ->map(fn ($entry): string => trim((string) $entry))
+            ->values();
+
+        $all = $pairs->merge($custom)->filter()->values();
+
+        return $all->isEmpty() ? null : $all->implode('; ');
+    }
+
+    private function parseCustomEntries(mixed $value): array
+    {
+        if (is_array($value)) {
+            return collect($value)
+                ->filter(fn ($entry): bool => is_string($entry) && trim($entry) !== '')
+                ->map(fn ($entry): string => trim((string) $entry))
+                ->map(function (string $entry): string {
+                    if (Str::startsWith($entry, 'Custom: ')) {
+                        return trim(Str::after($entry, 'Custom: '));
+                    }
+                    if (Str::startsWith($entry, 'Others: ')) {
+                        return trim(Str::after($entry, 'Others: '));
+                    }
+                    return $entry;
+                })
+                ->filter(fn ($entry): bool => $entry !== '')
+                ->values()
+                ->all();
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(preg_split('/[,;]\s*/', $value))
+            ->filter(fn ($entry): bool => is_string($entry) && trim($entry) !== '')
+            ->map(fn ($entry): string => trim((string) $entry))
+            ->filter(fn ($entry): bool => Str::startsWith($entry, ['Custom: ', 'Others: ']))
+            ->map(function (string $entry): string {
+                if (Str::startsWith($entry, 'Custom: ')) {
+                    return trim(Str::after($entry, 'Custom: '));
+                }
+                return trim(Str::after($entry, 'Others: '));
+            })
+            ->filter(fn ($entry): bool => $entry !== '')
+            ->values()
+            ->all();
+    }
+
+    private function parseClientRequirementCustomEntries(mixed $value): array
+    {
+        $normalizeEntry = function (string $entry): ?string {
+            $clean = trim($entry);
+            if ($clean === '') {
+                return null;
+            }
+
+            if (preg_match('/^Other:\s*(.*?)\s*\|\s*(Provided|Pending)$/i', $clean, $matches) === 1) {
+                $label = trim((string) $matches[1]);
+                if ($label === '') {
+                    return null;
+                }
+
+                $status = strtolower((string) $matches[2]) === 'provided' ? 'Provided' : 'Pending';
+                return 'Other: '.$label.' | '.$status;
+            }
+
+            if (Str::startsWith($clean, 'Custom: ')) {
+                $clean = trim(Str::after($clean, 'Custom: '));
+            } elseif (Str::startsWith($clean, 'Others: ')) {
+                $clean = trim(Str::after($clean, 'Others: '));
+            } elseif (Str::startsWith($clean, 'Other: ')) {
+                $clean = trim(Str::after($clean, 'Other: '));
+            } else {
+                $clean = trim($clean);
+            }
+
+            return $clean === '' ? null : 'Other: '.$clean.' | Pending';
+        };
+
+        if (is_array($value)) {
+            return collect($value)
+                ->filter(fn ($entry): bool => is_string($entry) && trim($entry) !== '')
+                ->map(fn ($entry): ?string => $normalizeEntry((string) $entry))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(';', $value))
+            ->filter(fn ($entry): bool => is_string($entry) && trim($entry) !== '')
+            ->map(fn ($entry): ?string => $normalizeEntry((string) $entry))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
     private function truncateStringForColumn(?string $value, int $limit = 255): ?string
     {
         if (blank($value)) {
@@ -1269,6 +1815,7 @@ class DealController extends Controller
 
         return [
             'id' => (int) now()->format('His'),
+            'deal_code' => $this->generateDealCode($contact),
             'deal_name' => $validated['deal_name'],
             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
             'company_name' => $validated['company_name'] ?? $contact->company_name ?? '-',
@@ -1278,7 +1825,83 @@ class DealController extends Controller
                 : 'TBD',
             'owner_name' => $validated['assigned_consultant'] ?? 'Unassigned',
             'stage' => $validated['stage'] ?? 'Inquiry',
+            'created_by' => optional(Auth::user())->name ?: 'System',
+            'created_at_label' => now()->format('F d, Y • h:i:s A'),
         ];
+    }
+
+    private function generateDealCode(?Contact $contact, ?int $existingDealId = null): string
+    {
+        $initials = $this->dealCodeInitials(
+            (string) ($contact?->first_name ?? ''),
+            (string) ($contact?->last_name ?? '')
+        );
+        $year = now()->format('Y');
+        $prefix = "{$initials}-{$year}-";
+
+        if (Schema::hasTable('deals') && Schema::hasColumn('deals', 'deal_code')) {
+            $existingCodes = Deal::query()
+                ->when($existingDealId, fn ($query) => $query->where('id', '!=', $existingDealId))
+                ->where('deal_code', 'like', "{$prefix}%")
+                ->pluck('deal_code');
+
+            $maxSequence = $existingCodes
+                ->map(fn (string $code): int => (int) Str::afterLast($code, '-'))
+                ->max() ?? 0;
+
+            return $prefix.str_pad((string) ($maxSequence + 1), 3, '0', STR_PAD_LEFT);
+        }
+
+        return $prefix.str_pad((string) ($existingDealId ?: random_int(1, 999)), 3, '0', STR_PAD_LEFT);
+    }
+
+    private function generateDealCodeFromNames(string $firstName, string $lastName, int $seed): string
+    {
+        $initials = $this->dealCodeInitials($firstName, $lastName);
+
+        return "{$initials}-".now()->format('Y').'-'.str_pad((string) $seed, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function dealCodeInitials(string $firstName, string $lastName): string
+    {
+        $letters = strtoupper(mb_substr(trim($firstName), 0, 1).mb_substr(trim($lastName), 0, 1));
+
+        return str_pad($letters !== '' ? $letters : 'DL', 2, 'X');
+    }
+
+    private function resolveCurrentStageForDeal(?string $stageName, ?int $stageId): array
+    {
+        $stages = collect($this->dealStages());
+
+        if ($stageId) {
+            $stage = $stages->firstWhere('id', $stageId);
+            if ($stage) {
+                return $stage;
+            }
+        }
+
+        if (filled($stageName)) {
+            $stage = $stages->firstWhere('name', $stageName);
+            if ($stage) {
+                return $stage;
+            }
+        }
+
+        return $stages->first() ?: [
+            'id' => null,
+            'name' => $stageName ?: 'Inquiry',
+            'order' => 1,
+            'color' => null,
+        ];
+    }
+
+    private function resolveStageIdByName(string $stageName): ?int
+    {
+        if (! Schema::hasTable('deal_stages') || trim($stageName) === '') {
+            return null;
+        }
+
+        return DealStage::query()->where('name', trim($stageName))->value('id');
     }
 
     private function mockContactRecord(): array

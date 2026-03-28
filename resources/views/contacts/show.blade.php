@@ -1659,40 +1659,77 @@
             @endif
 
             @if ($tab === 'company')
-                <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <div class="border-b border-gray-100 p-5">
-                        <h2 class="text-2xl font-semibold text-gray-900">Company Information</h2>
-                        <p class="text-sm text-gray-500">Details about the linked company</p>
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-900">Related Companies</h2>
+                        <p class="text-sm text-gray-500">Track companies linked to this contact.</p>
                     </div>
-                    <div class="border-b border-gray-100 bg-blue-50 p-5">
-                        <div class="flex flex-wrap items-center gap-4">
-                            <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-white text-3xl text-blue-600 shadow-sm"><i class="far fa-building"></i></div>
-                            <div>
-                                <h3 class="text-3xl font-semibold text-gray-900">{{ $contact->company_name ?: 'ABC Corporation' }}</h3>
-                                <p class="text-sm text-gray-600">Information Technology</p>
-                                <button class="mt-2 h-9 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
-                                    <i class="fas fa-up-right-from-square mr-1"></i>View Company Profile
-                                </button>
+                    <a href="{{ route('company.index') }}" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">+ Add Company</a>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div class="border-b border-gray-100 px-4 py-3">
+                        <form method="GET" action="{{ route('contacts.show', $contact->id) }}" class="flex flex-wrap items-center gap-3">
+                            <input type="hidden" name="tab" value="company">
+                            <div class="relative w-full max-w-md">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
+                                <input
+                                    type="text"
+                                    name="company_search"
+                                    value="{{ $companySearch }}"
+                                    placeholder="Search company name..."
+                                    class="h-10 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                >
                             </div>
-                        </div>
+                        </form>
                     </div>
-                    <div class="grid gap-5 border-b border-gray-100 p-5 text-sm md:grid-cols-2">
-                        <div class="space-y-3">
-                            <p><span class="font-semibold text-gray-700">Phone Number</span><br>+63 2 8123 4567</p>
-                            <p><span class="font-semibold text-gray-700">Website</span><br><a href="#" class="text-blue-600">www.abccorp.com.ph</a></p>
-                            <p><span class="font-semibold text-gray-700">Company Owner</span><br>{{ $contact->owner_name ?: 'John Admin' }}</p>
-                        </div>
-                        <div class="space-y-3">
-                            <p><span class="font-semibold text-gray-700">Number of Employees</span><br>500-1000</p>
-                            <p><span class="font-semibold text-gray-700">Year Founded</span><br>2010</p>
-                            <p><span class="font-semibold text-gray-700">Address</span><br>Makati City, Metro Manila, Philippines</p>
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <h4 class="mb-1 text-sm font-semibold text-gray-700">About</h4>
-                        <p class="text-sm leading-relaxed text-gray-600">
-                            ABC Corporation is a leading provider of enterprise software solutions in the Philippines, specializing in business automation, cloud services, and digital transformation.
-                        </p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-600">
+                                <tr>
+                                    <th class="w-10 px-3 py-3 text-left"><input type="checkbox" class="h-4 w-4 rounded border-gray-300"></th>
+                                    <th class="px-3 py-3 text-left">Company Name</th>
+                                    <th class="px-3 py-3 text-left">Industry</th>
+                                    <th class="px-3 py-3 text-left">Phone</th>
+                                    <th class="px-3 py-3 text-left">Owner</th>
+                                    <th class="px-3 py-3 text-left">Status</th>
+                                    <th class="px-3 py-3 text-left">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @forelse ($companyTabCompanies as $companyItem)
+                                    <tr class="text-gray-700">
+                                        <td class="px-3 py-3"><input type="checkbox" class="h-4 w-4 rounded border-gray-300"></td>
+                                        <td class="px-3 py-3 font-medium text-gray-900">{{ $companyItem['company_name'] }}</td>
+                                        <td class="px-3 py-3">{{ $companyItem['industry'] }}</td>
+                                        <td class="px-3 py-3">{{ $companyItem['phone'] }}</td>
+                                        <td class="px-3 py-3">{{ $companyItem['owner'] }}</td>
+                                        <td class="px-3 py-3">
+                                            <span class="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                                {{ $companyItem['status'] }}
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <a href="{{ $companyItem['show_url'] }}" class="inline-flex h-8 items-center rounded-full border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                                                    <i class="far fa-eye mr-1"></i>View
+                                                </a>
+                                                <form method="POST" action="{{ route('contacts.companies.unlink', ['contact' => $contact->id, 'company' => $companyItem['id']]) }}" onsubmit="return confirm('Unlink this company from the current contact?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex h-8 items-center rounded-full border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50">
+                                                        Remove
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-3 py-10 text-center text-sm text-gray-500">No related companies found for this contact.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             @endif

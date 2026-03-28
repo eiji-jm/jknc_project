@@ -6,6 +6,7 @@ use App\Models\Contact;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 
 class Company extends Model
@@ -44,5 +45,10 @@ class Company extends Model
     public function primaryContact(): BelongsTo
     {
         return $this->belongsTo(Contact::class, 'primary_contact_id');
+    }
+
+    public function contacts(): BelongsToMany
+    {
+        return $this->belongsToMany(Contact::class)->withTimestamps();
     }
 }
