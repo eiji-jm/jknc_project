@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Company;
 use App\Models\Deal;
 use App\Models\DealStage;
 use App\Models\User;
@@ -45,6 +46,7 @@ class DealController extends Controller
             'Michael Brown',
         ];
         $contactRecords = [$this->mockContactRecord()];
+        $companyRecords = [];
 
         try {
             if (Schema::hasTable('contacts')) {
@@ -134,6 +136,54 @@ class DealController extends Controller
                 $companyOptions = array_values(array_unique(array_merge(
                     ['Consulting Group'],
                     $contacts->pluck('company_name')->filter()->values()->all()
+                )));
+            }
+
+            if (Schema::hasTable('companies')) {
+                $companyColumns = array_values(array_filter([
+                    'id',
+                    'company_name',
+                    'email',
+                    'phone',
+                    'address',
+                    'owner_name',
+                ], fn (string $column): bool => Schema::hasColumn('companies', $column)));
+
+                if (! in_array('id', $companyColumns, true)) {
+                    $companyColumns[] = 'id';
+                }
+
+                $companies = Company::query()
+                    ->select($companyColumns)
+                    ->orderBy('company_name')
+                    ->get();
+
+                $companyRecords = $companies
+                    ->map(function (Company $company): array {
+                        return [
+                            'id' => $company->id,
+                            'label' => $company->company_name,
+                            'search_blob' => strtolower(implode(' ', array_filter([
+                                $company->company_name,
+                                $company->email,
+                                $company->phone,
+                                $company->owner_name,
+                                $company->address,
+                            ]))),
+                            'company_name' => $company->company_name,
+                            'company_address' => $company->address,
+                            'email' => $company->email,
+                            'mobile' => $company->phone,
+                            'owner_name' => $company->owner_name,
+                        ];
+                    })
+                    ->filter(fn (array $record): bool => filled($record['company_name']))
+                    ->values()
+                    ->all();
+
+                $companyOptions = array_values(array_unique(array_merge(
+                    $companyOptions,
+                    $companies->pluck('company_name')->filter()->values()->all()
                 )));
             }
 
@@ -227,6 +277,7 @@ class DealController extends Controller
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
+            'companyRecords' => $companyRecords,
             'dealDraft' => is_array($draft) ? $draft : [],
             'openDealModal' => (bool) request()->boolean('open_deal_modal'),
             'productOptions' => [
@@ -1157,6 +1208,7 @@ class DealController extends Controller
         $contactRecords = [$this->mockContactRecord()];
         $contactOptions = ['David Lee'];
         $companyOptions = ['Consulting Group'];
+        $companyRecords = [];
 
         if (Schema::hasTable('contacts')) {
             $contactColumns = array_values(array_filter([
@@ -1224,11 +1276,48 @@ class DealController extends Controller
             $companyOptions = array_values(array_unique(array_merge(['Consulting Group'], $contacts->pluck('company_name')->filter()->values()->all())));
         }
 
+        if (Schema::hasTable('companies')) {
+            $companyColumns = array_values(array_filter([
+                'id',
+                'company_name',
+                'email',
+                'phone',
+                'address',
+                'owner_name',
+            ], fn (string $column): bool => Schema::hasColumn('companies', $column)));
+            if (! in_array('id', $companyColumns, true)) {
+                $companyColumns[] = 'id';
+            }
+
+            $companies = Company::query()->select($companyColumns)->orderBy('company_name')->get();
+            $companyRecords = $companies->map(function (Company $company): array {
+                return [
+                    'id' => $company->id,
+                    'label' => $company->company_name,
+                    'search_blob' => strtolower(implode(' ', array_filter([
+                        $company->company_name,
+                        $company->email,
+                        $company->phone,
+                        $company->owner_name,
+                        $company->address,
+                    ]))),
+                    'company_name' => $company->company_name,
+                    'company_address' => $company->address,
+                    'email' => $company->email,
+                    'mobile' => $company->phone,
+                    'owner_name' => $company->owner_name,
+                ];
+            })->filter(fn (array $record): bool => filled($record['company_name']))->values()->all();
+
+            $companyOptions = array_values(array_unique(array_merge($companyOptions, $companies->pluck('company_name')->filter()->values()->all())));
+        }
+
         return [
             'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $this->dealStages())),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
+            'companyRecords' => $companyRecords,
             'productOptions' => [],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
             'owners' => $owners,
@@ -1250,7 +1339,9 @@ class DealController extends Controller
         $normalized['required_actions_options'] = $this->normalizeListValue($payload['required_actions_options'] ?? ($payload['required_actions'] ?? null));
         $normalized['required_actions_custom'] = $this->parseCustomEntries($payload['required_actions_custom'] ?? ($payload['required_actions'] ?? null));
         $normalized['payment_terms_custom'] = $this->parseCustomEntries($payload['payment_terms_custom'] ?? ($payload['payment_terms_other'] ?? null));
+        $normalized['service_complexity_custom'] = $this->parseCustomEntries($payload['service_complexity_custom'] ?? null);
         $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
+        $normalized['support_required_custom'] = $this->parseCustomEntries($payload['support_required_custom'] ?? ($payload['support_required'] ?? null));
         $normalized['requirements_status_map'] = $this->normalizeRequirementStatusMap($payload['requirements_status_map'] ?? ($payload['requirements_status'] ?? null));
         $normalized['other_fees'] = $this->normalizeOtherFees($payload['other_fees'] ?? null, $payload);
         $normalized['other_fees_titles'] = array_map(
@@ -1266,6 +1357,8 @@ class DealController extends Controller
             'estimated_professional_fee',
             'estimated_government_fees',
             'estimated_service_support_fee',
+            'total_service_fee',
+            'total_product_fee',
             'total_estimated_engagement_value',
         ] as $moneyField) {
             if (! array_key_exists($moneyField, $normalized) || blank($normalized[$moneyField])) {
@@ -1452,12 +1545,14 @@ class DealController extends Controller
             'service_area_other.*' => ['nullable', 'string', 'max:255'],
             'service_options' => ['nullable', 'array'],
             'service_options.*' => ['string', 'max:255'],
+            'total_service_fee' => ['nullable', 'numeric'],
             'services_other' => ['nullable'],
             'services_other.*' => ['nullable', 'string', 'max:255'],
             'service_identification_custom' => ['nullable', 'array'],
             'service_identification_custom.*' => ['nullable', 'string', 'max:255'],
             'product_options' => ['nullable', 'array'],
             'product_options.*' => ['string', 'max:255'],
+            'total_product_fee' => ['nullable', 'numeric'],
             'products_other' => ['nullable', 'string', 'max:255'],
             'products_other_entries' => ['nullable', 'array'],
             'products_other_entries.*' => ['nullable', 'string', 'max:255'],
@@ -1496,9 +1591,13 @@ class DealController extends Controller
             'confirmed_delivery_date' => ['nullable', 'date'],
             'timeline_notes' => ['nullable', 'string'],
             'service_complexity' => ['nullable', 'string', 'max:255'],
+            'service_complexity_custom' => ['nullable', 'array'],
+            'service_complexity_custom.*' => ['nullable', 'string', 'max:255'],
             'support_required' => ['nullable', 'string', 'max:255'],
             'support_required_options' => ['nullable', 'array'],
             'support_required_options.*' => ['string', 'max:255'],
+            'support_required_custom' => ['nullable', 'array'],
+            'support_required_custom.*' => ['nullable', 'string', 'max:255'],
             'complexity_notes' => ['nullable', 'string'],
             'proposal_decision' => ['nullable', 'string', 'max:255'],
             'decline_reason' => ['nullable', 'string'],
@@ -1555,6 +1654,8 @@ class DealController extends Controller
             'estimated_professional_fee',
             'estimated_government_fees',
             'estimated_service_support_fee',
+            'total_service_fee',
+            'total_product_fee',
             'total_estimated_engagement_value',
         ] as $moneyField) {
             if (blank($validated[$moneyField] ?? null)) {
@@ -1636,10 +1737,17 @@ class DealController extends Controller
         $validated['required_actions'] = $this->truncateStringForColumn(
             $requiredActionsSelections->merge($requiredActionsCustom)->filter()->values()->implode(', ')
         );
-        $validated['support_required'] = $this->truncateStringForColumn($this->composeMultiSelectString(
-            $validated['support_required_options'] ?? [],
-            null
-        ));
+        $supportRequiredSelections = collect($validated['support_required_options'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+        $supportRequiredCustom = collect($validated['support_required_custom'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => 'Custom: '.trim((string) $value))
+            ->values();
+        $validated['support_required'] = $this->truncateStringForColumn(
+            $supportRequiredSelections->merge($supportRequiredCustom)->filter()->unique()->values()->implode(', ')
+        );
 
         if (blank($validated['middle_name'] ?? null) && filled($validated['middle_initial'] ?? null)) {
             $validated['middle_name'] = $validated['middle_initial'];
@@ -1734,6 +1842,8 @@ class DealController extends Controller
             $validated['estimated_professional_fee'] ?? 0,
             $validated['estimated_government_fees'] ?? 0,
             $validated['estimated_service_support_fee'] ?? 0,
+            $validated['total_service_fee'] ?? 0,
+            $validated['total_product_fee'] ?? 0,
         ])->sum();
 
         $otherFeesTotal = collect($validated['other_fees'] ?? [])
@@ -1768,17 +1878,23 @@ class DealController extends Controller
         $professional = (float) ($validated['estimated_professional_fee'] ?? 0);
         $government = (float) ($validated['estimated_government_fees'] ?? 0);
         $support = (float) ($validated['estimated_service_support_fee'] ?? 0);
+        $totalServiceFee = (float) ($validated['total_service_fee'] ?? 0);
+        $totalProductFee = (float) ($validated['total_product_fee'] ?? 0);
         $otherFees = $validated['other_fees'] ?? [];
         $total = $this->computeTotalEstimatedEngagementValue([
             'estimated_professional_fee' => $professional,
             'estimated_government_fees' => $government,
             'estimated_service_support_fee' => $support,
+            'total_service_fee' => $totalServiceFee,
+            'total_product_fee' => $totalProductFee,
             'other_fees' => $otherFees,
         ]);
 
         $deal->estimated_professional_fee = $professional ?: null;
         $deal->estimated_government_fees = $government ?: null;
         $deal->estimated_service_support_fee = $support ?: null;
+        $deal->total_service_fee = $totalServiceFee ?: null;
+        $deal->total_product_fee = $totalProductFee ?: null;
         $deal->total_estimated_engagement_value = $total;
 
         if (Schema::hasColumn('deals', 'other_fees')) {

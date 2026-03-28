@@ -18,7 +18,9 @@ class Deal extends Model
         'stage',
         'service_area',
         'services',
+        'total_service_fee',
         'products',
+        'total_product_fee',
         'scope_of_work',
         'engagement_type',
         'requirements_status',
@@ -67,6 +69,8 @@ class Deal extends Model
         'estimated_professional_fee' => 'decimal:2',
         'estimated_government_fees' => 'decimal:2',
         'estimated_service_support_fee' => 'decimal:2',
+        'total_service_fee' => 'decimal:2',
+        'total_product_fee' => 'decimal:2',
         'other_fees' => 'array',
         'total_estimated_engagement_value' => 'decimal:2',
     ];

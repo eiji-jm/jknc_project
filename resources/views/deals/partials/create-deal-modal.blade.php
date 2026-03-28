@@ -91,6 +91,14 @@
         'Drafting of Reports / Formal Documents',
         'Others',
     ];
+    $servicePricing = collect($serviceGroups)
+        ->flatten()
+        ->mapWithKeys(fn ($service) => [$service => 2500])
+        ->all();
+    $productPricing = collect($productOptions)
+        ->reject(fn ($product) => $product === 'Others')
+        ->mapWithKeys(fn ($product) => [$product => 350])
+        ->all();
     $requirementRows = [
         'client_contact_form' => 'Client Contact Form',
         'deal_form' => 'Deal Form',
@@ -296,7 +304,57 @@
         ->values()
         ->all();
     $hasPaymentTermsCustomEntries = count($paymentTermsCustomEntries) > 0;
+    $defaultServiceComplexityOptions = ['Standard Service', 'Complex Case'];
+    $selectedServiceComplexity = old('service_complexity', $draft['service_complexity'] ?? '');
+    $serviceComplexityCustomEntries = old('service_complexity_custom');
+    if (! is_array($serviceComplexityCustomEntries)) {
+        $serviceComplexityCustomEntries = collect($draft['service_complexity_custom'] ?? [])
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values()
+            ->all();
+    }
+    if (
+        is_string($selectedServiceComplexity)
+        && trim($selectedServiceComplexity) !== ''
+        && ! in_array(trim($selectedServiceComplexity), $defaultServiceComplexityOptions, true)
+    ) {
+        $serviceComplexityCustomEntries[] = trim($selectedServiceComplexity);
+    }
+    $serviceComplexityCustomEntries = collect($serviceComplexityCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasServiceComplexityCustomEntries = count($serviceComplexityCustomEntries) > 0;
     $selectedSupportRequired = old('support_required_options', $draft['support_required_options'] ?? []);
+    if (! is_array($selectedSupportRequired)) {
+        $selectedSupportRequired = [];
+    }
+    $supportRequiredCustomEntries = old('support_required_custom');
+    if (! is_array($supportRequiredCustomEntries)) {
+        $supportRequiredCustomEntries = collect($draft['support_required_custom'] ?? ($draft['support_required'] ?? []))
+            ->filter(fn ($value): bool => is_string($value) && Str::startsWith(trim((string) $value), ['Custom: ', 'Others: ']))
+            ->map(function ($value): string {
+                $clean = trim((string) $value);
+                if (Str::startsWith($clean, 'Custom: ')) {
+                    return trim(Str::after($clean, 'Custom: '));
+                }
+
+                return trim(Str::after($clean, 'Others: '));
+            })
+            ->filter(fn ($value): bool => $value !== '')
+            ->values()
+            ->all();
+    }
+    $supportRequiredCustomEntries = collect($supportRequiredCustomEntries)
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $hasSupportRequiredCustomEntries = count($supportRequiredCustomEntries) > 0;
     $selectedOwner = collect($owners)->firstWhere('id', (int) old('owner_id', $defaultOwnerId)) ?: collect($owners)->first();
     $selectedOwnerId = (int) ($selectedOwner['id'] ?? $defaultOwnerId ?? 0);
     $selectedOwnerName = $selectedOwner['name'] ?? $ownerLabel ?? 'Select Owner';
@@ -364,6 +422,23 @@
                     </div>
 
                     <section class="rounded-2xl border border-gray-200 p-4">
+                        <h3 class="text-base font-semibold text-gray-900">Customer Type</h3>
+                        <div class="mt-3 space-y-3">
+                            <div class="grid items-center gap-2 sm:grid-cols-[72px_1fr]">
+                                <label class="text-sm font-medium text-gray-700">Type</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    @foreach (['business' => 'Business', 'individual' => 'Individual'] as $value => $label)
+                                        <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                            <input type="radio" name="customer_type" value="{{ $value }}" @checked(old('customer_type', $draft['customer_type'] ?? '') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="rounded-2xl border border-gray-200 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Deal Information</h3>
                         <p class="mb-4 text-xs text-gray-500">Auto-generated metadata appears here after the deal is saved.</p>
                         <div class="grid gap-4 sm:grid-cols-3">
@@ -384,10 +459,10 @@
 
                     <section class="rounded-2xl border border-gray-200 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Select Existing Contact / Client</h3>
-                        <p class="mb-4 text-xs text-gray-500">Search by contact name, company, email, or mobile number.</p>
+                        <p id="dealSearchHelpText" class="mb-4 text-xs text-gray-500">Select a customer type, then search the matching records.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="relative sm:col-span-2">
-                                <label for="dealContactSearch" class="mb-1 block text-sm font-medium text-gray-700">Search Existing Contact</label>
+                                <label id="dealContactSearchLabel" for="dealContactSearch" class="mb-1 block text-sm font-medium text-gray-700">Search Existing Client</label>
                                 <i class="fas fa-search pointer-events-none absolute left-3 top-[42px] text-xs text-gray-400"></i>
                                 <input id="dealContactSearch" type="text" placeholder="Type name, company, email, or mobile..." class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                 <div id="dealContactResults" class="absolute left-0 right-0 z-20 mt-1 hidden max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg"></div>
@@ -413,34 +488,6 @@
                     </section>
 
                     <div id="dealDependentSections" class="space-y-5">
-                        <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                            <h3 class="text-base font-semibold text-gray-900">Customer Type</h3>
-                            <div class="mt-3 space-y-3">
-                                <div class="grid items-center gap-2 sm:grid-cols-[72px_1fr]">
-                                    <label class="text-sm font-medium text-gray-700">Type</label>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        @foreach (['business' => 'Business', 'individual' => 'Individual'] as $value => $label)
-                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="radio" name="customer_type" value="{{ $value }}" @checked(old('customer_type', $draft['customer_type'] ?? '') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span>{{ $label }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                <div class="grid items-center gap-2 sm:grid-cols-[72px_1fr]">
-                                    <label class="text-sm font-medium text-gray-700">Status</label>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        @foreach (['new' => 'New Client', 'existing' => 'Existing Client'] as $value => $label)
-                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="radio" name="client_status" value="{{ $value }}" @checked(old('client_status', $draft['client_status'] ?? '') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span>{{ $label }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Contact Information</h3>
                             <p class="mb-4 text-xs text-gray-500">Fields auto-fill from selected contact and remain editable.</p>
@@ -481,25 +528,24 @@
                             <div class="mt-4 space-y-4">
                                 <div>
                                     <label class="mb-2 block text-sm font-medium text-gray-700">Service Area</label>
-                                    <div class="grid gap-2 sm:grid-cols-2">
+                                    <div id="service-area-options-grid" class="grid gap-2 sm:grid-cols-2">
                                         @foreach ($serviceAreaOptions as $option)
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                                                 <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="service-area-other-wrapper" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                 <span>{{ $option }}</span>
                                             </label>
                                         @endforeach
+                                        @foreach ($serviceAreaOtherEntries as $item)
+                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
+                                                <input type="checkbox" name="service_area_options[]" value="{{ $item }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="flex-1">{{ $item }}</span>
+                                                <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
+                                                <input type="hidden" name="service_area_other[]" value="{{ $item }}" data-custom-option-hidden>
+                                            </label>
+                                        @endforeach
                                     </div>
                                     <div id="service-area-other-wrapper" class="other-wrapper {{ (in_array('Others', $selectedServiceAreas, true) || count($serviceAreaOtherEntries) > 0) ? '' : 'hidden' }} mt-2">
                                         <input id="service-area-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="service_area_other[]" placeholder="Enter custom service area and press Enter">
-                                        <div id="service-area-other-tags" class="tags-container mt-2 flex flex-wrap gap-2">
-                                            @foreach ($serviceAreaOtherEntries as $item)
-                                                <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
-                                                    <span>{{ $item }}</span>
-                                                    <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
-                                                    <input type="hidden" name="service_area_other[]" value="{{ $item }}">
-                                                </span>
-                                            @endforeach
-                                        </div>
                                     </div>
                                 </div>
 
@@ -520,21 +566,22 @@
                                             </div>
                                         @endforeach
                                     </div>
+                                    <div id="services-custom-options" class="grid gap-2 sm:grid-cols-2">
+                                        @foreach ($serviceIdentificationCustomEntries as $customEntry)
+                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
+                                                <input type="checkbox" name="service_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="flex-1">{{ $customEntry }}</span>
+                                                <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
+                                                <input type="hidden" name="services_other[]" value="{{ $customEntry }}" data-custom-option-hidden>
+                                            </label>
+                                        @endforeach
+                                    </div>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                                         <input id="services-other-toggle" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $showServiceIdentificationCustomEntries ? 'checked' : '' }}>
                                         <span>Others</span>
                                     </label>
-                                    <div id="services-other-wrapper" class="other-wrapper {{ $showServiceIdentificationCustomEntries ? '' : 'hidden' }} mt-2 space-y-2">
+                                    <div id="services-other-wrapper" class="other-wrapper {{ $showServiceIdentificationCustomEntries ? '' : 'hidden' }} mt-2">
                                         <input id="services-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="services_other[]" placeholder="Enter custom service and press Enter">
-                                        <div id="services-other-tags" class="tags-container flex flex-wrap gap-2">
-                                            @foreach ($serviceIdentificationCustomEntries as $customEntry)
-                                                <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
-                                                    <span>{{ $customEntry }}</span>
-                                                    <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
-                                                    <input type="hidden" name="services_other[]" value="{{ $customEntry }}">
-                                                </span>
-                                            @endforeach
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -542,26 +589,25 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Products</h3>
-                            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div id="product-options-grid" class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach ($productOptions as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                                         <input type="checkbox" name="product_options[]" value="{{ $option }}" @checked(in_array($option, $selectedProducts, true)) @if ($option === 'Others') data-other-target="deal_products_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
+                                @foreach ($selectedProductCustomEntries as $customEntry)
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
+                                        <input type="checkbox" name="product_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
+                                        <input type="hidden" name="products_other_entries[]" value="{{ $customEntry }}" data-custom-option-hidden>
+                                    </label>
+                                @endforeach
                             </div>
                             <div id="deal_products_other_wrap" class="other-wrapper {{ (in_array('Others', $selectedProducts, true) || $hasCustomProductEntries) ? '' : 'hidden' }} mt-3">
                                 <label class="mb-1 block text-sm font-medium text-gray-700">Others (Custom Product)</label>
                                 <input id="products-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="products_other_entries[]" placeholder="Enter custom product and press Enter">
-                                <div id="products-other-tags" class="tags-container mt-2 flex flex-wrap gap-2">
-                                    @foreach ($selectedProductCustomEntries as $customEntry)
-                                        <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
-                                            <span>{{ $customEntry }}</span>
-                                            <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
-                                            <input type="hidden" name="products_other_entries[]" value="{{ $customEntry }}">
-                                        </span>
-                                    @endforeach
-                                </div>
                             </div>
                         </section>
 
@@ -643,11 +689,19 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Required Actions</h3>
-                            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div id="required_actions_grid" class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach ($requiredActions as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                                         <input type="checkbox" name="required_actions_options[]" value="{{ $option }}" @checked(in_array($option, $selectedRequiredActions, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
+                                    </label>
+                                @endforeach
+                                @foreach ($requiredActionsCustomEntries as $customEntry)
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
+                                        <input type="checkbox" name="required_actions_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
+                                        <input type="hidden" name="required_actions_custom[]" value="{{ $customEntry }}" data-custom-option-hidden>
                                     </label>
                                 @endforeach
                                 <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -657,15 +711,6 @@
                             </div>
                             <div id="required_actions_container" class="other-wrapper {{ $showRequiredActionsCustomEntries ? '' : 'hidden' }} mt-3">
                                 <input id="required_actions_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="required_actions_custom[]" placeholder="Enter custom required action and press Enter">
-                                <div id="required_actions_tags" class="tags-container mt-2 flex flex-wrap gap-2">
-                                    @foreach ($requiredActionsCustomEntries as $customEntry)
-                                        <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
-                                            <span>{{ $customEntry }}</span>
-                                            <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
-                                            <input type="hidden" name="required_actions_custom[]" value="{{ $customEntry }}">
-                                        </span>
-                                    @endforeach
-                                </div>
                             </div>
                         </section>
 
@@ -707,6 +752,8 @@
                                 <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="{{ $estimatedProfessionalFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="{{ $estimatedGovernmentFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="{{ $estimatedServiceSupportFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><input id="total_service_fee" name="total_service_fee" value="{{ old('total_service_fee', $draft['total_service_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><input id="total_product_fee" name="total_product_fee" value="{{ old('total_product_fee', $draft['total_product_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $totalEstimatedValue }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             </div>
                             <div id="otherFeesRows" class="mt-3 space-y-3">
@@ -770,22 +817,52 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Service Complexity Assessment</h3>
-                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                @foreach (['Standard Service', 'Complex Case'] as $option)
+                            <div id="service_complexity_grid" class="mt-3 grid gap-3 sm:grid-cols-2">
+                                @foreach ($defaultServiceComplexityOptions as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="service_complexity" value="{{ $option }}" @checked(old('service_complexity', $draft['service_complexity'] ?? '') === $option) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <input type="radio" name="service_complexity" value="{{ $option }}" @checked($selectedServiceComplexity === $option) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
+                                @foreach ($serviceComplexityCustomEntries as $customEntry)
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-complexity-custom-option>
+                                        <input type="radio" name="service_complexity" value="{{ $customEntry }}" @checked($selectedServiceComplexity === $customEntry) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-radio-remove>&times;</button>
+                                        <input type="hidden" name="service_complexity_custom[]" value="{{ $customEntry }}" data-complexity-custom-hidden>
+                                    </label>
+                                @endforeach
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                    <input id="service_complexity_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $hasServiceComplexityCustomEntries ? 'checked' : '' }}>
+                                    <span>Others</span>
+                                </label>
+                            </div>
+                            <div id="service_complexity_container" class="other-wrapper {{ $hasServiceComplexityCustomEntries ? '' : 'hidden' }} mt-3">
+                                <input id="service_complexity_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="service_complexity_custom[]" placeholder="Enter custom service complexity and press Enter">
                             </div>
                             <label class="mt-4 mb-2 block text-sm font-medium text-gray-700">Professional Support Required</label>
-                            <div class="grid gap-2 sm:grid-cols-2">
+                            <div id="support_required_options_grid" class="grid gap-2 sm:grid-cols-2">
                                 @foreach (['Requires Senior Consultant', 'Requires Subject Matter Expert', 'Requires Lawyer / Legal Counsel', 'Requires CPA / Certified Public Accountant'] as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
                                         <input type="checkbox" name="support_required_options[]" value="{{ $option }}" @checked(in_array($option, $selectedSupportRequired, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
+                                @foreach ($supportRequiredCustomEntries as $customEntry)
+                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-support-custom-option>
+                                        <input type="checkbox" name="support_required_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
+                                        <input type="hidden" name="support_required_custom[]" value="{{ $customEntry }}" data-support-custom-hidden>
+                                    </label>
+                                @endforeach
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                    <input id="support_required_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $hasSupportRequiredCustomEntries ? 'checked' : '' }}>
+                                    <span>Others</span>
+                                </label>
+                            </div>
+                            <div id="support_required_container" class="other-wrapper {{ $hasSupportRequiredCustomEntries ? '' : 'hidden' }} mt-3">
+                                <input id="support_required_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="support_required_custom[]" placeholder="Enter custom support requirement and press Enter">
                             </div>
                             <div class="mt-3">
                                 <label for="complexity_notes" class="mb-1 block text-sm font-medium text-gray-700">Notes / Explanation</label>
@@ -875,6 +952,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const contactSearch = document.getElementById('dealContactSearch');
     const contactResults = document.getElementById('dealContactResults');
     const contactIdInput = document.getElementById('deal_selected_contact_id');
+    const contactSearchLabel = document.getElementById('dealContactSearchLabel');
+    const contactSearchHelpText = document.getElementById('dealSearchHelpText');
     const dependentSections = document.getElementById('dealDependentSections');
     const requiredMessage = document.getElementById('dealContactRequiredMessage');
     const saveBtn = document.getElementById('saveDealBtn');
@@ -882,11 +961,18 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('[name="estimated_professional_fee"]'),
         document.querySelector('[name="estimated_government_fee"]') || document.querySelector('[name="estimated_government_fees"]'),
         document.querySelector('[name="estimated_service_support_fee"]'),
+        document.querySelector('[name="total_service_fee"]'),
+        document.querySelector('[name="total_product_fee"]'),
     ].filter(Boolean);
     const totalInput = document.querySelector('[name="total_estimated_value"]') || document.querySelector('[name="total_estimated_engagement_value"]');
     const otherFeesRows = document.getElementById('otherFeesRows');
     const addOtherFeeBtn = document.getElementById('addOtherFeeBtn');
     const contactRecords = @json($contactRecords);
+    const companyRecords = @json($companyRecords ?? []);
+    const servicePricing = @json($servicePricing);
+    const productPricing = @json($productPricing);
+    const customServicePrice = 2500;
+    const customProductPrice = 350;
 
     const fieldMap = {
         salutation: 'deal_salutation',
@@ -905,6 +991,8 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const closeOwnerMenu = () => ownerMenu?.classList.add('hidden');
+
+    const selectedCustomerType = () => document.querySelector('input[name="customer_type"]:checked')?.value || '';
 
     const openModal = () => {
         if (!modal || !panel) {
@@ -937,12 +1025,17 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const normalizeCurrency = (value) => {
-        const cleaned = String(value || '').replace(/,/g, '').trim();
+        const cleaned = String(value || '')
+            .replace(/,/g, '')
+            .replace(/[^0-9.-]/g, '')
+            .trim();
         const parsed = Number.parseFloat(cleaned);
         return Number.isNaN(parsed) ? 0 : parsed;
     };
 
     const otherFeeAmountInputs = () => Array.from(document.querySelectorAll('[name="other_fees_amounts[]"]'));
+    const serviceFeeInput = document.querySelector('[name="total_service_fee"]');
+    const productFeeInput = document.querySelector('[name="total_product_fee"]');
 
     const createOtherFeeRow = (title = '', amount = '') => {
         const row = document.createElement('div');
@@ -965,10 +1058,35 @@ document.addEventListener('DOMContentLoaded', function () {
         return row;
     };
 
+    const recalculateSectionTotals = () => {
+        const selectedServices = Array.from(document.querySelectorAll('input[name="service_options[]"]:checked'))
+            .reduce((sum, input) => sum + normalizeCurrency(servicePricing[input.value] ?? 0), 0);
+        const customServices = Array.from(document.querySelectorAll('input[name="services_other[]"]'))
+            .reduce((sum) => sum + customServicePrice, 0);
+
+        const selectedProducts = Array.from(document.querySelectorAll('input[name="product_options[]"]:checked'))
+            .filter((input) => input.value !== 'Others')
+            .reduce((sum, input) => sum + normalizeCurrency(productPricing[input.value] ?? 0), 0);
+        const customProducts = Array.from(document.querySelectorAll('input[name="products_other_entries[]"]'))
+            .reduce((sum) => sum + customProductPrice, 0);
+
+        if (serviceFeeInput) {
+            const serviceTotal = selectedServices + customServices;
+            serviceFeeInput.value = serviceTotal > 0 ? serviceTotal.toFixed(2) : '';
+        }
+
+        if (productFeeInput) {
+            const productTotal = selectedProducts + customProducts;
+            productFeeInput.value = productTotal > 0 ? productTotal.toFixed(2) : '';
+        }
+    };
+
     const recalculateTotal = () => {
         if (!totalInput) {
             return;
         }
+
+        recalculateSectionTotals();
 
         const professional = normalizeCurrency(document.querySelector('[name="estimated_professional_fee"]')?.value);
         const government = normalizeCurrency(
@@ -976,13 +1094,15 @@ document.addEventListener('DOMContentLoaded', function () {
             ?? document.querySelector('[name="estimated_government_fees"]')?.value
         );
         const support = normalizeCurrency(document.querySelector('[name="estimated_service_support_fee"]')?.value);
+        const totalServiceFee = normalizeCurrency(document.querySelector('[name="total_service_fee"]')?.value);
+        const totalProductFee = normalizeCurrency(document.querySelector('[name="total_product_fee"]')?.value);
 
         let otherTotal = 0;
         otherFeeAmountInputs().forEach((input) => {
             otherTotal += normalizeCurrency(input.value);
         });
 
-        const total = professional + government + support + otherTotal;
+        const total = professional + government + support + totalServiceFee + totalProductFee + otherTotal;
         totalInput.value = total > 0 ? total.toFixed(2) : '';
     };
 
@@ -1029,6 +1149,7 @@ document.addEventListener('DOMContentLoaded', function () {
         removeBtn.textContent = '×';
         removeBtn.addEventListener('click', () => {
             wrapper.remove();
+            recalculateTotal();
         });
         wrapper.appendChild(removeBtn);
 
@@ -1039,6 +1160,94 @@ document.addEventListener('DOMContentLoaded', function () {
         wrapper.appendChild(hidden);
 
         return wrapper;
+    };
+
+    const createSelectableOption = ({ value, optionInputName, hiddenInputName, optionDataAttribute = 'data-custom-option' }) => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700';
+        label.setAttribute(optionDataAttribute, '');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = optionInputName;
+        checkbox.value = value;
+        checkbox.checked = true;
+        checkbox.className = 'h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500';
+
+        const text = document.createElement('span');
+        text.className = 'flex-1';
+        text.textContent = value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'text-gray-500 hover:text-gray-700';
+        removeBtn.setAttribute('data-custom-option-remove', '');
+        removeBtn.textContent = '×';
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = hiddenInputName;
+        hidden.value = value;
+        hidden.setAttribute('data-custom-option-hidden', '');
+
+        removeBtn.addEventListener('click', () => {
+            label.remove();
+            recalculateTotal();
+        });
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        label.appendChild(hidden);
+
+        return label;
+    };
+
+    const createSelectableRadioOption = ({ value, optionInputName, hiddenInputName, optionDataAttribute = 'data-custom-radio-option' }) => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700';
+        label.setAttribute(optionDataAttribute, '');
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = optionInputName;
+        radio.value = value;
+        radio.checked = true;
+        radio.className = 'h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500';
+
+        const text = document.createElement('span');
+        text.className = 'flex-1';
+        text.textContent = value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'text-gray-500 hover:text-gray-700';
+        removeBtn.setAttribute('data-custom-radio-remove', '');
+        removeBtn.textContent = '×';
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = hiddenInputName;
+        hidden.value = value;
+        hidden.setAttribute('data-custom-radio-hidden', '');
+
+        removeBtn.addEventListener('click', () => {
+            const wasChecked = radio.checked;
+            label.remove();
+            if (wasChecked) {
+                const fallback = document.querySelector(`input[name="${optionInputName}"]:not([value="${value}"])`);
+                if (fallback instanceof HTMLInputElement) {
+                    fallback.checked = true;
+                }
+            }
+        });
+
+        label.appendChild(radio);
+        label.appendChild(text);
+        label.appendChild(removeBtn);
+        label.appendChild(hidden);
+
+        return label;
     };
 
     const initOthersTagInput = ({
@@ -1061,6 +1270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         existingTagRemovers.forEach((button) => {
             button.addEventListener('click', () => {
                 button.closest('[data-tag-item]')?.remove();
+                recalculateTotal();
             });
         });
 
@@ -1093,10 +1303,175 @@ document.addEventListener('DOMContentLoaded', function () {
 
             tagsContainer.appendChild(createTag(value, resolvedInputName));
             input.value = '';
+            recalculateTotal();
         });
 
         triggerElements.forEach((trigger) => {
             trigger.addEventListener('change', syncVisibility);
+        });
+
+        syncVisibility();
+    };
+
+    const initOthersSelectableOptions = ({
+        triggerElements,
+        container,
+        input,
+        optionsContainer,
+        hiddenInputName,
+        optionInputName,
+        isEnabled,
+        insertBeforeElement,
+        optionDataAttribute = 'data-custom-option',
+    }) => {
+        if (!container || !input || !optionsContainer) {
+            return;
+        }
+
+        const customOptionSelector = `[${optionDataAttribute}]`;
+
+        const syncVisibility = () => {
+            const hasCustomOptions = optionsContainer.querySelector(customOptionSelector) !== null;
+            container.classList.toggle('hidden', !(isEnabled() || hasCustomOptions));
+            if (!isEnabled() && !hasCustomOptions) {
+                input.value = '';
+            }
+        };
+
+        Array.from(optionsContainer.querySelectorAll('[data-custom-option-remove]')).forEach((button) => {
+            button.addEventListener('click', () => {
+                button.closest(customOptionSelector)?.remove();
+                syncVisibility();
+                recalculateTotal();
+            });
+        });
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            event.preventDefault();
+            const value = String(input.value || '').trim();
+            if (value === '' || !isEnabled()) {
+                return;
+            }
+
+            const existingValues = Array.from(optionsContainer.querySelectorAll(`input[name="${optionInputName}"]`))
+                .map((item) => String(item.value || '').trim().toLowerCase());
+            if (existingValues.includes(value.toLowerCase())) {
+                input.value = '';
+                return;
+            }
+
+            const option = createSelectableOption({
+                value,
+                optionInputName,
+                hiddenInputName,
+                optionDataAttribute,
+            });
+
+            if (insertBeforeElement) {
+                optionsContainer.insertBefore(option, insertBeforeElement);
+            } else {
+                optionsContainer.appendChild(option);
+            }
+
+            input.value = '';
+            syncVisibility();
+            recalculateTotal();
+        });
+
+        triggerElements.forEach((trigger) => {
+            trigger?.addEventListener('change', syncVisibility);
+        });
+
+        syncVisibility();
+    };
+
+    const initOthersSelectableRadioOptions = ({
+        triggerElements,
+        container,
+        input,
+        optionsContainer,
+        hiddenInputName,
+        optionInputName,
+        isEnabled,
+        insertBeforeElement,
+        optionDataAttribute = 'data-custom-radio-option',
+    }) => {
+        if (!container || !input || !optionsContainer) {
+            return;
+        }
+
+        const customOptionSelector = `[${optionDataAttribute}]`;
+
+        const syncVisibility = () => {
+            const hasCustomOptions = optionsContainer.querySelector(customOptionSelector) !== null;
+            container.classList.toggle('hidden', !(isEnabled() || hasCustomOptions));
+            if (!isEnabled() && !hasCustomOptions) {
+                input.value = '';
+            }
+        };
+
+        Array.from(optionsContainer.querySelectorAll('[data-custom-radio-remove]')).forEach((button) => {
+            button.addEventListener('click', () => {
+                const option = button.closest(customOptionSelector);
+                const radio = option?.querySelector(`input[name="${optionInputName}"]`);
+                const wasChecked = radio instanceof HTMLInputElement && radio.checked;
+                option?.remove();
+                if (wasChecked) {
+                    const fallback = optionsContainer.querySelector(`input[name="${optionInputName}"]`);
+                    if (fallback instanceof HTMLInputElement) {
+                        fallback.checked = true;
+                    }
+                }
+                syncVisibility();
+            });
+        });
+
+        input.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            event.preventDefault();
+            const value = String(input.value || '').trim();
+            if (value === '' || !isEnabled()) {
+                return;
+            }
+
+            const existingValues = Array.from(optionsContainer.querySelectorAll(`input[name="${optionInputName}"]`))
+                .map((item) => String(item.value || '').trim().toLowerCase());
+            if (existingValues.includes(value.toLowerCase())) {
+                const existingOption = Array.from(optionsContainer.querySelectorAll(`input[name="${optionInputName}"]`))
+                    .find((item) => String(item.value || '').trim().toLowerCase() === value.toLowerCase());
+                if (existingOption instanceof HTMLInputElement) {
+                    existingOption.checked = true;
+                }
+                input.value = '';
+                return;
+            }
+
+            const option = createSelectableRadioOption({
+                value,
+                optionInputName,
+                hiddenInputName,
+                optionDataAttribute,
+            });
+
+            if (insertBeforeElement) {
+                optionsContainer.insertBefore(option, insertBeforeElement);
+            } else {
+                optionsContainer.appendChild(option);
+            }
+
+            input.value = '';
+            syncVisibility();
+        });
+
+        triggerElements.forEach((trigger) => {
+            trigger?.addEventListener('change', syncVisibility);
         });
 
         syncVisibility();
@@ -1247,12 +1622,101 @@ document.addEventListener('DOMContentLoaded', function () {
         field.value = value || '';
     };
 
+    const applyBusinessRecord = (record) => {
+        const linkedContact = contactRecords.find((item) => (item.company_name || '') === (record.company_name || ''));
+        contactIdInput.value = linkedContact ? String(linkedContact.id) : '';
+        contactSearch.value = record.company_name || '';
+        setFieldValue('deal_company_name', record.company_name || '');
+        setFieldValue('deal_company_address', record.company_address || '');
+        setFieldValue('deal_email', record.email || '');
+        setFieldValue('deal_mobile', record.mobile || '');
+        setFieldValue('deal_position', record.owner_name || '');
+        setDependentDisabled(false);
+        contactResults.classList.add('hidden');
+    };
+
+    const applyContactRecord = (record) => {
+        contactIdInput.value = String(record.id);
+        contactSearch.value = record.label || '';
+        setFieldValue('deal_first_name', record.first_name || '');
+        setFieldValue('deal_last_name', record.last_name || '');
+        setFieldValue('deal_middle_initial', record.middle_initial || (record.middle_name ? String(record.middle_name).charAt(0) : ''));
+
+        Object.entries(fieldMap).forEach(([key, fieldId]) => {
+            if (['first_name', 'middle_initial', 'last_name'].includes(key)) {
+                return;
+            }
+            setFieldValue(fieldId, record[key] || '');
+        });
+
+        setDependentDisabled(false);
+        contactResults.classList.add('hidden');
+    };
+
+    const syncCustomerSearchUi = () => {
+        const customerType = selectedCustomerType();
+        const isBusiness = customerType === 'business';
+
+        if (contactSearchLabel) {
+            contactSearchLabel.textContent = isBusiness ? 'Search Existing Company' : 'Search Existing Contact';
+        }
+
+        if (contactSearchHelpText) {
+            contactSearchHelpText.textContent = isBusiness
+                ? 'Search by company name, owner, email, or mobile number.'
+                : 'Search by contact name, company, email, or mobile number.';
+        }
+
+        if (contactSearch) {
+            contactSearch.placeholder = isBusiness
+                ? 'Type company, owner, email, or mobile...'
+                : 'Type name, company, email, or mobile...';
+            contactSearch.value = '';
+        }
+
+        contactResults?.classList.add('hidden');
+        contactIdInput.value = '';
+        setDependentDisabled(customerType === '');
+    };
+
+    const initSupportRequiredCustomOptions = () => {
+        const toggle = document.getElementById('support_required_others');
+        const container = document.getElementById('support_required_container');
+        const input = document.getElementById('support_required_input');
+        const grid = document.getElementById('support_required_options_grid');
+
+        if (!toggle || !container || !input || !grid) {
+            return;
+        }
+
+        initOthersSelectableOptions({
+            triggerElements: [toggle].filter(Boolean),
+            container,
+            input,
+            optionsContainer: grid,
+            hiddenInputName: 'support_required_custom[]',
+            optionInputName: 'support_required_options[]',
+            isEnabled: () => Boolean(toggle?.checked),
+            insertBeforeElement: toggle?.closest('label') ?? null,
+            optionDataAttribute: 'data-support-custom-option',
+        });
+    };
+
     const renderContactResults = (keyword) => {
         if (!contactResults) {
             return;
         }
+
+        const customerType = selectedCustomerType();
+        if (customerType === '') {
+            contactResults.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">Select a customer type first.</div>';
+            contactResults.classList.remove('hidden');
+            return;
+        }
+
         const query = keyword.trim().toLowerCase();
-        const matches = contactRecords
+        const records = customerType === 'business' ? companyRecords : contactRecords;
+        const matches = records
             .filter((record) => {
                 if (query === '') {
                     return true;
@@ -1264,20 +1728,20 @@ document.addEventListener('DOMContentLoaded', function () {
             .slice(0, 30);
 
         if (matches.length === 0) {
-            contactResults.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">No matching contacts found.</div>';
+            contactResults.innerHTML = `<div class="px-3 py-2 text-sm text-gray-500">No matching ${customerType === 'business' ? 'companies' : 'contacts'} found.</div>`;
             contactResults.classList.remove('hidden');
             return;
         }
 
         contactResults.innerHTML = matches.map((record) => {
-            const safeLabel = record.label || 'Unnamed contact';
+            const safeLabel = record.label || (customerType === 'business' ? 'Unnamed company' : 'Unnamed contact');
             const safeCompany = record.company_name || '-';
             const safeEmail = record.email || '-';
             const safeMobile = record.mobile || '-';
             return `
-                <button type="button" class="deal-contact-result block w-full rounded-md px-3 py-2 text-left hover:bg-blue-50" data-contact-id="${record.id}">
+                <button type="button" class="deal-contact-result block w-full rounded-md px-3 py-2 text-left hover:bg-blue-50" data-record-id="${record.id}">
                     <p class="text-sm font-medium text-gray-800">${safeLabel}</p>
-                    <p class="text-xs text-gray-500">${safeCompany}</p>
+                    <p class="text-xs text-gray-500">${customerType === 'business' ? (record.owner_name || safeCompany) : safeCompany}</p>
                     <p class="text-[11px] text-gray-400">${safeEmail} · ${safeMobile}</p>
                 </button>
             `;
@@ -1287,35 +1751,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         Array.from(contactResults.querySelectorAll('.deal-contact-result')).forEach((button) => {
             button.addEventListener('click', () => {
-                const selectedId = Number.parseInt(button.dataset.contactId || '', 10);
-                const record = contactRecords.find((item) => Number(item.id) === selectedId);
+                const selectedId = Number.parseInt(button.dataset.recordId || '', 10);
+                const record = records.find((item) => Number(item.id) === selectedId);
                 if (!record) {
                     return;
                 }
 
-                contactIdInput.value = String(record.id);
-                contactSearch.value = record.label || '';
-                setFieldValue('deal_first_name', record.first_name || '');
-                setFieldValue('deal_last_name', record.last_name || '');
-                setFieldValue('deal_middle_initial', record.middle_initial || (record.middle_name ? String(record.middle_name).charAt(0) : ''));
-
-                Object.entries(fieldMap).forEach(([key, fieldId]) => {
-                    if (['first_name', 'middle_initial', 'last_name'].includes(key)) {
-                        return;
-                    }
-                    setFieldValue(fieldId, record[key] || '');
-                });
-
-                if (!document.querySelector('input[name="customer_type"]:checked') && record.customer_type) {
-                    const normalized = String(record.customer_type).toLowerCase().includes('individual') ? 'individual' : 'business';
-                    const radio = document.querySelector(`input[name="customer_type"][value="${normalized}"]`);
-                    if (radio) {
-                        radio.checked = true;
-                    }
+                if (customerType === 'business') {
+                    applyBusinessRecord(record);
+                    return;
                 }
 
-                contactResults.classList.add('hidden');
-                setDependentDisabled(false);
+                applyContactRecord(record);
             });
         });
     };
@@ -1347,6 +1794,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     contactSearch?.addEventListener('focus', () => renderContactResults(contactSearch.value));
     contactSearch?.addEventListener('input', () => renderContactResults(contactSearch.value));
+    Array.from(document.querySelectorAll('input[name="customer_type"]')).forEach((input) => {
+        input.addEventListener('change', syncCustomerSearchUi);
+    });
 
     feeInputs.forEach((field) => field.addEventListener('input', recalculateTotal));
     document.addEventListener('input', (event) => {
@@ -1360,6 +1810,10 @@ document.addEventListener('DOMContentLoaded', function () {
             target.name === 'estimated_government_fee' ||
             target.name === 'estimated_government_fees' ||
             target.name === 'estimated_service_support_fee' ||
+            target.name === 'service_options[]' ||
+            target.name === 'product_options[]' ||
+            target.name === 'services_other[]' ||
+            target.name === 'products_other_entries[]' ||
             target.name === 'other_fees_amounts[]'
         ) {
             recalculateTotal();
@@ -1396,37 +1850,58 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('services-other-toggle')?.addEventListener('change', function () {
         document.getElementById('services-other-wrapper')?.classList.toggle('hidden', !this.checked);
     });
-    initOthersTagInput({
-        triggerElements: Array.from(document.querySelectorAll('input[name="service_area_options[]"][value="Others"]')),
+    const serviceAreaOthersCheckbox = document.querySelector('input[name="service_area_options[]"][value="Others"]');
+    initOthersSelectableOptions({
+        triggerElements: [serviceAreaOthersCheckbox].filter(Boolean),
         container: document.getElementById('service-area-other-wrapper'),
         input: document.getElementById('service-area-other-input'),
-        tagsContainer: document.getElementById('service-area-other-tags'),
-        inputName: 'service_area_other[]',
-        isEnabled: () => Boolean(document.querySelector('input[name="service_area_options[]"][value="Others"]')?.checked),
+        optionsContainer: document.getElementById('service-area-options-grid'),
+        hiddenInputName: 'service_area_other[]',
+        optionInputName: 'service_area_options[]',
+        isEnabled: () => Boolean(serviceAreaOthersCheckbox?.checked),
+        insertBeforeElement: serviceAreaOthersCheckbox?.closest('label') ?? null,
     });
-    initOthersTagInput({
+    initOthersSelectableOptions({
         triggerElements: [document.getElementById('services-other-toggle')].filter(Boolean),
         container: document.getElementById('services-other-wrapper'),
         input: document.getElementById('services-other-input'),
-        tagsContainer: document.getElementById('services-other-tags'),
-        inputName: 'services_other[]',
+        optionsContainer: document.getElementById('services-custom-options'),
+        hiddenInputName: 'services_other[]',
+        optionInputName: 'service_options[]',
         isEnabled: () => Boolean(document.getElementById('services-other-toggle')?.checked),
     });
-    initOthersTagInput({
-        triggerElements: Array.from(document.querySelectorAll('input[name="product_options[]"][value="Others"]')),
+    const productOthersCheckbox = document.querySelector('input[name="product_options[]"][value="Others"]');
+    initOthersSelectableOptions({
+        triggerElements: [productOthersCheckbox].filter(Boolean),
         container: document.getElementById('deal_products_other_wrap'),
         input: document.getElementById('products-other-input'),
-        tagsContainer: document.getElementById('products-other-tags'),
-        inputName: 'products_other_entries[]',
-        isEnabled: () => Boolean(document.querySelector('input[name="product_options[]"][value="Others"]')?.checked),
+        optionsContainer: document.getElementById('product-options-grid'),
+        hiddenInputName: 'products_other_entries[]',
+        optionInputName: 'product_options[]',
+        isEnabled: () => Boolean(productOthersCheckbox?.checked),
+        insertBeforeElement: productOthersCheckbox?.closest('label') ?? null,
     });
-    initOthersTagInput({
+    initOthersSelectableOptions({
         triggerElements: [document.getElementById('required_actions_others')].filter(Boolean),
         container: document.getElementById('required_actions_container'),
         input: document.getElementById('required_actions_input'),
-        tagsContainer: document.getElementById('required_actions_tags'),
-        inputName: 'required_actions_custom[]',
+        optionsContainer: document.getElementById('required_actions_grid'),
+        hiddenInputName: 'required_actions_custom[]',
+        optionInputName: 'required_actions_options[]',
         isEnabled: () => Boolean(document.getElementById('required_actions_others')?.checked),
+        insertBeforeElement: document.getElementById('required_actions_others')?.closest('label') ?? null,
+    });
+    initSupportRequiredCustomOptions();
+    initOthersSelectableRadioOptions({
+        triggerElements: [document.getElementById('service_complexity_others')].filter(Boolean),
+        container: document.getElementById('service_complexity_container'),
+        input: document.getElementById('service_complexity_input'),
+        optionsContainer: document.getElementById('service_complexity_grid'),
+        hiddenInputName: 'service_complexity_custom[]',
+        optionInputName: 'service_complexity',
+        isEnabled: () => Boolean(document.getElementById('service_complexity_others')?.checked),
+        insertBeforeElement: document.getElementById('service_complexity_others')?.closest('label') ?? null,
+        optionDataAttribute: 'data-complexity-custom-option',
     });
     initClientRequirementsOthers();
     initOthersTagInput({
@@ -1463,7 +1938,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    setDependentDisabled(!contactIdInput?.value);
+    syncCustomerSearchUi();
+    if (contactIdInput?.value) {
+        setDependentDisabled(false);
+    }
     applyOtherFieldToggles();
     recalculateTotal();
 
