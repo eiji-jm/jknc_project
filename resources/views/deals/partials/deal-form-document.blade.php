@@ -1,6 +1,24 @@
 @php
     $data = $dealFormData ?? [];
-    $text = static fn (string $key, string $fallback = '-') => filled($data[$key] ?? null) ? (string) $data[$key] : $fallback;
+    $text = static function (string $key, string $fallback = '-') use ($data): string {
+        $value = $data[$key] ?? null;
+
+        if (is_array($value)) {
+            $value = collect($value)
+                ->flatten()
+                ->filter(fn ($item) => filled($item))
+                ->map(function ($item) {
+                    if (is_array($item)) {
+                        return json_encode($item);
+                    }
+
+                    return (string) $item;
+                })
+                ->implode(', ');
+        }
+
+        return filled($value) ? (string) $value : $fallback;
+    };
     $list = static fn (string $key): array => collect($data[$key] ?? [])->filter(fn ($value) => filled($value))->values()->all();
     $statusMap = is_array($data['requirements_status_map'] ?? null) ? $data['requirements_status_map'] : [];
 @endphp

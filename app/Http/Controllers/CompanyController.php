@@ -27,6 +27,8 @@ class CompanyController extends Controller
         $perPage = (int) $request->query('per_page', 10);
         $perPage = in_array($perPage, [5, 10, 25, 50], true) ? $perPage : 10;
         $customFields = $this->companyCustomFields($request);
+        $prefillContactId = (int) $request->query('prefill_contact', 0);
+        $autoOpenAddCompany = $request->boolean('open_add_company');
 
         $allCompanies = $this->companyRecords($request)
             ->map(fn (array $company): array => $this->applyCompanyCustomFieldDefaults($company, $customFields))
@@ -94,6 +96,8 @@ class CompanyController extends Controller
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
             'lookupModules' => $this->lookupModules(),
+            'prefillContactId' => $prefillContactId,
+            'autoOpenAddCompany' => $autoOpenAddCompany,
             'companyCreateContacts' => Schema::hasTable('contacts')
                 ? Contact::query()
                     ->orderBy('first_name')
@@ -118,17 +122,11 @@ class CompanyController extends Controller
         $cifData = $this->loadContactCifData($contact);
         $autofill = $this->buildCompanyAutofillPayload($contact, $cifData);
         $normalizedValidated = array_merge($validated, array_filter([
-            'business_phone' => $validated['business_phone'] ?: ($autofill['business_phone'] ?? null),
-            'mobile_no' => $validated['mobile_no'] ?: ($autofill['mobile_no'] ?? null),
-            'business_address' => $validated['business_address'] ?: ($autofill['business_address'] ?? null),
             'authorized_contact_person_name' => $validated['authorized_contact_person_name'] ?: ($autofill['authorized_contact_person_name'] ?? null),
             'authorized_contact_person_email' => $validated['authorized_contact_person_email'] ?: ($autofill['authorized_contact_person_email'] ?? null),
             'authorized_contact_person_phone' => $validated['authorized_contact_person_phone'] ?: ($autofill['authorized_contact_person_phone'] ?? null),
             'authorized_contact_person_position' => $validated['authorized_contact_person_position'] ?: ($autofill['authorized_contact_person_position'] ?? null),
-            'tin_no' => $validated['tin_no'] ?: ($autofill['tin_no'] ?? null),
-            'zip_code' => $validated['zip_code'] ?: ($autofill['zip_code'] ?? null),
             'nationality_status' => $validated['nationality_status'] ?: ($autofill['nationality_status'] ?? null),
-            'business_name' => $validated['business_name'] ?: ($autofill['business_name'] ?? null),
         ], static fn ($value) => filled($value)));
 
         $company = Company::query()->create([
@@ -1086,15 +1084,6 @@ class CompanyController extends Controller
         $nationalityStatus = $citizenshipType === 'foreigner' ? 'foreign' : 'filipino';
 
         return [
-            'business_name' => $contact->company_name,
-            'business_phone' => $cifData['mobile'] ?? $contact->phone,
-            'mobile_no' => $cifData['mobile'] ?? $contact->phone,
-            'business_address' => collect([
-                $cifData['present_address_line1'] ?? null,
-                $cifData['present_address_line2'] ?? null,
-            ])->filter()->implode(', '),
-            'zip_code' => $cifData['zip_code'] ?? null,
-            'tin_no' => $cifData['tin'] ?? $contact->tin,
             'authorized_contact_person_name' => $fullName !== '' ? $fullName : trim($contact->first_name.' '.$contact->last_name),
             'authorized_contact_person_email' => $cifData['email'] ?? $contact->email,
             'authorized_contact_person_phone' => $cifData['mobile'] ?? $contact->phone,

@@ -255,6 +255,11 @@
                                 <h2 class="text-base font-semibold text-gray-900">KYC Requirements</h2>
                                 <p class="mt-1 text-xs text-gray-500">Upload and manage required compliance items. Foreigner and dual-citizen contacts also require Passport, Visa, ACR Card, and AEP uploads.</p>
                             </div>
+                            @if ($errors->kycRequirementUpload->any())
+                                <div class="border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    {{ $errors->kycRequirementUpload->first() }}
+                                </div>
+                            @endif
                             <div class="max-h-[520px] space-y-3 overflow-y-auto p-4">
                                 @php
                                     $cifSignedRequirement = $kycRequirements['cif_signed_document'];
@@ -915,9 +920,6 @@
                                 q('docErrorTitle').classList.toggle('hidden', hasTitle);
                                 q('docErrorFile').classList.toggle('hidden', hasExistingFile || hasReplacementFile);
                                 if (!hasTitle || (!hasExistingFile && !hasReplacementFile)) {
-                                    event.preventDefault();
-                                }
-                                if (activeDoc !== 'cif_signed_document') {
                                     event.preventDefault();
                                 }
                             });
@@ -1664,8 +1666,16 @@
                         <h2 class="text-2xl font-semibold text-gray-900">Related Companies</h2>
                         <p class="text-sm text-gray-500">Track companies linked to this contact.</p>
                     </div>
-                    <a href="{{ route('company.index') }}" class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">+ Add Company</a>
+                    <a
+                        href="{{ route('company.index', ['prefill_contact' => $contact->id, 'open_add_company' => 1]) }}"
+                        class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        + Add Company
+                    </a>
                 </div>
+                @php
+                    $companyCustomFields = $companyCustomFields ?? [];
+                @endphp
                 <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                     <div class="border-b border-gray-100 px-4 py-3">
                         <form method="GET" action="{{ route('contacts.show', $contact->id) }}" class="flex flex-wrap items-center gap-3">
@@ -1688,11 +1698,17 @@
                                 <tr>
                                     <th class="w-10 px-3 py-3 text-left"><input type="checkbox" class="h-4 w-4 rounded border-gray-300"></th>
                                     <th class="px-3 py-3 text-left">Company Name</th>
-                                    <th class="px-3 py-3 text-left">Industry</th>
+                                    <th class="px-3 py-3 text-left">Email</th>
                                     <th class="px-3 py-3 text-left">Phone</th>
                                     <th class="px-3 py-3 text-left">Owner</th>
                                     <th class="px-3 py-3 text-left">Status</th>
                                     <th class="px-3 py-3 text-left">Action</th>
+                                    @foreach ($companyCustomFields as $field)
+                                        <th class="px-3 py-3 text-left">{{ $field['name'] }}</th>
+                                    @endforeach
+                                    <th class="px-3 py-3 text-right normal-case">
+                                        <button id="openContactCompanyCreateFieldDropdown" type="button" class="text-sm font-medium text-blue-600 hover:text-blue-700">+ Create Field</button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -1700,7 +1716,7 @@
                                     <tr class="text-gray-700">
                                         <td class="px-3 py-3"><input type="checkbox" class="h-4 w-4 rounded border-gray-300"></td>
                                         <td class="px-3 py-3 font-medium text-gray-900">{{ $companyItem['company_name'] }}</td>
-                                        <td class="px-3 py-3">{{ $companyItem['industry'] }}</td>
+                                        <td class="px-3 py-3">{{ $companyItem['email'] }}</td>
                                         <td class="px-3 py-3">{{ $companyItem['phone'] }}</td>
                                         <td class="px-3 py-3">{{ $companyItem['owner'] }}</td>
                                         <td class="px-3 py-3">
@@ -1722,16 +1738,230 @@
                                                 </form>
                                             </div>
                                         </td>
+                                        @foreach ($companyCustomFields as $field)
+                                            @php
+                                                $customValue = $companyItem['custom_fields'][$field['key']] ?? ($field['default_value'] ?? '');
+                                            @endphp
+                                            <td class="px-3 py-3 text-gray-600">
+                                                @if (($field['type'] ?? '') === 'checkbox')
+                                                    {{ $customValue === '1' ? 'Yes' : 'No' }}
+                                                @elseif (($field['type'] ?? '') === 'currency' && $customValue !== '')
+                                                    P{{ number_format((float) $customValue, 2) }}
+                                                @elseif (is_array($customValue))
+                                                    {{ implode(', ', array_filter($customValue, fn ($value) => filled($value))) ?: '-' }}
+                                                @else
+                                                    {{ $customValue !== '' ? $customValue : '-' }}
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                        <td class="px-3 py-3"></td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-3 py-10 text-center text-sm text-gray-500">No related companies found for this contact.</td>
+                                        <td colspan="{{ 8 + count($companyCustomFields) }}" class="px-3 py-10 text-center text-sm text-gray-500">No related companies found for this contact.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
+
+                @include('products.partials.create-field-dropdown', [
+                    'fieldTypes' => $fieldTypes,
+                    'dropdownId' => 'contactCompanyCreateFieldDropdownMenu',
+                ])
+                @include('products.partials.create-field-modal', [
+                    'createFieldActionRoute' => route('company.custom-fields.store'),
+                    'lookupModules' => $lookupModules,
+                ])
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const openCreateFieldDropdown = document.getElementById('openContactCompanyCreateFieldDropdown');
+                        const createFieldDropdownMenu = document.getElementById('contactCompanyCreateFieldDropdownMenu');
+                        const fieldTypeButtons = Array.from(document.querySelectorAll('#contactCompanyCreateFieldDropdownMenu .create-field-type-option'));
+                        const createFieldModal = document.getElementById('createFieldModal');
+                        const createFieldPanel = document.getElementById('createFieldPanel');
+                        const createFieldModalOverlay = document.getElementById('createFieldModalOverlay');
+                        const closeCreateFieldModal = document.getElementById('closeCreateFieldModal');
+                        const cancelCreateFieldModal = document.getElementById('cancelCreateFieldModal');
+                        const createFieldTypeInput = document.getElementById('createFieldTypeInput');
+                        const createFieldTypeLabel = document.getElementById('createFieldTypeLabel');
+                        const picklistOptionsSection = document.getElementById('picklistOptionsSection');
+                        const picklistOptionsContainer = document.getElementById('picklistOptionsContainer');
+                        const addPicklistOption = document.getElementById('addPicklistOption');
+                        const defaultValueSection = document.getElementById('defaultValueSection');
+                        const lookupSection = document.getElementById('lookupSection');
+                        const defaultValueInput = document.getElementById('default_value');
+                        let createFieldDropdownOpen = false;
+
+                        if (!openCreateFieldDropdown || !createFieldDropdownMenu) {
+                            return;
+                        }
+
+                        const buildPicklistOptionRow = (value = '') => {
+                            const row = document.createElement('div');
+                            row.className = 'flex items-center gap-2';
+                            row.innerHTML = `
+                                <input name="options[]" value="${value}" placeholder="Option value" class="h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <button type="button" class="remove-picklist-option h-8 w-8 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50">
+                                    <i class="fas fa-minus text-xs"></i>
+                                </button>
+                            `;
+
+                            return row;
+                        };
+
+                        const ensurePicklistOptionRows = () => {
+                            if (!picklistOptionsContainer) {
+                                return;
+                            }
+
+                            if (picklistOptionsContainer.querySelectorAll('input[name="options[]"]').length === 0) {
+                                picklistOptionsContainer.appendChild(buildPicklistOptionRow(''));
+                            }
+                        };
+
+                        const applyCreateFieldTypeUI = (type, label) => {
+                            if (!createFieldTypeInput || !createFieldTypeLabel) {
+                                return;
+                            }
+
+                            createFieldTypeInput.value = type;
+                            createFieldTypeLabel.textContent = label;
+                            picklistOptionsSection?.classList.toggle('hidden', type !== 'picklist');
+                            lookupSection?.classList.toggle('hidden', type !== 'lookup');
+                            lookupSection?.classList.toggle('grid', type === 'lookup');
+                            defaultValueSection?.classList.toggle('hidden', type === 'lookup');
+                            defaultValueSection?.classList.toggle('grid', type !== 'lookup');
+
+                            if (defaultValueInput) {
+                                defaultValueInput.placeholder = type === 'date' ? 'YYYY-MM-DD' : 'Optional default value';
+                            }
+
+                            if (type === 'picklist') {
+                                ensurePicklistOptionRows();
+                            }
+                        };
+
+                        const positionCreateFieldDropdown = () => {
+                            const rect = openCreateFieldDropdown.getBoundingClientRect();
+                            const dropdownWidth = createFieldDropdownMenu.offsetWidth || 256;
+                            const viewportPadding = 12;
+
+                            let left = rect.left;
+                            if (left + dropdownWidth > window.innerWidth - viewportPadding) {
+                                left = rect.right - dropdownWidth;
+                            }
+                            if (left < viewportPadding) {
+                                left = viewportPadding;
+                            }
+
+                            let top = rect.bottom + 8;
+                            const dropdownHeight = createFieldDropdownMenu.offsetHeight || 320;
+                            if (top + dropdownHeight > window.innerHeight - viewportPadding) {
+                                top = Math.max(viewportPadding, rect.top - dropdownHeight - 8);
+                            }
+
+                            createFieldDropdownMenu.style.left = `${left}px`;
+                            createFieldDropdownMenu.style.top = `${top}px`;
+                        };
+
+                        const closeCreateFieldDropdownFn = () => {
+                            createFieldDropdownMenu.classList.add('hidden');
+                            createFieldDropdownOpen = false;
+                        };
+
+                        const openCreateFieldModalFn = (type, label) => {
+                            applyCreateFieldTypeUI(type, label);
+                            closeCreateFieldDropdownFn();
+                            createFieldModal?.classList.remove('hidden');
+                            createFieldModal?.setAttribute('aria-hidden', 'false');
+                            document.body.classList.add('overflow-hidden');
+                            requestAnimationFrame(() => {
+                                createFieldModalOverlay?.classList.remove('opacity-0');
+                                createFieldPanel?.classList.remove('translate-x-full');
+                            });
+                        };
+
+                        const closeCreateFieldModalFn = () => {
+                            createFieldModalOverlay?.classList.add('opacity-0');
+                            createFieldPanel?.classList.add('translate-x-full');
+                            document.body.classList.remove('overflow-hidden');
+                            window.setTimeout(() => {
+                                createFieldModal?.classList.add('hidden');
+                                createFieldModal?.setAttribute('aria-hidden', 'true');
+                            }, 300);
+                        };
+
+                        openCreateFieldDropdown.addEventListener('click', function () {
+                            if (createFieldDropdownOpen) {
+                                closeCreateFieldDropdownFn();
+                                return;
+                            }
+
+                            createFieldDropdownMenu.classList.remove('hidden');
+                            createFieldDropdownOpen = true;
+                            positionCreateFieldDropdown();
+                        });
+
+                        fieldTypeButtons.forEach((button) => {
+                            button.addEventListener('click', function () {
+                                const type = button.dataset.fieldType || 'picklist';
+                                const label = button.dataset.fieldLabel || 'Picklist';
+                                openCreateFieldModalFn(type, label);
+                            });
+                        });
+
+                        closeCreateFieldModal?.addEventListener('click', closeCreateFieldModalFn);
+                        cancelCreateFieldModal?.addEventListener('click', closeCreateFieldModalFn);
+                        createFieldModalOverlay?.addEventListener('click', closeCreateFieldModalFn);
+
+                        document.addEventListener('click', function (event) {
+                            const clickedFieldTrigger = openCreateFieldDropdown.contains(event.target);
+                            if (createFieldDropdownOpen && !createFieldDropdownMenu.contains(event.target) && !clickedFieldTrigger) {
+                                closeCreateFieldDropdownFn();
+                            }
+                        });
+
+                        document.addEventListener('keydown', function (event) {
+                            if (event.key === 'Escape') {
+                                closeCreateFieldDropdownFn();
+                                closeCreateFieldModalFn();
+                            }
+                        });
+
+                        window.addEventListener('resize', function () {
+                            if (createFieldDropdownOpen) {
+                                positionCreateFieldDropdown();
+                            }
+                        });
+
+                        document.addEventListener('scroll', function () {
+                            if (createFieldDropdownOpen) {
+                                positionCreateFieldDropdown();
+                            }
+                        }, true);
+
+                        addPicklistOption?.addEventListener('click', function () {
+                            picklistOptionsContainer?.appendChild(buildPicklistOptionRow(''));
+                        });
+
+                        picklistOptionsContainer?.addEventListener('click', function (event) {
+                            const button = event.target.closest('.remove-picklist-option');
+                            if (!button) {
+                                return;
+                            }
+
+                            button.closest('.flex')?.remove();
+                            ensurePicklistOptionRows();
+                        });
+
+                        const initialFieldType = createFieldTypeInput ? createFieldTypeInput.value : 'picklist';
+                        const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
+                        applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
+                    });
+                </script>
             @endif
 
             @if ($tab === 'projects')

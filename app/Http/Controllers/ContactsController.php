@@ -376,6 +376,8 @@ class ContactsController extends Controller
             ]);
         }
 
+        $this->syncCompanyFromContact($contact, $attributes);
+
         return redirect()->route('contacts.index')->with('success', 'Contact created successfully.');
     }
 
@@ -534,9 +536,46 @@ class ContactsController extends Controller
 
         $contactModel->update($this->filterPersistableContactAttributes($attributes));
 
+        $this->syncCompanyFromContact($contactModel->fresh(), $attributes);
+
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
             ->with('success', 'Contact KYC form updated successfully.');
+    }
+
+    private function syncCompanyFromContact(Contact $contact, array $attributes): void
+    {
+        $companyName = trim((string) ($attributes['company_name'] ?? $contact->company_name ?? ''));
+
+        if ($companyName === '' || ! Schema::hasTable('companies')) {
+            return;
+        }
+
+        $companyData = [
+            'company_name' => $companyName,
+            'address' => $attributes['company_address'] ?? $contact->company_address,
+            'email' => $attributes['email'] ?? $contact->email,
+            'phone' => $attributes['phone'] ?? $contact->phone,
+            'owner_name' => trim(collect([
+                $attributes['first_name'] ?? $contact->first_name,
+                $attributes['last_name'] ?? $contact->last_name,
+            ])->filter()->implode(' ')),
+        ];
+
+        if (Schema::hasColumn('companies', 'primary_contact_id')) {
+            $companyData['primary_contact_id'] = $contact->id;
+        }
+
+        $company = Company::query()->firstOrNew(['company_name' => $companyName]);
+        $company->fill(array_filter(
+            $companyData,
+            fn ($value) => $value !== null && $value !== ''
+        ));
+        $company->save();
+
+        if (Schema::hasTable('company_contact')) {
+            $contact->companies()->syncWithoutDetaching([$company->id]);
+        }
     }
 
     public function assignOwner(Request $request): RedirectResponse
@@ -654,13 +693,16 @@ class ContactsController extends Controller
             'tabData' => $this->tabData($contactModel),
             'cifData' => $this->loadCifData($contactModel),
             'cifDocuments' => $this->loadCifDocuments($contactModel),
-            'cifEditMode' => $request->boolean('edit_cif') || $request->session()->has('errors'),
+            'cifEditMode' => $request->boolean('edit_cif') || $this->hasCifFormErrors($request),
             'specimenSignature' => $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first(),
             'kycRequirementState' => $this->kycRequirementState($contactModel, $specimenSignature),
             'requiredKycRequirementKeys' => $this->requiredKycRequirementKeysForContact($contactModel),
             'kycActivityLogs' => $this->buildKycActivityLogsWithAudit($contactModel),
             'companySearch' => trim((string) $request->query('company_search', '')),
             'companyTabCompanies' => $this->relatedCompaniesForContact($contactModel, trim((string) $request->query('company_search', ''))),
+            'companyCustomFields' => collect($request->session()->get('company.custom_fields', []))->values()->all(),
+            'fieldTypes' => collect($this->fieldTypes()),
+            'lookupModules' => $this->lookupModules(),
         ]);
     }
 
@@ -1007,8 +1049,17 @@ class ContactsController extends Controller
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
 
-        $validated = $request->validate([
-            'requirement' => ['required', 'string', 'in:cif_signed_document,two_valid_ids,tin_proof,specimen_signature_upload,passport_proof,visa_proof,acr_card_proof,aaep_proof'],
+        $rawUpload = $request->file('document_file') ?? $request->file('document');
+        if ($rawUpload && ! $rawUpload->isValid()) {
+            return redirect()
+                ->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                ->withErrors([
+                    'document_file' => $rawUpload->getErrorMessage() ?: 'The selected file could not be uploaded.',
+                ], 'kycRequirementUpload');
+        }
+
+        $validator = validator(array_merge($request->all(), $request->allFiles()), [
+            'requirement' => ['required', 'string', 'in:cif_signed_document,two_valid_ids,tin_proof,specimen_signature_upload,specimen_signature_form,passport_proof,visa_proof,acr_card_proof,aaep_proof'],
             'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'document_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'document_title' => ['nullable', 'string', 'max:255'],
@@ -1021,15 +1072,25 @@ class ContactsController extends Controller
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        if ($validator->fails()) {
+            return redirect()
+                ->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                ->withErrors($validator, 'kycRequirementUpload')
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+
         $documents = $this->loadKycRequirementDocuments($contactModel);
-        $requirement = $validated['requirement'];
+        $requirement = $this->normalizeKycRequirementKey($validated['requirement']);
         $upload = $requirement === 'cif_signed_document'
             ? $request->file('document')
             : ($request->file('document_file') ?? $request->file('document'));
 
         if ($requirement !== 'cif_signed_document' && ! $upload) {
-            return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
-                ->withErrors(['document_file' => 'Please upload a document file.']);
+            return redirect()
+                ->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                ->withErrors(['document_file' => 'Please upload a document file.'], 'kycRequirementUpload');
         }
 
         if ($requirement === 'two_valid_ids') {
@@ -1049,8 +1110,9 @@ class ContactsController extends Controller
             $existing = is_array($documents[$requirement] ?? null) ? $documents[$requirement] : null;
 
             if (! $upload && $existing === null) {
-                return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
-                    ->withErrors(['document' => 'Please upload the signed CIF document first.']);
+                return redirect()
+                    ->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
+                    ->withErrors(['document' => 'Please upload the signed CIF document first.'], 'kycRequirementUpload');
             }
 
             $document = $existing ?? [];
@@ -1114,6 +1176,7 @@ class ContactsController extends Controller
     {
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
+        $requirement = $this->normalizeKycRequirementKey($requirement);
         abort_unless(in_array($requirement, ['cif_signed_document', 'two_valid_ids', 'tin_proof', 'specimen_signature_upload', 'passport_proof', 'visa_proof', 'acr_card_proof', 'aaep_proof'], true), 404);
 
         $documents = $this->loadKycRequirementDocuments($contactModel);
@@ -1565,8 +1628,25 @@ class ContactsController extends Controller
     private function relatedCompaniesForContact(Contact $contact, string $search = ''): array
     {
         $relatedCompanies = Company::query()
-            ->with(['latestBif:id,company_id,line_of_business,status'])
-            ->select(['companies.id', 'companies.company_name', 'companies.phone', 'companies.owner_name'])
+            ->with([
+                'latestBif' => fn ($query) => $query->select([
+                    'company_bifs.id',
+                    'company_bifs.company_id',
+                    'company_bifs.status',
+                    'company_bifs.industry_services',
+                    'company_bifs.industry_export_import',
+                    'company_bifs.industry_education',
+                    'company_bifs.industry_financial_services',
+                    'company_bifs.industry_transportation',
+                    'company_bifs.industry_distribution',
+                    'company_bifs.industry_manufacturing',
+                    'company_bifs.industry_government',
+                    'company_bifs.industry_wholesale_retail_trade',
+                    'company_bifs.industry_other',
+                    'company_bifs.industry_other_text',
+                ]),
+            ])
+            ->select(['companies.id', 'companies.company_name', 'companies.email', 'companies.phone', 'companies.owner_name'])
             ->when(
                 method_exists($contact, 'companies'),
                 fn ($query) => $query->whereHas('contacts', fn ($relation) => $relation->where('contacts.id', $contact->id))
@@ -1575,8 +1655,25 @@ class ContactsController extends Controller
 
         if ($relatedCompanies->isEmpty() && filled($contact->company_name)) {
             $relatedCompanies = Company::query()
-                ->with(['latestBif:id,company_id,line_of_business,status'])
-                ->select(['id', 'company_name', 'phone', 'owner_name'])
+                ->with([
+                    'latestBif' => fn ($query) => $query->select([
+                        'company_bifs.id',
+                        'company_bifs.company_id',
+                        'company_bifs.status',
+                        'company_bifs.industry_services',
+                        'company_bifs.industry_export_import',
+                        'company_bifs.industry_education',
+                        'company_bifs.industry_financial_services',
+                        'company_bifs.industry_transportation',
+                        'company_bifs.industry_distribution',
+                        'company_bifs.industry_manufacturing',
+                        'company_bifs.industry_government',
+                        'company_bifs.industry_wholesale_retail_trade',
+                        'company_bifs.industry_other',
+                        'company_bifs.industry_other_text',
+                    ]),
+                ])
+                ->select(['companies.id', 'companies.company_name', 'companies.email', 'companies.phone', 'companies.owner_name'])
                 ->where('company_name', 'like', $contact->company_name)
                 ->get();
         }
@@ -1589,11 +1686,12 @@ class ContactsController extends Controller
                 return [
                     'id' => $company->id,
                     'company_name' => $company->company_name,
-                    'industry' => $bif->line_of_business ?? 'N/A',
+                    'email' => $company->email ?: '-',
                     'phone' => $company->phone ?: '-',
                     'owner' => $company->owner_name ?: '-',
                     'status' => $bif?->status ?: 'Active',
                     'show_url' => route('company.show', $company->id),
+                    'custom_fields' => is_array($company->custom_fields ?? null) ? $company->custom_fields : [],
                 ];
             });
 
@@ -1716,8 +1814,9 @@ class ContactsController extends Controller
         )));
         $stored['specimen_signature_upload'] = array_values(array_filter(array_map(
             fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
-            $this->normalizeDocumentsArray($stored['specimen_signature_upload'] ?? [])
+            $this->normalizeDocumentsArray($stored['specimen_signature_upload'] ?? ($stored['specimen_signature_form'] ?? []))
         )));
+        unset($stored['specimen_signature_form']);
         $stored['passport_proof'] = array_values(array_filter(array_map(
             fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
             $this->normalizeDocumentsArray($stored['passport_proof'] ?? [])
@@ -1972,6 +2071,83 @@ class ContactsController extends Controller
                 'complete' => count($aaepProofFiles) > 0,
             ],
         ];
+    }
+
+    private function normalizeKycRequirementKey(string $requirement): string
+    {
+        $normalized = trim($requirement);
+
+        return match ($normalized) {
+            'specimen_signature_form' => 'specimen_signature_upload',
+            default => $normalized,
+        };
+    }
+
+    private function hasCifFormErrors(Request $request): bool
+    {
+        $errors = $request->session()->get('errors');
+        if (! $errors instanceof \Illuminate\Support\ViewErrorBag) {
+            return false;
+        }
+
+        $defaultBag = $errors->getBag('default');
+        if ($defaultBag->isEmpty()) {
+            return false;
+        }
+
+        $cifFieldNames = [
+            'cif_date',
+            'cif_no',
+            'is_new_client',
+            'is_existing_client',
+            'is_change_information',
+            'first_name',
+            'last_name',
+            'name_extension',
+            'middle_name',
+            'no_middle_name',
+            'only_first_name',
+            'present_address_line1',
+            'zip_code',
+            'present_address_line2',
+            'email',
+            'mobile',
+            'date_of_birth',
+            'place_of_birth',
+            'citizenship_nationality',
+            'citizenship_type',
+            'gender',
+            'civil_status',
+            'spouse_name',
+            'nature_of_work_business',
+            'tin',
+            'other_government_id',
+            'id_number',
+            'mothers_maiden_name',
+            'source_of_funds',
+            'source_of_funds_other_text',
+            'foreigner_passport_no',
+            'foreigner_passport_expiry_date',
+            'foreigner_passport_place_of_issue',
+            'foreigner_acr_id_no',
+            'foreigner_acr_expiry_date',
+            'foreigner_acr_place_of_issue',
+            'visa_status',
+            'onboarding_two_valid_ids',
+            'onboarding_tin_id',
+            'onboarding_authorized_signatory_card',
+            'referred_by_footer',
+            'referred_date',
+            'sales_marketing_footer',
+            'finance_footer',
+            'president_footer',
+            'sig_name_left',
+            'sig_position_left',
+            'sig_name_right',
+            'sig_position_right',
+        ];
+
+        return count(array_intersect(array_keys($defaultBag->messages()), $cifFieldNames)) > 0;
     }
 
     private function cifDataPath(Contact $contact): string

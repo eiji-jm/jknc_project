@@ -27,7 +27,7 @@ class DealController extends Controller
         $search = trim((string) $request->query('search', ''));
         $stages = $this->dealStages();
 
-        $deals = $this->mockDeals();
+        $deals = [];
         $owners = $this->ownerOptions();
         $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
         $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
@@ -45,13 +45,15 @@ class DealController extends Controller
             'Sarah Williams',
             'Michael Brown',
         ];
-        $contactRecords = [$this->mockContactRecord()];
+        $contactRecords = [];
         $companyRecords = [];
+        $dealRecords = [];
 
         try {
             if (Schema::hasTable('contacts')) {
                 $contactColumns = array_values(array_filter([
                     'id',
+                    'cif_status',
                     'customer_type',
                     'client_status',
                     'salutation',
@@ -116,15 +118,15 @@ class DealController extends Controller
                             'company_name' => $contact->company_name,
                             'company_address' => $contact->company_address,
                             'position' => $contact->position,
+                            'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
+                                strtolower((string) ($contact->cif_status ?? '')) === 'approved',
+                                false,
+                            ),
                         ];
                     })
                     ->filter(fn (array $record): bool => $record['label'] !== '' || filled($record['company_name']))
                     ->values()
                     ->all();
-
-                if (! collect($contactRecords)->contains(fn (array $record) => (int) $record['id'] === 101)) {
-                    array_unshift($contactRecords, $this->mockContactRecord());
-                }
 
                 $contactOptions = $contacts
                     ->map(fn (Contact $contact): string => trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')))
@@ -154,6 +156,13 @@ class DealController extends Controller
                 }
 
                 $companies = Company::query()
+                    ->with([
+                        'latestBif' => fn ($query) => $query->select([
+                            'company_bifs.id',
+                            'company_bifs.company_id',
+                            'company_bifs.status',
+                        ]),
+                    ])
                     ->select($companyColumns)
                     ->orderBy('company_name')
                     ->get();
@@ -175,6 +184,10 @@ class DealController extends Controller
                             'email' => $company->email,
                             'mobile' => $company->phone,
                             'owner_name' => $company->owner_name,
+                            'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
+                                false,
+                                strtolower((string) ($company->latestBif?->status ?? '')) === 'approved',
+                            ),
                         ];
                     })
                     ->filter(fn (array $record): bool => filled($record['company_name']))
@@ -198,6 +211,42 @@ class DealController extends Controller
                 $storedDeals->each(function (Deal $deal): void {
                     $this->ensureDealCodeAssigned($deal);
                 });
+
+                $dealRecords = $storedDeals
+                    ->mapWithKeys(function (Deal $storedDeal): array {
+                        $contact = $storedDeal->contact;
+                        $stageName = (string) ($storedDeal->stage ?: 'Inquiry');
+                        $dealFormData = $this->normalizeDealFormData([
+                            ...$storedDeal->toArray(),
+                            'stage' => $stageName,
+                            'first_name' => $storedDeal->first_name ?: $contact?->first_name,
+                            'middle_initial' => $storedDeal->middle_initial ?? $contact?->middle_initial,
+                            'middle_name' => $storedDeal->middle_name ?: $contact?->middle_name,
+                            'last_name' => $storedDeal->last_name ?: $contact?->last_name,
+                            'name_extension' => $storedDeal->name_extension ?? $contact?->name_extension,
+                            'email' => $storedDeal->email ?: $contact?->email,
+                            'mobile' => $storedDeal->mobile ?: $contact?->phone,
+                            'address' => $storedDeal->address ?: $contact?->contact_address,
+                            'company_name' => $storedDeal->company_name ?: $contact?->company_name,
+                            'company_address' => $storedDeal->company_address ?: $contact?->company_address,
+                            'position' => $storedDeal->position ?: $contact?->position,
+                        ]);
+
+                        return [
+                            (string) $storedDeal->id => [
+                                ...$dealFormData,
+                                'id' => $storedDeal->id,
+                                'contact_id' => $storedDeal->contact_id,
+                                'owner_id' => $storedDeal->owner_id,
+                                'stage' => $stageName,
+                                'deal_code' => $storedDeal->deal_code,
+                                'deal_name' => $storedDeal->deal_name ?: $storedDeal->deal_code,
+                                'created_by' => $storedDeal->created_by ?: optional(Auth::user())->name ?: 'System',
+                                'created_at_label' => optional($storedDeal->created_at)->format('F d, Y • h:i:s A') ?: now()->format('F d, Y • h:i:s A'),
+                            ],
+                        ];
+                    })
+                    ->all();
 
                 $storedDeals = $storedDeals
                     ->map(function (Deal $deal): array {
@@ -227,18 +276,15 @@ class DealController extends Controller
                     })
                     ->all();
 
-                if (! empty($storedDeals)) {
-                    $deals = $storedDeals;
-                }
+                $deals = $storedDeals;
             }
         } catch (Throwable) {
-            // Fallback to mock options when DB is unavailable.
-        }
-
-        $savedMockDeal = session('deals.mock_saved');
-        if (is_array($savedMockDeal) && ! empty($savedMockDeal)) {
-            $deals = array_values(array_filter($deals, fn (array $deal): bool => (int) $deal['id'] !== (int) $savedMockDeal['id']));
-            array_unshift($deals, $savedMockDeal);
+            $deals = [];
+            $contactRecords = [];
+            $companyRecords = [];
+            $contactOptions = [];
+            $companyOptions = [];
+            $dealRecords = [];
         }
 
         if ($search !== '') {
@@ -278,6 +324,7 @@ class DealController extends Controller
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
             'companyRecords' => $companyRecords,
+            'dealRecords' => $dealRecords,
             'dealDraft' => is_array($draft) ? $draft : [],
             'openDealModal' => (bool) request()->boolean('open_deal_modal'),
             'productOptions' => [
@@ -535,6 +582,10 @@ class DealController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
+        $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
+            ? $validated['deal_code']
+            : Deal::generateNextDealCode();
+        $validated['deal_name'] = $validated['deal_code'];
 
         $contact = $this->resolveContact((int) $validated['contact_id']);
         abort_unless($contact, 404);
@@ -594,6 +645,13 @@ class DealController extends Controller
         }
 
         $deal = Deal::query()->findOrFail($id);
+        $validated['deal_code'] = Deal::hasValidDealCode($deal->deal_code)
+            ? $deal->deal_code
+            : Deal::generateNextDealCode(
+                year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
+                ignoreDealId: $deal->id
+            );
+        $validated['deal_name'] = $validated['deal_code'];
         $deal->fill([
             ...$this->dealPersistencePayload($validated),
             ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
@@ -635,7 +693,7 @@ class DealController extends Controller
                     }
 
                     if ($storedDeal->stage_id) {
-                        $currentStage = $stages->firstWhere('id', $storedDeal->stage_id);
+                        $currentStage = collect($stages)->firstWhere('id', $storedDeal->stage_id);
                     }
                 }
 
@@ -1265,6 +1323,10 @@ class DealController extends Controller
                     'company_name' => $contact->company_name,
                     'company_address' => $contact->company_address,
                     'position' => $contact->position,
+                    'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
+                        strtolower((string) ($contact->cif_status ?? '')) === 'approved',
+                        false,
+                    ),
                 ];
             })->filter(fn (array $record): bool => $record['label'] !== '' || filled($record['company_name']))->values()->all();
 
@@ -1289,7 +1351,17 @@ class DealController extends Controller
                 $companyColumns[] = 'id';
             }
 
-            $companies = Company::query()->select($companyColumns)->orderBy('company_name')->get();
+            $companies = Company::query()
+                ->with([
+                    'latestBif' => fn ($query) => $query->select([
+                        'company_bifs.id',
+                        'company_bifs.company_id',
+                        'company_bifs.status',
+                    ]),
+                ])
+                ->select($companyColumns)
+                ->orderBy('company_name')
+                ->get();
             $companyRecords = $companies->map(function (Company $company): array {
                 return [
                     'id' => $company->id,
@@ -1306,6 +1378,10 @@ class DealController extends Controller
                     'email' => $company->email,
                     'mobile' => $company->phone,
                     'owner_name' => $company->owner_name,
+                    'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
+                        false,
+                        strtolower((string) ($company->latestBif?->status ?? '')) === 'approved',
+                    ),
                 ];
             })->filter(fn (array $record): bool => filled($record['company_name']))->values()->all();
 
@@ -1670,6 +1746,13 @@ class DealController extends Controller
         $validated['other_fees'] = $this->normalizeOtherFees(null, $validated);
         $validated['total_estimated_engagement_value'] = $this->computeTotalEstimatedEngagementValue($validated);
 
+        if (blank($validated['deal_name'] ?? null)) {
+            $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
+                ? $validated['deal_code']
+                : Deal::generateNextDealCode();
+            $validated['deal_name'] = $validated['deal_code'];
+        }
+
         $serviceAreaSelections = collect($validated['service_area_options'] ?? [])
             ->filter(fn ($value): bool => is_string($value) && trim((string) $value) !== '' && trim((string) $value) !== 'Others')
             ->map(fn ($value): string => trim((string) $value))
@@ -1893,9 +1976,15 @@ class DealController extends Controller
         $deal->estimated_professional_fee = $professional ?: null;
         $deal->estimated_government_fees = $government ?: null;
         $deal->estimated_service_support_fee = $support ?: null;
-        $deal->total_service_fee = $totalServiceFee ?: null;
-        $deal->total_product_fee = $totalProductFee ?: null;
         $deal->total_estimated_engagement_value = $total;
+
+        if (Schema::hasColumn('deals', 'total_service_fee')) {
+            $deal->total_service_fee = $totalServiceFee ?: null;
+        }
+
+        if (Schema::hasColumn('deals', 'total_product_fee')) {
+            $deal->total_product_fee = $totalProductFee ?: null;
+        }
 
         if (Schema::hasColumn('deals', 'other_fees')) {
             $deal->other_fees = $otherFees;
@@ -2373,5 +2462,14 @@ class DealController extends Controller
         $owner = collect($this->ownerOptions())->firstWhere('id', $ownerId);
 
         return is_array($owner) ? ($owner['name'] ?? null) : null;
+    }
+
+    private function buildClientRequirementStatusMap(bool $hasApprovedCif, bool $hasApprovedBif): array
+    {
+        return array_filter([
+            'client_contact_form' => $hasApprovedCif ? 'provided' : null,
+            'business_information_form' => $hasApprovedBif ? 'provided' : null,
+            'client_information_form' => $hasApprovedCif ? 'provided' : null,
+        ]);
     }
 }

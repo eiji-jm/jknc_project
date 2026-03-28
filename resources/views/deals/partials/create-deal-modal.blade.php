@@ -551,14 +551,17 @@
 
                                 <div class="space-y-4">
                                     <label class="block text-sm font-medium text-gray-700">Services</label>
-                                    <div class="grid gap-4 lg:grid-cols-2">
+                                    <div id="dealServicesEmptyState" class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 {{ count($selectedServiceAreas) > 0 ? 'hidden' : '' }}">
+                                        Select a service area first to show matching services.
+                                    </div>
+                                    <div id="dealServicesGrid" class="grid gap-4 lg:grid-cols-2 {{ count($selectedServiceAreas) > 0 ? '' : 'hidden' }}">
                                         @foreach ($serviceGroups as $group => $options)
-                                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3 {{ in_array($group, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-service-group="{{ $group }}">
                                                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $group }}</p>
                                                 <div class="space-y-2">
                                                     @foreach ($options as $option)
                                                         <label class="flex items-start gap-2 text-sm text-gray-700">
-                                                            <input type="checkbox" name="service_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                            <input type="checkbox" name="service_options[]" value="{{ $option }}" data-service-group-option="{{ $group }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                             <span>{{ $option }}</span>
                                                         </label>
                                                     @endforeach
@@ -654,13 +657,13 @@
                                                     $current = $clientRequirementsOthersStatus;
                                                 }
                                             @endphp
-                                            <tr @if ($key === 'others') data-client-others-row @endif>
+                                            <tr data-client-requirement-row="{{ $key }}" @if ($key === 'others') data-client-others-row @endif>
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" @if ($key === 'others') data-client-others-radio @endif>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" @if ($key === 'others') data-client-others-radio @endif>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -1133,6 +1136,35 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
+    const syncServiceGroups = () => {
+        const selectedAreas = Array.from(document.querySelectorAll('input[name="service_area_options[]"]:checked'))
+            .map((input) => String(input.value || '').trim())
+            .filter((value) => value !== '' && value !== 'Others');
+        const serviceGroups = Array.from(document.querySelectorAll('[data-service-group]'));
+        const serviceEmptyState = document.getElementById('dealServicesEmptyState');
+        const serviceGrid = document.getElementById('dealServicesGrid');
+
+        let visibleCount = 0;
+
+        serviceGroups.forEach((group) => {
+            const isVisible = selectedAreas.includes(group.dataset.serviceGroup || '');
+            group.classList.toggle('hidden', !isVisible);
+
+            if (!isVisible) {
+                Array.from(group.querySelectorAll('input[name="service_options[]"]')).forEach((input) => {
+                    input.checked = false;
+                });
+                return;
+            }
+
+            visibleCount += 1;
+        });
+
+        serviceEmptyState?.classList.toggle('hidden', visibleCount > 0);
+        serviceGrid?.classList.toggle('hidden', visibleCount === 0);
+        recalculateTotal();
+    };
+
     const createTag = (value, inputName) => {
         const wrapper = document.createElement('span');
         wrapper.className = 'custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700';
@@ -1492,14 +1524,63 @@ document.addEventListener('DOMContentLoaded', function () {
         hiddenInput.value = `Other: ${label} | ${selectedStatus}`;
     };
 
+    const syncClientRequirementRowState = (row) => {
+        if (!(row instanceof HTMLElement)) {
+            return;
+        }
+
+        const providedChecked = row.querySelector('input[type="radio"][value="provided"]')?.checked === true;
+        const pendingChecked = row.querySelector('input[type="radio"][value="pending"]')?.checked === true;
+
+        row.classList.remove('bg-emerald-50', 'bg-amber-50');
+
+        if (providedChecked) {
+            row.classList.add('bg-emerald-50');
+            return;
+        }
+
+        if (pendingChecked) {
+            row.classList.add('bg-amber-50');
+        }
+    };
+
+    const applyClientRequirementStatusMap = (statusMap = {}) => {
+        if (!statusMap || typeof statusMap !== 'object') {
+            return;
+        }
+
+        Object.entries(statusMap).forEach(([key, status]) => {
+            if (!key || !status) {
+                return;
+            }
+
+            const target = document.querySelector(`input[data-client-requirement-status="${key}:${status}"]`);
+            if (target instanceof HTMLInputElement) {
+                target.checked = true;
+                const row = target.closest('[data-client-requirement-row]');
+                syncClientRequirementRowState(row);
+            }
+        });
+    };
+
+    const syncAllClientRequirementRows = () => {
+        Array.from(document.querySelectorAll('[data-client-requirement-row]')).forEach((row) => {
+            syncClientRequirementRowState(row);
+        });
+    };
+
     const attachClientRequirementRowHandlers = (row) => {
         Array.from(row.querySelectorAll('input[data-client-custom-status]')).forEach((radio) => {
-            radio.addEventListener('change', () => normalizeClientRequirementRowHidden(row));
+            radio.addEventListener('change', () => {
+                normalizeClientRequirementRowHidden(row);
+                syncClientRequirementRowState(row);
+            });
         });
         row.querySelector('[data-client-custom-remove]')?.addEventListener('click', () => {
             row.remove();
         });
         normalizeClientRequirementRowHidden(row);
+        syncClientRequirementRowState(row);
     };
 
     const initClientRequirementsOthers = () => {
@@ -1631,6 +1712,10 @@ document.addEventListener('DOMContentLoaded', function () {
         setFieldValue('deal_email', record.email || '');
         setFieldValue('deal_mobile', record.mobile || '');
         setFieldValue('deal_position', record.owner_name || '');
+        applyClientRequirementStatusMap({
+            ...(linkedContact?.client_requirement_status_map || {}),
+            ...(record.client_requirement_status_map || {}),
+        });
         setDependentDisabled(false);
         contactResults.classList.add('hidden');
     };
@@ -1649,6 +1734,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setFieldValue(fieldId, record[key] || '');
         });
 
+        applyClientRequirementStatusMap(record.client_requirement_status_map || {});
         setDependentDisabled(false);
         contactResults.classList.add('hidden');
     };
@@ -1840,6 +1926,11 @@ document.addEventListener('DOMContentLoaded', function () {
     Array.from(document.querySelectorAll('[data-other-target]')).forEach((input) => {
         input.addEventListener('change', applyOtherFieldToggles);
     });
+    Array.from(document.querySelectorAll('[data-client-requirement-status]')).forEach((input) => {
+        input.addEventListener('change', () => {
+            syncClientRequirementRowState(input.closest('[data-client-requirement-row]'));
+        });
+    });
     document.querySelectorAll('.other-input').forEach((input) => {
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
@@ -1849,6 +1940,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.getElementById('services-other-toggle')?.addEventListener('change', function () {
         document.getElementById('services-other-wrapper')?.classList.toggle('hidden', !this.checked);
+    });
+    Array.from(document.querySelectorAll('input[name="service_area_options[]"]')).forEach((input) => {
+        input.addEventListener('change', syncServiceGroups);
     });
     const serviceAreaOthersCheckbox = document.querySelector('input[name="service_area_options[]"][value="Others"]');
     initOthersSelectableOptions({
@@ -1939,6 +2033,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     syncCustomerSearchUi();
+    syncServiceGroups();
+    syncAllClientRequirementRows();
     if (contactIdInput?.value) {
         setDependentDisabled(false);
     }
@@ -1950,4 +2046,3 @@ document.addEventListener('DOMContentLoaded', function () {
     @endif
 });
 </script>
-

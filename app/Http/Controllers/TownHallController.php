@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TownHallCommunication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
@@ -17,6 +18,13 @@ class TownHallController extends Controller
     {
         if (!Auth::user()->hasPermission('access_townhall')) {
             abort(403, 'Unauthorized');
+        }
+
+        if (! Schema::hasTable('townhall_communications')) {
+            return view('townhall.townhall', [
+                'communications' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
+                'departments' => collect(),
+            ]);
         }
 
         $query = TownHallCommunication::where('approval_status', 'Approved');
@@ -41,6 +49,8 @@ class TownHallController extends Controller
         if (!Auth::user()->hasPermission('create_townhall')) {
             abort(403, 'Unauthorized');
         }
+
+        abort_unless(Schema::hasTable('townhall_communications'), 500, 'Town Hall communications table is not available.');
 
         $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
@@ -84,6 +94,13 @@ class TownHallController extends Controller
 
     public function department(Request $request)
     {
+        if (! Schema::hasTable('townhall_communications')) {
+            return view('townhall.department', [
+                'communications' => collect(),
+                'departments' => collect(),
+            ]);
+        }
+
         $departments = TownHallCommunication::select('department_stakeholder')
             ->distinct()
             ->pluck('department_stakeholder');
@@ -103,6 +120,12 @@ class TownHallController extends Controller
         {
             if (!Auth::user()->hasPermission('access_townhall')) {
                 abort(403, 'Unauthorized');
+            }
+
+            if (! Schema::hasTable('townhall_communications')) {
+                return view('townhall.attachments', [
+                    'communications' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10),
+                ]);
             }
 
             $query = TownHallCommunication::whereNotNull('attachment')

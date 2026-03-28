@@ -182,6 +182,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('addCompanyModal');
     const openButton = document.getElementById('openAddCompanyModal');
+    const prefillContactId = @json((string) ($prefillContactId ?? ''));
+    const autoOpenAddCompany = @json((bool) ($autoOpenAddCompany ?? false));
     const closeButtons = document.querySelectorAll('[data-close-company-modal]');
     const openCreateFieldDropdown = document.getElementById('openCreateFieldDropdown');
     const createFieldDropdownMenu = document.getElementById('createFieldDropdownMenu');
@@ -343,6 +345,21 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     openButton?.addEventListener('click', openModal);
+
+    if (prefillContactId !== '') {
+        const contactSelect = modal?.querySelector('select[name="contact_id"]');
+        if (contactSelect instanceof HTMLSelectElement) {
+            const matchingOption = Array.from(contactSelect.options).find((option) => option.value === prefillContactId);
+            if (matchingOption) {
+                contactSelect.value = prefillContactId;
+                contactSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }
+
+    if (autoOpenAddCompany) {
+        openModal();
+    }
 
     closeButtons.forEach((button) => {
         button.addEventListener('click', closeModal);

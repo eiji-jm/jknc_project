@@ -238,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const stageDeleteConfirm = document.getElementById('stageDeleteConfirm');
     const stageDeleteMessage = document.getElementById('stageDeleteMessage');
     const stageDeleteError = document.getElementById('stageDeleteError');
+    const dealRecords = @json($dealRecords ?? []);
     const csrfToken = document.querySelector('meta[name=\"csrf-token\"]')?.getAttribute('content') || @json(csrf_token());
     let stageModalMode = null;
     let activeStageName = null;
@@ -389,6 +390,163 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const setInputValueByName = (name, value) => {
+        const field = form?.querySelector(`[name="${name}"]`);
+        if (!field) {
+            return;
+        }
+
+        if (field.tagName === 'SELECT') {
+            const hasOption = Array.from(field.options).some((option) => option.value === String(value ?? ''));
+            field.value = hasOption ? String(value ?? '') : '';
+            return;
+        }
+
+        field.value = value ?? '';
+    };
+
+    const setRadioGroupValue = (name, value) => {
+        Array.from(form?.querySelectorAll(`input[name="${name}"]`) || []).forEach((input) => {
+            input.checked = String(input.value) === String(value ?? '');
+        });
+    };
+
+    const setCheckboxGroupValues = (name, values) => {
+        const normalized = Array.isArray(values) ? values.map((value) => String(value)) : [];
+        Array.from(form?.querySelectorAll(`input[name="${name}"]`) || []).forEach((input) => {
+            input.checked = normalized.includes(String(input.value));
+        });
+    };
+
+    const hydrateEditForm = (dealData) => {
+        if (!form || !dealData) {
+            return;
+        }
+
+        form.reset();
+
+        if (ownerInput) {
+            ownerInput.value = String(dealData.owner_id ?? ownerInput.value ?? '');
+            const selectedOwner = Array.from(document.querySelectorAll('.deal-owner-option'))
+                .find((option) => String(option.dataset.ownerId || '') === String(ownerInput.value || ''));
+            const ownerLabel = document.getElementById('dealOwnerSelectedLabel');
+            if (ownerLabel && selectedOwner) {
+                ownerLabel.textContent = `Owner: ${selectedOwner.dataset.ownerName || ''}`;
+            }
+        }
+
+        if (contactIdInput) {
+            contactIdInput.value = String(dealData.contact_id ?? '');
+        }
+
+        setRadioGroupValue('customer_type', dealData.customer_type || '');
+        setRadioGroupValue('engagement_type', dealData.engagement_type || '');
+        setRadioGroupValue('payment_terms', dealData.payment_terms || '');
+        setRadioGroupValue('service_complexity', dealData.service_complexity || '');
+        setRadioGroupValue('proposal_decision', dealData.proposal_decision || '');
+
+        [
+            'deal_name',
+            'stage',
+            'salutation',
+            'first_name',
+            'middle_initial',
+            'last_name',
+            'name_extension',
+            'sex',
+            'date_of_birth',
+            'email',
+            'mobile',
+            'address',
+            'company_name',
+            'company_address',
+            'position',
+            'scope_of_work',
+            'estimated_professional_fee',
+            'estimated_government_fee',
+            'estimated_government_fees',
+            'estimated_service_support_fee',
+            'total_service_fee',
+            'total_product_fee',
+            'total_estimated_engagement_value',
+            'planned_start_date',
+            'estimated_duration',
+            'estimated_completion_date',
+            'client_preferred_completion_date',
+            'confirmed_delivery_date',
+            'timeline_notes',
+            'complexity_notes',
+            'decline_reason',
+            'assigned_consultant',
+            'assigned_associate',
+            'service_department_unit',
+            'consultant_notes',
+            'associate_notes',
+            'prepared_by',
+            'reviewed_by',
+            'internal_name',
+            'internal_date',
+            'client_fullname_signature',
+            'referred_closed_by',
+            'internal_sales_marketing',
+            'lead_consultant',
+            'lead_associate_assigned',
+            'internal_finance',
+            'internal_president',
+            'payment_terms_other',
+        ].forEach((name) => {
+            if (Object.prototype.hasOwnProperty.call(dealData, name)) {
+                setInputValueByName(name, dealData[name] ?? '');
+            }
+        });
+
+        setCheckboxGroupValues('service_area_options[]', dealData.service_area_options || []);
+        setCheckboxGroupValues('service_options[]', dealData.service_options || []);
+        setCheckboxGroupValues('product_options[]', dealData.product_options || []);
+        setCheckboxGroupValues('required_actions_options[]', dealData.required_actions_options || []);
+        setCheckboxGroupValues('support_required_options[]', dealData.support_required_options || []);
+
+        const requirementsMap = dealData.requirements_status_map || {};
+        Object.entries(requirementsMap).forEach(([key, status]) => {
+            const selector = `input[name="requirements_status[${key}]"][value="${status}"]`;
+            const input = form.querySelector(selector);
+            if (input) {
+                input.checked = true;
+            }
+        });
+
+        if (otherFeesRows) {
+            otherFeesRows.innerHTML = '';
+            const fees = Array.isArray(dealData.other_fees) ? dealData.other_fees : [];
+            fees.forEach((fee) => {
+                otherFeesRows.appendChild(createOtherFeeRow(fee.title || '', fee.amount || ''));
+            });
+        }
+
+        if (stageInput && dealData.stage) {
+            ensureStageOption(dealData.stage);
+            stageInput.value = dealData.stage;
+        }
+
+        if (dealNameInput) {
+            dealNameInput.value = dealData.deal_name || dealData.deal_code || '';
+        }
+
+        if (contactSearchInput) {
+            const fullName = [dealData.first_name, dealData.last_name].filter(Boolean).join(' ').trim();
+            contactSearchInput.value = fullName || dealData.company_name || '';
+        }
+
+        document.querySelectorAll('input[name="customer_type"]').forEach((input) => {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        document.querySelectorAll('input[name="service_area_options[]"]').forEach((input) => {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        enableDependentSections(Boolean(dealData.contact_id));
+    };
+
     const enableDependentSections = (enabled) => {
         if (!dependentSections) {
             return;
@@ -409,25 +567,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (options.mode === 'edit' && options.card) {
                 const card = options.card;
                 setFormModeEdit(card);
-                dealNameInput.value = card.dataset.dealName || '';
-                if (stageInput && card.dataset.dealStage) {
-                    ensureStageOption(card.dataset.dealStage);
-                    stageInput.value = card.dataset.dealStage;
-                }
-                const amount = Number.parseFloat(card.dataset.dealAmount || '0');
-                const totalField = document.getElementById('total_estimated_engagement_value');
-                if (totalField && amount > 0) {
-                    totalField.value = amount.toFixed(2);
-                }
-                const contactName = card.dataset.dealContact || '';
-                if (contactSearchInput) {
-                    contactSearchInput.value = contactName;
-                }
-                const contactRecords = @json($contactRecords);
-                const matched = contactRecords.find((record) => (record.label || '').toLowerCase().includes(contactName.toLowerCase()));
-                if (contactIdInput && matched) {
-                    contactIdInput.value = String(matched.id);
-                    enableDependentSections(true);
+                const dealData = dealRecords[String(card.dataset.dealId || '')] || null;
+                if (dealData) {
+                    hydrateEditForm(dealData);
+                } else {
+                    dealNameInput.value = card.dataset.dealName || '';
+                    if (stageInput && card.dataset.dealStage) {
+                        ensureStageOption(card.dataset.dealStage);
+                        stageInput.value = card.dataset.dealStage;
+                    }
+                    const amount = Number.parseFloat(card.dataset.dealAmount || '0');
+                    const totalField = document.getElementById('total_estimated_engagement_value');
+                    if (totalField && amount > 0) {
+                        totalField.value = amount.toFixed(2);
+                    }
+                    const contactName = card.dataset.dealContact || '';
+                    if (contactSearchInput) {
+                        contactSearchInput.value = contactName;
+                    }
+                    const matched = contactRecords.find((record) => (record.label || '').toLowerCase().includes(contactName.toLowerCase()));
+                    if (contactIdInput && matched) {
+                        contactIdInput.value = String(matched.id);
+                        enableDependentSections(true);
+                    }
                 }
             } else {
                 setFormModeCreate();

@@ -30,9 +30,18 @@ class LoginController extends Controller
 
             $request->session()->regenerate();
 
-            // ROLE REDIRECT
-            if (Auth::user()->role === 'SuperAdmin' || Auth::user()->role === 'Admin') {
-                return redirect()->route('admin.users');
+            $user = Auth::user();
+
+            if ($user->role === 'SuperAdmin' || $user->role === 'Admin') {
+                if ($user->hasPermission('manage_users')) {
+                    return redirect()->route('admin.users');
+                }
+
+                if ($user->hasPermission('access_admin_dashboard')) {
+                    return redirect()->route('admin.dashboard');
+                }
+
+                return redirect()->route('townhall');
             }
 
             return redirect()->route('townhall');

@@ -366,19 +366,10 @@ function companyBifForm() {
             const option = event?.target?.selectedOptions?.[0];
             if (!option) return;
 
-            const companyName = option.dataset.companyName || '';
             const email = option.dataset.email || '';
             const phone = option.dataset.phone || '';
-            const address = option.dataset.address || '';
-            const tin = option.dataset.tin || '';
-
-            this.fillIfBlank('business_name', companyName);
             this.fillIfBlank('authorized_contact_person_email', email);
             this.fillIfBlank('authorized_contact_person_phone', phone);
-            this.fillIfBlank('business_phone', phone);
-            this.fillIfBlank('mobile_no', phone);
-            this.fillIfBlank('business_address', address);
-            this.fillIfBlank('tin_no', tin);
         },
         syncEmployeeTotal() {
             this.employees.total = (Number(this.employees.male) || 0) + (Number(this.employees.female) || 0) + (Number(this.employees.pwd) || 0);
