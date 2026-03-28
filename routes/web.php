@@ -115,7 +115,8 @@ Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])-
 Route::patch('/deals/{id}/stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update');
 Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
 Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
-Route::get('/deals/{id}/download', [DealController::class, 'download'])->name('deals.download');
+Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
+Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
 Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');

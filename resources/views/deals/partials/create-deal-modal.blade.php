@@ -393,8 +393,12 @@
                                 <div id="dealContactResults" class="absolute left-0 right-0 z-20 mt-1 hidden max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg"></div>
                             </div>
                             <div>
-                                <label for="deal_name" class="mb-1 block text-sm font-medium text-gray-700">Deal Name</label>
-                                <input id="deal_name" name="deal_name" required value="{{ old('deal_name', $draft['deal_name'] ?? '') }}" placeholder="Enter deal name" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <label class="mb-1 block text-sm font-medium text-gray-700">Deal Title</label>
+                                <div class="flex h-10 items-center rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-500">
+                                    CONDEAL-YYYY-###
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Auto-generated and saved by the backend when the deal is created.</p>
+                                <input id="deal_name" name="deal_name" type="hidden" value="{{ old('deal_name', $draft['deal_name'] ?? '') }}">
                             </div>
                             <div>
                                 <label for="stage" class="mb-1 block text-sm font-medium text-gray-700">Pipeline Stage</label>
@@ -667,11 +671,63 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Fees</h3>
+                            @php
+                                $estimatedProfessionalFeeValue = old(
+                                    'estimated_professional_fee',
+                                    $draft['estimated_professional_fee'] ?? ''
+                                );
+                                $estimatedGovernmentFeeValue = old(
+                                    'estimated_government_fee',
+                                    old('estimated_government_fees', $draft['estimated_government_fee'] ?? ($draft['estimated_government_fees'] ?? ''))
+                                );
+                                $estimatedServiceSupportFeeValue = old(
+                                    'estimated_service_support_fee',
+                                    $draft['estimated_service_support_fee'] ?? ''
+                                );
+                                $totalEstimatedValue = old(
+                                    'total_estimated_value',
+                                    old('total_estimated_engagement_value', $draft['total_estimated_value'] ?? ($draft['total_estimated_engagement_value'] ?? ''))
+                                );
+                                $otherFees = old('other_fees_titles') !== null || old('other_fees_amounts') !== null
+                                    ? null
+                                    : collect(data_get($draft, 'other_fees', []))
+                                        ->filter(fn ($fee) => is_array($fee))
+                                        ->values();
+                                $otherFeesTitles = old(
+                                    'other_fees_titles',
+                                    $otherFees?->map(fn ($fee) => $fee['title'] ?? '')->all() ?? data_get($draft, 'other_fees_titles', [])
+                                );
+                                $otherFeesAmounts = old(
+                                    'other_fees_amounts',
+                                    $otherFees?->map(fn ($fee) => $fee['amount'] ?? '')->all() ?? data_get($draft, 'other_fees_amounts', [])
+                                );
+                                $otherFeesRowCount = max(count((array) $otherFeesTitles), count((array) $otherFeesAmounts));
+                            @endphp
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="{{ old('estimated_professional_fee', $draft['estimated_professional_fee'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="{{ old('estimated_government_fees', $draft['estimated_government_fees'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="{{ old('estimated_service_support_fee', $draft['estimated_service_support_fee'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ old('total_estimated_engagement_value', $draft['total_estimated_engagement_value'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="{{ $estimatedProfessionalFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="{{ $estimatedGovernmentFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="{{ $estimatedServiceSupportFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $totalEstimatedValue }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                            </div>
+                            <div id="otherFeesRows" class="mt-3 space-y-3">
+                                @for ($i = 0; $i < $otherFeesRowCount; $i++)
+                                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" data-other-fee-row>
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">Fee Title</label>
+                                            <input name="other_fees_titles[]" value="{{ $otherFeesTitles[$i] ?? '' }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-title>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
+                                            <input name="other_fees_amounts[]" value="{{ $otherFeesAmounts[$i] ?? '' }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+                                        </div>
+                                        <div class="flex items-end">
+                                            <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>
+                                        </div>
+                                    </div>
+                                @endfor
+                            </div>
+                            <div class="mt-3">
+                                <button id="addOtherFeeBtn" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">Add Other Fee</button>
                             </div>
                         </section>
 
@@ -823,11 +879,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const requiredMessage = document.getElementById('dealContactRequiredMessage');
     const saveBtn = document.getElementById('saveDealBtn');
     const feeInputs = [
-        document.getElementById('estimated_professional_fee'),
-        document.getElementById('estimated_government_fees'),
-        document.getElementById('estimated_service_support_fee'),
+        document.querySelector('[name="estimated_professional_fee"]'),
+        document.querySelector('[name="estimated_government_fee"]') || document.querySelector('[name="estimated_government_fees"]'),
+        document.querySelector('[name="estimated_service_support_fee"]'),
     ].filter(Boolean);
-    const totalInput = document.getElementById('total_estimated_engagement_value');
+    const totalInput = document.querySelector('[name="total_estimated_value"]') || document.querySelector('[name="total_estimated_engagement_value"]');
+    const otherFeesRows = document.getElementById('otherFeesRows');
+    const addOtherFeeBtn = document.getElementById('addOtherFeeBtn');
     const contactRecords = @json($contactRecords);
 
     const fieldMap = {
@@ -884,16 +942,48 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isNaN(parsed) ? 0 : parsed;
     };
 
-    const updateEstimatedTotal = () => {
+    const otherFeeAmountInputs = () => Array.from(document.querySelectorAll('[name="other_fees_amounts[]"]'));
+
+    const createOtherFeeRow = (title = '', amount = '') => {
+        const row = document.createElement('div');
+        row.className = 'grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]';
+        row.setAttribute('data-other-fee-row', '');
+        row.innerHTML = `
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Fee Title</label>
+                <input name="other_fees_titles[]" value="${title}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-title>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
+                <input name="other_fees_amounts[]" value="${amount}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+            </div>
+            <div class="flex items-end">
+                <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>
+            </div>
+        `;
+
+        return row;
+    };
+
+    const recalculateTotal = () => {
         if (!totalInput) {
             return;
         }
-        const total = feeInputs.reduce((sum, field) => sum + normalizeCurrency(field.value), 0);
-        if (total > 0) {
-            totalInput.value = total.toFixed(2);
-        } else if (!totalInput.dataset.manualEntry || totalInput.dataset.manualEntry !== 'true') {
-            totalInput.value = '';
-        }
+
+        const professional = normalizeCurrency(document.querySelector('[name="estimated_professional_fee"]')?.value);
+        const government = normalizeCurrency(
+            document.querySelector('[name="estimated_government_fee"]')?.value
+            ?? document.querySelector('[name="estimated_government_fees"]')?.value
+        );
+        const support = normalizeCurrency(document.querySelector('[name="estimated_service_support_fee"]')?.value);
+
+        let otherTotal = 0;
+        otherFeeAmountInputs().forEach((input) => {
+            otherTotal += normalizeCurrency(input.value);
+        });
+
+        const total = professional + government + support + otherTotal;
+        totalInput.value = total > 0 ? total.toFixed(2) : '';
     };
 
     const setDependentDisabled = (isDisabled) => {
@@ -1258,9 +1348,39 @@ document.addEventListener('DOMContentLoaded', function () {
     contactSearch?.addEventListener('focus', () => renderContactResults(contactSearch.value));
     contactSearch?.addEventListener('input', () => renderContactResults(contactSearch.value));
 
-    feeInputs.forEach((field) => field.addEventListener('input', updateEstimatedTotal));
-    totalInput?.addEventListener('input', () => {
-        totalInput.dataset.manualEntry = 'true';
+    feeInputs.forEach((field) => field.addEventListener('input', recalculateTotal));
+    document.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) {
+            return;
+        }
+
+        if (
+            target.name === 'estimated_professional_fee' ||
+            target.name === 'estimated_government_fee' ||
+            target.name === 'estimated_government_fees' ||
+            target.name === 'estimated_service_support_fee' ||
+            target.name === 'other_fees_amounts[]'
+        ) {
+            recalculateTotal();
+        }
+    });
+    otherFeesRows?.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.matches('[data-other-fee-remove]')) {
+            return;
+        }
+
+        target.closest('[data-other-fee-row]')?.remove();
+        recalculateTotal();
+    });
+    addOtherFeeBtn?.addEventListener('click', () => {
+        if (!otherFeesRows) {
+            return;
+        }
+
+        otherFeesRows.appendChild(createOtherFeeRow());
+        recalculateTotal();
     });
 
     Array.from(document.querySelectorAll('[data-other-target]')).forEach((input) => {
@@ -1345,7 +1465,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setDependentDisabled(!contactIdInput?.value);
     applyOtherFieldToggles();
-    updateEstimatedTotal();
+    recalculateTotal();
 
     @if ($openDealModal || $errors->any())
         openModal();

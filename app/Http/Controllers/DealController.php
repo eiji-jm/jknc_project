@@ -138,10 +138,18 @@ class DealController extends Controller
             }
 
             if (Schema::hasTable('deals')) {
+                $this->backfillMissingDealCodes();
+
                 $storedDeals = Deal::query()
                     ->with('contact:id,first_name,last_name')
                     ->latest()
-                    ->get()
+                    ->get();
+
+                $storedDeals->each(function (Deal $deal): void {
+                    $this->ensureDealCodeAssigned($deal);
+                });
+
+                $storedDeals = $storedDeals
                     ->map(function (Deal $deal): array {
                         $contactName = trim(collect([
                             $deal->first_name ?: $deal->contact?->first_name,
@@ -150,7 +158,7 @@ class DealController extends Controller
 
                         return [
                             'id' => $deal->id,
-                            'deal_code' => $deal->deal_code ?: $this->generateDealCode($deal->contact, $deal->id),
+                            'deal_code' => $deal->deal_code,
                             'deal_name' => $deal->deal_name,
                             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
                             'company_name' => $deal->company_name ?: (optional($deal->contact)->company_name ?: '-'),
@@ -480,14 +488,6 @@ class DealController extends Controller
         $contact = $this->resolveContact((int) $validated['contact_id']);
         abort_unless($contact, 404);
 
-        if (blank($validated['total_estimated_engagement_value'] ?? null)) {
-            $validated['total_estimated_engagement_value'] = collect([
-                $validated['estimated_professional_fee'] ?? 0,
-                $validated['estimated_government_fees'] ?? 0,
-                $validated['estimated_service_support_fee'] ?? 0,
-            ])->sum();
-        }
-
         if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
             $mockDeal = $this->buildMockSavedDeal($validated, $contact);
             $request->session()->put('deals.mock_saved', $mockDeal);
@@ -501,8 +501,7 @@ class DealController extends Controller
         }
 
         $createdDeal = Deal::query()->create([
-            ...$validated,
-            ...(Schema::hasColumn('deals', 'deal_code') ? ['deal_code' => $this->generateDealCode($contact)] : []),
+            ...$this->dealPersistencePayload($validated),
             ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
             ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
@@ -517,6 +516,9 @@ class DealController extends Controller
             'company_address' => $validated['company_address'] ?? $contact->company_address,
             'position' => $validated['position'] ?? $contact->position,
         ]);
+        $this->applyFeePersistence($createdDeal, $validated);
+        $this->syncDealNameToCode($createdDeal);
+        $createdDeal->save();
 
         $request->session()->forget('deals.preview_payload');
 
@@ -542,7 +544,7 @@ class DealController extends Controller
 
         $deal = Deal::query()->findOrFail($id);
         $deal->fill([
-            ...$validated,
+            ...$this->dealPersistencePayload($validated),
             ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
             'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
             'salutation' => $validated['salutation'] ?? $contact->salutation,
@@ -556,9 +558,9 @@ class DealController extends Controller
             'company_address' => $validated['company_address'] ?? $contact->company_address,
             'position' => $validated['position'] ?? $contact->position,
         ]);
-        if (Schema::hasColumn('deals', 'deal_code') && blank($deal->deal_code)) {
-            $deal->deal_code = $this->generateDealCode($contact, $deal->id);
-        }
+        $this->applyFeePersistence($deal, $validated);
+        $this->ensureDealCodeAssigned($deal, $contact);
+        $this->syncDealNameToCode($deal);
         $deal->save();
 
         return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated successfully.');
@@ -603,10 +605,12 @@ class DealController extends Controller
                     $storedDeal->save();
                 }
 
+                $this->ensureDealCodeAssigned($storedDeal);
+
                 $resolvedStageName = $currentStage['name'];
                 $deal = [
                     'id' => $storedDeal->id,
-                    'deal_code' => $storedDeal->deal_code ?: $this->generateDealCode($storedDeal->contact, $storedDeal->id),
+                    'deal_code' => $storedDeal->deal_code,
                     'deal_name' => $storedDeal->deal_name,
                     'contact_name' => trim(collect([$storedDeal->first_name, $storedDeal->last_name])->filter()->implode(' ')),
                     'company_name' => $storedDeal->company_name ?: (optional($storedDeal->contact)->company_name ?: '-'),
@@ -967,27 +971,12 @@ class DealController extends Controller
         ]);
     }
 
-    public function download(int $id): View
+    public function downloadPdf(Request $request, int $id): View
     {
-        $deal = collect($this->mockDeals())->firstWhere('id', $id);
-        $dealFormData = $this->normalizeDealFormData($deal ?: []);
+        $payload = $this->buildDealPdfPayload($id);
+        $payload['autoPrint'] = $request->boolean('autoprint');
 
-        if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->find($id);
-            if ($storedDeal) {
-                $deal = [
-                    'id' => $storedDeal->id,
-                    'deal_name' => $storedDeal->deal_name,
-                ];
-                $dealFormData = $this->normalizeDealFormData($storedDeal->toArray());
-            }
-        }
-
-        return view('deals.pdf', [
-            'deal' => $deal ?? ['id' => $id, 'deal_name' => 'Deal Form'],
-            'dealFormData' => $dealFormData,
-            'downloadMode' => true,
-        ]);
+        return view('pdf.deal', $payload);
     }
 
     private function dealStages(): array
@@ -1012,6 +1001,7 @@ class DealController extends Controller
                 'id' => $stage->id,
                 'name' => $stage->name,
                 'order' => (int) $stage->order,
+                'position' => (int) $stage->order,
                 'color' => $stage->color,
             ])
             ->all();
@@ -1035,6 +1025,7 @@ class DealController extends Controller
                 'id' => $stage->id,
                 'name' => $stage->name,
                 'order' => (int) $stage->order,
+                'position' => (int) $stage->order,
                 'color' => $stage->color,
             ])
             ->all();
@@ -1261,6 +1252,15 @@ class DealController extends Controller
         $normalized['payment_terms_custom'] = $this->parseCustomEntries($payload['payment_terms_custom'] ?? ($payload['payment_terms_other'] ?? null));
         $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
         $normalized['requirements_status_map'] = $this->normalizeRequirementStatusMap($payload['requirements_status_map'] ?? ($payload['requirements_status'] ?? null));
+        $normalized['other_fees'] = $this->normalizeOtherFees($payload['other_fees'] ?? null, $payload);
+        $normalized['other_fees_titles'] = array_map(
+            fn (array $fee): string => (string) ($fee['title'] ?? ''),
+            $normalized['other_fees']
+        );
+        $normalized['other_fees_amounts'] = array_map(
+            fn (array $fee): string => isset($fee['amount']) ? number_format((float) $fee['amount'], 2, '.', '') : '',
+            $normalized['other_fees']
+        );
 
         foreach ([
             'estimated_professional_fee',
@@ -1268,12 +1268,124 @@ class DealController extends Controller
             'estimated_service_support_fee',
             'total_estimated_engagement_value',
         ] as $moneyField) {
+            if (! array_key_exists($moneyField, $normalized) || blank($normalized[$moneyField])) {
+                $normalized[$moneyField] = match ($moneyField) {
+                    'estimated_government_fees' => $payload['estimated_government_fee'] ?? ($normalized[$moneyField] ?? null),
+                    'total_estimated_engagement_value' => $payload['total_estimated_value'] ?? ($normalized[$moneyField] ?? null),
+                    default => $normalized[$moneyField] ?? null,
+                };
+            }
+
             if (filled($normalized[$moneyField] ?? null) && is_numeric(str_replace(',', '', (string) $normalized[$moneyField]))) {
                 $normalized[$moneyField] = 'P'.number_format((float) str_replace(',', '', (string) $normalized[$moneyField]), 2);
             }
         }
 
         return $normalized;
+    }
+
+    private function buildDealPdfPayload(int $id): array
+    {
+        if (Schema::hasTable('deals')) {
+            $storedDeal = Deal::query()->with(['contact', 'stage'])->find($id);
+            if ($storedDeal) {
+                $this->ensureDealCodeAssigned($storedDeal);
+                $stages = collect($this->dealStages());
+                $currentStage = $stages->firstWhere('id', $storedDeal->stage_id);
+                if (! $currentStage && filled($storedDeal->stage)) {
+                    $currentStage = $stages->firstWhere('name', $storedDeal->stage);
+                }
+                $currentStage ??= $stages->first();
+
+                $contact = $storedDeal->contact;
+                $contactName = trim(collect([
+                    $storedDeal->first_name ?: $contact?->first_name,
+                    $storedDeal->last_name ?: $contact?->last_name,
+                ])->filter()->implode(' '));
+
+                $stageName = (string) ($currentStage['name'] ?? $storedDeal->stage ?? 'Inquiry');
+                $dealFormData = $this->normalizeDealFormData([
+                    ...$storedDeal->toArray(),
+                    'stage' => $stageName,
+                    'first_name' => $storedDeal->first_name ?: $contact?->first_name,
+                    'middle_initial' => $storedDeal->middle_initial ?? $contact?->middle_initial,
+                    'middle_name' => $storedDeal->middle_name ?: $contact?->middle_name,
+                    'last_name' => $storedDeal->last_name ?: $contact?->last_name,
+                    'name_extension' => $storedDeal->name_extension ?? $contact?->name_extension,
+                    'email' => $storedDeal->email ?: $contact?->email,
+                    'mobile' => $storedDeal->mobile ?: $contact?->mobile,
+                    'address' => $storedDeal->address ?: $contact?->address,
+                    'company_name' => $storedDeal->company_name ?: $contact?->company_name,
+                    'company_address' => $storedDeal->company_address ?: $contact?->company_address,
+                    'position' => $storedDeal->position ?: $contact?->position,
+                ]);
+
+                return [
+                    'deal' => [
+                        'id' => $storedDeal->id,
+                        'deal_code' => $storedDeal->deal_code,
+                        'deal_name' => $storedDeal->deal_name ?: 'Deal Form',
+                        'stage' => $stageName,
+                        'value' => $dealFormData['total_estimated_engagement_value'] ?? 'P0.00',
+                        'owner_name' => $storedDeal->assigned_consultant ?: 'Unassigned',
+                        'contact_name' => $contactName ?: 'Linked Contact',
+                        'company_name' => $dealFormData['company_name'] ?? '-',
+                    ],
+                    'detail' => [
+                        'contact_person_position' => $dealFormData['position'] ?? '-',
+                        'email_address' => $dealFormData['email'] ?? '-',
+                        'contact_number' => $dealFormData['mobile'] ?? '-',
+                        'client_type' => $storedDeal->customer_type ?: '-',
+                        'industry' => $storedDeal->service_area ?: '-',
+                        'expected_close_date' => optional($storedDeal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
+                        'deal_status' => $storedDeal->proposal_decision === 'decline engagement' ? 'Lost' : 'Open',
+                    ],
+                    'dealFormData' => $dealFormData,
+                    'generatedAt' => now(),
+                ];
+            }
+        }
+
+        $mockDeal = collect($this->mockDeals())->firstWhere('id', $id);
+        abort_unless($mockDeal, 404);
+
+        $currentStage = $this->resolveCurrentStageForDeal((string) ($mockDeal['stage'] ?? 'Inquiry'), null);
+        $dealFormData = $this->normalizeDealFormData([
+            ...$mockDeal,
+            'stage' => $currentStage['name'] ?? ($mockDeal['stage'] ?? 'Inquiry'),
+            'contact_id' => 101,
+            'first_name' => data_get($this->mockContactRecord(), 'first_name'),
+            'last_name' => data_get($this->mockContactRecord(), 'last_name'),
+            'email' => strtolower(str_replace(' ', '.', (string) ($mockDeal['contact_name'] ?? 'contact'))).'@consulting.com',
+            'mobile' => '09331234567',
+            'company_name' => $mockDeal['company_name'] ?? '-',
+            'position' => 'CEO',
+            'estimated_completion_date' => '2026-06-10',
+        ]);
+
+        return [
+            'deal' => [
+                'id' => $mockDeal['id'],
+                'deal_code' => $mockDeal['deal_code'] ?? 'DEAL-'.$mockDeal['id'],
+                'deal_name' => $mockDeal['deal_name'] ?? 'Deal Form',
+                'stage' => $currentStage['name'] ?? ($mockDeal['stage'] ?? 'Inquiry'),
+                'value' => $dealFormData['total_estimated_engagement_value'] ?? 'P0.00',
+                'owner_name' => $mockDeal['owner_name'] ?? 'Unassigned',
+                'contact_name' => $mockDeal['contact_name'] ?? 'Linked Contact',
+                'company_name' => $mockDeal['company_name'] ?? '-',
+            ],
+            'detail' => [
+                'contact_person_position' => 'CEO',
+                'email_address' => $dealFormData['email'] ?? '-',
+                'contact_number' => $dealFormData['mobile'] ?? '-',
+                'client_type' => 'Corporation',
+                'industry' => 'Consulting',
+                'expected_close_date' => 'Jun 10, 2026',
+                'deal_status' => ($mockDeal['stage'] ?? '') === 'Closed Lost' ? 'Lost' : 'Open',
+            ],
+            'dealFormData' => $dealFormData,
+            'generatedAt' => now(),
+        ];
     }
 
     private function normalizeListValue(mixed $value): array
@@ -1324,9 +1436,11 @@ class DealController extends Controller
 
     private function validateDealPayload(Request $request): array
     {
+        $this->normalizeFeeRequestKeys($request);
+
         $validated = $request->validate([
             'contact_id' => ['required', 'integer', 'min:1'],
-            'deal_name' => ['required', 'string', 'max:255'],
+            'deal_name' => ['nullable', 'string', 'max:255'],
             'stage' => ['nullable', 'string', 'max:100'],
             'owner_id' => ['nullable', 'integer'],
             'service_area' => ['nullable', 'string', 'max:4000'],
@@ -1361,10 +1475,16 @@ class DealController extends Controller
             'required_actions_other' => ['nullable', 'string'],
             'required_actions_custom' => ['nullable', 'array'],
             'required_actions_custom.*' => ['nullable', 'string', 'max:255'],
-            'estimated_professional_fee' => ['nullable'],
-            'estimated_government_fees' => ['nullable'],
-            'estimated_service_support_fee' => ['nullable'],
-            'total_estimated_engagement_value' => ['nullable'],
+            'estimated_professional_fee' => ['nullable', 'numeric'],
+            'estimated_government_fees' => ['nullable', 'numeric'],
+            'estimated_government_fee' => ['nullable', 'numeric'],
+            'estimated_service_support_fee' => ['nullable', 'numeric'],
+            'total_estimated_engagement_value' => ['nullable', 'numeric'],
+            'total_estimated_value' => ['nullable', 'numeric'],
+            'other_fees_titles' => ['nullable', 'array'],
+            'other_fees_titles.*' => ['nullable', 'string', 'max:255'],
+            'other_fees_amounts' => ['nullable', 'array'],
+            'other_fees_amounts.*' => ['nullable', 'numeric'],
             'payment_terms' => ['nullable', 'string', 'max:255'],
             'payment_terms_other' => ['nullable', 'string', 'max:255'],
             'payment_terms_custom' => ['nullable', 'array'],
@@ -1424,6 +1544,13 @@ class DealController extends Controller
             'referral_type' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $validated['estimated_government_fees'] = $validated['estimated_government_fees']
+            ?? $validated['estimated_government_fee']
+            ?? null;
+        $validated['total_estimated_engagement_value'] = $validated['total_estimated_engagement_value']
+            ?? $validated['total_estimated_value']
+            ?? null;
+
         foreach ([
             'estimated_professional_fee',
             'estimated_government_fees',
@@ -1438,6 +1565,9 @@ class DealController extends Controller
             $normalized = str_replace(',', '', (string) $validated[$moneyField]);
             $validated[$moneyField] = is_numeric($normalized) ? (float) $normalized : null;
         }
+
+        $validated['other_fees'] = $this->normalizeOtherFees(null, $validated);
+        $validated['total_estimated_engagement_value'] = $this->computeTotalEstimatedEngagementValue($validated);
 
         $serviceAreaSelections = collect($validated['service_area_options'] ?? [])
             ->filter(fn ($value): bool => is_string($value) && trim((string) $value) !== '' && trim((string) $value) !== 'Others')
@@ -1537,6 +1667,131 @@ class DealController extends Controller
         }
 
         return $validated;
+    }
+
+    private function normalizeOtherFees(mixed $storedOtherFees = null, array $payload = []): array
+    {
+        $titles = $payload['other_fees_titles'] ?? null;
+        $amounts = $payload['other_fees_amounts'] ?? null;
+
+        if (is_array($titles) || is_array($amounts)) {
+            $titles = is_array($titles) ? array_values($titles) : [];
+            $amounts = is_array($amounts) ? array_values($amounts) : [];
+            $count = max(count($titles), count($amounts));
+            $otherFees = [];
+
+            for ($index = 0; $index < $count; $index++) {
+                $title = trim((string) ($titles[$index] ?? ''));
+                $rawAmount = str_replace(',', '', trim((string) ($amounts[$index] ?? '')));
+
+                if ($title === '' || $rawAmount === '' || ! is_numeric($rawAmount)) {
+                    continue;
+                }
+
+                $otherFees[] = [
+                    'title' => $this->truncateStringForColumn($title, 255),
+                    'amount' => (float) $rawAmount,
+                ];
+            }
+
+            return $otherFees;
+        }
+
+        if (is_string($storedOtherFees)) {
+            $decoded = json_decode($storedOtherFees, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $storedOtherFees = $decoded;
+            }
+        }
+
+        if (! is_array($storedOtherFees)) {
+            return [];
+        }
+
+        return collect($storedOtherFees)
+            ->filter(fn ($entry): bool => is_array($entry))
+            ->map(function (array $entry): ?array {
+                $title = trim((string) ($entry['title'] ?? ''));
+                $rawAmount = str_replace(',', '', trim((string) ($entry['amount'] ?? '')));
+
+                if ($title === '' || $rawAmount === '' || ! is_numeric($rawAmount)) {
+                    return null;
+                }
+
+                return [
+                    'title' => $this->truncateStringForColumn($title, 255),
+                    'amount' => (float) $rawAmount,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function computeTotalEstimatedEngagementValue(array $validated): ?float
+    {
+        $baseTotal = collect([
+            $validated['estimated_professional_fee'] ?? 0,
+            $validated['estimated_government_fees'] ?? 0,
+            $validated['estimated_service_support_fee'] ?? 0,
+        ])->sum();
+
+        $otherFeesTotal = collect($validated['other_fees'] ?? [])
+            ->sum(fn (array $fee): float => (float) ($fee['amount'] ?? 0));
+
+        $total = (float) $baseTotal + (float) $otherFeesTotal;
+
+        return $total > 0 ? round($total, 2) : null;
+    }
+
+    private function normalizeFeeRequestKeys(Request $request): void
+    {
+        $request->merge([
+            'estimated_government_fees' => $request->input('estimated_government_fees', $request->input('estimated_government_fee')),
+            'total_estimated_engagement_value' => $request->input('total_estimated_engagement_value', $request->input('total_estimated_value')),
+        ]);
+    }
+
+    private function dealPersistencePayload(array $validated): array
+    {
+        if (Schema::hasColumn('deals', 'other_fees')) {
+            return $validated;
+        }
+
+        unset($validated['other_fees']);
+
+        return $validated;
+    }
+
+    private function applyFeePersistence(Deal $deal, array $validated): void
+    {
+        $professional = (float) ($validated['estimated_professional_fee'] ?? 0);
+        $government = (float) ($validated['estimated_government_fees'] ?? 0);
+        $support = (float) ($validated['estimated_service_support_fee'] ?? 0);
+        $otherFees = $validated['other_fees'] ?? [];
+        $total = $this->computeTotalEstimatedEngagementValue([
+            'estimated_professional_fee' => $professional,
+            'estimated_government_fees' => $government,
+            'estimated_service_support_fee' => $support,
+            'other_fees' => $otherFees,
+        ]);
+
+        $deal->estimated_professional_fee = $professional ?: null;
+        $deal->estimated_government_fees = $government ?: null;
+        $deal->estimated_service_support_fee = $support ?: null;
+        $deal->total_estimated_engagement_value = $total;
+
+        if (Schema::hasColumn('deals', 'other_fees')) {
+            $deal->other_fees = $otherFees;
+        }
+
+        if (Schema::hasColumn('deals', 'estimated_government_fee')) {
+            $deal->setAttribute('estimated_government_fee', $government ?: null);
+        }
+
+        if (Schema::hasColumn('deals', 'total_estimated_value')) {
+            $deal->setAttribute('total_estimated_value', $total);
+        }
     }
 
     private function composeMultiSelectString(array $selected, ?string $other = null, string $otherPrefix = 'Others: '): ?string
@@ -1797,10 +2052,12 @@ class DealController extends Controller
             $validated['estimated_service_support_fee'] ?? 0,
         ])->sum();
 
+        $dealCode = Deal::generateNextDealCode();
+
         return [
             'id' => (int) now()->format('His'),
-            'deal_code' => $this->generateDealCode($contact),
-            'deal_name' => $validated['deal_name'],
+            'deal_code' => $dealCode,
+            'deal_name' => $dealCode,
             'contact_name' => $contactName !== '' ? $contactName : 'Linked Contact',
             'company_name' => $validated['company_name'] ?? $contact->company_name ?? '-',
             'amount' => (int) round((float) $amount),
@@ -1816,34 +2073,77 @@ class DealController extends Controller
 
     private function generateDealCode(?Contact $contact, ?int $existingDealId = null): string
     {
-        $initials = $this->dealCodeInitials(
-            (string) ($contact?->first_name ?? ''),
-            (string) ($contact?->last_name ?? '')
-        );
-        $year = now()->format('Y');
-        $prefix = "{$initials}-{$year}-";
+        return Deal::generateNextDealCode(ignoreDealId: $existingDealId);
+    }
 
-        if (Schema::hasTable('deals') && Schema::hasColumn('deals', 'deal_code')) {
-            $existingCodes = Deal::query()
-                ->when($existingDealId, fn ($query) => $query->where('id', '!=', $existingDealId))
-                ->where('deal_code', 'like', "{$prefix}%")
-                ->pluck('deal_code');
-
-            $maxSequence = $existingCodes
-                ->map(fn (string $code): int => (int) Str::afterLast($code, '-'))
-                ->max() ?? 0;
-
-            return $prefix.str_pad((string) ($maxSequence + 1), 3, '0', STR_PAD_LEFT);
+    private function ensureDealCodeAssigned(Deal $deal, ?Contact $contact = null): void
+    {
+        if (! Schema::hasColumn('deals', 'deal_code') || Deal::hasValidDealCode($deal->deal_code)) {
+            return;
         }
 
-        return $prefix.str_pad((string) ($existingDealId ?: random_int(1, 999)), 3, '0', STR_PAD_LEFT);
+        $deal->deal_code = Deal::generateNextDealCode(
+            year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
+            ignoreDealId: $deal->id
+        );
+        $deal->save();
+        $deal->refresh();
+    }
+
+    private function syncDealNameToCode(Deal $deal): void
+    {
+        if ($deal->deal_name !== $deal->deal_code) {
+            $deal->deal_name = $deal->deal_code;
+        }
+    }
+
+    private function backfillMissingDealCodes(): void
+    {
+        if (! Schema::hasTable('deals') || ! Schema::hasColumn('deals', 'deal_code')) {
+            return;
+        }
+
+        Deal::query()
+            ->with('contact')
+            ->where(function ($query) {
+                $query->whereNull('deal_code')
+                    ->orWhere('deal_code', '');
+            })
+            ->orderBy('id')
+            ->get()
+            ->each(function (Deal $deal): void {
+                $this->ensureDealCodeAssigned($deal, $deal->contact);
+                $this->syncDealNameToCode($deal);
+                $deal->save();
+            });
+
+        Deal::query()
+            ->with('contact')
+            ->whereNotNull('deal_code')
+            ->where('deal_code', '!=', '')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Deal $deal): bool => ! Deal::hasValidDealCode($deal->deal_code))
+            ->each(function (Deal $deal): void {
+                $this->ensureDealCodeAssigned($deal, $deal->contact);
+                $this->syncDealNameToCode($deal);
+                $deal->save();
+            });
+
+        Deal::query()
+            ->whereNotNull('deal_code')
+            ->whereColumn('deal_name', '!=', 'deal_code')
+            ->orderBy('id')
+            ->get()
+            ->each(function (Deal $deal): void {
+                $this->syncDealNameToCode($deal);
+                $deal->save();
+            });
     }
 
     private function generateDealCodeFromNames(string $firstName, string $lastName, int $seed): string
     {
-        $initials = $this->dealCodeInitials($firstName, $lastName);
-
-        return "{$initials}-".now()->format('Y').'-'.str_pad((string) $seed, 3, '0', STR_PAD_LEFT);
+        return 'CONDEAL-'.now()->format('Y').'-'.str_pad((string) max($seed, 1), 3, '0', STR_PAD_LEFT);
     }
 
     private function dealCodeInitials(string $firstName, string $lastName): string

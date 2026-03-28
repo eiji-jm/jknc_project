@@ -21,7 +21,7 @@
     ];
     $initials = strtoupper(substr((string) ($deal['contact_name'] ?? 'C'), 0, 1).substr(strrchr(' '.($deal['contact_name'] ?? 'C'), ' '), 1, 1));
     $progressCurrentStage = data_get($detail, 'progress.current_stage', []);
-    $progressCurrentStageOrder = (int) data_get($progressCurrentStage, 'order', 0);
+    $progressCurrentStagePosition = (int) (data_get($progressCurrentStage, 'position') ?? data_get($progressCurrentStage, 'order', 0));
 @endphp
 
 <div class="bg-[#f7f6f2] p-6">
@@ -34,8 +34,7 @@
 
         <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
             <div>
-                <p class="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700">{{ $deal['deal_code'] ?? 'DEAL' }}</p>
-                <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_name'] }}</h1>
+                <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                     <span id="dealStageBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $stageBadgeClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $deal['stage'] }}</span>
                     <span class="text-lg font-semibold text-gray-900">{{ $formatCurrency($deal['amount'] ?? 0) }}</span>
@@ -48,7 +47,7 @@
                 <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
                     <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
                 </button>
-                <a href="{{ route('deals.download', $deal['id']) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-file-pdf mr-1"></i>Download PDF
                 </a>
             </div>
@@ -59,7 +58,7 @@
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h2 class="mb-4 text-xl font-semibold text-gray-900">Deal Information</h2>
                     <div class="grid gap-4 text-sm md:grid-cols-2">
-                        <div><p class="text-xs text-gray-500">Deal Name</p><p class="font-medium text-gray-800">{{ $deal['deal_name'] ?? '-' }}</p></div>
+                        <div><p class="text-xs text-gray-500">Deal Code</p><p class="font-medium text-gray-800">{{ $deal['deal_code'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Company Name</p><p class="font-medium text-gray-800">{{ $detail['related_company'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Contact Person Name</p><p class="font-medium text-gray-800">{{ $detail['contact_person_name'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Contact Person Position</p><p class="font-medium text-gray-800">{{ $detail['contact_person_position'] ?? '-' }}</p></div>
@@ -78,7 +77,7 @@
                         <div><p class="text-xs text-gray-500">Service Type</p><p class="font-medium text-gray-800">{{ data_get($detail, 'service.service_type', '-') }}</p></div>
                         <div><p class="text-xs text-gray-500">Product Type</p><p class="font-medium text-gray-800">{{ data_get($detail, 'service.product_type', '-') }}</p></div>
                         <div><p class="text-xs text-gray-500">Engagement Type</p><p class="font-medium text-gray-800">{{ data_get($detail, 'service.engagement_type', '-') }}</p></div>
-                        <div><p class="text-xs text-gray-500">Project Name (if applicable)</p><p class="font-medium text-gray-800">{{ $dealFormData['deal_name'] ?? '-' }}</p></div>
+                        <div><p class="text-xs text-gray-500">Deal Code</p><p class="font-medium text-gray-800">{{ $deal['deal_code'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Engagement Duration</p><p class="font-medium text-gray-800">{{ data_get($detail, 'service.engagement_duration', '-') }}</p></div>
                     </div>
                 </article>
@@ -128,32 +127,39 @@
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h2 class="mb-4 text-xl font-semibold text-gray-900">Deal Stage Progress</h2>
-                    <div id="dealStageProgress" class="grid grid-cols-2 gap-4 text-center sm:grid-cols-4 lg:grid-cols-8">
+                    <div id="dealStageProgress" class="flex flex-wrap items-start justify-between gap-y-4 overflow-x-auto pb-1">
                         @foreach (($stages ?? []) as $stage)
                             @php
-                                $stageOrder = (int) data_get($stage, 'order', 0);
+                                $stagePosition = (int) (data_get($stage, 'position') ?? data_get($stage, 'order', 0));
                                 $stageId = data_get($stage, 'id');
                                 $dealStageId = data_get($deal, 'stage_id');
-                                $isCurrent = (
+                                $isCompleted = (
                                     filled($stageId)
                                     && filled($dealStageId)
-                                    && (int) $stageId === (int) $dealStageId
+                                    && $stagePosition <= $progressCurrentStagePosition
                                 ) || (
                                     blank($dealStageId)
-                                    && $stageOrder === $progressCurrentStageOrder
-                                    && data_get($stage, 'name') === data_get($progressCurrentStage, 'name')
+                                    && $stagePosition <= $progressCurrentStagePosition
                                 );
-                                $circleClass = $isCurrent
+                                $circleClass = $isCompleted
                                     ? 'bg-blue-600 text-white border-blue-600'
                                     : 'bg-gray-100 text-gray-300 border-gray-200';
+                                $lineClass = $stagePosition < $progressCurrentStagePosition
+                                    ? 'bg-blue-600'
+                                    : 'bg-gray-200';
                             @endphp
-                            <div data-stage-progress-item data-stage-id="{{ data_get($stage, 'id') }}" data-stage-order="{{ $stageOrder }}">
-                                <span class="mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs {{ $circleClass }}">
-                                    @if ($isCurrent)
-                                        <i class="fas fa-check text-sm"></i>
-                                    @endif
-                                </span>
-                                <p class="mt-2 text-xs text-gray-600">{{ data_get($stage, 'name') }}</p>
+                            <div class="flex min-w-[88px] flex-1 items-start" data-stage-progress-item data-stage-id="{{ data_get($stage, 'id') }}" data-stage-position="{{ $stagePosition }}">
+                                <div class="flex w-full flex-col items-center text-center">
+                                    <span class="mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs {{ $circleClass }}">
+                                        @if ($isCompleted)
+                                            <i class="fas fa-check text-sm"></i>
+                                        @endif
+                                    </span>
+                                    <p class="mt-2 text-xs text-gray-600">{{ data_get($stage, 'name') }}</p>
+                                </div>
+                                @if (! $loop->last)
+                                    <span class="mt-4 hidden h-0.5 flex-1 rounded-full lg:block {{ $lineClass }}"></span>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -323,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const stageProgress = document.getElementById('dealStageProgress');
     const stageBadgeClasses = @json($stageBadgeClasses);
     const currentStageName = @json($deal['stage'] ?? data_get($progressCurrentStage, 'name'));
-    const currentStageOrder = @json((int) $progressCurrentStageOrder);
+    const currentStagePosition = @json((int) $progressCurrentStagePosition);
     let stageData = @json(collect($stages ?? [])->values()->all());
     let currentStageId = @json($deal['stage_id'] ?? null);
     let toastTimer = null;
@@ -343,12 +349,25 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.tabButton)));
 
+    const getStagePosition = (stage) => Number(stage?.position ?? stage?.order ?? 0);
+
     const isCurrentStage = (stage, selectedId) => {
         const stageId = stage?.id;
         if (stageId !== null && stageId !== undefined && selectedId !== null && selectedId !== undefined && selectedId !== '') {
             return Number(stageId) === Number(selectedId);
         }
-        return Number(stage?.order || 0) === Number(currentStageOrder || 0) && String(stage?.name || '') === String(currentStageName || '');
+        return getStagePosition(stage) === Number(currentStagePosition || 0) && String(stage?.name || '') === String(currentStageName || '');
+    };
+
+    const getActiveStage = (selectedId) => {
+        return stageData.find((item) => isCurrentStage(item, selectedId))
+            || stageData.find((item) => String(item?.name || '') === String(currentStageName || ''));
+    };
+
+    const isCompletedStage = (stage, selectedId) => {
+        const activePosition = getStagePosition(getActiveStage(selectedId));
+
+        return activePosition > 0 && getStagePosition(stage) <= activePosition;
     };
 
     const openStageModal = () => {
@@ -396,18 +415,24 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        stageProgress.innerHTML = stages.map((stage) => {
-            const isCurrent = isCurrentStage(stage, currentStageId);
-            const circleClass = isCurrent
+        const activePosition = getStagePosition(getActiveStage(currentStageId));
+
+        stageProgress.innerHTML = stages.map((stage, index) => {
+            const isCompleted = isCompletedStage(stage, currentStageId);
+            const circleClass = isCompleted
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-gray-100 text-gray-300 border-gray-200';
+            const lineClass = getStagePosition(stage) < activePosition ? 'bg-blue-600' : 'bg-gray-200';
 
             return `
-                <div data-stage-progress-item data-stage-id="${stage.id}" data-stage-order="${stage.order}">
-                    <span class="mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs ${circleClass}">
-                        ${isCurrent ? '<i class="fas fa-check text-sm"></i>' : ''}
-                    </span>
-                    <p class="mt-2 text-xs text-gray-600">${stage.name}</p>
+                <div class="flex min-w-[88px] flex-1 items-start" data-stage-progress-item data-stage-id="${stage.id}" data-stage-position="${getStagePosition(stage)}">
+                    <div class="flex w-full flex-col items-center text-center">
+                        <span class="mx-auto flex h-8 w-8 items-center justify-center rounded-full border text-xs ${circleClass}">
+                            ${isCompleted ? '<i class="fas fa-check text-sm"></i>' : ''}
+                        </span>
+                        <p class="mt-2 text-xs text-gray-600">${stage.name}</p>
+                    </div>
+                    ${index < stages.length - 1 ? `<span class="mt-4 hidden h-0.5 flex-1 rounded-full lg:block ${lineClass}"></span>` : ''}
                 </div>
             `;
         }).join('');

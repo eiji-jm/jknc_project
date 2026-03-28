@@ -101,7 +101,7 @@
                             <article
                                 class="deal-card group/deal relative rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition hover:cursor-pointer hover:border-blue-300 hover:shadow"
                                 data-deal-id="{{ $deal['id'] }}"
-                                data-deal-name="{{ $deal['deal_name'] }}"
+                                data-deal-name="{{ $deal['deal_code'] ?? $deal['deal_name'] }}"
                                 data-deal-stage="{{ $column['stage'] }}"
                                 data-deal-contact="{{ $deal['contact_name'] }}"
                                 data-deal-company="{{ $deal['company_name'] }}"
@@ -132,8 +132,7 @@
                                     href="{{ route('deals.show', $deal['id']) }}"
                                     class="block"
                                 >
-                                    <p class="pr-16 text-[14px] font-semibold tracking-wide text-blue-700">{{ $deal['deal_code'] ?? 'DEAL' }}</p>
-                                    <h3 class="mt-1 pr-16 text-sm font-medium leading-snug text-gray-600 [overflow-wrap:break-word] line-clamp-2">{{ $deal['deal_name'] }}</h3>
+                                    <h3 class="pr-16 text-[14px] font-semibold tracking-wide text-blue-700 [overflow-wrap:break-word] line-clamp-2">{{ $deal['deal_code'] ?? 'DEAL' }}</h3>
                                     <p class="mt-2 text-xs text-gray-700">{{ $deal['contact_name'] }}</p>
                                     <p class="text-[11px] text-gray-400">{{ $deal['company_name'] }}</p>
 

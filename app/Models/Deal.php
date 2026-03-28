@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class Deal extends Model
 {
@@ -24,6 +26,7 @@ class Deal extends Model
         'estimated_professional_fee',
         'estimated_government_fees',
         'estimated_service_support_fee',
+        'other_fees',
         'total_estimated_engagement_value',
         'payment_terms',
         'payment_terms_other',
@@ -64,8 +67,50 @@ class Deal extends Model
         'estimated_professional_fee' => 'decimal:2',
         'estimated_government_fees' => 'decimal:2',
         'estimated_service_support_fee' => 'decimal:2',
+        'other_fees' => 'array',
         'total_estimated_engagement_value' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Deal $deal): void {
+            if (! static::hasValidDealCode($deal->deal_code)) {
+                $deal->deal_code = static::generateNextDealCode();
+            }
+        });
+    }
+
+    public static function generateNextDealCode(?int $year = null, ?int $ignoreDealId = null): string
+    {
+        $year ??= (int) now()->format('Y');
+        $prefix = sprintf('CONDEAL-%d-', $year);
+
+        $nextNumber = DB::transaction(function () use ($prefix, $ignoreDealId): int {
+            $latestCode = static::query()
+                ->when($ignoreDealId, fn (Builder $query) => $query->whereKeyNot($ignoreDealId))
+                ->where('deal_code', 'like', $prefix.'%')
+                ->whereNotNull('deal_code')
+                ->orderByDesc('deal_code')
+                ->lockForUpdate()
+                ->value('deal_code');
+
+            if (! static::hasValidDealCode($latestCode)) {
+                return 1;
+            }
+
+            $lastNumber = (int) substr((string) $latestCode, -3);
+
+            return $lastNumber + 1;
+        });
+
+        return $prefix.str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    public static function hasValidDealCode(?string $dealCode): bool
+    {
+        return is_string($dealCode)
+            && preg_match('/^CONDEAL-\d{4}-\d{3}$/', $dealCode) === 1;
+    }
 
     public function contact(): BelongsTo
     {
