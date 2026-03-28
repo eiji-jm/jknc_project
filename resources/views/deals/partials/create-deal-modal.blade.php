@@ -509,14 +509,17 @@
 
                                 <div class="space-y-4">
                                     <label class="block text-sm font-medium text-gray-700">Services</label>
-                                    <div class="grid gap-4 lg:grid-cols-2">
+                                    <p id="dealServicesEmptyState" class="hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                                        Select a service area first to view the matching services.
+                                    </p>
+                                    <div id="dealServicesGrid" class="grid gap-4 lg:grid-cols-2">
                                         @foreach ($serviceGroups as $group => $options)
-                                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                                            <div data-service-group="{{ $group }}" class="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
                                                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $group }}</p>
                                                 <div class="space-y-2">
                                                     @foreach ($options as $option)
                                                         <label class="flex items-start gap-2 text-sm text-gray-700">
-                                                            <input type="checkbox" name="service_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                            <input type="checkbox" name="service_options[]" value="{{ $option }}" data-service-group-option="{{ $group }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                             <span>{{ $option }}</span>
                                                         </label>
                                                     @endforeach
@@ -1160,6 +1163,34 @@ document.addEventListener('DOMContentLoaded', function () {
         syncVisibility();
     };
 
+    const syncServiceGroups = () => {
+        const selectedAreas = Array.from(document.querySelectorAll('input[name="service_area_options[]"]:checked'))
+            .map((input) => input.value)
+            .filter((value) => value && value !== 'Others');
+        const serviceGroups = Array.from(document.querySelectorAll('[data-service-group]'));
+        const serviceEmptyState = document.getElementById('dealServicesEmptyState');
+        const serviceGrid = document.getElementById('dealServicesGrid');
+
+        let visibleCount = 0;
+
+        serviceGroups.forEach((group) => {
+            const isVisible = selectedAreas.includes(group.dataset.serviceGroup || '');
+            group.classList.toggle('hidden', !isVisible);
+
+            if (!isVisible) {
+                Array.from(group.querySelectorAll('input[name="service_options[]"]')).forEach((input) => {
+                    input.checked = false;
+                });
+                return;
+            }
+
+            visibleCount += 1;
+        });
+
+        serviceEmptyState?.classList.toggle('hidden', visibleCount > 0);
+        serviceGrid?.classList.toggle('hidden', visibleCount === 0);
+    };
+
     const setFieldValue = (fieldId, value) => {
         const field = document.getElementById(fieldId);
         if (!field) {
@@ -1334,6 +1365,9 @@ document.addEventListener('DOMContentLoaded', function () {
         inputName: 'payment_terms_custom[]',
         isEnabled: () => Boolean(document.querySelector('input[name="payment_terms"][value="Others"]')?.checked),
     });
+    Array.from(document.querySelectorAll('input[name="service_area_options[]"]')).forEach((input) => {
+        input.addEventListener('change', syncServiceGroups);
+    });
 
     openBtn?.addEventListener('click', openModal);
     closeBtn?.addEventListener('click', closeModal);
@@ -1368,6 +1402,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateRequirementBadges(null);
     }
     applyOtherFieldToggles();
+    syncServiceGroups();
     updateEstimatedTotal();
 
     @if ($openDealModal || $errors->any())
