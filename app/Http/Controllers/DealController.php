@@ -193,6 +193,9 @@ class DealController extends Controller
         }
 
         $draft = session('deals.preview_payload', []);
+        if (is_array($draft) && ! empty($draft)) {
+            $draft = $this->normalizeDealFormData($draft);
+        }
 
         return view('deals.index', [
             'stageColumns' => $groupedByStage,
@@ -230,7 +233,7 @@ class DealController extends Controller
 
     public function saveDraft(Request $request): RedirectResponse
     {
-        $draft = $request->except('_token');
+        $draft = $this->normalizeDealFormData($request->except('_token'));
         $request->session()->put('deals.preview_payload', $draft);
 
         return redirect()->route('deals.index')->with('success', 'Deal draft saved to mock session.');
@@ -244,10 +247,12 @@ class DealController extends Controller
             return redirect()->route('deals.index')->with('error', 'No deal draft found for preview.');
         }
 
+        $draft = $this->normalizeDealFormData($draft);
+
         return view('deals.preview', [
             'draft' => $draft,
             'hiddenFields' => $this->hiddenDraftFields($draft),
-            'dealFormData' => $this->normalizeDealFormData($draft),
+            'dealFormData' => $draft,
         ]);
     }
 
@@ -342,6 +347,7 @@ class DealController extends Controller
         if (Schema::hasTable('deals')) {
             $storedDeal = Deal::query()->with('contact')->find($id);
             if ($storedDeal) {
+                $normalizedStoredDeal = $this->normalizeDealFormData($storedDeal->toArray());
                 $deal = [
                     'id' => $storedDeal->id,
                     'deal_name' => $storedDeal->deal_name,
@@ -421,8 +427,8 @@ class DealController extends Controller
                 return view('deals.show', [
                     'deal' => $deal,
                     'detail' => $detail,
-                    'dealFormData' => $this->normalizeDealFormData($storedDeal->toArray()),
-                    ...$this->dealPanelContext($this->normalizeDealFormData($storedDeal->toArray())),
+                    'dealFormData' => $normalizedStoredDeal,
+                    ...$this->dealPanelContext($normalizedStoredDeal),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
             }
@@ -430,6 +436,7 @@ class DealController extends Controller
 
         $mockPayload = session('deals.mock_saved_payload');
         if (is_array($mockPayload) && (int) ($mockPayload['id'] ?? 0) === $id) {
+            $mockPayload = $this->normalizeDealFormData($mockPayload);
             $mockDeal = session('deals.mock_saved', []);
             $deal = [
                 'id' => $id,
@@ -512,8 +519,8 @@ class DealController extends Controller
             return view('deals.show', [
                 'deal' => $deal,
                 'detail' => $detail,
-                'dealFormData' => $this->normalizeDealFormData($mockPayload),
-                ...$this->dealPanelContext($this->normalizeDealFormData($mockPayload)),
+                'dealFormData' => $mockPayload,
+                ...$this->dealPanelContext($mockPayload),
                 'openDealModal' => (bool) request()->boolean('edit_deal'),
             ]);
         }
@@ -1168,10 +1175,6 @@ class DealController extends Controller
 
     private function dealApprovalAttributes(): array
     {
-        if (! Schema::hasTable('deals') || ! Schema::hasColumn('deals', 'deal_status')) {
-            return [];
-        }
-
         return ['deal_status' => 'approved'];
     }
 

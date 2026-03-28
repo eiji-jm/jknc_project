@@ -20,6 +20,28 @@ use Illuminate\View\View;
 class ContactsController extends Controller
 {
     private const CLIENT_LINK_TTL_DAYS = 14;
+    private const BASE_KYC_REQUIREMENT_KEYS = [
+        'cif_signed_document',
+        'two_valid_ids',
+        'specimen_signature_form',
+        'tin_proof',
+    ];
+    private const FOREIGNER_KYC_REQUIREMENT_KEYS = [
+        'passport_proof',
+        'visa_proof',
+        'acr_card_proof',
+        'aaep_proof',
+    ];
+    private const KYC_REQUIREMENT_LABELS = [
+        'cif_signed_document' => 'CIF Document (Signed)',
+        'two_valid_ids' => 'Two Valid IDs',
+        'specimen_signature_form' => 'Specimen Signature Form',
+        'tin_proof' => 'TIN Proof',
+        'passport_proof' => 'Passport',
+        'visa_proof' => 'Visa',
+        'acr_card_proof' => 'ACR Card',
+        'aaep_proof' => 'AEP',
+    ];
     private const KYC_STATUSES = [
         'Verified',
         'Pending Verification',
@@ -609,7 +631,8 @@ class ContactsController extends Controller
             'cifEditMode' => $request->boolean('edit_cif') || $request->session()->has('errors'),
             'specimenSignature' => $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first(),
             'kycRequirementState' => $this->kycRequirementState($contactModel, $specimenSignature),
-            'kycActivityLogs' => $this->buildKycActivityLogs($contactModel),
+            'requiredKycRequirementKeys' => $this->requiredKycRequirementKeysForContact($contactModel),
+            'kycActivityLogs' => $this->buildKycActivityLogsWithAudit($contactModel),
         ]);
     }
 
@@ -797,6 +820,9 @@ class ContactsController extends Controller
     {
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
+        if ($contactModel->exists && blank($contactModel->cif_status) && Schema::hasColumn('contacts', 'cif_status')) {
+            $contactModel->updateQuietly(['cif_status' => 'draft']);
+        }
 
         $validated = $request->validate([
             'cif_date' => ['nullable', 'date'],
@@ -873,10 +899,31 @@ class ContactsController extends Controller
             }
         })->validate();
 
-        $this->saveCifDataToStorage($contactModel, [
-            ...$this->loadCifData($contactModel),
+        $existingCifData = $this->loadCifData($contactModel);
+        $nextCifData = [
+            ...$existingCifData,
             ...$validated,
-        ]);
+        ];
+
+        $this->saveCifDataToStorage($contactModel, $nextCifData);
+
+        if (
+            Schema::hasColumn('contacts', 'cif_status')
+            && $this->hasCifDataChanges($existingCifData, $nextCifData)
+            && in_array(Str::lower((string) ($contactModel->cif_status ?? 'draft')), ['approved', 'pending', 'rejected'], true)
+        ) {
+            $draftResetPayload = $this->filterPersistableContactAttributes([
+                'cif_status' => 'draft',
+                'kyc_status' => 'Not Submitted',
+                'cif_submitted_at' => null,
+                'cif_reviewed_at' => null,
+                'cif_reviewed_by' => null,
+                'cif_rejection_reason' => null,
+            ]);
+            if (! empty($draftResetPayload)) {
+                $contactModel->forceFill($draftResetPayload)->save();
+            }
+        }
 
         $this->syncContactKycSnapshot($contactModel, [
             'cif_no' => $validated['cif_no'] ?? null,
@@ -923,7 +970,7 @@ class ContactsController extends Controller
         abort_unless($contactModel, 404);
 
         $validated = $request->validate([
-            'requirement' => ['required', 'string', 'in:cif_signed_document,two_valid_ids,tin_proof,specimen_signature_upload'],
+            'requirement' => ['required', 'string', 'in:cif_signed_document,two_valid_ids,tin_proof,specimen_signature_upload,passport_proof,visa_proof,acr_card_proof,aaep_proof'],
             'document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'document_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'document_title' => ['nullable', 'string', 'max:255'],
@@ -1029,7 +1076,7 @@ class ContactsController extends Controller
     {
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
-        abort_unless(in_array($requirement, ['cif_signed_document', 'two_valid_ids', 'tin_proof', 'specimen_signature_upload'], true), 404);
+        abort_unless(in_array($requirement, ['cif_signed_document', 'two_valid_ids', 'tin_proof', 'specimen_signature_upload', 'passport_proof', 'visa_proof', 'acr_card_proof', 'aaep_proof'], true), 404);
 
         $documents = $this->loadKycRequirementDocuments($contactModel);
         $index = $request->filled('index') ? max(0, (int) $request->input('index')) : null;
@@ -1052,7 +1099,7 @@ class ContactsController extends Controller
                 }
                 $documents['two_valid_ids'] = [];
             }
-        } elseif (in_array($requirement, ['tin_proof', 'specimen_signature_upload'], true)) {
+        } elseif (in_array($requirement, ['tin_proof', 'specimen_signature_upload', 'passport_proof', 'visa_proof', 'acr_card_proof', 'aaep_proof'], true)) {
             $files = array_values(array_filter((array) ($documents[$requirement] ?? []), fn ($item) => is_array($item)));
             if ($index !== null && isset($files[$index])) {
                 $storedPath = $files[$index]['file_path'] ?? $files[$index]['path'] ?? null;
@@ -1254,24 +1301,110 @@ class ContactsController extends Controller
         $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
         abort_unless($contactModel, 404);
 
-        if (! $this->canSubmitKycForVerification($contactModel)) {
+        $currentCifStatus = Str::lower((string) ($contactModel->cif_status ?? 'draft'));
+        if ($currentCifStatus === 'pending') {
             return redirect()
                 ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
-                ->withErrors(['kyc' => 'Please complete the signed CIF document, Two Valid IDs, Specimen Signature, and TIN before submitting for verification.']);
+                ->withErrors(['kyc' => 'CIF is already pending approval.']);
         }
 
-        $statusPayload = [
+        if ($currentCifStatus === 'approved') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'CIF is already approved. Edit the CIF details first before submitting again.']);
+        }
+
+        $missingRequirements = $this->missingKycRequirementLabelsForSubmission($contactModel);
+        if ($missingRequirements !== []) {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Please complete the following before submitting for verification: '.implode(', ', $missingRequirements).'.']);
+        }
+
+        $statusPayload = $this->filterPersistableContactAttributes([
             'kyc_status' => 'Pending Verification',
-        ];
-        if (Schema::hasColumn('contacts', 'cif_status')) {
-            $statusPayload['cif_status'] = 'pending';
-        }
+            'cif_status' => 'pending',
+            'cif_submitted_at' => now(),
+            'cif_reviewed_at' => null,
+            'cif_reviewed_by' => null,
+            'cif_rejection_reason' => null,
+        ]);
 
-        $contactModel->forceFill($statusPayload)->save();
+        if (! empty($statusPayload)) {
+            $contactModel->forceFill($statusPayload)->save();
+        }
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
             ->with('success', 'KYC submitted for verification successfully.');
+    }
+
+    public function approveKyc(Request $request, string $contact): RedirectResponse
+    {
+        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        $contactModel = Contact::query()->findOrFail($contact);
+
+        if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'pending') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Only pending CIF submissions can be approved.']);
+        }
+
+        $payload = $this->filterPersistableContactAttributes([
+            'kyc_status' => 'Verified',
+            'cif_status' => 'approved',
+            'cif_reviewed_at' => now(),
+            'cif_reviewed_by' => $request->user()?->name,
+            'cif_rejection_reason' => null,
+        ]);
+
+        if (! empty($payload)) {
+            $contactModel->forceFill($payload)->save();
+        }
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'CIF approved successfully.');
+    }
+
+    public function rejectKyc(Request $request, string $contact): RedirectResponse
+    {
+        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $contactModel = Contact::query()->findOrFail($contact);
+
+        if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'pending') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Only pending CIF submissions can be rejected.']);
+        }
+
+        $reason = trim((string) ($validated['reason'] ?? ''));
+
+        $payload = $this->filterPersistableContactAttributes([
+            'kyc_status' => 'Rejected',
+            'cif_status' => 'rejected',
+            'cif_reviewed_at' => now(),
+            'cif_reviewed_by' => $request->user()?->name,
+            'cif_rejection_reason' => $reason !== '' ? $reason : null,
+        ]);
+
+        if (! empty($payload)) {
+            $contactModel->forceFill($payload)->save();
+        }
+
+        if ($reason !== '') {
+            $cifData = $this->loadCifData($contactModel);
+            $cifData['remarks'] = $reason;
+            $this->saveCifDataToStorage($contactModel, $cifData);
+        }
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'CIF rejected.');
     }
 
     public function downloadSpecimenSignature(Request $request, string $id): View
@@ -1505,6 +1638,22 @@ class ContactsController extends Controller
             fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
             $this->normalizeDocumentsArray($stored['specimen_signature_upload'] ?? [])
         )));
+        $stored['passport_proof'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['passport_proof'] ?? [])
+        )));
+        $stored['visa_proof'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['visa_proof'] ?? [])
+        )));
+        $stored['acr_card_proof'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['acr_card_proof'] ?? [])
+        )));
+        $stored['aaep_proof'] = array_values(array_filter(array_map(
+            fn ($document) => is_array($document) ? $this->normalizeStoredDocument($document, 'contact-kyc-documents') : null,
+            $this->normalizeDocumentsArray($stored['aaep_proof'] ?? [])
+        )));
 
         return $stored;
     }
@@ -1610,15 +1759,77 @@ class ContactsController extends Controller
         }
     }
 
+    private function hasCifDataChanges(array $before, array $after): bool
+    {
+        return $this->normalizeCifDataForComparison($before) !== $this->normalizeCifDataForComparison($after);
+    }
+
+    private function normalizeCifDataForComparison(array $payload): array
+    {
+        $excludedKeys = ['updated_at', 'created_at'];
+
+        $normalize = function ($value) use (&$normalize) {
+            if (is_string($value)) {
+                return trim($value);
+            }
+
+            if (! is_array($value)) {
+                return $value;
+            }
+
+            $normalized = [];
+            foreach ($value as $key => $item) {
+                $normalized[$key] = $normalize($item);
+            }
+
+            ksort($normalized);
+
+            return $normalized;
+        };
+
+        $filtered = Arr::except($payload, $excludedKeys);
+        ksort($filtered);
+
+        return $normalize($filtered);
+    }
+
     private function canSubmitKycForVerification(Contact $contact): bool
+    {
+        return $this->missingKycRequirementLabelsForSubmission($contact) === [];
+    }
+
+    private function missingKycRequirementLabelsForSubmission(Contact $contact): array
     {
         $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
         $state = $this->kycRequirementState($contact, $specimenSignature);
+        $requiredKeys = $this->requiredKycRequirementKeysForContact($contact);
 
-        return $state['cif_signed_document']['complete']
-            && $state['specimen_signature_form']['complete']
-            && $state['two_valid_ids']['complete']
-            && $state['tin_proof']['complete'];
+        $missing = [];
+        foreach ($requiredKeys as $key) {
+            if (! (($state[$key]['complete'] ?? false) === true)) {
+                $missing[] = self::KYC_REQUIREMENT_LABELS[$key] ?? Str::headline((string) $key);
+            }
+        }
+
+        return $missing;
+    }
+
+    private function requiredKycRequirementKeysForContact(Contact $contact): array
+    {
+        $required = self::BASE_KYC_REQUIREMENT_KEYS;
+        if ($this->requiresForeignerKycDocuments($contact)) {
+            $required = [...$required, ...self::FOREIGNER_KYC_REQUIREMENT_KEYS];
+        }
+
+        return $required;
+    }
+
+    private function requiresForeignerKycDocuments(Contact $contact): bool
+    {
+        $cifData = $this->loadCifData($contact);
+        $citizenshipType = strtolower((string) ($cifData['citizenship_type'] ?? ''));
+
+        return in_array($citizenshipType, ['foreigner', 'dual_citizen'], true);
     }
 
     private function kycRequirementDocumentsPath(Contact $contact): string
@@ -1633,6 +1844,10 @@ class ContactsController extends Controller
         $twoValidIds = array_values(array_filter((array) ($documents['two_valid_ids'] ?? []), fn ($item) => is_array($item)));
         $tinProofFiles = array_values(array_filter((array) ($documents['tin_proof'] ?? []), fn ($item) => is_array($item)));
         $specimenUploadFiles = array_values(array_filter((array) ($documents['specimen_signature_upload'] ?? []), fn ($item) => is_array($item)));
+        $passportProofFiles = array_values(array_filter((array) ($documents['passport_proof'] ?? []), fn ($item) => is_array($item)));
+        $visaProofFiles = array_values(array_filter((array) ($documents['visa_proof'] ?? []), fn ($item) => is_array($item)));
+        $acrCardProofFiles = array_values(array_filter((array) ($documents['acr_card_proof'] ?? []), fn ($item) => is_array($item)));
+        $aaepProofFiles = array_values(array_filter((array) ($documents['aaep_proof'] ?? []), fn ($item) => is_array($item)));
         $specimenFormExists = $specimenSignature !== null;
 
         return [
@@ -1655,6 +1870,26 @@ class ContactsController extends Controller
                 'file' => $tinProofFiles[0] ?? null,
                 'files' => $tinProofFiles,
                 'complete' => count($tinProofFiles) > 0,
+            ],
+            'passport_proof' => [
+                'file' => $passportProofFiles[0] ?? null,
+                'files' => $passportProofFiles,
+                'complete' => count($passportProofFiles) > 0,
+            ],
+            'visa_proof' => [
+                'file' => $visaProofFiles[0] ?? null,
+                'files' => $visaProofFiles,
+                'complete' => count($visaProofFiles) > 0,
+            ],
+            'acr_card_proof' => [
+                'file' => $acrCardProofFiles[0] ?? null,
+                'files' => $acrCardProofFiles,
+                'complete' => count($acrCardProofFiles) > 0,
+            ],
+            'aaep_proof' => [
+                'file' => $aaepProofFiles[0] ?? null,
+                'files' => $aaepProofFiles,
+                'complete' => count($aaepProofFiles) > 0,
             ],
         ];
     }
@@ -2092,6 +2327,28 @@ class ContactsController extends Controller
             'message' => "KYC profile loaded by {$actor}",
             'timestamp' => optional($contact->created_at)->format('F d, Y • h:i A') ?: null,
         ]];
+    }
+
+    private function buildKycActivityLogsWithAudit(Contact $contact): array
+    {
+        $logs = $this->buildKycActivityLogs($contact);
+
+        if (filled($contact->cif_submitted_at ?? null)) {
+            $logs[] = [
+                'message' => 'CIF submitted for verification',
+                'timestamp' => optional($contact->cif_submitted_at)->format('F d, Y â€¢ h:i A'),
+            ];
+        }
+
+        if (filled($contact->cif_reviewed_at ?? null) && filled($contact->cif_reviewed_by ?? null)) {
+            $decision = strtolower((string) ($contact->cif_status ?? '')) === 'rejected' ? 'rejected' : 'approved';
+            $logs[] = [
+                'message' => "CIF {$decision} by {$contact->cif_reviewed_by}",
+                'timestamp' => optional($contact->cif_reviewed_at)->format('F d, Y â€¢ h:i A'),
+            ];
+        }
+
+        return $logs;
     }
 
     private function findContactByClientToken(string $type, string $token): Contact

@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $canReviewKyc = in_array((string) (auth()->user()->role ?? ''), ['Admin', 'SuperAdmin'], true);
+    $canManageRequirementDocs = ! $canReviewKyc;
+@endphp
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4 pb-8">
     <div class="bg-white border border-gray-100 rounded-md overflow-hidden">
         @include('company.partials.company-header', [
@@ -13,6 +17,24 @@
             @if (session('bif_success'))
                 <div class="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
                     {{ session('bif_success') }}
+                </div>
+            @endif
+
+            @if ($errors->has('kyc'))
+                <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {{ $errors->first('kyc') }}
+                </div>
+            @endif
+
+            @if ($errors->has('document'))
+                <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {{ $errors->first('document') }}
+                </div>
+            @endif
+
+            @if ($errors->has('change_rejection_reason'))
+                <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {{ $errors->first('change_rejection_reason') }}
                 </div>
             @endif
 
@@ -171,7 +193,72 @@
                                 <h3 class="text-base font-semibold text-gray-900">Actions</h3>
                             </div>
                             <div class="space-y-2 px-4 py-4">
-                                <button type="button" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white {{ $bif ? 'hover:bg-blue-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $bif)>Submit For Verification</button>
+                                @if ($bif && $bif->change_request_status === 'pending')
+                                    <div class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
+                                        <p class="font-semibold">Pending BIF Change Request</p>
+                                        <p class="mt-1">Requested by: {{ $bif->change_requested_by_name ?: 'User' }}</p>
+                                        <p>Requested at: {{ $bif->change_requested_at ? $bif->change_requested_at->format('F j, Y g:i A') : '-' }}</p>
+                                        @if (filled($bif->change_request_note))
+                                            <p class="mt-1">Note: {{ $bif->change_request_note }}</p>
+                                        @endif
+                                    </div>
+                                @elseif ($bif && $bif->change_request_status === 'rejected')
+                                    <div class="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-800">
+                                        <p class="font-semibold">Latest Change Request Rejected</p>
+                                        <p class="mt-1">Reviewed by: {{ $bif->change_reviewed_by_name ?: 'Admin' }}</p>
+                                        <p>Reviewed at: {{ $bif->change_reviewed_at ? $bif->change_reviewed_at->format('F j, Y g:i A') : '-' }}</p>
+                                        @if (filled($bif->change_rejection_reason))
+                                            <p class="mt-1">Reason: {{ $bif->change_rejection_reason }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                @if ($canReviewKyc)
+                                    @php
+                                        $canReviewDecision = $bif && $bif->status === 'pending_approval';
+                                    @endphp
+                                    @if ($bif && $bif->change_request_status === 'pending')
+                                        <form method="POST" action="{{ route('company.bif.change-request.approve', ['company' => $company->id, 'bif' => $bif->id]) }}">
+                                            @csrf
+                                            <button type="submit" class="mb-2 h-10 w-full rounded-lg bg-amber-600 text-sm font-medium text-white hover:bg-amber-700">Approve Requested BIF Changes</button>
+                                        </form>
+
+                                        <form method="POST" action="{{ route('company.bif.change-request.reject', ['company' => $company->id, 'bif' => $bif->id]) }}" class="mb-2 space-y-2">
+                                            @csrf
+                                            <textarea name="change_rejection_reason" rows="2" class="w-full rounded-lg border border-red-200 px-3 py-2 text-xs outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" placeholder="Reason for rejecting requested changes" required>{{ old('change_rejection_reason') }}</textarea>
+                                            <button type="submit" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700">Reject Requested BIF Changes</button>
+                                        </form>
+                                    @endif
+
+                                    <form method="POST" action="{{ route('company.kyc.approve', $company->id) }}">
+                                        @csrf
+                                        <button type="submit" class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white {{ $canReviewDecision ? 'hover:bg-green-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $canReviewDecision)>Approve</button>
+                                    </form>
+
+                                    <form method="POST" action="{{ route('company.kyc.reject', $company->id) }}" class="space-y-2">
+                                        @csrf
+                                        <button type="submit" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white {{ $canReviewDecision ? 'hover:bg-red-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $canReviewDecision)>Reject</button>
+                                    </form>
+                                    @if (! $canReviewDecision)
+                                        <p class="text-xs text-gray-500">Approve/Reject is enabled only after user submits for verification.</p>
+                                    @endif
+                                @else
+                                    @if ($bif && $bif->change_request_status === 'pending')
+                                        <button type="button" class="h-10 w-full rounded-lg bg-amber-500 text-sm font-medium text-white cursor-not-allowed opacity-80" disabled>Waiting For Admin Decision</button>
+                                    @elseif ($bif && $bif->status === 'approved')
+                                        <a href="{{ route('company.bif.edit', ['company' => $company->id, 'bif' => $bif->id]) }}" class="inline-flex h-10 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Request BIF Changes</a>
+                                    @elseif ($bif && $bif->status === 'pending_approval')
+                                        <button type="button" class="h-10 w-full rounded-lg bg-slate-500 text-sm font-medium text-white cursor-not-allowed opacity-80" disabled>Submitted For Approval</button>
+                                    @else
+                                        <form method="POST" action="{{ route('company.kyc.submit', $company->id) }}">
+                                            @csrf
+                                            <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white {{ ($bif && $requirementsComplete) ? 'hover:bg-blue-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $bif || ! $requirementsComplete)>Submit For Verification</button>
+                                        </form>
+                                        @if ($bif && ! $requirementsComplete)
+                                            <p class="text-xs text-red-600">Upload all required documents before submitting for verification.</p>
+                                        @endif
+                                    @endif
+                                @endif
                                 <div class="pt-2">
                                     <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">KYC Activity</p>
                                     <div class="space-y-1 text-xs text-gray-500">
@@ -207,9 +294,40 @@
                                                         <p class="mt-1 text-xs text-gray-500">{{ $requirement['helper'] }}</p>
                                                     </div>
                                                     <div class="flex items-center gap-2 text-xs">
-                                                        <button type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">{{ $requirement['uploaded'] ? 'Replace' : 'Upload' }}</button>
-                                                        <button type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 {{ $requirement['uploaded'] ? 'hover:bg-gray-50' : 'opacity-40 pointer-events-none' }}">View</button>
-                                                        <button type="button" class="rounded-md border border-red-200 px-2 py-1 text-red-600 {{ $requirement['uploaded'] ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none' }}">Remove</button>
+                                                        @if ($canManageRequirementDocs)
+                                                            <form method="POST" action="{{ route('company.kyc.requirements.upload', ['company' => $company->id, 'requirement' => $requirement['key']]) }}" enctype="multipart/form-data" class="inline-flex">
+                                                                @csrf
+                                                                <label class="cursor-pointer rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">
+                                                                    {{ $requirement['uploaded'] ? 'Replace' : 'Upload' }}
+                                                                    <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="hidden" onchange="this.form.submit()">
+                                                                </label>
+                                                            </form>
+                                                        @endif
+
+                                                        @if ($requirement['uploaded'] && $requirement['file_url'])
+                                                            <button
+                                                                type="button"
+                                                                class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"
+                                                                data-open-requirement-view
+                                                                data-view-url="{{ $requirement['file_url'] }}"
+                                                                data-view-title="{{ $requirement['label'] }}"
+                                                                data-view-file-name="{{ $requirement['file_name'] }}"
+                                                                data-view-mime-type="{{ $requirement['mime_type'] }}"
+                                                                data-view-uploaded-at="{{ $requirement['uploaded_at'] }}"
+                                                            >
+                                                                View
+                                                            </button>
+                                                        @else
+                                                            <button type="button" class="rounded-md border border-gray-200 px-2 py-1 text-gray-600 opacity-40 pointer-events-none">View</button>
+                                                        @endif
+
+                                                        @if ($canManageRequirementDocs)
+                                                            <form method="POST" action="{{ route('company.kyc.requirements.remove', ['company' => $company->id, 'requirement' => $requirement['key']]) }}" class="inline-flex" onsubmit="return confirm('Remove this uploaded requirement file?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="rounded-md border border-red-200 px-2 py-1 text-red-600 {{ $requirement['uploaded'] ? 'hover:bg-red-50' : 'opacity-40 pointer-events-none' }}" @disabled(! $requirement['uploaded'])>Remove</button>
+                                                            </form>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </article>
@@ -273,15 +391,125 @@
     </form>
 </x-slide-over>
 
+<x-slide-over id="requirementViewModal" width="sm:max-w-[980px]">
+    <div class="border-b border-gray-100 px-4 py-4 sm:px-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">View Document</h2>
+            </div>
+            <button type="button" data-close-requirement-view-modal class="h-9 w-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex min-h-0 flex-1 flex-col">
+        <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
+            <div class="border-b border-gray-100 p-5 lg:border-b-0 lg:border-r">
+                <div id="requirementViewPanel" class="flex min-h-[520px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50">
+                    <p class="text-sm text-gray-500">No file selected.</p>
+                </div>
+            </div>
+            <div class="space-y-3 p-5">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Document Title</p>
+                    <p id="requirementViewTitle" class="mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-900">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Date Upload</p>
+                    <p id="requirementViewUploadedAt" class="mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">MIME Type</p>
+                    <p id="requirementViewMime" class="mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500">File Name</p>
+                    <p id="requirementViewFileName" class="mt-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800">-</p>
+                </div>
+                <div>
+                    <a id="requirementViewOpenLink" href="#" target="_blank" rel="noopener" class="inline-flex rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                        Open file
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t border-gray-100 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" data-close-requirement-view-modal class="h-9 min-w-[100px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</x-slide-over>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const sendBifModal = document.getElementById('sendBifModal');
+        const requirementViewModal = document.getElementById('requirementViewModal');
         const openSendBifButtons = document.querySelectorAll('[data-open-send-bif-modal]');
         const closeSendBifButtons = document.querySelectorAll('[data-close-send-bif-modal]');
+        const openRequirementViewButtons = document.querySelectorAll('[data-open-requirement-view]');
+        const closeRequirementViewButtons = document.querySelectorAll('[data-close-requirement-view-modal]');
         const shouldOpenSendModal = @json($errors->has('recipient_email'));
 
         const openModal = () => window.jkncSlideOver.open(sendBifModal);
         const closeModal = () => window.jkncSlideOver.close(sendBifModal);
+        const openRequirementModal = () => window.jkncSlideOver.open(requirementViewModal);
+        const closeRequirementModal = () => window.jkncSlideOver.close(requirementViewModal);
+        const requirementViewTitle = document.getElementById('requirementViewTitle');
+        const requirementViewPanel = document.getElementById('requirementViewPanel');
+        const requirementViewFileName = document.getElementById('requirementViewFileName');
+        const requirementViewMime = document.getElementById('requirementViewMime');
+        const requirementViewUploadedAt = document.getElementById('requirementViewUploadedAt');
+        const requirementViewOpenLink = document.getElementById('requirementViewOpenLink');
+
+        const formatDate = (value) => {
+            if (!value) {
+                return '-';
+            }
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return value;
+            }
+            return date.toLocaleString();
+        };
+
+        const renderRequirementPreview = (url, mimeType, fileName, title) => {
+            if (!requirementViewPanel) {
+                return;
+            }
+
+            const safeTitle = title || 'Requirement Document';
+            const normalizedMime = (mimeType || '').toLowerCase();
+            const normalizedName = (fileName || '').toLowerCase();
+            const isPdf = normalizedMime.includes('pdf') || normalizedName.endsWith('.pdf');
+            const isImage = normalizedMime.startsWith('image/')
+                || normalizedName.endsWith('.jpg')
+                || normalizedName.endsWith('.jpeg')
+                || normalizedName.endsWith('.png')
+                || normalizedName.endsWith('.gif')
+                || normalizedName.endsWith('.webp');
+
+            if (isPdf) {
+                requirementViewPanel.innerHTML = `<iframe src="${url}" class="h-[520px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
+                return;
+            }
+
+            if (isImage) {
+                requirementViewPanel.innerHTML = `<img src="${url}" alt="${safeTitle}" class="h-[520px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                return;
+            }
+
+            requirementViewPanel.innerHTML = `
+                <div class="px-4 text-center">
+                    <p class="text-sm text-gray-600">Preview is not available for this file type.</p>
+                    <a href="${url}" target="_blank" rel="noopener" class="mt-3 inline-flex rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">Open file</a>
+                </div>
+            `;
+        };
 
         openSendBifButtons.forEach((button) => {
             button.addEventListener('click', openModal);
@@ -291,15 +519,55 @@
             button.addEventListener('click', closeModal);
         });
 
+        openRequirementViewButtons.forEach((button) => {
+            button.addEventListener('click', function () {
+                const url = button.getAttribute('data-view-url') || '';
+                const title = button.getAttribute('data-view-title') || 'Requirement Document';
+                const fileName = button.getAttribute('data-view-file-name') || '';
+                const mimeType = button.getAttribute('data-view-mime-type') || '';
+                const uploadedAt = button.getAttribute('data-view-uploaded-at') || '';
+
+                if (requirementViewTitle) {
+                    requirementViewTitle.textContent = title;
+                }
+                if (requirementViewFileName) {
+                    requirementViewFileName.textContent = fileName || '-';
+                }
+                if (requirementViewMime) {
+                    requirementViewMime.textContent = mimeType || '-';
+                }
+                if (requirementViewUploadedAt) {
+                    requirementViewUploadedAt.textContent = formatDate(uploadedAt);
+                }
+                if (requirementViewOpenLink) {
+                    requirementViewOpenLink.href = url || '#';
+                }
+
+                renderRequirementPreview(url, mimeType, fileName, title);
+                openRequirementModal();
+            });
+        });
+
+        closeRequirementViewButtons.forEach((button) => {
+            button.addEventListener('click', closeRequirementModal);
+        });
+
         sendBifModal?.addEventListener('click', function (event) {
             if (event.target === sendBifModal || event.target.hasAttribute('data-drawer-overlay')) {
                 closeModal();
             }
         });
 
+        requirementViewModal?.addEventListener('click', function (event) {
+            if (event.target === requirementViewModal || event.target.hasAttribute('data-drawer-overlay')) {
+                closeRequirementModal();
+            }
+        });
+
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 closeModal();
+                closeRequirementModal();
             }
         });
 

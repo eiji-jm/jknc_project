@@ -21,6 +21,26 @@
         'specimen_signature_form' => ['form_exists' => false, 'file' => null, 'files' => [], 'complete' => false],
         'tin_proof' => ['file' => null, 'files' => [], 'complete' => false],
     ];
+    $requiredKycRequirementKeys = $requiredKycRequirementKeys ?? ['cif_signed_document', 'two_valid_ids', 'specimen_signature_form', 'tin_proof'];
+    $kycRequirementLabels = [
+        'cif_signed_document' => 'CIF Document (Signed)',
+        'two_valid_ids' => 'Two Valid IDs',
+        'specimen_signature_form' => 'Specimen Signature Form',
+        'tin_proof' => 'TIN Proof',
+        'passport_proof' => 'Passport',
+        'visa_proof' => 'Visa',
+        'acr_card_proof' => 'ACR Card',
+        'aaep_proof' => 'AEP',
+    ];
+    $foreignerDocumentRequirements = [
+        ['key' => 'passport_proof', 'label' => 'Passport'],
+        ['key' => 'visa_proof', 'label' => 'Visa'],
+        ['key' => 'acr_card_proof', 'label' => 'ACR Card'],
+        ['key' => 'aaep_proof', 'label' => 'AEP'],
+    ];
+    $requiresForeignerDocuments = collect($requiredKycRequirementKeys)->intersect(array_column($foreignerDocumentRequirements, 'key'))->isNotEmpty();
+    $canReviewKyc = in_array((string) (auth()->user()->role ?? ''), ['Admin', 'SuperAdmin'], true);
+    $cifStatus = strtolower((string) ($contact->cif_status ?? 'draft'));
 @endphp
 
 <div class="bg-white">
@@ -197,10 +217,29 @@
                                     <h3 class="text-base font-semibold text-gray-900">Actions</h3>
                                 </div>
                                 <div class="space-y-2 px-4 py-4">
-                                    <form id="submitKycForVerificationForm" method="POST" action="{{ route('contacts.kyc.submit', $contact->id) }}">
-                                        @csrf
-                                        <button id="submitForVerificationBtn" type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
-                                    </form>
+                                    @if (! $canReviewKyc)
+                                        @if ($cifStatus === 'approved')
+                                            <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-green-100 text-sm font-medium text-green-700">Approved</button>
+                                        @elseif ($cifStatus === 'pending')
+                                            <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-amber-100 text-sm font-medium text-amber-700">Pending Approval</button>
+                                        @else
+                                            <form id="submitKycForVerificationForm" method="POST" action="{{ route('contacts.kyc.submit', $contact->id) }}">
+                                                @csrf
+                                                <button id="submitForVerificationBtn" type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Submit For Verification</button>
+                                            </form>
+                                        @endif
+                                    @endif
+                                    @if ($canReviewKyc)
+                                        <form id="approveKycForm" method="POST" action="{{ route('contacts.kyc.approve', $contact->id) }}">
+                                            @csrf
+                                            <button id="approveKycBtn" type="submit" class="h-10 w-full rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300">Approve</button>
+                                        </form>
+                                        <form id="rejectKycForm" method="POST" action="{{ route('contacts.kyc.reject', $contact->id) }}">
+                                            @csrf
+                                            <input id="rejectReasonField" type="hidden" name="reason" value="">
+                                            <button id="rejectKycBtn" type="button" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300">Reject</button>
+                                        </form>
+                                    @endif
                                     <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
                                     <div class="pt-2">
                                         <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">KYC Activity</p>
@@ -214,7 +253,7 @@
                         <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                             <div class="border-b border-gray-100 px-4 py-3">
                                 <h2 class="text-base font-semibold text-gray-900">KYC Requirements</h2>
-                                <p class="mt-1 text-xs text-gray-500">Upload and manage only the required compliance items: CIF Document (Signed), Two Valid IDs, Specimen Signature Form, and TIN.</p>
+                                <p class="mt-1 text-xs text-gray-500">Upload and manage required compliance items. Foreigner and dual-citizen contacts also require Passport, Visa, ACR Card, and AEP uploads.</p>
                             </div>
                             <div class="max-h-[520px] space-y-3 overflow-y-auto p-4">
                                 @php
@@ -434,6 +473,72 @@
                                         </div>
                                     </div>
                                 </article>
+
+                                @if ($requiresForeignerDocuments)
+                                    @foreach ($foreignerDocumentRequirements as $foreignerRequirement)
+                                        @php
+                                            $foreignerRequirementKey = $foreignerRequirement['key'];
+                                            $foreignerRequirementLabel = $foreignerRequirement['label'];
+                                            $foreignerState = $kycRequirements[$foreignerRequirementKey] ?? ['file' => null, 'files' => [], 'complete' => false];
+                                            $foreignerFiles = array_values(array_filter((array) ($foreignerState['files'] ?? []), fn ($item) => is_array($item)));
+                                            $foreignerPrimaryFile = $foreignerState['file'] ?? ($foreignerFiles[0] ?? null);
+                                        @endphp
+                                        <article class="rounded-xl border border-gray-200 bg-white p-3">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-gray-900">{{ $foreignerRequirementLabel }}</p>
+                                                    <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ ($foreignerState['complete'] ?? false) ? 'border border-green-200 bg-green-100 text-green-700' : 'border border-gray-200 bg-gray-100 text-gray-600' }}">
+                                                        {{ ($foreignerState['complete'] ?? false) ? 'Complete' : 'Missing' }}
+                                                    </span>
+                                                    <p class="mt-2 text-xs text-gray-500">
+                                                        @if (!empty($foreignerFiles))
+                                                            {{ count($foreignerFiles) > 1 ? count($foreignerFiles).' files uploaded' : ($foreignerPrimaryFile['file_name'] ?? 'No file uploaded') }}
+                                                        @else
+                                                            No file uploaded
+                                                        @endif
+                                                    </p>
+                                                    @if (!empty($foreignerFiles))
+                                                        <div class="mt-2 flex flex-wrap gap-2">
+                                                            @foreach ($foreignerFiles as $fileIndex => $file)
+                                                                <button
+                                                                    type="button"
+                                                                    onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), @js($foreignerRequirementKey), @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))), {{ $fileIndex }})"
+                                                                    class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                                                                >
+                                                                    File {{ $loop->iteration }}
+                                                                </button>
+                                                            @endforeach
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+                                                    <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                        @csrf
+                                                        <input type="hidden" name="requirement" value="{{ $foreignerRequirementKey }}">
+                                                        <label class="{{ $actionBtn }} cursor-pointer">
+                                                            Upload
+                                                            <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                        </label>
+                                                    </form>
+                                                    <button
+                                                        type="button"
+                                                        @if ($foreignerPrimaryFile)
+                                                            onclick="openDocumentModal(@js($foreignerPrimaryFile['file_path'] ?? $foreignerPrimaryFile['path'] ?? ''), @js($foreignerRequirementKey), @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))), 0)"
+                                                        @endif
+                                                        class="{{ $actionBtn }} {{ $foreignerPrimaryFile ? '' : $disabledBtn }}"
+                                                    >
+                                                        View
+                                                    </button>
+                                                    <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => $foreignerRequirementKey]) }}" class="inline-flex" onsubmit="return confirm('Remove uploaded {{ $foreignerRequirementLabel }} document(s)?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="{{ $dangerBtn }} {{ !empty($foreignerFiles) ? '' : $disabledBtn }}">Remove</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    @endforeach
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -585,6 +690,8 @@
                             const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
                             const specimenSignatureExists = @json((bool) $specimenSignature);
                             const kycRequirementState = @json($kycRequirements);
+                            const requiredKycRequirementKeys = @json($requiredKycRequirementKeys);
+                            const kycRequirementLabels = @json($kycRequirementLabels);
                             const cifSignedDocument = @json($cifSignedRequirement['file'] ?? null);
                             const specimenSignatureRoutes = {
                                 create: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
@@ -642,12 +749,7 @@
                                     minute: '2-digit'
                                 }).replace(',', '').replace(' at', ' •'),
                             });
-                            const allRequiredUploaded = () => !!(
-                                kycRequirementState.cif_signed_document?.complete &&
-                                kycRequirementState.two_valid_ids?.complete &&
-                                kycRequirementState.specimen_signature_form?.complete &&
-                                kycRequirementState.tin_proof?.complete
-                            );
+                            const allRequiredUploaded = () => requiredKycRequirementKeys.every((key) => kycRequirementState[key]?.complete === true);
 
                             const render = () => {
                                 q('kycCifValue').textContent = kyc.cif || '-';
@@ -819,23 +921,17 @@
                                     event.preventDefault();
                                 }
                             });
-                            q('submitKycForVerificationForm').addEventListener('submit', (event) => {
+                            q('submitKycForVerificationForm')?.addEventListener('submit', (event) => {
                                 if (!allRequiredUploaded()) {
                                     event.preventDefault();
-                                    q('kycActionWarning').textContent = 'Please complete the signed CIF document, Two Valid IDs, Specimen Signature Form, and TIN proof before submitting for verification.';
+                                    const missingLabels = requiredKycRequirementKeys
+                                        .filter((key) => kycRequirementState[key]?.complete !== true)
+                                        .map((key) => kycRequirementLabels[key] || key);
+                                    q('kycActionWarning').textContent = `Please complete the following before submitting for verification: ${missingLabels.join(', ')}.`;
                                     q('kycActionWarning').classList.remove('hidden');
                                     setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3400);
                                     return;
                                 }
-                            });
-                            q('approveKycBtn')?.addEventListener('click', () => {
-                                if (!kyc.submitted) {
-                                    q('kycActionWarning').textContent = 'Submit for verification first before approving.';
-                                    q('kycActionWarning').classList.remove('hidden');
-                                    setTimeout(() => q('kycActionWarning').classList.add('hidden'), 3200);
-                                    return;
-                                }
-                                kyc.status = 'Approved'; kyc.dateVerified = todayIso; kyc.verifiedBy = mockUser; kyc.rejectionReason = ''; addLog(`Approved KYC by ${mockUser}`); render();
                             });
                             q('rejectKycBtn')?.addEventListener('click', () => {
                                 if (!kyc.submitted) {
@@ -846,7 +942,14 @@
                                 }
                                 open(q('rejectKycModal'));
                             });
-                            q('confirmRejectKyc').addEventListener('click', () => { kyc.status = 'Rejected'; kyc.dateVerified = ''; kyc.rejectionReason = q('rejectReasonInput').value.trim(); q('rejectReasonInput').value = ''; addLog(`Rejected KYC by ${mockUser}`); render(); close(q('rejectKycModal')); });
+                            q('confirmRejectKyc').addEventListener('click', () => {
+                                const reason = q('rejectReasonInput').value.trim();
+                                const reasonField = q('rejectReasonField');
+                                if (reasonField) {
+                                    reasonField.value = reason;
+                                }
+                                q('rejectKycForm')?.submit();
+                            });
                             [q('kycEditModal'), q('documentModal'), q('documentViewModal'), q('rejectKycModal')].forEach((m) => {
                                 m.querySelector('[data-slideover-overlay]')?.addEventListener('click', () => close(m));
                             });

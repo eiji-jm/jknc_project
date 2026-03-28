@@ -11,6 +11,7 @@
 
     <form method="POST" action="{{ route('company.store') }}" class="flex min-h-0 flex-1 flex-col" x-data="companyBifForm()" x-init="init()">
         @csrf
+        <input type="hidden" name="client_type" value="new_client">
 
         <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6 sm:px-8">
             <div class="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -56,22 +57,6 @@
                             </option>
                         @endforeach
                     </select>
-                </div>
-            </section>
-
-            <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                <h3 class="text-base font-semibold text-gray-900">Header Information</h3>
-                <p class="mb-4 text-xs text-gray-500">Classify the client onboarding event before recording the business profile.</p>
-                <div class="space-y-3">
-                    <label class="text-sm font-medium text-gray-700">Client Type</label>
-                    <div class="grid gap-2 sm:grid-cols-3">
-                        @foreach (['new_client' => 'New Client', 'existing_client' => 'Existing Client', 'change_information' => 'Change Information'] as $value => $label)
-                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50/40">
-                                <input type="radio" name="client_type" value="{{ $value }}" @checked(old('client_type', 'new_client') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                <span>{{ $label }}</span>
-                            </label>
-                        @endforeach
-                    </div>
                 </div>
             </section>
 

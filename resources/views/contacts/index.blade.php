@@ -12,6 +12,16 @@
     $selectedOwner = collect($owners)->firstWhere('id', (int) $defaultOwnerId) ?: collect($owners)->first();
     $selectedOwnerId = $selectedOwner['id'] ?? null;
     $selectedOwnerName = $selectedOwner['name'] ?? 'Select Owner';
+    $shouldOpenCreateModal = request()->boolean('open_create') || old('open_create');
+    $prefilledCompanyName = old('company_name', request()->query('company_name', ''));
+    $prefillContact = [
+        'first_name' => old('first_name', request()->query('first_name', '')),
+        'last_name' => old('last_name', request()->query('last_name', '')),
+        'email' => old('email', request()->query('email', '')),
+        'mobile_number' => old('mobile_number', request()->query('mobile_number', '')),
+        'position' => old('position', request()->query('position', '')),
+        'contact_address' => old('contact_address', request()->query('contact_address', '')),
+    ];
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
@@ -175,6 +185,8 @@
     'createdByDisplay' => $createdByDisplay ?? 'Admin User',
     'createdAtDisplay' => $createdAtDisplay ?? now()->format('F j, Y • g:i A'),
     'defaultBusinessDate' => $defaultBusinessDate ?? now()->toDateString(),
+    'prefilledCompanyName' => $prefilledCompanyName,
+    'prefillContact' => $prefillContact,
 ])
 
 <div id="assignOwnerModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
@@ -772,6 +784,8 @@ document.addEventListener('DOMContentLoaded', function () {
         @else
             openModal();
         @endif
+    @elseif ($shouldOpenCreateModal)
+        openModal();
     @endif
 });
 </script>
