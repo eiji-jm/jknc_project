@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\CompanyBif;
+use App\Support\CompanyHistoryLogger;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CompanyKycController extends Controller
@@ -87,6 +90,10 @@ class CompanyKycController extends Controller
                 ->first();
         }
 
+        $kycRequirements = $this->kycRequirements($company, $latestBif);
+        $requirementsComplete = $this->areKycRequirementsComplete($kycRequirements);
+        $missingRequirements = $this->missingRequirementLabels($kycRequirements);
+
         $statusKey = $latestBif?->status ?: 'empty';
 
         return view('company.kyc', [
@@ -105,8 +112,262 @@ class CompanyKycController extends Controller
             'companyKycStatus' => $latestBif ? (self::STATUS_LABELS[$statusKey] ?? ucfirst(str_replace('_', ' ', $statusKey))) : 'Not Submitted',
             'companyKycStatusClass' => self::STATUS_PILL_CLASSES[$statusKey] ?? self::STATUS_PILL_CLASSES['empty'],
             'kycActivityLogs' => $this->kycActivityLogs($latestBif, $companyData),
-            'kycRequirements' => $this->kycRequirements($latestBif),
+            'kycRequirements' => $kycRequirements,
+            'requirementsComplete' => $requirementsComplete,
+            'missingRequirements' => $missingRequirements,
         ]);
+    }
+
+    public function viewRequirementDocument(Request $request, int $company, string $requirement)
+    {
+        $bif = $this->latestCompanyBif($company);
+        abort_unless($bif, 404);
+
+        $documentKey = $this->requirementDocumentKey($requirement);
+        abort_unless($documentKey !== null, 404);
+
+        $path = $this->normalizeStoredPath((string) data_get($bif->client_requirement_documents, $documentKey.'.path', ''));
+        abort_unless($path !== '', 404);
+
+        $originalName = (string) data_get($bif->client_requirement_documents, $documentKey.'.original_name', basename($path));
+        $disk = Storage::disk('public')->exists($path) ? 'public' : (Storage::disk('local')->exists($path) ? 'local' : null);
+        abort_unless($disk !== null, 404);
+
+        $mimeType = Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream';
+        $contents = Storage::disk($disk)->get($path);
+
+        return response($contents, 200, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="'.$originalName.'"',
+        ]);
+    }
+
+    public function submitKycForVerification(Request $request, int $company): RedirectResponse
+    {
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+
+        $bif = $this->latestCompanyBif($company);
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No Business Information Form found to submit for verification.']);
+        }
+
+        if (($bif->change_request_status ?? null) === 'pending') {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'A BIF change request is still pending admin review.']);
+        }
+
+        $requirements = $this->kycRequirements($company, $bif);
+        $missingLabels = $this->missingRequirementLabels($requirements);
+
+        if ($missingLabels !== []) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'Complete all required onboarding documents before submitting for verification. Missing: '.implode(', ', $missingLabels)]);
+        }
+
+        $bif->update([
+            'status' => 'pending_approval',
+            'submitted_at' => $bif->submitted_at ?? now(),
+            'approved_at' => null,
+            'approved_by_name' => null,
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        $userName = $request->user()?->name ?? 'System User';
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'Company KYC submitted for verification',
+            'description' => 'Business Information Form submitted for admin review',
+            'extra_label' => 'Status',
+            'extra_value' => 'Waiting for Approval',
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Company KYC submitted for verification.');
+    }
+
+    public function approveKyc(Request $request, int $company): RedirectResponse
+    {
+        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        $companyData = $this->findCompany($request, $company);
+        $bif = $this->latestCompanyBif($company);
+
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No Business Information Form found to approve.']);
+        }
+
+        if ((string) $bif->status !== 'pending_approval') {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'Only records submitted for verification can be approved.']);
+        }
+
+        $userName = $request->user()?->name ?? 'System User';
+
+        $bif->update([
+            'status' => 'approved',
+            'approved_at' => now(),
+            'approved_by_name' => $userName,
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'Company KYC approved',
+            'description' => "Business KYC approved for {$companyData['company_name']}",
+            'extra_label' => 'Status',
+            'extra_value' => 'Approved',
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Company KYC approved successfully.');
+    }
+
+    public function rejectKyc(Request $request, int $company): RedirectResponse
+    {
+        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        $companyData = $this->findCompany($request, $company);
+        $bif = $this->latestCompanyBif($company);
+
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No Business Information Form found to reject.']);
+        }
+
+        if ((string) $bif->status !== 'pending_approval') {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'Only records submitted for verification can be rejected.']);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $reason = trim((string) ($validated['reason'] ?? ''));
+        $userName = $request->user()?->name ?? 'System User';
+
+        $bif->update([
+            'status' => 'rejected',
+            'approved_at' => null,
+            'approved_by_name' => null,
+            'rejected_at' => now(),
+            'rejected_by_name' => $userName,
+            'rejection_reason' => $reason !== '' ? $reason : null,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'Company KYC rejected',
+            'description' => "Business KYC rejected for {$companyData['company_name']}",
+            'extra_label' => 'Status',
+            'extra_value' => 'Rejected',
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Company KYC rejected successfully.');
+    }
+
+    public function uploadRequirementDocument(Request $request, int $company, string $requirement): RedirectResponse
+    {
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+
+        $bif = $this->latestCompanyBif($company);
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No Business Information Form found for requirement upload.']);
+        }
+
+        $documentKey = $this->requirementDocumentKey($requirement);
+        abort_unless($documentKey !== null, 404);
+
+        $validated = $request->validate([
+            'document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+        ]);
+
+        $documents = is_array($bif->client_requirement_documents) ? $bif->client_requirement_documents : [];
+        $existingPath = data_get($documents, $documentKey.'.path');
+        if (filled($existingPath) && Storage::disk('public')->exists((string) $existingPath)) {
+            Storage::disk('public')->delete((string) $existingPath);
+        }
+
+        $file = $validated['document'];
+        $path = $file->store("company-bifs/{$bif->id}/client-documents", 'public');
+
+        $documents[$documentKey] = [
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $path,
+            'uploaded_at' => now()->toIso8601String(),
+        ];
+
+        $bif->update([
+            'client_requirement_documents' => $documents,
+            'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Requirement document uploaded successfully.');
+    }
+
+    public function removeRequirementDocument(Request $request, int $company, string $requirement): RedirectResponse
+    {
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+
+        $bif = $this->latestCompanyBif($company);
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No Business Information Form found for requirement removal.']);
+        }
+
+        $documentKey = $this->requirementDocumentKey($requirement);
+        abort_unless($documentKey !== null, 404);
+
+        $documents = is_array($bif->client_requirement_documents) ? $bif->client_requirement_documents : [];
+        $existingPath = data_get($documents, $documentKey.'.path');
+        if (filled($existingPath) && Storage::disk('public')->exists((string) $existingPath)) {
+            Storage::disk('public')->delete((string) $existingPath);
+        }
+        unset($documents[$documentKey]);
+
+        $bif->update([
+            'client_requirement_documents' => $documents,
+            'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'Requirement document removed successfully.');
     }
 
     private function kycActivityLogs(?CompanyBif $bif, array $companyData): array
@@ -133,6 +394,12 @@ class CompanyKycController extends Controller
             $logs[] = 'Client completed the BIF on '.$bif->client_submitted_at->format('M j, Y g:i A');
         }
 
+        if (($bif->change_request_status ?? null) === 'pending') {
+            $logs[] = 'Pending BIF change request from '.($bif->change_requested_by_name ?: 'User');
+        } elseif (($bif->change_request_status ?? null) === 'rejected') {
+            $logs[] = 'Latest BIF change request was rejected by '.($bif->change_reviewed_by_name ?: 'Admin');
+        }
+
         if ($bif->approved_at) {
             $logs[] = 'Approved by '.($bif->approved_by_name ?: 'System User');
         } elseif ($bif->rejected_at) {
@@ -144,20 +411,30 @@ class CompanyKycController extends Controller
         return $logs;
     }
 
-    private function kycRequirements(?CompanyBif $bif): array
+    private function kycRequirements(int $company, ?CompanyBif $bif): array
     {
         return collect(self::REQUIREMENT_DEFINITIONS)
-            ->map(function (array $group) use ($bif) {
+            ->map(function (array $group) use ($company, $bif) {
                 return [
                     'group' => $group['group'],
                     'items' => collect($group['items'])
-                        ->map(function (array $requirement) use ($bif) {
-                            $uploaded = $this->isRequirementUploaded($requirement['key'], $bif);
+                        ->map(function (array $requirement) use ($company, $bif) {
+                            $documentMeta = $this->requirementDocumentMeta($requirement['key'], $bif);
+                            $uploaded = $documentMeta['uploaded'];
 
                             return [
+                                'key' => $requirement['key'],
                                 'label' => $requirement['label'],
                                 'uploaded' => $uploaded,
-                                'helper' => $uploaded ? 'Available from saved BIF data' : 'No file uploaded yet',
+                                'file_name' => $documentMeta['file_name'],
+                                'mime_type' => $documentMeta['mime_type'],
+                                'uploaded_at' => $documentMeta['uploaded_at'],
+                                'file_url' => $uploaded
+                                    ? route('company.kyc.requirements.view', ['company' => $company, 'requirement' => $requirement['key']])
+                                    : null,
+                                'helper' => $uploaded
+                                    ? ($documentMeta['file_name'] ?: 'File uploaded')
+                                    : 'No file uploaded yet',
                             ];
                         })
                         ->all(),
@@ -166,7 +443,80 @@ class CompanyKycController extends Controller
             ->all();
     }
 
-    private function isRequirementUploaded(string $key, ?CompanyBif $bif): bool
+    private function areKycRequirementsComplete(array $requirements): bool
+    {
+        foreach ($requirements as $group) {
+            foreach (($group['items'] ?? []) as $item) {
+                if (! (bool) ($item['uploaded'] ?? false)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private function missingRequirementLabels(array $requirements): array
+    {
+        return collect($requirements)
+            ->flatMap(fn (array $group) => $group['items'] ?? [])
+            ->filter(fn (array $item) => ! (bool) ($item['uploaded'] ?? false))
+            ->pluck('label')
+            ->values()
+            ->all();
+    }
+
+    private function requirementDocumentMeta(string $key, ?CompanyBif $bif): array
+    {
+        $documentKey = $this->requirementDocumentKey($key);
+        if ($documentKey === null) {
+            return [
+                'uploaded' => false,
+                'file_name' => null,
+                'file_url' => null,
+                'mime_type' => null,
+                'uploaded_at' => null,
+            ];
+        }
+
+        $path = $this->normalizeStoredPath((string) data_get($bif?->client_requirement_documents, $documentKey.'.path', ''));
+        $fileName = data_get($bif?->client_requirement_documents, $documentKey.'.original_name');
+        $uploaded = $path !== '';
+        $mimeType = null;
+        if ($uploaded) {
+            if (Storage::disk('public')->exists($path)) {
+                $mimeType = Storage::disk('public')->mimeType($path) ?: null;
+            } elseif (Storage::disk('local')->exists($path)) {
+                $mimeType = Storage::disk('local')->mimeType($path) ?: null;
+            }
+        }
+
+        return [
+            'uploaded' => $uploaded,
+            'file_name' => $uploaded ? ($fileName ?: basename($path)) : null,
+            'file_url' => null,
+            'mime_type' => $mimeType,
+            'uploaded_at' => data_get($bif?->client_requirement_documents, $documentKey.'.uploaded_at'),
+        ];
+    }
+
+    private function normalizeStoredPath(string $path): string
+    {
+        $value = trim(str_replace('\\', '/', $path));
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_contains($value, '/storage/')) {
+            $value = substr($value, strpos($value, '/storage/') + 9);
+        } elseif (str_starts_with($value, 'storage/')) {
+            $value = substr($value, 8);
+        }
+
+        return ltrim($value, '/');
+    }
+
+    private function requirementDocumentKey(string $requirement): ?string
     {
         $documentMap = [
             'dti' => 'sole_dti_document',
@@ -180,22 +530,7 @@ class CompanyKycController extends Controller
             'bylaws' => 'entity_bylaws_document',
         ];
 
-        if (filled(data_get($bif?->client_requirement_documents, ($documentMap[$key] ?? '').'.path'))) {
-            return true;
-        }
-
-        return match ($key) {
-            'dti' => filled($bif?->business_name),
-            'bmbe' => filled($bif?->capital_small) || filled($bif?->capital_micro),
-            'bir_cor' => filled($bif?->tin_no),
-            'business_permit' => filled($bif?->business_address) || filled($bif?->office_type),
-            'proof_of_billing' => filled($bif?->business_address) || filled($bif?->zip_code),
-            'spa_if_applicable' => filled($bif?->authorized_contact_person_name) || filled($bif?->authorized_contact_person_position),
-            'articles' => filled($bif?->place_of_incorporation) || in_array($bif?->business_organization, ['corporation', 'cooperative', 'ngo'], true),
-            'partnership' => $bif?->business_organization === 'partnership',
-            'bylaws' => filled($bif?->review_signature_printed_name) || filled($bif?->signature_printed_name),
-            default => false,
-        };
+        return $documentMap[$requirement] ?? null;
     }
 
     private function findCompany(Request $request, int $company): array
@@ -225,6 +560,32 @@ class CompanyKycController extends Controller
         abort_unless($companyData, 404);
 
         return $companyData;
+    }
+
+    private function latestCompanyBif(int $company): ?CompanyBif
+    {
+        if (! Schema::hasTable('company_bifs')) {
+            return null;
+        }
+
+        return CompanyBif::query()
+            ->where('company_id', $company)
+            ->latest('updated_at')
+            ->latest('id')
+            ->first();
+    }
+
+    private function initials(string $name): string
+    {
+        $segments = collect(explode(' ', trim($name)))->filter()->take(2);
+
+        if ($segments->isEmpty()) {
+            return 'SU';
+        }
+
+        return $segments
+            ->map(fn (string $segment): string => strtoupper(mb_substr($segment, 0, 1)))
+            ->implode('');
     }
 
     private function defaultCompanies(): array

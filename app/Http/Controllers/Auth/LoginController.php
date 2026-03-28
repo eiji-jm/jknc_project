@@ -9,39 +9,38 @@ use Illuminate\Support\Facades\Auth;
 class LoginController extends Controller
 {
 
-   public function showLoginForm()
-{
-    if(Auth::check()){
-        return redirect()->route('corporate');
-    }
+    public function showLoginForm()
+    {
+        if (Auth::check()) {
+            return redirect()->route('corporate');
+        }
 
-    return view('auth.login');
-}
+        return view('auth.login');
+    }
 
     public function login(Request $request)
     {
 
         $request->validate([
-            'email'=>'required|email',
-            'password'=>'required'
+            'email' => 'required|email',
+            'password' => 'required'
         ]);
 
-        if(Auth::attempt($request->only('email','password')))
-        {
+        if (Auth::attempt($request->only('email', 'password'))) {
 
             $request->session()->regenerate();
 
             // ROLE REDIRECT
-            if(Auth::user()->role === 'Admin'){
-                return redirect()->route('corporate');
+            if (Auth::user()->role === 'SuperAdmin' || Auth::user()->role === 'Admin') {
+                return redirect()->route('admin.users');
             }
 
-            return redirect()->route('corporate');
+            return redirect()->route('townhall');
 
         }
 
         return back()->withErrors([
-            'email'=>'Invalid credentials.'
+            'email' => 'Invalid credentials.'
         ]);
 
     }

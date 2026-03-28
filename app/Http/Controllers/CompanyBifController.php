@@ -52,6 +52,12 @@ class CompanyBifController extends Controller
         'rejected' => 'Rejected',
     ];
 
+    private const CHANGE_REQUEST_STATUSES = [
+        'pending' => 'Pending Admin Review',
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+    ];
+
     public function create(Request $request, int $company): View
     {
         return view('company.bif.create', $this->buildViewData($request, $company, null));
@@ -136,6 +142,41 @@ class CompanyBifController extends Controller
         $action = $request->input('action', 'submit');
         $isSubmit = $action !== 'draft';
         $status = $this->resolveSubmittedStatus($isSubmit);
+        $isReviewer = $this->isKycReviewer($request);
+        $userName = $request->user()?->name ?? 'System User';
+
+        if (! $isReviewer) {
+            $validatedRequestMeta = $request->validate([
+                'change_request_note' => ['nullable', 'string', 'max:2000'],
+            ]);
+            $requestNote = trim((string) ($validatedRequestMeta['change_request_note'] ?? ''));
+
+            $bifRecord->update([
+                'change_request_payload' => $payload,
+                'change_request_status' => 'pending',
+                'change_request_note' => $requestNote !== '' ? $requestNote : null,
+                'change_requested_at' => now(),
+                'change_requested_by_name' => $userName,
+                'change_reviewed_at' => null,
+                'change_reviewed_by_name' => null,
+                'change_rejection_reason' => null,
+                'updated_by' => $request->user()?->id,
+            ]);
+
+            CompanyHistoryLogger::log($company, [
+                'type' => 'profile',
+                'title' => 'BIF change request submitted',
+                'description' => $bifRecord->title,
+                'extra_label' => 'Status',
+                'extra_value' => self::CHANGE_REQUEST_STATUSES['pending'],
+                'user_name' => $userName,
+                'user_initials' => $this->initials($userName),
+            ]);
+
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->with('bif_success', "Change request submitted for {$companyData['company_name']}. Awaiting admin approval.");
+        }
 
         $bifRecord->update([
             ...$payload,
@@ -147,13 +188,19 @@ class CompanyBifController extends Controller
             'rejected_at' => null,
             'rejected_by_name' => null,
             'rejection_reason' => null,
+            'change_request_payload' => null,
+            'change_request_status' => null,
+            'change_request_note' => null,
+            'change_requested_at' => null,
+            'change_requested_by_name' => null,
+            'change_reviewed_at' => null,
+            'change_reviewed_by_name' => null,
+            'change_rejection_reason' => null,
             'updated_by' => $request->user()?->id,
             'last_submission_source' => 'manual',
             'last_manual_updated_at' => now(),
-            'last_manual_updated_by_name' => $request->user()?->name ?? 'System User',
+            'last_manual_updated_by_name' => $userName,
         ]);
-
-        $userName = $request->user()?->name ?? 'System User';
 
         CompanyHistoryLogger::log($company, [
             'type' => 'profile',
@@ -172,6 +219,103 @@ class CompanyBifController extends Controller
         return redirect()
             ->route('company.bif.show', ['company' => $company, 'bif' => $bifRecord->id])
             ->with('bif_success', $message);
+    }
+
+    public function approveChangeRequest(Request $request, int $company, int $bif): RedirectResponse
+    {
+        abort_unless($this->isKycReviewer($request), 403);
+
+        $bifRecord = $this->findBif($company, $bif);
+        $pendingPayload = is_array($bifRecord->change_request_payload) ? $bifRecord->change_request_payload : [];
+
+        if (($bifRecord->change_request_status ?? null) !== 'pending' || $pendingPayload === []) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No pending BIF change request found.']);
+        }
+
+        $userName = $request->user()?->name ?? 'System User';
+        $resolvedStatus = in_array((string) $bifRecord->status, ['approved', 'pending_approval'], true)
+            ? (string) $bifRecord->status
+            : 'approved';
+
+        $bifRecord->update([
+            ...$pendingPayload,
+            'title' => $this->resolveTitle($pendingPayload),
+            'status' => $resolvedStatus,
+            'approved_at' => $resolvedStatus === 'approved' ? now() : $bifRecord->approved_at,
+            'approved_by_name' => $resolvedStatus === 'approved' ? $userName : $bifRecord->approved_by_name,
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+            'change_request_payload' => null,
+            'change_request_status' => null,
+            'change_request_note' => null,
+            'change_requested_at' => null,
+            'change_requested_by_name' => null,
+            'change_reviewed_at' => now(),
+            'change_reviewed_by_name' => $userName,
+            'change_rejection_reason' => null,
+            'updated_by' => $request->user()?->id,
+            'last_submission_source' => 'manual',
+            'last_manual_updated_at' => now(),
+            'last_manual_updated_by_name' => $userName,
+        ]);
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'BIF change request approved',
+            'description' => $bifRecord->title,
+            'extra_label' => 'Status',
+            'extra_value' => self::CHANGE_REQUEST_STATUSES['approved'],
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'BIF change request approved and applied.');
+    }
+
+    public function rejectChangeRequest(Request $request, int $company, int $bif): RedirectResponse
+    {
+        abort_unless($this->isKycReviewer($request), 403);
+
+        $validated = $request->validate([
+            'change_rejection_reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $bifRecord = $this->findBif($company, $bif);
+        if (($bifRecord->change_request_status ?? null) !== 'pending') {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'No pending BIF change request found.']);
+        }
+
+        $userName = $request->user()?->name ?? 'System User';
+        $reason = trim((string) $validated['change_rejection_reason']);
+
+        $bifRecord->update([
+            'change_request_status' => 'rejected',
+            'change_reviewed_at' => now(),
+            'change_reviewed_by_name' => $userName,
+            'change_rejection_reason' => $reason,
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        CompanyHistoryLogger::log($company, [
+            'type' => 'profile',
+            'title' => 'BIF change request rejected',
+            'description' => $bifRecord->title,
+            'extra_label' => 'Status',
+            'extra_value' => self::CHANGE_REQUEST_STATUSES['rejected'],
+            'user_name' => $userName,
+            'user_initials' => $this->initials($userName),
+        ]);
+
+        return redirect()
+            ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+            ->with('bif_success', 'BIF change request rejected.');
     }
 
     public function print(Request $request, int $company, int $bif): View
@@ -694,5 +838,10 @@ class CompanyBifController extends Controller
             ->take(2)
             ->map(fn (string $part) => strtoupper(substr($part, 0, 1)))
             ->implode('');
+    }
+
+    private function isKycReviewer(Request $request): bool
+    {
+        return in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true);
     }
 }

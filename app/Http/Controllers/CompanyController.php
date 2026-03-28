@@ -11,7 +11,9 @@ use App\Models\Contact;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -92,27 +94,60 @@ class CompanyController extends Controller
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
             'lookupModules' => $this->lookupModules(),
+            'companyCreateContacts' => Schema::hasTable('contacts')
+                ? Contact::query()
+                    ->orderBy('first_name')
+                    ->orderBy('last_name')
+                    ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'contact_address', 'company_name', 'cif_no', 'tin', 'cif_status'])
+                : collect(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateCompany($request);
+        $contact = Contact::query()->findOrFail((int) $validated['contact_id']);
+
+        if (strtolower((string) $contact->cif_status) !== 'approved') {
+            return redirect()
+                ->back()
+                ->withErrors(['contact_id' => 'CIF must be approved before creating a company.'])
+                ->withInput();
+        }
+
+        $cifData = $this->loadContactCifData($contact);
+        $autofill = $this->buildCompanyAutofillPayload($contact, $cifData);
+        $normalizedValidated = array_merge($validated, array_filter([
+            'business_phone' => $validated['business_phone'] ?: ($autofill['business_phone'] ?? null),
+            'mobile_no' => $validated['mobile_no'] ?: ($autofill['mobile_no'] ?? null),
+            'business_address' => $validated['business_address'] ?: ($autofill['business_address'] ?? null),
+            'authorized_contact_person_name' => $validated['authorized_contact_person_name'] ?: ($autofill['authorized_contact_person_name'] ?? null),
+            'authorized_contact_person_email' => $validated['authorized_contact_person_email'] ?: ($autofill['authorized_contact_person_email'] ?? null),
+            'authorized_contact_person_phone' => $validated['authorized_contact_person_phone'] ?: ($autofill['authorized_contact_person_phone'] ?? null),
+            'authorized_contact_person_position' => $validated['authorized_contact_person_position'] ?: ($autofill['authorized_contact_person_position'] ?? null),
+            'tin_no' => $validated['tin_no'] ?: ($autofill['tin_no'] ?? null),
+            'zip_code' => $validated['zip_code'] ?: ($autofill['zip_code'] ?? null),
+            'nationality_status' => $validated['nationality_status'] ?: ($autofill['nationality_status'] ?? null),
+            'business_name' => $validated['business_name'] ?: ($autofill['business_name'] ?? null),
+        ], static fn ($value) => filled($value)));
+
         $company = Company::query()->create([
-            'company_name' => $validated['business_name'],
-            'phone' => $validated['business_phone'] ?: ($validated['mobile_no'] ?: null),
-            'address' => $validated['business_address'] ?: null,
+            'company_name' => $normalizedValidated['business_name'],
+            'phone' => $normalizedValidated['business_phone'] ?: ($normalizedValidated['mobile_no'] ?: null),
+            'email' => $normalizedValidated['authorized_contact_person_email'] ?? ($contact->email ?: null),
+            'address' => $normalizedValidated['business_address'] ?: null,
+            'primary_contact_id' => $contact->id,
             'owner_name' => $request->user()?->name ?? 'Owner 1',
         ]);
 
         $bif = CompanyBif::query()->create([
-            ...$this->makeCompanyPayload($validated),
+            ...$this->makeCompanyPayload($normalizedValidated),
             'company_id' => $company->id,
-            'title' => 'Business Information Form - '.$validated['business_name'],
-            'status' => 'approved',
-            'submitted_at' => now(),
-            'approved_at' => now(),
-            'approved_by_name' => $request->user()?->name ?? 'Demo Approval',
+            'title' => 'Business Information Form - '.$normalizedValidated['business_name'],
+            'status' => 'draft',
+            'submitted_at' => null,
+            'approved_at' => null,
+            'approved_by_name' => null,
             'created_by' => $request->user()?->id,
             'updated_by' => $request->user()?->id,
         ]);
@@ -125,7 +160,7 @@ class CompanyController extends Controller
 
         return redirect()
             ->route('company.kyc', ['company' => $company->id, 'tab' => 'business-client-information'])
-            ->with('bif_success', 'Business Information Form saved and linked to the company profile.');
+            ->with('bif_success', 'Business Information Form saved as draft. Complete the requirements and submit for verification.');
     }
 
     public function update(Request $request, int $company): RedirectResponse
@@ -160,6 +195,46 @@ class CompanyController extends Controller
 
     public function destroy(Request $request, int $company): RedirectResponse
     {
+        if (Schema::hasTable('companies')) {
+            $record = Company::query()->find($company);
+
+            if ($record) {
+                DB::transaction(function () use ($record) {
+                    $tablesWithCompanyId = [
+                        'company_bifs',
+                        'company_cifs',
+                        'company_history_entries',
+                        'company_consultation_notes',
+                        'company_activities',
+                        'deals',
+                        'products',
+                        'services',
+                        'sec_coi',
+                        'sec_aois',
+                        'bylaws',
+                        'gis_records',
+                        'authorized_capital_stocks',
+                        'subscribed_capitals',
+                        'paid_up_capitals',
+                        'directors_officers',
+                        'stockholders',
+                    ];
+
+                    foreach ($tablesWithCompanyId as $table) {
+                        if (Schema::hasTable($table) && Schema::hasColumn($table, 'company_id')) {
+                            DB::table($table)->where('company_id', $record->id)->delete();
+                        }
+                    }
+
+                    $record->delete();
+                });
+
+                return redirect()
+                    ->route('company.index')
+                    ->with('success', 'Company deleted successfully.');
+            }
+        }
+
         $companies = collect($request->session()->get('mock_companies', $this->defaultCompanies()));
         $companyData = $companies->firstWhere('id', $company);
 
@@ -295,46 +370,76 @@ class CompanyController extends Controller
     {
         $companyData = $this->findCompanyOrAbort($request, $company);
         $search = trim((string) $request->query('search', ''));
+        $companyName = trim((string) ($companyData['company_name'] ?? ''));
+        $primaryContactId = (int) ($companyData['primary_contact_id'] ?? 0);
 
-        $contacts = collect($this->companyContacts($request, $company))
-            ->when($search !== '', function ($collection) use ($search) {
-                $term = Str::lower($search);
+        $contacts = Contact::query()
+            ->when($companyName !== '' || $primaryContactId > 0, function ($query) use ($companyName, $primaryContactId) {
+                $query->where(function ($nested) use ($companyName, $primaryContactId) {
+                    if ($companyName !== '') {
+                        $nested->where('company_name', $companyName);
+                    }
 
-                return $collection->filter(function (array $contact) use ($term) {
-                    return collect([
-                        $contact['full_name'] ?? '',
-                        $contact['email'] ?? '',
-                        $contact['phone'] ?? '',
-                        $contact['mobile'] ?? '',
-                        $contact['owner_name'] ?? '',
-                        ...collect($contact['custom_fields'] ?? [])->values()->all(),
-                    ])->contains(fn (?string $value) => Str::contains(Str::lower((string) $value), $term));
+                    if ($primaryContactId > 0) {
+                        $method = $companyName !== '' ? 'orWhere' : 'where';
+                        $nested->{$method}('id', $primaryContactId);
+                    }
                 });
             })
-            ->sortBy('full_name')
-            ->values();
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($nested) use ($search) {
+                    $nested
+                        ->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('company_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('owner_name', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'owner_name', 'kyc_status']);
+
+        $roleContacts = collect();
+
+        if (Schema::hasTable('company_bifs')) {
+            $latestBif = CompanyBif::query()
+                ->where('company_id', $company)
+                ->latest('updated_at')
+                ->latest('id')
+                ->first();
+
+            if ($latestBif) {
+                $roleContacts = $this->companyRoleContacts($latestBif, $companyName)
+                    ->when($search !== '', function ($collection) use ($search) {
+                        $term = Str::lower($search);
+
+                        return $collection->filter(function (array $item) use ($term) {
+                            return collect([
+                                $item['role_label'] ?? '',
+                                $item['full_name'] ?? '',
+                                $item['position'] ?? '',
+                                $item['email'] ?? '',
+                                $item['phone'] ?? '',
+                                $item['tin'] ?? '',
+                                $item['nationality'] ?? '',
+                            ])->contains(fn (?string $value) => Str::contains(Str::lower((string) $value), $term));
+                        });
+                    })
+                    ->values();
+            }
+        }
 
         return view('company.contacts', [
             'company' => (object) $companyData,
             'contacts' => $contacts,
+            'roleContacts' => $roleContacts,
             'search' => $search,
-            'customFields' => $this->companyContactCustomFields($request, $company),
-            'availableContacts' => Contact::query()
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'owner_name', 'company_name'])
-                ->map(fn (Contact $contact) => [
-                    'id' => $contact->id,
-                    'first_name' => $contact->first_name,
-                    'last_name' => $contact->last_name,
-                    'full_name' => trim($contact->first_name . ' ' . $contact->last_name),
-                    'email' => $contact->email,
-                    'phone' => $contact->phone,
-                    'mobile' => $contact->phone,
-                    'owner_name' => $contact->owner_name,
-                    'company_name' => $contact->company_name,
-                ])
-                ->values(),
+            'contactsModuleCreateUrl' => route('contacts.index', [
+                'open_create' => 1,
+                'company_name' => $companyName,
+            ]),
         ]);
     }
 
@@ -514,10 +619,7 @@ class CompanyController extends Controller
 
     public function deals(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         $deals = [
             [
@@ -576,10 +678,7 @@ class CompanyController extends Controller
 
     public function projects(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         $projects = [
             [
@@ -624,10 +723,7 @@ class CompanyController extends Controller
 
     public function regular(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         $regularEngagements = [
             [
@@ -676,10 +772,7 @@ class CompanyController extends Controller
 
     public function products(Request $request, int $company): View
     {
-        $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
-            ->firstWhere('id', $company);
-
-        abort_unless($companyData, 404);
+        $companyData = $this->findCompanyOrAbort($request, $company);
 
         $products = [
             [
@@ -969,9 +1062,51 @@ class CompanyController extends Controller
         return $companyData;
     }
 
+    private function loadContactCifData(Contact $contact): array
+    {
+        $path = 'contact-cif-data/'.$contact->id.'.json';
+
+        if (! Storage::disk('local')->exists($path)) {
+            return [];
+        }
+
+        return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
+    }
+
+    private function buildCompanyAutofillPayload(Contact $contact, array $cifData): array
+    {
+        $fullName = trim(collect([
+            $cifData['first_name'] ?? $contact->first_name,
+            $cifData['middle_name'] ?? $contact->middle_name,
+            $cifData['last_name'] ?? $contact->last_name,
+            $cifData['name_extension'] ?? $contact->name_extension,
+        ])->filter()->implode(' '));
+
+        $citizenshipType = strtolower((string) ($cifData['citizenship_type'] ?? ''));
+        $nationalityStatus = $citizenshipType === 'foreigner' ? 'foreign' : 'filipino';
+
+        return [
+            'business_name' => $contact->company_name,
+            'business_phone' => $cifData['mobile'] ?? $contact->phone,
+            'mobile_no' => $cifData['mobile'] ?? $contact->phone,
+            'business_address' => collect([
+                $cifData['present_address_line1'] ?? null,
+                $cifData['present_address_line2'] ?? null,
+            ])->filter()->implode(', '),
+            'zip_code' => $cifData['zip_code'] ?? null,
+            'tin_no' => $cifData['tin'] ?? $contact->tin,
+            'authorized_contact_person_name' => $fullName !== '' ? $fullName : trim($contact->first_name.' '.$contact->last_name),
+            'authorized_contact_person_email' => $cifData['email'] ?? $contact->email,
+            'authorized_contact_person_phone' => $cifData['mobile'] ?? $contact->phone,
+            'authorized_contact_person_position' => $cifData['nature_of_work_business'] ?? $contact->position,
+            'nationality_status' => $nationalityStatus,
+        ];
+    }
+
     private function validateCompany(Request $request): array
     {
         return $request->validate([
+            'contact_id' => ['required', 'integer', 'exists:contacts,id'],
             'bif_no' => ['nullable', 'string', 'max:255'],
             'bif_date' => ['required', 'date'],
             'client_type' => ['required', 'string', 'in:new_client,existing_client,change_information'],
@@ -1155,6 +1290,161 @@ class CompanyController extends Controller
         return collect($request->session()->get('company.custom_fields', []))
             ->values()
             ->all();
+    }
+
+    private function companyRoleContacts(CompanyBif $bif, string $companyName): \Illuminate\Support\Collection
+    {
+        $companyName = trim($companyName);
+
+        $signatories = collect($bif->authorized_signatories ?? [])
+            ->filter(fn (array $item) => filled($item['full_name'] ?? null))
+            ->map(fn (array $item) => $this->mapRoleContactRecord($item, 'Authorized Signatory', $companyName));
+
+        if ($signatories->isEmpty() && filled($bif->authorized_signatory_name)) {
+            $signatories = collect([
+                $this->mapRoleContactRecord([
+                    'full_name' => $bif->authorized_signatory_name,
+                    'address' => $bif->authorized_signatory_address,
+                    'nationality' => $bif->authorized_signatory_nationality,
+                    'date_of_birth' => optional($bif->authorized_signatory_date_of_birth)?->format('Y-m-d'),
+                    'tin' => $bif->authorized_signatory_tin,
+                    'position' => $bif->authorized_signatory_position,
+                ], 'Authorized Signatory', $companyName),
+            ]);
+        }
+
+        $ubos = collect($bif->ubos ?? [])
+            ->filter(fn (array $item) => filled($item['full_name'] ?? null))
+            ->map(fn (array $item) => $this->mapRoleContactRecord($item, 'UBO (20%+ Stockholder)', $companyName));
+
+        if ($ubos->isEmpty() && filled($bif->ubo_name)) {
+            $ubos = collect([
+                $this->mapRoleContactRecord([
+                    'full_name' => $bif->ubo_name,
+                    'address' => $bif->ubo_address,
+                    'nationality' => $bif->ubo_nationality,
+                    'date_of_birth' => optional($bif->ubo_date_of_birth)?->format('Y-m-d'),
+                    'tin' => $bif->ubo_tin,
+                    'position' => $bif->ubo_position,
+                ], 'UBO (20%+ Stockholder)', $companyName),
+            ]);
+        }
+
+        $authorizedContact = collect();
+
+        if (filled($bif->authorized_contact_person_name)) {
+            $authorizedContact = collect([
+                $this->mapRoleContactRecord([
+                    'full_name' => $bif->authorized_contact_person_name,
+                    'position' => $bif->authorized_contact_person_position,
+                    'email' => $bif->authorized_contact_person_email,
+                    'phone' => $bif->authorized_contact_person_phone,
+                ], 'Authorized Contact Person', $companyName),
+            ]);
+        }
+
+        return $signatories
+            ->concat($ubos)
+            ->concat($authorizedContact)
+            ->map(function (array $item) use ($companyName) {
+                $matchedContact = $this->matchRoleContactToContact($item, $companyName);
+
+                $item['linked_contact'] = $matchedContact;
+                $item['exists_in_contacts'] = $matchedContact !== null;
+                $item['add_to_contacts_url'] = $matchedContact
+                    ? null
+                    : route('contacts.index', array_filter([
+                        'open_create' => 1,
+                        'company_name' => $companyName !== '' ? $companyName : ($item['company_name'] ?? null),
+                        'first_name' => $item['first_name'] ?? null,
+                        'last_name' => $item['last_name'] ?? null,
+                        'email' => $item['email'] ?? null,
+                        'mobile_number' => $item['phone'] ?? null,
+                        'position' => $item['position'] ?? null,
+                        'contact_address' => $item['address'] ?? null,
+                    ], fn ($value) => filled($value)));
+
+                return $item;
+            })
+            ->unique(fn (array $item) => Str::lower(($item['role_label'] ?? '').'|'.($item['full_name'] ?? '').'|'.($item['email'] ?? '').'|'.($item['phone'] ?? '')))
+            ->values();
+    }
+
+    private function mapRoleContactRecord(array $item, string $roleLabel, string $companyName): array
+    {
+        $fullName = trim((string) ($item['full_name'] ?? ''));
+        [$firstName, $lastName] = $this->splitFullName($fullName);
+
+        return [
+            'role_label' => $roleLabel,
+            'full_name' => $fullName,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'company_name' => $companyName,
+            'position' => $item['position'] ?? null,
+            'email' => $item['email'] ?? null,
+            'phone' => $item['phone'] ?? null,
+            'address' => $item['address'] ?? null,
+            'nationality' => $item['nationality'] ?? null,
+            'date_of_birth' => $item['date_of_birth'] ?? null,
+            'tin' => $item['tin'] ?? null,
+        ];
+    }
+
+    private function matchRoleContactToContact(array $item, string $companyName): ?Contact
+    {
+        $fullName = trim((string) ($item['full_name'] ?? ''));
+        $email = trim((string) ($item['email'] ?? ''));
+        $phone = trim((string) ($item['phone'] ?? ''));
+
+        if ($fullName === '' && $email === '' && $phone === '') {
+            return null;
+        }
+
+        return Contact::query()
+            ->when($companyName !== '', fn ($query) => $query->where('company_name', $companyName))
+            ->where(function ($query) use ($fullName, $email, $phone) {
+                if ($fullName !== '') {
+                    [$firstName, $lastName] = $this->splitFullName($fullName);
+
+                    $query->where(function ($nameQuery) use ($fullName, $firstName, $lastName) {
+                        $nameQuery->whereRaw("TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) = ?", [$fullName]);
+
+                        if ($firstName !== '' || $lastName !== '') {
+                            $nameQuery->orWhere(function ($exactQuery) use ($firstName, $lastName) {
+                                if ($firstName !== '') {
+                                    $exactQuery->where('first_name', $firstName);
+                                }
+
+                                if ($lastName !== '') {
+                                    $exactQuery->where('last_name', $lastName);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                if ($email !== '') {
+                    $method = $fullName !== '' ? 'orWhere' : 'where';
+                    $query->{$method}('email', $email);
+                }
+
+                if ($phone !== '') {
+                    $method = ($fullName !== '' || $email !== '') ? 'orWhere' : 'where';
+                    $query->{$method}('phone', $phone);
+                }
+            })
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function splitFullName(string $fullName): array
+    {
+        $segments = collect(preg_split('/\s+/', trim($fullName)) ?: [])->filter()->values();
+        $firstName = (string) ($segments->first() ?? '');
+        $lastName = $segments->count() > 1 ? (string) $segments->slice(1)->implode(' ') : '';
+
+        return [$firstName, $lastName];
     }
 
     private function applyCompanyCustomFieldDefaults(array $company, array $customFields): array

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Company;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -55,6 +56,11 @@ class Contact extends Model
         'email',
         'phone',
         'kyc_status',
+        'cif_status',
+        'cif_submitted_at',
+        'cif_reviewed_at',
+        'cif_reviewed_by',
+        'cif_rejection_reason',
         'owner_name',
         'last_activity_at',
         'lead_source',
@@ -79,6 +85,8 @@ class Contact extends Model
         'last_activity_at' => 'datetime',
         'cif_access_expires_at' => 'datetime',
         'cif_form_sent_at' => 'datetime',
+        'cif_submitted_at' => 'datetime',
+        'cif_reviewed_at' => 'datetime',
         'specimen_access_expires_at' => 'datetime',
         'specimen_form_sent_at' => 'datetime',
         'capitalization_amount' => 'decimal:2',
@@ -92,6 +100,11 @@ class Contact extends Model
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class);
+    }
+
+    public function primaryCompanies(): HasMany
+    {
+        return $this->hasMany(Company::class, 'primary_contact_id');
     }
 
     public function specimenSignature(): HasOne

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
@@ -11,6 +12,7 @@ class Product extends Model
         'product_name',
         'product_type',
         'linked_service_id',
+        'deal_id',
         'product_area',
         'product_area_other',
         'product_description',
@@ -44,4 +46,14 @@ class Product extends Model
         'approved_at' => 'datetime',
         'custom_field_values' => 'array',
     ];
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'linked_service_id');
+    }
+
+    public function deal(): BelongsTo
+    {
+        return $this->belongsTo(Deal::class, 'deal_id');
+    }
 }

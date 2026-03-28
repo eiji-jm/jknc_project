@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class CompanyDealController extends Controller
@@ -200,6 +202,25 @@ class CompanyDealController extends Controller
 
     private function findCompany(Request $request, int $company): array
     {
+        if (Schema::hasTable('companies')) {
+            $record = Company::query()->find($company);
+
+            if ($record) {
+                return [
+                    'id' => $record->id,
+                    'company_name' => $record->company_name,
+                    'company_type' => null,
+                    'email' => $record->email,
+                    'phone' => $record->phone,
+                    'website' => $record->website,
+                    'description' => $record->description,
+                    'address' => $record->address,
+                    'owner_name' => $record->owner_name,
+                    'created_at' => optional($record->created_at)->toDateTimeString(),
+                ];
+            }
+        }
+
         $companyData = collect($request->session()->get('mock_companies', $this->defaultCompanies()))
             ->firstWhere('id', $company);
 

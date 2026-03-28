@@ -25,9 +25,14 @@ use App\Http\Controllers\CorporateFormationController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DirectorOfficerController;
 use App\Http\Controllers\GisController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
+use App\Http\Controllers\TownHallController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -82,6 +87,26 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+    Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
+    Route::post('/admin/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::get('/admin/role-permissions', [RolePermissionController::class, 'index'])->name('admin.role-permissions');
+    Route::post('/admin/role-permissions/{id}', [RolePermissionController::class, 'update'])->name('admin.role-permissions.update');
+    Route::get('/admin/user-permissions', [AdminUserPermissionController::class, 'index'])->name('admin.user-permissions');
+    Route::get('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'edit'])->name('admin.user-permissions.edit');
+    Route::post('/admin/user-permissions/{id}', [AdminUserPermissionController::class, 'update'])->name('admin.user-permissions.update');
+
+    Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
+    Route::get('/townhall/department', [TownHallController::class, 'department'])->name('townhall.department');
+    Route::get('/townhall/attachments', [TownHallController::class, 'attachments'])->name('townhall.attachments');
+    Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
+    Route::get('/townhall/{id}', [TownHallController::class, 'show'])->name('townhall.show');
+    Route::get('/townhall/{id}/download-pdf', [TownHallController::class, 'downloadPdf'])->name('townhall.download.pdf');
+    Route::post('/townhall/{id}/approve', [TownHallController::class, 'approve'])->name('townhall.approve');
+    Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');
+    Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
+    Route::post('/townhall/{id}/acknowledge', [TownHallController::class, 'acknowledge'])->name('townhall.acknowledge');
+
 Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
 Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
 Route::delete('/contacts/bulk-delete', [ContactsController::class, 'bulkDelete'])->name('contacts.bulk-delete');
@@ -93,6 +118,8 @@ Route::post('/contacts/{contact}/cif/documents', [ContactsController::class, 'up
 Route::post('/contacts/{contact}/kyc/requirements/upload', [ContactsController::class, 'uploadKycRequirementDocument'])->name('contacts.kyc.requirements.upload');
 Route::delete('/contacts/{contact}/kyc/requirements/{requirement}', [ContactsController::class, 'removeKycRequirementDocument'])->name('contacts.kyc.requirements.remove');
 Route::post('/contacts/{contact}/kyc/submit', [ContactsController::class, 'submitKycForVerification'])->name('contacts.kyc.submit');
+Route::post('/contacts/{contact}/kyc/approve', [ContactsController::class, 'approveKyc'])->name('contacts.kyc.approve');
+Route::post('/contacts/{contact}/kyc/reject', [ContactsController::class, 'rejectKyc'])->name('contacts.kyc.reject');
 Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sendCifClientForm'])->name('contacts.cif.send');
 Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
 Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
@@ -139,6 +166,12 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
     Route::delete('/company/{company}', [CompanyController::class, 'destroy'])->name('company.destroy');
     Route::get('/company/{company}', [CompanyController::class, 'show'])->name('company.show');
     Route::get('/company/{company}/kyc', [CompanyKycController::class, 'index'])->name('company.kyc');
+    Route::post('/company/{company}/kyc/submit', [CompanyKycController::class, 'submitKycForVerification'])->name('company.kyc.submit');
+    Route::post('/company/{company}/kyc/approve', [CompanyKycController::class, 'approveKyc'])->name('company.kyc.approve');
+    Route::post('/company/{company}/kyc/reject', [CompanyKycController::class, 'rejectKyc'])->name('company.kyc.reject');
+    Route::get('/company/{company}/kyc/requirements/{requirement}/view', [CompanyKycController::class, 'viewRequirementDocument'])->name('company.kyc.requirements.view');
+    Route::post('/company/{company}/kyc/requirements/{requirement}/upload', [CompanyKycController::class, 'uploadRequirementDocument'])->name('company.kyc.requirements.upload');
+    Route::delete('/company/{company}/kyc/requirements/{requirement}', [CompanyKycController::class, 'removeRequirementDocument'])->name('company.kyc.requirements.remove');
     Route::get('/company/{company}/history', [CompanyController::class, 'history'])->name('company.history');
     Route::get('/company/{company}/consultation-notes', [CompanyController::class, 'consultationNotes'])->name('company.consultation-notes');
     Route::post('/company/{company}/consultation-notes', [CompanyConsultationNoteController::class, 'store'])->name('company.consultation-notes.store');
@@ -210,6 +243,8 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
     Route::get('/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'show'])->name('company.bif.show');
     Route::get('/company/{company}/kyc/bif/{bif}/edit', [CompanyBifController::class, 'edit'])->name('company.bif.edit');
     Route::match(['put', 'patch'], '/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'update'])->name('company.bif.update');
+    Route::post('/company/{company}/kyc/bif/{bif}/change-request/approve', [CompanyBifController::class, 'approveChangeRequest'])->name('company.bif.change-request.approve');
+    Route::post('/company/{company}/kyc/bif/{bif}/change-request/reject', [CompanyBifController::class, 'rejectChangeRequest'])->name('company.bif.change-request.reject');
     Route::get('/company/{company}/kyc/bif/{bif}/print', [CompanyBifController::class, 'print'])->name('company.bif.print');
     Route::get('/company/{company}/services', [CompanyServiceController::class, 'companyIndex'])->name('company.services.index');
     Route::post('/company/{company}/services', [CompanyServiceController::class, 'storeForCompany'])->name('company.services.store');
