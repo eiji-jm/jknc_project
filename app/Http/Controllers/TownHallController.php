@@ -2,29 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TownHallCommunication;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use App\Models\TownHallCommunication;
 use Illuminate\Support\Facades\Storage;
+use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
+use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TownHallController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         if (!Auth::user()->hasPermission('access_townhall')) {
             abort(403, 'Unauthorized');
         }
 
-        $query = TownHallCommunication::latest();
+        $query = TownHallCommunication::where('approval_status', 'Approved')
+            ->where('is_archived', false);
 
-        if (!Auth::user()->hasPermission('approve_townhall')) {
-            $query->where('approval_status', 'Approved');
+        if ($request->filled('department')) {
+            $query->where('department_stakeholder', $request->department);
         }
 
-        $communications = $query->paginate(10);
+        $communications = $query->latest()->paginate(10);
 
-        return view('townhall.townhall', compact('communications'));
+        $departments = TownHallCommunication::where('is_archived', false)
+            ->select('department_stakeholder')
+            ->distinct()
+            ->pluck('department_stakeholder');
+
+        return view('townhall.townhall', compact('communications', 'departments'));
     }
 
     public function store(Request $request)
@@ -35,15 +44,16 @@ class TownHallController extends Controller
 
         $validated = $request->validate([
             'communication_date' => ['nullable', 'date'],
-            'from_name' => ['nullable', 'string', 'max:255'],
             'department_stakeholder' => ['nullable', 'string', 'max:255'],
+            'recipient_label' => ['nullable', 'in:To,For'],
             'to_for' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', 'max:50'],
+            'priority' => ['nullable', 'in:High,Low'],
             'subject' => ['nullable', 'string', 'max:255'],
             'message' => ['nullable', 'string'],
             'cc' => ['nullable', 'string', 'max:255'],
             'additional' => ['nullable', 'string', 'max:255'],
             'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx', 'max:5120'],
+            'expires_at' => ['nullable', 'date'],
         ]);
 
         if ($request->hasFile('attachment')) {
@@ -58,8 +68,12 @@ class TownHallController extends Controller
             $validated['attachment'] = $file->store('townhall_attachments', 'public');
         }
 
+        $validated['from_name'] = Auth::user()->name;
+        $validated['priority'] = $request->priority ?? 'Low';
         $validated['created_by'] = Auth::id();
         $validated['approval_status'] = 'Pending';
+        $validated['is_archived'] = false;
+        $validated['archived_at'] = null;
 
         $communication = TownHallCommunication::create($validated);
 
@@ -71,6 +85,150 @@ class TownHallController extends Controller
             ->with('success', 'Town Hall communication created successfully.');
     }
 
+    public function department(Request $request)
+    {
+        $departments = TownHallCommunication::where('is_archived', false)
+            ->select('department_stakeholder')
+            ->distinct()
+            ->pluck('department_stakeholder');
+
+        $query = TownHallCommunication::where('approval_status', 'Approved')
+            ->where('is_archived', false);
+
+        if ($request->filled('department')) {
+            $query->where('department_stakeholder', $request->department);
+        }
+
+        $communications = $query->latest()->get();
+
+        return view('townhall.department', compact('communications', 'departments'));
+    }
+
+    public function attachments(Request $request)
+    {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $query = TownHallCommunication::whereNotNull('attachment')
+            ->where('approval_status', 'Approved')
+            ->where('is_archived', false);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
+                    ->orWhere('ref_no', 'like', "%{$search}%")
+                    ->orWhere('from_name', 'like', "%{$search}%")
+                    ->orWhere('department_stakeholder', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('type')) {
+            $type = $request->type;
+
+            if ($type === 'image') {
+                $query->where(function ($q) {
+                    $q->where('attachment', 'like', '%.jpg')
+                        ->orWhere('attachment', 'like', '%.jpeg')
+                        ->orWhere('attachment', 'like', '%.png')
+                        ->orWhere('attachment', 'like', '%.gif')
+                        ->orWhere('attachment', 'like', '%.webp');
+                });
+            } elseif ($type === 'pdf') {
+                $query->where('attachment', 'like', '%.pdf');
+            } elseif ($type === 'document') {
+                $query->where(function ($q) {
+                    $q->where('attachment', 'like', '%.doc')
+                        ->orWhere('attachment', 'like', '%.docx');
+                });
+            }
+        }
+
+        $communications = $query->latest()->paginate(12)->withQueryString();
+
+        return view('townhall.attachments', compact('communications'));
+    }
+
+    public function edit($id)
+    {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->created_by !== Auth::id()) {
+            abort(403, 'You can only edit your own communication.');
+        }
+
+        if ($communication->approval_status !== 'Needs Revision') {
+            abort(403, 'Only communications marked for revision can be edited.');
+        }
+
+        return view('townhall.edit', compact('communication'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->created_by !== Auth::id()) {
+            abort(403, 'You can only update your own communication.');
+        }
+
+        if ($communication->approval_status !== 'Needs Revision') {
+            abort(403, 'Only communications marked for revision can be updated.');
+        }
+
+        $validated = $request->validate([
+            'communication_date' => ['nullable', 'date'],
+            'department_stakeholder' => ['nullable', 'string', 'max:255'],
+            'recipient_label' => ['nullable', 'in:To,For'],
+            'to_for' => ['nullable', 'string', 'max:255'],
+            'priority' => ['nullable', 'in:High,Low'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'message' => ['nullable', 'string'],
+            'cc' => ['nullable', 'string', 'max:255'],
+            'additional' => ['nullable', 'string', 'max:255'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx', 'max:5120'],
+            'expires_at' => ['nullable', 'date'],
+        ]);
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+
+            if (!$file->isValid()) {
+                return back()
+                    ->withErrors(['attachment' => 'The attachment failed to upload.'])
+                    ->withInput();
+            }
+
+            if ($communication->attachment && Storage::disk('public')->exists($communication->attachment)) {
+                Storage::disk('public')->delete($communication->attachment);
+            }
+
+            $validated['attachment'] = $file->store('townhall_attachments', 'public');
+        }
+
+        $validated['approval_status'] = 'Pending';
+        $validated['approved_by'] = null;
+        $validated['approved_at'] = null;
+        $validated['approval_notes'] = null;
+        $validated['is_archived'] = false;
+        $validated['archived_at'] = null;
+
+        $communication->update($validated);
+
+        return redirect()
+            ->route('townhall')
+            ->with('success', 'Communication updated and resubmitted for approval.');
+    }
+
     public function show($id)
     {
         if (!Auth::user()->hasPermission('access_townhall')) {
@@ -79,15 +237,14 @@ class TownHallController extends Controller
 
         $communication = TownHallCommunication::findOrFail($id);
 
-        if (
-            !Auth::user()->hasPermission('approve_townhall') &&
-            $communication->approval_status !== 'Approved'
-        ) {
-            abort(403, 'Unauthorized');
+        // If user is not admin approver, hide expired/archived memos completely
+        if (!Auth::user()->hasPermission('approve_townhall')) {
+            if ($communication->approval_status !== 'Approved' || $communication->is_archived) {
+                abort(404);
+            }
         }
 
         $attachmentType = null;
-
         if ($communication->attachment) {
             $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
 
@@ -100,7 +257,38 @@ class TownHallController extends Controller
             }
         }
 
-        return view('townhall.show', compact('communication', 'attachmentType'));
+        $employees = User::where('role', 'Employee')->get();
+
+        $acknowledgedUserIds = TownHallAcknowledgement::where('townhall_communication_id', $id)
+            ->pluck('user_id')
+            ->toArray();
+
+        $acknowledgedUsers = $employees->whereIn('id', $acknowledgedUserIds);
+        $notAcknowledgedUsers = $employees->whereNotIn('id', $acknowledgedUserIds);
+
+        $totalEmployees = $employees->count();
+        $ackCount = count($acknowledgedUserIds);
+
+        $progress = $totalEmployees > 0
+            ? round(($ackCount / $totalEmployees) * 100)
+            : 0;
+
+        $hasAcknowledged = $communication->hasBeenAcknowledgedBy(Auth::id());
+        $requiresAcknowledgement = !Auth::user()->hasPermission('approve_townhall')
+            && $communication->approval_status === 'Approved'
+            && !$communication->is_archived;
+
+        return view('townhall.show', compact(
+            'communication',
+            'attachmentType',
+            'hasAcknowledged',
+            'requiresAcknowledgement',
+            'acknowledgedUsers',
+            'notAcknowledgedUsers',
+            'progress',
+            'totalEmployees',
+            'ackCount'
+        ));
     }
 
     public function approve(Request $request, $id)
@@ -174,5 +362,47 @@ class TownHallController extends Controller
         return redirect()
             ->route('townhall')
             ->with('success', 'Communication deleted successfully.');
+    }
+
+    public function acknowledge($id)
+    {
+        if (!Auth::user()->hasPermission('access_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->approval_status !== 'Approved' || $communication->is_archived) {
+            abort(403, 'This communication is not available for acknowledgment.');
+        }
+
+        if (Auth::user()->hasPermission('approve_townhall')) {
+            return redirect()->back()->with('success', 'Acknowledgment is not required for your access level.');
+        }
+
+        TownHallAcknowledgement::updateOrCreate(
+            [
+                'townhall_communication_id' => $communication->id,
+                'user_id' => Auth::id(),
+            ],
+            [
+                'acknowledged_at' => now(),
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Communication acknowledged successfully.');
+    }
+
+    public function downloadPdf($id)
+    {
+        $communication = TownHallCommunication::findOrFail($id);
+
+        if ($communication->approval_status !== 'Approved' || $communication->is_archived) {
+            abort(403, 'Only active approved communications can be downloaded.');
+        }
+
+        $pdf = Pdf::loadView('townhall.show-pdf', compact('communication'));
+
+        return $pdf->download($communication->ref_no . '.pdf');
     }
 }

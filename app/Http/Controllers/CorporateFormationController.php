@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use App\Models\SecCoi;
 
@@ -30,10 +29,6 @@ class CorporateFormationController extends Controller
 
     public function index()
     {
-        if (!Schema::hasTable('sec_coi')) {
-            return view('corporate.corporate-formation', ['records' => collect()]);
-        }
-
         if ($this->canApproveCorporate()) {
             $records = SecCoi::latest()->get();
         } else {
@@ -45,8 +40,6 @@ class CorporateFormationController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $request->validate([
             'corporate_name'      => 'required',
             'company_reg_no'      => 'required',
@@ -97,8 +90,6 @@ class CorporateFormationController extends Controller
 
     public function show($id)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $record = SecCoi::findOrFail($id);
 
         if (!$this->canApproveCorporate() && (int) $record->submitted_by !== (int) Auth::id()) {
@@ -110,8 +101,6 @@ class CorporateFormationController extends Controller
 
     public function update(Request $request, $id)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $record = SecCoi::findOrFail($id);
 
         if (!$this->canEditRecord($record)) {
@@ -139,8 +128,6 @@ class CorporateFormationController extends Controller
 
     public function uploadDraftFile(Request $request, $id)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $request->validate([
             'draft_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
@@ -165,8 +152,6 @@ class CorporateFormationController extends Controller
 
     public function uploadNotaryFile(Request $request, $id)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $request->validate([
             'notary_file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
@@ -191,8 +176,6 @@ class CorporateFormationController extends Controller
 
     public function submit($id)
     {
-        abort_unless(Schema::hasTable('sec_coi'), 404);
-
         $record = SecCoi::findOrFail($id);
 
         if (!$this->canEditRecord($record)) {

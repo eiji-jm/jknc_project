@@ -2,103 +2,64 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UltimateBeneficialOwner;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use App\Models\GisRecord;
+use App\Models\UltimateBeneficialOwner;
 
 class UltimateBeneficialOwnerController extends Controller
 {
-    public function index()
+    private function canApproveCorporate(): bool
     {
-        $owners = UltimateBeneficialOwner::latest()->get();
+        /** @var User|null $user */
+        $user = Auth::user();
 
-        return view('corporate.ubo-form', compact('owners'));
+        return $user && $user->hasPermission('approve_corporate');
     }
 
-    public function create()
+    private function canEditRecord(GisRecord $gis): bool
     {
-        return view('corporate.common.form', [
-            'title' => 'Add Ultimate Beneficial Owner',
-            'action' => route('corporate.ubo.store'),
-            'method' => 'POST',
-            'cancelRoute' => route('corporate.ubo'),
-            'fields' => $this->fields(),
-            'item' => new UltimateBeneficialOwner(),
-        ]);
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $gis->submitted_by === (int) Auth::id()
+            && in_array($gis->workflow_status, ['Uploaded', 'Reverted']);
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateData($request);
-        UltimateBeneficialOwner::create($data);
-
-        return redirect()->route('corporate.ubo')->with('success', 'UBO created.');
-    }
-
-    public function show(UltimateBeneficialOwner $ultimateBeneficialOwner)
-    {
-        return view('corporate.common.show', [
-            'title' => 'UBO Details',
-            'item' => $ultimateBeneficialOwner,
-            'fields' => $this->fields(),
-            'backRoute' => route('corporate.ubo'),
-            'editRoute' => route('corporate.ubo.edit', $ultimateBeneficialOwner),
+        $request->validate([
+            'gis_id' => 'required|exists:gis_records,id',
+            'complete_name' => 'required|string|max:255',
+            'specific_residential_address' => 'nullable|string|max:255',
+            'nationality' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|date',
+            'tax_identification_no' => 'nullable|string|max:255',
+            'ownership_voting_rights' => 'nullable|numeric|min:0|max:100',
+            'beneficial_owner_type' => 'nullable|in:D,I',
+            'beneficial_ownership_category' => 'nullable|in:A,B,C,D,E,F,G,H,I',
         ]);
-    }
 
-    public function edit(UltimateBeneficialOwner $ultimateBeneficialOwner)
-    {
-        return view('corporate.common.form', [
-            'title' => 'Edit Ultimate Beneficial Owner',
-            'action' => route('corporate.ubo.update', $ultimateBeneficialOwner),
-            'method' => 'PUT',
-            'cancelRoute' => route('corporate.ubo'),
-            'fields' => $this->fields(),
-            'item' => $ultimateBeneficialOwner,
+        $gis = GisRecord::findOrFail($request->gis_id);
+
+        if (!$this->canEditRecord($gis)) {
+            abort(403, 'This record can no longer be edited.');
+        }
+
+        UltimateBeneficialOwner::create([
+            'gis_id' => $request->gis_id,
+            'complete_name' => $request->complete_name,
+            'specific_residential_address' => $request->specific_residential_address,
+            'nationality' => $request->nationality,
+            'date_of_birth' => $request->date_of_birth,
+            'tax_identification_no' => $request->tax_identification_no,
+            'ownership_voting_rights' => $request->ownership_voting_rights,
+            'beneficial_owner_type' => $request->beneficial_owner_type,
+            'beneficial_ownership_category' => $request->beneficial_ownership_category,
         ]);
-    }
 
-    public function update(Request $request, UltimateBeneficialOwner $ultimateBeneficialOwner)
-    {
-        $data = $this->validateData($request);
-        $ultimateBeneficialOwner->update($data);
-
-        return redirect()->route('corporate.ubo')->with('success', 'UBO updated.');
-    }
-
-    public function destroy(UltimateBeneficialOwner $ultimateBeneficialOwner)
-    {
-        $ultimateBeneficialOwner->delete();
-
-        return redirect()->route('corporate.ubo')->with('success', 'UBO deleted.');
-    }
-
-    private function fields(): array
-    {
-        return [
-            ['name' => 'complete_name', 'label' => 'Complete Name', 'type' => 'text', 'required' => true],
-            ['name' => 'email', 'label' => 'Email', 'type' => 'email'],
-            ['name' => 'residential_address', 'label' => 'Specific Residential Address', 'type' => 'text'],
-            ['name' => 'nationality', 'label' => 'Nationality', 'type' => 'text'],
-            ['name' => 'date_of_birth', 'label' => 'Date of Birth', 'type' => 'date'],
-            ['name' => 'tax_identification_no', 'label' => 'Tax Identification No.', 'type' => 'text'],
-            ['name' => 'ownership_percentage', 'label' => 'Ownership %', 'type' => 'number', 'step' => '0.01'],
-            ['name' => 'ownership_type', 'label' => 'Type', 'type' => 'text'],
-            ['name' => 'ownership_category', 'label' => 'Category', 'type' => 'text'],
-        ];
-    }
-
-    private function validateData(Request $request): array
-    {
-        return $request->validate([
-            'complete_name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'residential_address' => ['nullable', 'string', 'max:255'],
-            'nationality' => ['nullable', 'string', 'max:255'],
-            'date_of_birth' => ['nullable', 'date'],
-            'tax_identification_no' => ['nullable', 'string', 'max:255'],
-            'ownership_percentage' => ['nullable', 'numeric'],
-            'ownership_type' => ['nullable', 'string', 'max:255'],
-            'ownership_category' => ['nullable', 'string', 'max:255'],
-        ]);
+        return back()->with('success', 'UBO added successfully.');
     }
 }

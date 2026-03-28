@@ -1,173 +1,328 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full h-full px-6 py-5">
-    <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] overflow-hidden">
-        <div class="grid grid-cols-12 h-[calc(100vh-9rem)]">
+<div class="bg-[#f5f6f8] min-h-screen p-6">
 
-            {{-- LEFT PREVIEW --}}
-            <div class="col-span-8 border-r border-gray-200 bg-gray-50 p-4">
-                <div class="w-full h-full rounded-xl border border-gray-200 bg-white overflow-hidden flex items-center justify-center">
+    <div class="max-w-[1400px] mx-auto flex gap-6">
 
-                    @if($communication->attachment)
-                        @if($attachmentType === 'image')
-                            <div class="w-full h-full flex items-center justify-center bg-gray-100">
-                                <img
-                                    src="{{ asset('storage/' . $communication->attachment) }}"
-                                    alt="Attachment Preview"
-                                    class="max-w-full max-h-full object-contain"
-                                >
-                            </div>
-                        @elseif($attachmentType === 'pdf')
-                            <iframe
-                                src="{{ asset('storage/' . $communication->attachment) }}"
-                                class="w-full h-full"
-                            ></iframe>
-                        @else
-                            <div class="text-center px-6">
-                                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                                    <i class="fas fa-file text-2xl"></i>
-                                </div>
-                                <p class="text-sm font-medium text-gray-700 mb-2">Preview not available for this file type.</p>
-                                <a
-                                    href="{{ asset('storage/' . $communication->attachment) }}"
-                                    target="_blank"
-                                    class="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                                >
-                                    <i class="fas fa-paperclip"></i>
-                                    <span>Open Attachment</span>
-                                </a>
-                            </div>
-                        @endif
+        {{-- LEFT SIDE --}}
+        <div id="ack-scroll-container" class="w-[70%] h-[calc(100vh-80px)] overflow-y-auto pr-2">
+
+            {{-- BACK --}}
+            <div class="mb-4 flex justify-between items-center">
+                <a href="{{ route('townhall') }}"
+                   class="border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-100">
+                    ← Back
+                </a>
+
+                @if(
+                    $communication->approval_status === 'Needs Revision' &&
+                    $communication->created_by === Auth::id() &&
+                    Auth::user()->hasPermission('create_townhall')
+                )
+                    <a href="{{ route('townhall.edit', $communication->id) }}"
+                       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow">
+                        Edit Revision
+                    </a>
+                @endif
+            </div>
+
+            @if(
+                $communication->approval_status === 'Needs Revision' &&
+                $communication->approval_notes
+            )
+                <div class="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                    <span class="font-semibold">Revision Note:</span> {{ $communication->approval_notes }}
+                </div>
+            @endif
+
+            {{-- MEMO --}}
+            <div class="memo-preview bg-white border border-gray-300 shadow px-[72px] py-[72px] mb-6">
+
+                {{-- HEADER --}}
+                <div class="flex justify-between border-b pb-6 mb-8">
+                    <div>
+                        <h1 class="text-[22px] font-bold">JOHN KELLY & COMPANY</h1>
+                        <p class="text-[12px] text-gray-500">Corporate Memorandum</p>
+                    </div>
+
+                    <div class="text-right text-sm">
+                        <p>Ref No: <b>{{ $communication->ref_no }}</b></p>
+                        <p>Date: <b>{{ $communication->communication_date }}</b></p>
+                    </div>
+                </div>
+
+                {{-- TITLE --}}
+                <div class="text-center mb-8">
+                    <h2 class="text-[20px] font-bold tracking-[0.2em]">MEMORANDUM</h2>
+                </div>
+
+                {{-- META --}}
+                <div class="space-y-3 text-sm mb-10">
+                    <div class="grid grid-cols-[120px_1fr]">
+                        <b>{{ $communication->recipient_label ?? 'To' }}</b>
+                        <span class="border-b">{{ $communication->to_for }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-[120px_1fr]">
+                        <b>From</b>
+                        <span class="border-b">{{ $communication->from_name }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-[120px_1fr]">
+                        <b>Department</b>
+                        <span class="border-b">{{ $communication->department_stakeholder }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-[120px_1fr]">
+                        <b>Priority</b>
+                        <span class="border-b">{{ $communication->priority }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-[120px_1fr]">
+                        <b>Subject</b>
+                        <span class="border-b font-semibold">{{ $communication->subject }}</span>
+                    </div>
+                </div>
+
+                {{-- BODY --}}
+                <div class="text-[15px] leading-8 min-h-[300px]">
+                    {!! $communication->message !!}
+                </div>
+
+                {{-- SIGNATURE --}}
+                <div class="mt-16">
+                    <p>Respectfully,</p>
+                    <div class="mt-10 border-b w-[250px]"></div>
+                    <p class="mt-2 font-semibold">{{ $communication->from_name }}</p>
+                </div>
+
+                {{-- FOOTER --}}
+                <div class="mt-10 border-t pt-4 text-sm">
+                    <p><b>CC:</b> {{ $communication->cc }}</p>
+                    <p><b>Additional:</b> {{ $communication->additional }}</p>
+                </div>
+            </div>
+
+            {{-- ATTACHMENT PREVIEW --}}
+            @if($communication->attachment)
+            <div class="bg-white border rounded-xl shadow p-5 mb-6">
+                <h3 class="font-semibold mb-3">Attachment Preview</h3>
+
+                <div class="h-[500px] overflow-auto border rounded-lg">
+                    @php
+                        $ext = strtolower(pathinfo($communication->attachment, PATHINFO_EXTENSION));
+                    @endphp
+
+                    @if(in_array($ext, ['jpg','jpeg','png','gif','webp']))
+                        <img src="{{ asset('storage/'.$communication->attachment) }}" class="w-full">
+                    @elseif($ext === 'pdf')
+                        <iframe src="{{ asset('storage/'.$communication->attachment) }}"
+                                class="w-full h-[500px]"></iframe>
                     @else
-                        <div class="w-full h-full overflow-y-auto p-10">
-                            <div class="max-w-4xl mx-auto bg-white text-gray-900">
-                                <div class="border border-gray-200 rounded-lg p-8 shadow-sm">
-                                    <div class="mb-8">
-                                        <h1 class="text-2xl font-bold text-center">Town Hall Communication</h1>
-                                    </div>
-
-                                    <div class="space-y-3 text-sm">
-                                        <p><span class="font-semibold">Date:</span> {{ $communication->communication_date ?? '—' }}</p>
-                                        <p><span class="font-semibold">Deadline:</span> {{ optional($communication->deadline_date)->format('M d, Y') ?: '—' }}</p>
-                                        <p><span class="font-semibold">From:</span> {{ $communication->from_name ?? '—' }}</p>
-                                        <p><span class="font-semibold">To / For:</span> {{ $communication->to_for ?? '—' }}</p>
-                                        <p><span class="font-semibold">Department / Stakeholder:</span> {{ $communication->department_stakeholder ?? '—' }}</p>
-                                        <p><span class="font-semibold">Subject:</span> {{ $communication->subject ?? '—' }}</p>
-                                    </div>
-
-                                    <hr class="my-6">
-
-                                    <div class="prose prose-sm max-w-none">
-                                        {!! $communication->message ?: '<p>—</p>' !!}
-                                    </div>
-
-                                    @if($communication->cc)
-                                        <hr class="my-6">
-                                        <p class="text-sm"><span class="font-semibold">CC:</span> {{ $communication->cc }}</p>
-                                    @endif
-                                </div>
-                            </div>
+                        <div class="p-4 text-center">
+                            <a href="{{ asset('storage/'.$communication->attachment) }}"
+                               target="_blank"
+                               class="text-blue-600 underline">
+                                Download Attachment
+                            </a>
                         </div>
                     @endif
-
                 </div>
             </div>
+            @endif
 
-            {{-- RIGHT DETAILS --}}
-            <div class="col-span-4 bg-white overflow-y-auto p-6">
-                <div class="flex items-start justify-between mb-6">
+            {{-- ACKNOWLEDGEMENT --}}
+            @if($communication->approval_status === 'Approved')
+            <div class="bg-white border rounded-xl shadow p-5">
+
+                <div class="flex justify-between mb-3">
+                    <h3 class="font-semibold">Acknowledgement</h3>
+                    <span>{{ $ackCount }}/{{ $totalEmployees }}</span>
+                </div>
+
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
+                    <div class="bg-blue-600 h-3 rounded-full"
+                         style="width: {{ $progress }}%"></div>
+                </div>
+
+                @if($requiresAcknowledgement && !$hasAcknowledged)
+                    <form method="POST" action="{{ route('townhall.acknowledge', $communication->id) }}">
+                        @csrf
+
+                        <button id="ack-btn"
+                            type="submit"
+                            disabled
+                            class="bg-gray-400 text-white px-4 py-2 rounded-lg mb-4 cursor-not-allowed">
+                            Acknowledge (Scroll + Wait 10s)
+                        </button>
+
+                        <p id="ack-status" class="text-xs text-gray-500">
+                            Please scroll to the bottom and wait 10 seconds...
+                        </p>
+                    </form>
+                @elseif($hasAcknowledged)
+                    <p class="text-sm text-green-600 font-medium mb-4">
+                        ✔ You have acknowledged this communication.
+                    </p>
+                @endif
+
+                <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                        <h2 class="text-2xl font-semibold text-gray-800">Communication Details</h2>
-                        <p class="text-sm text-gray-500">{{ $communication->ref_no }}</p>
+                        <b>✔ Acknowledged</b>
+                        @forelse($acknowledgedUsers as $user)
+                            <p class="text-green-600">{{ $user->name }}</p>
+                        @empty
+                            <p class="text-gray-400">None yet</p>
+                        @endforelse
                     </div>
 
-                    <a
-                        href="{{ route('townhall') }}"
-                        class="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                    >
-                        <i class="fas fa-arrow-left"></i>
-                        Back
-                    </a>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Date</p>
-                        <p class="text-sm text-gray-800">{{ $communication->communication_date ?? '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Deadline</p>
-                        <p class="text-sm text-gray-800">{{ optional($communication->deadline_date)->format('M d, Y') ?: '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">From</p>
-                        <p class="text-sm text-gray-800">{{ $communication->from_name ?? '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">To / For</p>
-                        <p class="text-sm text-gray-800">{{ $communication->to_for ?? '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Department / Stakeholder</p>
-                        <p class="text-sm text-gray-800">{{ $communication->department_stakeholder ?? '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Status</p>
-                        @php
-                            $status = $communication->status ?? 'Open';
-                            $statusClasses = match($status) {
-                                'Completed' => 'bg-green-50 text-green-700',
-                                'Overdue' => 'bg-red-50 text-red-700',
-                                default => 'bg-yellow-50 text-yellow-700',
-                            };
-                        @endphp
-                        <span class="inline-flex px-2 py-1 text-xs rounded-full font-medium {{ $statusClasses }}">
-                            {{ $status }}
-                        </span>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">Subject</p>
-                        <p class="text-sm text-gray-800">{{ $communication->subject ?? '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Body</p>
-                        <div class="prose prose-sm max-w-none text-gray-800">
-                            {!! $communication->message ?: '<p>—</p>' !!}
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-1">CC</p>
-                        <p class="text-sm text-gray-800">{{ $communication->cc ?: '—' }}</p>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-4">
-                        <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Attachment</p>
-                        @if($communication->attachment)
-                            <a
-                                href="{{ asset('storage/' . $communication->attachment) }}"
-                                target="_blank"
-                                class="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                            >
-                                <i class="fas fa-paperclip"></i>
-                                <span>View Attachment</span>
-                            </a>
-                        @else
-                            <p class="text-sm text-gray-800">—</p>
-                        @endif
+                    <div>
+                        <b>Pending</b>
+                        @forelse($notAcknowledgedUsers as $user)
+                            <p class="text-red-500">{{ $user->name }}</p>
+                        @empty
+                            <p class="text-gray-400">All acknowledged</p>
+                        @endforelse
                     </div>
                 </div>
+
             </div>
+            @endif
 
         </div>
+
+        {{-- RIGHT SIDE PANEL --}}
+        <div class="w-[30%]">
+            <div class="bg-white border rounded-xl shadow p-5 sticky top-6 space-y-4">
+
+                <h3 class="font-semibold text-lg">Communication Details</h3>
+
+                <div class="text-sm space-y-3">
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Ref</p>
+                        <p>{{ $communication->ref_no }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Date</p>
+                        <p>{{ $communication->communication_date }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">From</p>
+                        <p>{{ $communication->from_name }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">{{ $communication->recipient_label ?? 'To' }}</p>
+                        <p>{{ $communication->to_for }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Department</p>
+                        <p>{{ $communication->department_stakeholder }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Status</p>
+                        <p>{{ $communication->approval_status }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Subject</p>
+                        <p>{{ $communication->subject }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">CC</p>
+                        <p>{{ $communication->cc }}</p>
+                    </div>
+
+                    @if($communication->approval_notes)
+                    <div>
+                        <p class="text-gray-500 text-xs">Approval Notes</p>
+                        <p>{{ $communication->approval_notes }}</p>
+                    </div>
+                    @endif
+                </div>
+
+                @if($communication->approval_status === 'Approved')
+                    <a href="{{ route('townhall.download.pdf', $communication->id) }}"
+                       class="block text-center bg-red-600 text-white py-2 rounded-lg">
+                        Download PDF
+                    </a>
+                @endif
+
+                @if(
+                    $communication->approval_status === 'Needs Revision' &&
+                    $communication->created_by === Auth::id() &&
+                    Auth::user()->hasPermission('create_townhall')
+                )
+                    <a href="{{ route('townhall.edit', $communication->id) }}"
+                       class="block text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                        Edit and Resubmit
+                    </a>
+                @endif
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    let hasScrolledToBottom = false;
+    let timerDone = false;
+    let seconds = 10;
+
+    const container = document.getElementById('ack-scroll-container');
+    const button = document.getElementById('ack-btn');
+    const statusText = document.getElementById('ack-status');
+
+    if (!container || !button || !statusText) return;
+
+    function updateButtonState() {
+        if (hasScrolledToBottom && timerDone) {
+            button.disabled = false;
+            button.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            button.classList.add('bg-green-600', 'hover:bg-green-700');
+            button.innerText = 'Acknowledge';
+            statusText.innerText = 'You can now acknowledge.';
+        } else if (hasScrolledToBottom && !timerDone) {
+            statusText.innerText = `Scrolled to bottom. Please wait ${seconds}s...`;
+        } else if (!hasScrolledToBottom && timerDone) {
+            statusText.innerText = 'Timer finished. Please scroll to the bottom.';
+        } else {
+            statusText.innerText = `Please scroll to the bottom and wait ${seconds}s...`;
+        }
+    }
+
+    const interval = setInterval(() => {
+        seconds--;
+
+        if (seconds <= 0) {
+            timerDone = true;
+            clearInterval(interval);
+        }
+
+        updateButtonState();
+    }, 1000);
+
+    container.addEventListener('scroll', function () {
+        const isAtBottom =
+            container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+
+        if (isAtBottom) {
+            hasScrolledToBottom = true;
+            updateButtonState();
+        }
+    });
+
+    updateButtonState();
+});
+</script>
+@endpush

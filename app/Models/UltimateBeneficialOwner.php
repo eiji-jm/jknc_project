@@ -7,19 +7,24 @@ use Illuminate\Database\Eloquent\Model;
 class UltimateBeneficialOwner extends Model
 {
     protected $fillable = [
+        'gis_id',
         'complete_name',
-        'email',
-        'residential_address',
+        'specific_residential_address',
         'nationality',
         'date_of_birth',
         'tax_identification_no',
-        'ownership_percentage',
-        'ownership_type',
-        'ownership_category',
+        'ownership_voting_rights',
+        'beneficial_owner_type',
+        'beneficial_ownership_category',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
-        'ownership_percentage' => 'decimal:2',
+        'ownership_voting_rights' => 'decimal:2',
     ];
+
+    public function gis()
+    {
+        return $this->belongsTo(GisRecord::class, 'gis_id');
+    }
 }

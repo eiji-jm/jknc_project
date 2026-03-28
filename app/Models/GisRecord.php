@@ -71,4 +71,9 @@ class GisRecord extends Model
     {
         return $this->hasMany(Stockholder::class, 'gis_id');
     }
+
+    public function ubos()
+    {
+        return $this->hasMany(UltimateBeneficialOwner::class, 'gis_id');
+    }
 }
