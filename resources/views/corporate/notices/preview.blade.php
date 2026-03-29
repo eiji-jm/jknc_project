@@ -3,7 +3,15 @@
 @section('content')
 @php
     $selected = $notice;
-    $documentUrl = $selected->document_path ? route('uploads.show', ['path' => $selected->document_path]) : null;
+    $documentPathCandidates = collect([
+        $selected->document_path,
+        preg_replace('#^/?storage/#', '', (string) $selected->document_path),
+    ])
+        ->filter()
+        ->unique()
+        ->values();
+    $resolvedDocumentPath = $documentPathCandidates->first(fn ($path) => \Illuminate\Support\Facades\Storage::disk('public')->exists($path));
+    $documentUrl = $resolvedDocumentPath ? route('uploads.show', ['path' => $resolvedDocumentPath]) : null;
     $meetingTitle = strtoupper(trim(($selected->type_of_meeting ?: 'Special') . ' ' . ($selected->governing_body ?: 'Board of Directors') . ' Meeting'));
     $noticeDate = optional($selected->date_of_notice)->format('F d, Y') ?: optional($selected->created_at)->format('F d, Y') ?: now()->format('F d, Y');
     $meetingDate = optional($selected->date_of_meeting)->format('F d, Y') ?: '________________';

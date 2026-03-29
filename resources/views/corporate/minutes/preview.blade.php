@@ -50,12 +50,12 @@
                 <div class="text-lg font-semibold">Minutes Preview</div>
                 <div class="text-xs text-gray-500">Reference: {{ $minute->minutes_ref ?? '-' }}</div>
             </div>
-            <div class="flex-1"></div>
-            <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 p-1">
-                <button type="button" data-preview-tab-button="template" class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition">Template Builder</button>
-                <button type="button" data-preview-tab-button="ongoing" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">On-Going Preview</button>
-                <button type="button" data-preview-tab-button="final" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">Final Preview</button>
-            </div>
+        <div class="flex-1"></div>
+        <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 p-1">
+            <button type="button" data-preview-tab-button="template" class="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition">Template Builder</button>
+            <button type="button" data-preview-tab-button="ongoing" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">On-Going Preview</button>
+            <button type="button" data-preview-tab-button="final" class="rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-200">Final Preview</button>
+        </div>
             <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $minute->approved_by ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
                 {{ $minute->approved_by ? 'Approved' : 'Pending approval' }}
             </span>
@@ -80,8 +80,20 @@
                         <div class="bg-gray-800 px-4 py-3 flex items-center gap-2 border-b border-gray-700">
                             <span class="text-gray-300 text-sm font-medium">On-Going Meeting Workspace</span>
                             <div class="flex-1"></div>
-                            <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition" onclick="handleMinutesPrint(@js($documentUrl))"><i class="fas fa-print"></i></button>
-                            <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition" onclick="handleMinutesDownload(@js($documentDownloadUrl))"><i class="fas fa-download"></i></button>
+                            <button
+                                type="button"
+                                class="p-2 hover:bg-gray-700 rounded text-gray-300 transition disabled:cursor-not-allowed disabled:opacity-40"
+                                @disabled(!$documentUrl)
+                                onclick="handleMinutesPrint(@js($documentUrl))">
+                                <i class="fas fa-print"></i>
+                            </button>
+                            <button
+                                type="button"
+                                class="p-2 hover:bg-gray-700 rounded text-gray-300 transition disabled:cursor-not-allowed disabled:opacity-40"
+                                @disabled(!$documentDownloadUrl)
+                                onclick="handleMinutesDownload(@js($documentDownloadUrl))">
+                                <i class="fas fa-download"></i>
+                            </button>
                         </div>
                         <div class="p-6 text-center text-gray-300">
                             <p class="text-lg font-semibold">Capture the live meeting package</p>
@@ -446,6 +458,28 @@
     </div>
 </div>
 <script>
+    window.handleMinutesPrint = (url) => {
+        if (!url) {
+            return;
+        }
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    window.handleMinutesDownload = (url) => {
+        if (!url) {
+            return;
+        }
+
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    };
+
     (() => {
         const buttons = Array.from(document.querySelectorAll('[data-preview-tab-button]'));
         const tabs = Array.from(document.querySelectorAll('[data-preview-tab]'));

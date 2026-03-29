@@ -2,12 +2,30 @@
 
 @section('content')
 @php
-    $draftUrl = $resolution->draft_file_path ? route('uploads.show', ['path' => $resolution->draft_file_path]) : null;
-    $notarizedUrl = $resolution->notarized_file_path ? route('uploads.show', ['path' => $resolution->notarized_file_path]) : null;
+    $draftPathCandidates = collect([
+        $resolution->draft_file_path,
+        preg_replace('#^/?storage/#', '', (string) $resolution->draft_file_path),
+    ])
+        ->filter()
+        ->unique()
+        ->values();
+    $resolvedDraftPath = $draftPathCandidates->first(fn ($path) => \Illuminate\Support\Facades\Storage::disk('public')->exists($path));
+    $draftUrl = $resolvedDraftPath ? route('uploads.show', ['path' => $resolvedDraftPath]) : null;
+
+    $notarizedPathCandidates = collect([
+        $resolution->notarized_file_path,
+        preg_replace('#^/?storage/#', '', (string) $resolution->notarized_file_path),
+    ])
+        ->filter()
+        ->unique()
+        ->values();
+    $resolvedNotarizedPath = $notarizedPathCandidates->first(fn ($path) => \Illuminate\Support\Facades\Storage::disk('public')->exists($path));
+    $notarizedUrl = $resolvedNotarizedPath ? route('uploads.show', ['path' => $resolvedNotarizedPath]) : null;
     $clauseText = trim((string) $resolution->resolution_body);
     $companyName = config('app.name', 'JK&C INC.');
     $meetingDate = optional($resolution->date_of_meeting)->format('F d, Y') ?: '________________';
     $notaryYear = optional($resolution->notarized_on)->format('Y') ?: now()->year;
+    $initialDraftPane = $draftUrl ? 'attachment' : 'live';
 @endphp
 
 <style>
@@ -55,7 +73,7 @@
     }
 </style>
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: 'draft', activeDraftPane: 'live' }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: 'draft', activeDraftPane: '{{ $initialDraftPane }}' }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <a href="{{ $backRoute }}" class="text-gray-500 hover:text-gray-700">

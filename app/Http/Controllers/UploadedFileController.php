@@ -10,14 +10,16 @@ class UploadedFileController extends Controller
 {
     public function show(Request $request, string $path): BinaryFileResponse
     {
-        abort_unless(Storage::disk('public')->exists($path), 404);
+        $resolvedPath = $this->resolvePath($path);
 
-        $fullPath = Storage::disk('public')->path($path);
-        $filename = basename($path);
-        $mimeType = Storage::disk('public')->mimeType($path) ?: 'application/octet-stream';
+        abort_unless($resolvedPath && Storage::disk('public')->exists($resolvedPath), 404);
+
+        $fullPath = Storage::disk('public')->path($resolvedPath);
+        $filename = basename($resolvedPath);
+        $mimeType = Storage::disk('public')->mimeType($resolvedPath) ?: 'application/octet-stream';
 
         if ($request->boolean('download')) {
-            return Storage::disk('public')->download($path, $filename, [
+            return Storage::disk('public')->download($resolvedPath, $filename, [
                 'Content-Type' => $mimeType,
             ]);
         }
@@ -26,5 +28,21 @@ class UploadedFileController extends Controller
             'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
+    }
+
+    private function resolvePath(string $path): ?string
+    {
+        $candidates = array_values(array_filter(array_unique([
+            ltrim($path, '/'),
+            preg_replace('#^/?storage/#', '', ltrim($path, '/')),
+        ])));
+
+        foreach ($candidates as $candidate) {
+            if (Storage::disk('public')->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }
