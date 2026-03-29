@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\SyncsDeadlineTownHallMemo;
 use App\Models\GisRecord;
 use App\Models\NatGov;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 
 class NatGovController extends Controller
@@ -83,9 +84,40 @@ class NatGovController extends Controller
             );
         }
 
+        $uploadUrl = function (?string $path): ?string {
+            if (!$path || !Storage::disk('public')->exists($path)) {
+                return null;
+            }
+
+            $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn ($segment) => $segment !== '')));
+
+            return url('/uploads/' . implode('/', $segments));
+        };
+
+        $draftDocuments = collect($natgov->draft_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $approvedDocuments = collect($natgov->approved_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $draftOptions = $draftDocuments->map(function ($entry, $index) use ($uploadUrl) {
+            return [
+                'url' => $uploadUrl($entry['path']),
+                'label' => $entry['name'] ?? ('Draft Revision ' . ($index + 1)),
+                'uploaded_at' => $entry['uploaded_at'] ?? null,
+            ];
+        })->values()->all();
+
+        $draftUrl = $uploadUrl($natgov->document_path) ?: ($generatedDraftPath && Storage::disk('public')->exists($generatedDraftPath) ? route('uploads.show', ['path' => $generatedDraftPath]) : null);
+        $approvedUrl = $uploadUrl($natgov->approved_document_path);
+
         return view('corporate.natgov.preview', [
             'natgov' => $natgov,
-            'generatedDraftUrl' => $generatedDraftPath ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
+            'generatedDraftUrl' => $generatedDraftPath && Storage::disk('public')->exists($generatedDraftPath) ? route('uploads.show', ['path' => $generatedDraftPath]) : null,
+            'draftUrl' => $draftUrl,
+            'approvedUrl' => $approvedUrl,
+            'draftDocuments' => $draftDocuments,
+            'approvedDocuments' => $approvedDocuments,
+            'draftOptions' => $draftOptions,
+            'selectedDraftUrl' => !empty($draftOptions) ? $draftOptions[array_key_last($draftOptions)]['url'] : $draftUrl,
+            'latestDraft' => $draftDocuments->last(),
+            'latestApproved' => $approvedDocuments->last(),
             'visibleAuthorityNotes' => $this->visibleAuthorityNotes($natgov),
             'backRoute' => route('natgov'),
             'editRoute' => route('natgov.edit', $natgov),

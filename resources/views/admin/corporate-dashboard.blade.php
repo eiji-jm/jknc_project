@@ -176,7 +176,8 @@
                                 };
                             @endphp
 
-                            <tr class="border-t border-gray-200 hover:bg-gray-50"
+                            <tr class="border-t border-gray-200 hover:bg-gray-50 cursor-pointer"
+                                onclick="if (event.target.closest('a,button,form')) return; window.location='{{ $item->show_route }}';"
                                 x-show="matches({
                                     title: @js($item->title),
                                     module: @js($item->module),
@@ -225,7 +226,7 @@
                                             </form>
                                         @endif
 
-                                        @if($item->status === 'Accepted')
+                                        @if(($item->supports_actions ?? true) && $item->status === 'Accepted' && !empty($item->archive_route ?? null))
                                             <form action="{{ $item->archive_route }}" method="POST">
                                                 @csrf
                                                 <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-700 text-white hover:bg-gray-800 transition">

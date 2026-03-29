@@ -121,8 +121,15 @@ class CorporateApprovalController extends Controller
 
     private function addDocumentWorkflowItem(\Illuminate\Support\Collection $items, array $data): void
     {
+        $data += [
+            'approve_route' => null,
+            'reject_route' => null,
+            'revise_route' => null,
+            'archive_route' => null,
+            'supports_actions' => false,
+        ];
+
         $data['status'] = $this->dashboardStatusBadge($data['status'] ?? 'Submitted');
-        $data['supports_actions'] = $data['supports_actions'] ?? false;
         $data['show_route'] = $data['show_route'] ?? '#';
         $items->push((object) $data);
     }
@@ -475,7 +482,7 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
                 'status' => $status,
                 'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
-                'show_route' => route('bir-tax.preview', $row),
+                'show_route' => route('bir-tax.preview', ['birTax' => $row->id]),
             ]);
         }
 
@@ -495,7 +502,7 @@ class CorporateApprovalController extends Controller
                 'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
                 'status' => $status,
                 'approval_status' => $status === 'Accepted' ? 'Approved' : 'Pending',
-                'show_route' => route('natgov.preview', $row),
+                'show_route' => route('natgov.preview', ['natgov' => $row->id]),
             ]);
         }
 

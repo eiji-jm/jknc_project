@@ -402,13 +402,15 @@
                             Correspondence
                         </a>
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                        <a href="{{ route('bir-tax') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('bir-tax*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                             BIR & Tax
                         </a>
 
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
+                        <a href="{{ route('natgov') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('natgov*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                             NatGov
                         </a>
                     </div>

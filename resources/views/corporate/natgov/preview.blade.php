@@ -1,32 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-@php
-    $uploadUrl = function (?string $path): ?string {
-        if (!$path) {
-            return null;
-        }
-
-        $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn ($segment) => $segment !== '')));
-
-        return url('/uploads/' . implode('/', $segments));
-    };
-    $draftUrl = $natgov->document_path ? $uploadUrl($natgov->document_path) : ($generatedDraftUrl ?? null);
-    $approvedUrl = $natgov->approved_document_path ? $uploadUrl($natgov->approved_document_path) : null;
-    $draftDocuments = collect($natgov->draft_documents ?? [])->filter(fn ($entry) => !empty($entry['path']))->values();
-    $approvedDocuments = collect($natgov->approved_documents ?? [])->filter(fn ($entry) => !empty($entry['path']))->values();
-    $latestDraft = $draftDocuments->last();
-    $latestApproved = $approvedDocuments->last();
-    $draftOptions = $draftDocuments->map(function ($entry, $index) {
-        return [
-            'url' => $uploadUrl($entry['path']),
-            'label' => $entry['name'] ?? ('Draft Revision ' . ($index + 1)),
-            'uploaded_at' => $entry['uploaded_at'] ?? null,
-        ];
-    })->values();
-@endphp
-
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: '{{ $approvedUrl ? 'approved' : 'draft' }}', selectedDraftUrl: @js($draftOptions->last()['url'] ?? $draftUrl) }">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: '{{ $approvedUrl ? 'approved' : 'draft' }}', selectedDraftUrl: @js($selectedDraftUrl) }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <a href="{{ $backRoute }}" class="text-gray-500 hover:text-gray-700">
@@ -58,7 +33,7 @@
                             <div class="text-xs text-slate-500">Choose any saved draft revision to review it here.</div>
                         </div>
                     </div>
-                    @if ($draftOptions->count() > 1)
+                    @if (!empty($draftOptions) && count($draftOptions) > 1)
                         <div class="mt-3">
                             <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Draft Revision Selector</label>
                             <select x-model="selectedDraftUrl" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
