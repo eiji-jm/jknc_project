@@ -255,6 +255,14 @@ HTML;
     $generatedNoticePaneUrl = 'data:text/html;charset=UTF-8,' . rawurlencode($generatedNoticePane);
 @endphp
 
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            @include('corporate.partials.section-ribbon', ['activeTab' => 'notices', 'topButtonLabel' => 'Add Notice'])
+        </div>
+    </div>
+</div>
+
 <style>
     @media print {
         body * {

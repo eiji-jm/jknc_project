@@ -10,6 +10,14 @@
     $companyAddress = '3RD FLOOR, UNIT 305 CEBU HOLDINGS CENTER CARDINAL ROSALES AVE., CEBU BUSINESS PARK HIPPODROMO, CEBU CITY, 6000';
 @endphp
 
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            @include('corporate.partials.section-ribbon', ['activeTab' => 'notices', 'topButtonLabel' => 'Add Notice'])
+        </div>
+    </div>
+</div>
+
 <style>
     .rich-editor[contenteditable="true"][data-placeholder]:empty::before {
         content: attr(data-placeholder);

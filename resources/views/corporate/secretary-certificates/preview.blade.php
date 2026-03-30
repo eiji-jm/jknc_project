@@ -13,6 +13,14 @@
     $certificateBody = $certificate->resolution_body ?: ($certificate->resolution?->resolution_body ?: ('Certified from Minutes Ref. ' . ($certificate->minutes_ref ?: ($certificate->minute?->minutes_ref ?: '________________')) . '.'));
 @endphp
 
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            @include('corporate.partials.section-ribbon', ['activeTab' => 'secretary', 'topButtonLabel' => 'Add Certificate'])
+        </div>
+    </div>
+</div>
+
 <style>
     .secretary-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
         content: attr(data-placeholder);
