@@ -9,32 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('townhall_communications', function (Blueprint $table) {
-            $expiresAfter = Schema::hasColumn('townhall_communications', 'ack_deadline_at')
-                ? 'ack_deadline_at'
-                : null;
-
             if (!Schema::hasColumn('townhall_communications', 'expires_at')) {
-                $expiresColumn = $table->dateTime('expires_at')->nullable();
-
-                if ($expiresAfter) {
-                    $expiresColumn->after($expiresAfter);
-                }
+                $table->dateTime('expires_at')->nullable();
             }
 
             if (!Schema::hasColumn('townhall_communications', 'is_archived')) {
-                $archivedColumn = $table->boolean('is_archived')->default(false);
-
-                if (Schema::hasColumn('townhall_communications', 'expires_at')) {
-                    $archivedColumn->after('expires_at');
-                }
+                $table->boolean('is_archived')->default(false);
             }
 
             if (!Schema::hasColumn('townhall_communications', 'archived_at')) {
-                $archivedAtColumn = $table->dateTime('archived_at')->nullable();
-
-                if (Schema::hasColumn('townhall_communications', 'is_archived')) {
-                    $archivedAtColumn->after('is_archived');
-                }
+                $table->dateTime('archived_at')->nullable();
             }
         });
     }
@@ -42,16 +26,22 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('townhall_communications', function (Blueprint $table) {
+            $columnsToDrop = [];
+
             if (Schema::hasColumn('townhall_communications', 'archived_at')) {
-                $table->dropColumn('archived_at');
+                $columnsToDrop[] = 'archived_at';
             }
 
             if (Schema::hasColumn('townhall_communications', 'is_archived')) {
-                $table->dropColumn('is_archived');
+                $columnsToDrop[] = 'is_archived';
             }
 
             if (Schema::hasColumn('townhall_communications', 'expires_at')) {
-                $table->dropColumn('expires_at');
+                $columnsToDrop[] = 'expires_at';
+            }
+
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
             }
         });
     }
