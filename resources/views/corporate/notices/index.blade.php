@@ -16,9 +16,122 @@
         color: #94a3b8;
         pointer-events: none;
     }
+
+    .notice-preview-body,
+    .notice-preview-body * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
+    .notice-preview-body p,
+    .notice-preview-body div,
+    .notice-preview-body span,
+    .notice-preview-body li,
+    .notice-preview-body ul,
+    .notice-preview-body ol,
+    .notice-preview-body pre,
+    .notice-preview-body code,
+    .notice-preview-body blockquote {
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
+    .notice-preview-body table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+    }
+
+    .notice-preview-body td,
+    .notice-preview-body th {
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        vertical-align: top !important;
+        border: 1px solid #111827 !important;
+        padding: 8px !important;
+    }
+
+    .notice-preview-body img,
+    .notice-preview-body iframe,
+    .notice-preview-body embed,
+    .notice-preview-body object,
+    .notice-preview-body video {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    .rich-editor {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
+    .rich-editor,
+    .rich-editor * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
+    .rich-editor p,
+    .rich-editor div,
+    .rich-editor span,
+    .rich-editor li,
+    .rich-editor ul,
+    .rich-editor ol,
+    .rich-editor pre,
+    .rich-editor code,
+    .rich-editor blockquote {
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+    }
+
+    .rich-editor table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+    }
+
+    .rich-editor td,
+    .rich-editor th {
+        max-width: 100% !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        vertical-align: top !important;
+        border: 1px solid #111827 !important;
+        padding: 8px !important;
+    }
+
+    .rich-editor img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
 </style>
 
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="noticeComposer(@js(route('corporate-document-defaults')), @js($nextNoticeNumber ?? ''))" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4"
+    x-data="noticeComposer(@js(route('corporate-document-defaults')), @js($nextNoticeNumber ?? ''))"
+    @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
             <div class="text-lg font-semibold">Notices of Meeting</div>
@@ -81,6 +194,7 @@
 
     <div x-cloak>
         <div x-show="showAddPanel" class="fixed inset-0 bg-black/40 z-40" @click="showAddPanel = false"></div>
+
         <div x-show="showAddPanel"
             class="fixed inset-y-0 right-0 w-full max-w-[96rem] bg-white shadow-2xl z-50 flex flex-col"
             x-transition:enter="transform transition ease-in-out duration-200"
@@ -111,8 +225,9 @@
                             <div class="text-sm font-semibold text-slate-900">Live Notice Preview</div>
                             <div class="mt-1 text-xs text-slate-500">This updates in real time from the slider and uses the same company notice layout as the saved preview.</div>
                         </div>
+
                         <div class="flex-1 overflow-auto p-10">
-                            <div class="mx-auto min-h-full max-w-[920px] bg-white px-16 py-14 text-[15px] leading-8 text-slate-900 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+                            <div class="mx-auto min-h-full max-w-[920px] bg-white px-16 py-14 text-[15px] leading-8 text-slate-900 shadow-[0_18px_50px_rgba(15,23,42,0.08)] overflow-hidden">
                                 <div class="text-center leading-6">
                                     <div class="text-[17px] font-bold uppercase tracking-[0.04em]">{{ $companyName }}</div>
                                     <div class="text-[14px] font-bold">COMPANY REG. NO.: {{ $companyRegNo }}</div>
@@ -130,7 +245,7 @@
                                     <p class="font-bold" x-text="livePreviewIntro"></p>
                                     <div class="mt-5">
                                         <div class="font-semibold">Agenda:</div>
-                                        <div class="mt-2" x-html="livePreviewBody"></div>
+                                        <div class="mt-2 notice-preview-body" x-html="livePreviewBody"></div>
                                     </div>
                                 </div>
 
@@ -141,13 +256,13 @@
                                 </div>
 
                                 <div class="mt-16 flex items-end justify-between gap-6 border-t border-slate-200 pt-4 text-[11px] leading-4 text-slate-600">
-                                    <div>
-                                        <div class="font-bold uppercase" x-text="livePreviewFooterTitle"></div>
+                                    <div class="min-w-0">
+                                        <div class="font-bold uppercase break-words" x-text="livePreviewFooterTitle"></div>
                                         <div>{{ $companyName }}</div>
                                         <div>Company Reg. No.: {{ $companyRegNo }}</div>
                                         <div>{{ $companyAddress }}</div>
                                     </div>
-                                    <div class="font-bold">Page 1 of 1</div>
+                                    <div class="font-bold shrink-0">Page 1 of 1</div>
                                 </div>
                             </div>
                         </div>
@@ -188,6 +303,7 @@
                                         <div class="text-sm font-semibold text-gray-900">Notice Body Builder</div>
                                         <div class="mt-1 text-xs text-gray-500">Write the body here with formatting tools. The saved notice preview will use this exact builder content.</div>
                                     </div>
+
                                     <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-3 bg-white">
                                         <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" @change="applyFormat('fontName', $event.target.value)">
                                             <option value="">Font</option>
@@ -196,6 +312,7 @@
                                             <option value="Georgia">Georgia</option>
                                             <option value="Verdana">Verdana</option>
                                         </select>
+
                                         <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" @change="applyFormat('fontSize', $event.target.value)">
                                             <option value="">Size</option>
                                             <option value="2">12</option>
@@ -203,6 +320,7 @@
                                             <option value="4">16</option>
                                             <option value="5">18</option>
                                         </select>
+
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold" @click="applyFormat('bold')">B</button>
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs italic" @click="applyFormat('italic')">I</button>
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs underline" @click="applyFormat('underline')">U</button>
@@ -211,8 +329,9 @@
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyFormat('justifyLeft')">Left</button>
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyFormat('justifyCenter')">Center</button>
                                         <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyFormat('justifyRight')">Right</button>
-                                        <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="applyFormat('removeFormat')">Clear</button>
+                                        <button type="button" class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs" @click="clearEditor()">Clear</button>
                                     </div>
+
                                     <div
                                         x-ref="editor"
                                         contenteditable="true"
@@ -220,7 +339,9 @@
                                         class="rich-editor min-h-[360px] w-full overflow-y-auto bg-white p-4 text-sm leading-7 outline-none"
                                         @focus="bodyMode = 'builder'"
                                         @input="bodyMode = 'builder'; syncBody()"
+                                        @paste="handlePaste($event)"
                                     ></div>
+
                                     <input x-ref="bodyField" :value="bodyHtml" type="hidden" name="body_html">
                                 </div>
 
@@ -271,7 +392,9 @@
                                         <label class="text-xs text-gray-600">Meeting Location</label>
                                         <p class="mt-1 text-xs text-gray-500">Fill in the venue details below. These will be combined into the saved location field.</p>
                                     </div>
+
                                     <input type="hidden" name="location" x-ref="locationField">
+
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="text-xs text-gray-600">1. Venue Name</label>
@@ -298,12 +421,12 @@
                                             <input type="text" x-model="locationParts.country" @input="syncLocation()" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Philippines">
                                         </div>
                                     </div>
+
                                     <div>
                                         <label class="text-xs text-gray-600">Saved Location Preview</label>
                                         <div class="mt-1 rounded-md border border-dashed border-gray-300 bg-white px-3 py-2 text-sm text-gray-700" x-text="locationPreview || 'Location will be generated from the fields above.'"></div>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
@@ -348,23 +471,29 @@
             },
             locationPreview: '',
             defaultBodyText: @js($defaultNoticeBodyText),
+
             openPanel() {
                 this.showAddPanel = true;
                 this.$nextTick(() => {
                     if (this.$refs.noticeNumber) {
                         this.$refs.noticeNumber.value = this.initialNoticeNumber || this.$refs.noticeNumber.value || '';
                     }
+
                     this.bodyMode = 'builder';
                     this.bodyHtml = '';
+
                     if (this.$refs.editor) {
-                        this.$refs.editor.innerHTML = '';
+                        this.$refs.editor.innerHTML = '<p><br></p>';
+                        this.normalizeEditorDom(this.$refs.editor);
                     }
+
                     this.loadDefaults();
                     this.syncBody();
                     this.syncLocation();
                     this.syncLivePreview();
                 });
             },
+
             async loadDefaults() {
                 if (!this.defaultsEndpoint) {
                     return;
@@ -384,13 +513,38 @@
                     // ignore defaults errors
                 }
             },
+
+            handlePaste() {
+                setTimeout(() => {
+                    this.syncBody();
+                }, 0);
+            },
+
+            clearEditor() {
+                if (!this.$refs.editor) {
+                    return;
+                }
+
+                this.$refs.editor.innerHTML = '<p><br></p>';
+                this.syncBody();
+            },
+
             syncBody() {
-                this.bodyHtml = this.normalizeEditorHtml(this.$refs.editor?.innerHTML || '');
+                if (!this.$refs.editor) {
+                    this.bodyHtml = '';
+                    this.syncLivePreview();
+                    return;
+                }
+
+                this.normalizeEditorDom(this.$refs.editor);
+                this.bodyHtml = this.normalizeEditorHtml(this.$refs.editor.innerHTML || '');
                 this.syncLivePreview();
             },
+
             prepareSubmit() {
                 this.syncBody();
             },
+
             applyFormat(command, value = null) {
                 if (!this.$refs.editor) {
                     return;
@@ -399,16 +553,100 @@
                 this.bodyMode = 'builder';
                 this.$refs.editor.focus();
                 document.execCommand(command, false, value);
-                this.syncBody();
+
+                this.$nextTick(() => {
+                    this.syncBody();
+                });
             },
+
+            normalizeEditorDom(root) {
+                if (!root) return;
+
+                root.querySelectorAll('*').forEach((el) => {
+                    el.style.maxWidth = '100%';
+                    el.style.boxSizing = 'border-box';
+                    el.style.whiteSpace = 'normal';
+                    el.style.overflowWrap = 'anywhere';
+                    el.style.wordWrap = 'break-word';
+                    el.style.wordBreak = 'break-word';
+
+                    if (el.tagName === 'TABLE') {
+                        el.style.width = '100%';
+                        el.style.maxWidth = '100%';
+                        el.style.tableLayout = 'fixed';
+                        el.style.borderCollapse = 'collapse';
+                    }
+
+                    if (el.tagName === 'TD' || el.tagName === 'TH') {
+                        el.style.border = el.style.border || '1px solid #111827';
+                        el.style.padding = el.style.padding || '8px';
+                        el.style.verticalAlign = 'top';
+                        el.style.whiteSpace = 'normal';
+                        el.style.overflowWrap = 'anywhere';
+                        el.style.wordWrap = 'break-word';
+                        el.style.wordBreak = 'break-word';
+                    }
+
+                    if (el.tagName === 'IMG') {
+                        el.style.maxWidth = '100%';
+                        el.style.height = 'auto';
+                    }
+
+                    el.removeAttribute('width');
+                });
+
+                if ((root.innerHTML || '').trim() === '') {
+                    root.innerHTML = '<p><br></p>';
+                }
+            },
+
             normalizeEditorHtml(html) {
-                const normalized = String(html ?? '')
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = String(html ?? '');
+
+                wrapper.querySelectorAll('script').forEach((el) => el.remove());
+
+                wrapper.querySelectorAll('*').forEach((el) => {
+                    el.style.maxWidth = '100%';
+                    el.style.boxSizing = 'border-box';
+                    el.style.whiteSpace = 'normal';
+                    el.style.overflowWrap = 'anywhere';
+                    el.style.wordWrap = 'break-word';
+                    el.style.wordBreak = 'break-word';
+
+                    if (el.tagName === 'TABLE') {
+                        el.style.width = '100%';
+                        el.style.maxWidth = '100%';
+                        el.style.tableLayout = 'fixed';
+                        el.style.borderCollapse = 'collapse';
+                    }
+
+                    if (el.tagName === 'TD' || el.tagName === 'TH') {
+                        el.style.border = '1px solid #111827';
+                        el.style.padding = '8px';
+                        el.style.verticalAlign = 'top';
+                        el.style.whiteSpace = 'normal';
+                        el.style.overflowWrap = 'anywhere';
+                        el.style.wordWrap = 'break-word';
+                        el.style.wordBreak = 'break-word';
+                    }
+
+                    if (el.tagName === 'IMG') {
+                        el.style.maxWidth = '100%';
+                        el.style.height = 'auto';
+                    }
+
+                    el.removeAttribute('width');
+                });
+
+                const normalized = wrapper.innerHTML
                     .replace(/<div><br><\/div>/gi, '')
-                    .replace(/<p><br><\/p>/gi, '')
+                    .replace(/<p><br><\/p>/gi, '<p>&nbsp;</p>')
                     .trim();
 
-                return normalized;
+                return normalized || '<p>&nbsp;</p>';
             },
+
             syncLivePreview() {
                 const governingBodyField = document.querySelector('select[name="governing_body"]');
                 const meetingTypeField = document.querySelector('select[name="type_of_meeting"]');
@@ -421,6 +659,7 @@
                 const meetingDate = meetingDateField?.value || '';
                 const meetingTime = meetingTimeField?.value || '';
                 const secretary = secretaryField?.value || 'Corporate Secretary';
+
                 const recipientLabel = governingBody === 'Stockholders'
                     ? 'ALL STOCKHOLDERS'
                     : (governingBody === 'Joint Stockholders and Board of Directors'
@@ -430,8 +669,10 @@
                 const formattedDate = meetingDate
                     ? new Date(`${meetingDate}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })
                     : '________________';
+
                 const formattedTime = meetingTime || '________________';
                 const meetingTitle = `${meetingType} ${governingBody} Meeting`.toUpperCase();
+
                 this.livePreviewTitle = `NOTICE AND AGENDA OF THE ${meetingTitle}`;
                 this.livePreviewFooterTitle = `NOTICE FOR ${meetingTitle}`;
                 this.livePreviewRecipient = recipientLabel;
@@ -440,6 +681,7 @@
                 this.livePreviewBody = this.bodyHtml || '<p style="color:#94a3b8;">Start typing the notice body to preview it here.</p>';
                 this.livePreviewSecretary = secretary;
             },
+
             syncLocation() {
                 const parts = [
                     this.locationParts.venue,
@@ -448,7 +690,9 @@
                     this.locationParts.city,
                     this.locationParts.province,
                     this.locationParts.country || 'Philippines',
-                ].map((value) => (value || '').trim()).filter(Boolean);
+                ]
+                .map((value) => (value || '').trim())
+                .filter(Boolean);
 
                 this.locationPreview = parts.join(', ');
 
