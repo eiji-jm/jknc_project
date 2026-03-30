@@ -27,6 +27,15 @@ class GisController extends Controller
             && in_array($gis->workflow_status, ['Uploaded', 'Reverted']);
     }
 
+    private function canAccessCompanyInfo(GisRecord $gis): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $gis->submitted_by === (int) Auth::id();
+    }
+
     public function index()
     {
         if ($this->canApproveCorporate()) {
@@ -74,7 +83,7 @@ class GisController extends Controller
 
         GisRecord::create([
             'uploaded_by'       => $request->uploaded_by,
-            'submission_status' => $request->submission_status,
+            'submission_status' => $isApprover ? 'Submitted' : 'Uploaded',
             'receive_on'        => $request->receive_on,
             'period_date'       => $request->period_date,
             'company_reg_no'    => $request->company_reg_no,
@@ -109,8 +118,8 @@ class GisController extends Controller
     {
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canAccessCompanyInfo($gis)) {
+            abort(403, 'Unauthorized');
         }
 
         return view('corporate.company-general-information', compact('gis'));
@@ -142,8 +151,8 @@ class GisController extends Controller
 
         $gis = GisRecord::findOrFail($id);
 
-        if ($gis->approval_status !== 'Approved' && !$this->canApproveCorporate()) {
-            abort(403, 'This record is still pending approval.');
+        if (!$this->canEditRecord($gis) && !$this->canApproveCorporate()) {
+            abort(403, 'This record can no longer be edited.');
         }
 
         $gis->update([
@@ -262,13 +271,14 @@ class GisController extends Controller
         }
 
         if (empty($gis->file) || empty($gis->notary_file_path)) {
-            return back()->with('success', 'You must upload both Draft and Notary files before submitting.');
+            return back()->with('error', 'You must upload both Draft and Notary files before submitting.');
         }
 
         $gis->update([
-            'workflow_status' => 'Submitted',
-            'approval_status' => 'Pending',
-            'review_note'     => null,
+            'submission_status' => 'Submitted',
+            'workflow_status'   => 'Submitted',
+            'approval_status'   => 'Pending',
+            'review_note'       => null,
         ]);
 
         return back()->with('success', 'GIS submitted for approval.');
