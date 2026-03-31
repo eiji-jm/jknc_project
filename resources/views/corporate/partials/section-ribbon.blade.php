@@ -30,39 +30,39 @@
             this.$refs.ribbon?.scrollBy({ left: this.scrollStep(), behavior: 'smooth' });
         }
     }"
-    class="flex items-center gap-2 min-w-0 flex-1">
+    class="flex items-center justify-between gap-3 w-full min-w-0">
 
-    <button type="button"
-            class="h-9 w-9 shrink-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex items-center justify-center"
-            @click="prev()"
-            aria-label="Scroll ribbon left">
-        <i class="fas fa-chevron-left text-xs"></i>
-    </button>
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+        <button type="button"
+                class="h-9 w-9 shrink-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex items-center justify-center"
+                @click="prev()"
+                aria-label="Scroll ribbon left">
+            <i class="fas fa-chevron-left text-xs"></i>
+        </button>
 
-    <div x-ref="ribbon"
-         x-init="$nextTick(() => { $el.scrollLeft = {{ $initialScrollLeft }}; })"
-         class="min-w-0 flex-1 overflow-x-auto whitespace-nowrap flex-nowrap scroll-smooth no-scrollbar">
-        <div class="flex items-stretch min-w-max">
-            @foreach ($items as $item)
-                <a href="{{ $item['href'] }}"
-                   data-ribbon-card
-                   class="shrink-0 w-[180px] px-4 py-3 text-sm font-medium text-center border-t border-b border-r border-gray-200 first:border-l {{ $activeTab === $item['key'] ? 'bg-blue-50 text-blue-700 border-blue-500' : 'bg-white text-gray-800 hover:bg-gray-50' }}">
-                    <span class="block truncate">{{ $item['label'] }}</span>
-                </a>
-            @endforeach
+        <div x-ref="ribbon"
+             x-init="$nextTick(() => { $el.scrollLeft = {{ $initialScrollLeft }}; })"
+             class="min-w-0 flex-1 overflow-x-auto whitespace-nowrap scroll-smooth no-scrollbar">
+            <div class="flex items-stretch min-w-max">
+                @foreach ($items as $item)
+                    <a href="{{ $item['href'] }}"
+                       data-ribbon-card
+                       class="shrink-0 w-[180px] px-4 py-3 text-sm font-medium text-center border-t border-b border-r border-gray-200 first:border-l {{ $activeTab === $item['key'] ? 'bg-blue-50 text-blue-700 border-blue-500' : 'bg-white text-gray-800 hover:bg-gray-50' }}">
+                        <span class="block truncate">{{ $item['label'] }}</span>
+                    </a>
+                @endforeach
+            </div>
         </div>
+
+        <button type="button"
+                class="h-9 w-9 shrink-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex items-center justify-center"
+                @click="next()"
+                aria-label="Scroll ribbon right">
+            <i class="fas fa-chevron-right text-xs"></i>
+        </button>
     </div>
 
-    <button type="button"
-            class="h-9 w-9 shrink-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex items-center justify-center"
-            @click="next()"
-            aria-label="Scroll ribbon right">
-        <i class="fas fa-chevron-right text-xs"></i>
-    </button>
-
-    <div class="flex-1"></div>
-
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 shrink-0">
         <button class="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
             <i class="fas fa-bars text-sm"></i>
         </button>
