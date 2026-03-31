@@ -1,17 +1,22 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('ALTER TABLE minutes MODIFY recording_notes LONGTEXT NULL');
+        Schema::table('minutes', function (Blueprint $table) {
+            $table->longText('recording_notes')->nullable()->change();
+        });
     }
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE minutes MODIFY recording_notes VARCHAR(255) NULL');
+        Schema::table('minutes', function (Blueprint $table) {
+            $table->string('recording_notes')->nullable()->change();
+        });
     }
 };

@@ -37,6 +37,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\ResolutionController;
 use App\Http\Controllers\SecretaryCertificateController;
 use App\Http\Controllers\UploadedFileController;
+use App\Http\Controllers\ActivityController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -337,4 +338,40 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence', function () {
         return view('corporate.correspondence');
     })->name('correspondence');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ACTIVITIES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/activities', function () {
+        return view('activities.index');
+    })->name('activities');
+
+    Route::prefix('api')->group(function () {
+        Route::get('/activities', [ActivityController::class, 'index']);
+        Route::post('/tasks', [ActivityController::class, 'storeTask']);
+        Route::post('/events', [ActivityController::class, 'storeEvent']);
+        Route::post('/calls', [ActivityController::class, 'storeCall']);
+        Route::post('/meetings', [ActivityController::class, 'storeMeeting']);
+
+        Route::put('/tasks/{id}', [ActivityController::class, 'updateTask']);
+        Route::put('/events/{id}', [ActivityController::class, 'updateEvent']);
+        Route::put('/calls/{id}', [ActivityController::class, 'updateCall']);
+        Route::put('/meetings/{id}', [ActivityController::class, 'updateMeeting']);
+
+        Route::delete('/tasks/{id}', [ActivityController::class, 'destroyTask']);
+        Route::delete('/events/{id}', [ActivityController::class, 'destroyEvent']);
+        Route::delete('/calls/{id}', [ActivityController::class, 'destroyCall']);
+        Route::delete('/meetings/{id}', [ActivityController::class, 'destroyMeeting']);
+
+        Route::post('/notes', [ActivityController::class, 'storeNote']);
+        Route::put('/notes/{id}', [ActivityController::class, 'updateNote']);
+        Route::delete('/notes/{id}', [ActivityController::class, 'destroyNote']);
+        Route::post('/meetings/{id}/analyze', [ActivityController::class, 'analyzeMeeting']);
+        Route::post('/meetings/{id}/upload-video', [ActivityController::class, 'uploadVideo']);
+        Route::post('/calls/{id}/upload-audio', [ActivityController::class, 'uploadCallAudio']);
+        Route::delete('/calls/{id}/audio', [ActivityController::class, 'destroyCallAudio']);
+    });
 });
