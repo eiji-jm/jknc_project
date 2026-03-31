@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Http\Controllers\Concerns\HandlesUploads;
 use App\Http\Controllers\Concerns\MatchesShareholder;
+use App\Models\AuthorizedCapitalStock;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
 use App\Models\StockTransferJournal;
@@ -27,17 +28,39 @@ class StockTransferInstallmentController extends Controller
     {
         $installments = StockTransferInstallment::latest()->get();
 
+        $defaultParValue = null;
+        if (Schema::hasTable('authorized_capital_stocks')) {
+            $defaultParValue = AuthorizedCapitalStock::query()->latest()->value('par_value');
+        }
+
         $indexShareholders = StockTransferLedger::query()
             ->whereNull('journal_id')
-            ->get(['first_name', 'middle_name', 'family_name'])
-            ->map(function ($ledger) {
-                return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+            ->orderBy('family_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($ledger) use ($defaultParValue) {
+                $fullName = trim(collect([
+                    $ledger->first_name,
+                    $ledger->middle_name,
+                    $ledger->family_name,
+                ])->filter()->implode(' '));
+
+                return [
+                    'id' => $ledger->id,
+                    'name' => $fullName,
+                    'stock_number' => $ledger->certificate_no,
+                    'shares' => $ledger->shares,
+                    'par_value' => $defaultParValue,
+                ];
             })
-            ->filter()
-            ->unique()
+            ->filter(fn ($row) => !empty($row['name']))
             ->values();
 
-        return view('corporate.stock-transfer-book.installment', compact('installments', 'indexShareholders'));
+        return view('corporate.stock-transfer-book.installment', compact(
+            'installments',
+            'indexShareholders',
+            'defaultParValue'
+        ));
     }
 
     public function create()
@@ -61,51 +84,90 @@ class StockTransferInstallmentController extends Controller
         }
 
         $data = $this->validateData($request);
+        $data['document_path'] = $this->handleUpload($request, 'document_path');
+
+        $ledger = $this->resolveLedger(
+            $data['stock_number'] ?? null,
+            $data['subscriber'] ?? null
+        );
+
+        if (!$ledger) {
+            return back()->withErrors([
+                'subscriber' => 'Stockholder must exist in the Index before adding an installment.',
+            ])->withInput();
+        }
+
+        $holderName = $this->resolveHolderName($ledger, $data['subscriber'] ?? null);
+
+        $stockNumber = trim((string) ($ledger->certificate_no ?? ''));
+        if ($stockNumber === '') {
+            $stockNumber = $this->nextStockNumber();
+            $ledger->certificate_no = $stockNumber;
+            $ledger->save();
+        }
+
+        $data['stock_number'] = $stockNumber;
+        $data['subscriber'] = $holderName;
+        $data['installment_date'] = !empty($data['installment_date'])
+            ? $data['installment_date']
+            : now()->toDateString();
+
+        if (empty($data['no_shares']) && !empty($ledger->shares)) {
+            $data['no_shares'] = (int) $ledger->shares;
+        }
+
+        if ((empty($data['par_value']) || (float) $data['par_value'] <= 0) && Schema::hasTable('authorized_capital_stocks')) {
+            $latestPar = AuthorizedCapitalStock::query()->latest()->value('par_value');
+            if ($latestPar !== null) {
+                $data['par_value'] = (float) $latestPar;
+            }
+        }
+
         $data = $this->applyInstallmentFinancials($data);
+
         if (!$this->hasInstallmentParValueColumn()) {
             unset($data['par_value']);
         }
-        $mode = $data['installment_mode'];
-        $data['document_path'] = $this->handleUpload($request, 'document_path');
-        unset($data['installment_mode']);
 
         if (!$this->hasInstallmentPaymentColumns()) {
             unset($data['payment_date'], $data['payment_amount'], $data['payment_remarks']);
         }
 
-        $ledger = $this->resolveLedger($data['stock_number'] ?? null, $data['subscriber'] ?? null);
-        if (!$ledger) {
-            return back()->withErrors([
-                'stock_number' => 'Stockholder must exist in the Index before adding an installment.',
-            ])->withInput();
-        }
+        $mode = $data['installment_mode'] ?? 'stock_subscribe';
+        unset($data['installment_mode']);
 
-        $data['stock_number'] = $this->nextAvailableStockNumber($data['stock_number'] ?? null);
-        if (!$ledger->certificate_no) {
-            $ledger->certificate_no = $data['stock_number'];
-            $ledger->save();
-        }
-
-        $data['subscriber'] = $this->resolveHolderName($ledger, $data['subscriber'] ?? null);
-        $data['installment_date'] = $data['installment_date'] ?? now()->toDateString();
         $data['schedule'] = [
             'mode' => $mode,
             'installments' => $this->buildInstallmentRows($data),
         ];
-        $data['status'] = $this->determineInstallmentStatus(
-            $data['installment_date'] ?? null,
-            0.0,
-            $data['total_value'] ?? null,
-        );
+
+        $data['status'] = 'unpaid';
 
         $installment = null;
-        DB::transaction(function () use ($data, &$installment) {
+
+        DB::transaction(function () use (&$installment, $data) {
             $installment = StockTransferInstallment::create($data);
+
+            $journal = StockTransferJournal::create([
+                'entry_date' => $installment->installment_date ?? now()->toDateString(),
+                'journal_no' => $this->nextJournalNo(),
+                'ledger_folio' => $this->nextLedgerFolio(),
+                'particulars' => 'Stock subscription recorded',
+                'no_shares' => (int) ($installment->no_shares ?? 0),
+                'transaction_type' => 'Subscription',
+                'certificate_no' => $installment->stock_number,
+                'shareholder' => $installment->subscriber,
+                'remarks' => 'Auto-generated from installment subscription.',
+                'status' => 'unpaid',
+            ]);
+
+            $installment->journal_id = $journal->id;
+            $installment->save();
         });
 
         return redirect()
             ->route('stock-transfer-book.installment.show', $installment)
-            ->with('success', 'Installment plan added.');
+            ->with('success', 'Installment plan added and journal entry recorded.');
     }
 
     public function show(StockTransferInstallment $stockTransferInstallment)
@@ -266,6 +328,7 @@ class StockTransferInstallmentController extends Controller
         $data = $this->validateData($request);
         $data = $this->applyInstallmentFinancials($data, $stockTransferInstallment);
         unset($data['installment_mode']);
+
         if (!$this->hasInstallmentParValueColumn()) {
             unset($data['par_value']);
         }
@@ -275,6 +338,10 @@ class StockTransferInstallmentController extends Controller
             unset($data['payment_date'], $data['payment_amount'], $data['payment_remarks']);
         }
 
+        if (isset($data['status'])) {
+            unset($data['status']);
+        }
+
         $stockTransferInstallment->update($data);
 
         return redirect()->route('stock-transfer-book.installment')->with('success', 'Installment plan updated.');
@@ -282,7 +349,7 @@ class StockTransferInstallmentController extends Controller
 
     public function destroy(StockTransferInstallment $stockTransferInstallment)
     {
-        return $this->cancelInstallment($stockTransferInstallment);
+        return $this->cancelInstallment(request(), $stockTransferInstallment);
     }
 
     public function cancelInstallment(Request $request, StockTransferInstallment $stockTransferInstallment)
@@ -414,7 +481,7 @@ class StockTransferInstallmentController extends Controller
             'subscriber' => ['nullable', 'string', 'max:255'],
             'installment_date' => ['nullable', 'date'],
             'no_shares' => ['nullable', 'integer'],
-            'no_installments' => ['nullable', 'integer'],
+            'no_installments' => ['nullable', 'integer', 'min:1'],
             'par_value' => ['nullable', 'numeric'],
             'total_value' => ['nullable', 'numeric'],
             'installment_amount' => ['nullable', 'numeric'],
@@ -428,16 +495,27 @@ class StockTransferInstallmentController extends Controller
 
     private function resolveLedger(?string $stockNumber, ?string $subscriber): ?StockTransferLedger
     {
-        $query = StockTransferLedger::query();
-        $query->whereNull('journal_id');
-        $query->where(function ($sub) use ($stockNumber, $subscriber) {
-            if ($stockNumber) {
-                $sub->orWhere('certificate_no', $stockNumber);
-            }
-            $this->applyNameTokens($sub, $subscriber, ['first_name', 'middle_name', 'family_name']);
-        });
+        if (!empty($subscriber)) {
+            $query = StockTransferLedger::query()->whereNull('journal_id');
+            $query->where(function ($sub) use ($subscriber) {
+                $this->applyNameTokens($sub, $subscriber, ['first_name', 'middle_name', 'family_name']);
+            });
 
-        return $query->first();
+            $ledger = $query->latest()->first();
+            if ($ledger) {
+                return $ledger;
+            }
+        }
+
+        if (!empty($stockNumber)) {
+            return StockTransferLedger::query()
+                ->whereNull('journal_id')
+                ->where('certificate_no', $stockNumber)
+                ->latest()
+                ->first();
+        }
+
+        return null;
     }
 
     private function resolveInstallment(?string $stockNumber, ?string $subscriber): ?StockTransferInstallment
@@ -497,97 +575,47 @@ class StockTransferInstallmentController extends Controller
         $shares = (int) ($data['no_shares'] ?? $existingInstallment?->no_shares ?? 0);
         $installmentCount = max((int) ($data['no_installments'] ?? $existingInstallment?->no_installments ?? 0), 0);
         $parValue = $data['par_value'] ?? $existingInstallment?->par_value;
-        $installmentAmount = $data['installment_amount'] ?? $existingInstallment?->installment_amount;
 
-        if (($parValue === null || $parValue === '') && $existingInstallment) {
-            $parValue = $existingInstallment->par_value;
-        }
-
-        $parValue = $parValue === null || $parValue === '' ? null : (float) $parValue;
+        $parValue = ($parValue === null || $parValue === '') ? null : (float) $parValue;
         if ($parValue !== null) {
             $data['par_value'] = $parValue;
         }
 
         if ($shares > 0 && $parValue !== null) {
             $data['total_value'] = round($shares * $parValue, 2);
-        } elseif (!isset($data['total_value']) && $existingInstallment?->total_value !== null) {
-            $data['total_value'] = (float) $existingInstallment->total_value;
+        } else {
+            $data['total_value'] = 0;
         }
 
-        if (
-            ($installmentCount <= 0)
-            && $installmentAmount !== null
-            && $installmentAmount !== ''
-            && isset($data['total_value'])
-            && (float) $installmentAmount > 0
-            && (float) $data['total_value'] > 0
-        ) {
-            $installmentCount = max((int) round(((float) $data['total_value']) / (float) $installmentAmount), 1);
-            $data['no_installments'] = $installmentCount;
-        }
-
-        if ($installmentCount <= 0 && isset($data['total_value']) && (float) $data['total_value'] > 0) {
-            $installmentCount = 1;
-            $data['no_installments'] = 1;
-        }
-
-        if ($installmentCount > 0 && isset($data['total_value']) && $data['total_value'] !== null && $data['total_value'] !== '') {
+        if ($installmentCount > 0 && !empty($data['total_value'])) {
             $data['installment_amount'] = round(((float) $data['total_value']) / $installmentCount, 2);
-        } elseif (!isset($data['installment_amount']) && $existingInstallment?->installment_amount !== null) {
-            $data['installment_amount'] = (float) $existingInstallment->installment_amount;
+        } else {
+            $data['installment_amount'] = 0;
         }
 
         return $data;
     }
 
-    private function storePaymentOnly(array $data, array $paymentData)
-    {
-        $installment = $this->resolveInstallment($data['stock_number'] ?? null, $data['subscriber'] ?? null);
-        if (!$installment) {
-            return back()->withErrors([
-                'stock_number' => 'Choose an existing stock subscription before recording a stock payment.',
-            ])->withInput();
-        }
-
-        $ledger = $this->resolveLedger($installment->stock_number, $installment->subscriber);
-        if (!$ledger) {
-            return back()->withErrors([
-                'stock_number' => 'The selected stock subscription must still exist in the Index.',
-            ])->withInput();
-        }
-
-        if (empty($paymentData['payment_date']) || empty($paymentData['payment_amount'])) {
-            return back()->withErrors([
-                'payment_amount' => 'Payment date and amount are required for a stock payment.',
-            ])->withInput();
-        }
-
-        DB::transaction(function () use ($installment, $ledger, $paymentData) {
-            $this->recordPayment($installment, $ledger, $paymentData);
-        });
-
-        return redirect()
-            ->route('stock-transfer-book.installment.show', $installment)
-            ->with('success', 'Stock payment recorded.');
-    }
-
     private function recordPayment(StockTransferInstallment $installment, StockTransferLedger $ledger, array $paymentData): void
     {
         $schedule = $this->markNextInstallmentAsPaid($installment, $paymentData);
-        $totalPaid = (float) collect($schedule['installments'] ?? [])->sum(fn (array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0);
+        $totalPaid = (float) collect($schedule['installments'] ?? [])->sum(
+            fn (array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0
+        );
+
         $nextStatus = $this->determineInstallmentStatus(
             $installment->installment_date?->toDateString(),
             $totalPaid,
             $installment->total_value,
         );
 
-        $issuanceJournal = StockTransferJournal::create([
+        StockTransferJournal::create([
             'entry_date' => $paymentData['payment_date'],
             'journal_no' => $this->nextJournalNo(),
             'ledger_folio' => $this->nextLedgerFolio(),
-            'particulars' => 'Installment issuance posted',
-            'no_shares' => (int) ($installment->no_shares ?? 0),
-            'transaction_type' => 'Issuance',
+            'particulars' => 'Installment payment recorded',
+            'no_shares' => 0,
+            'transaction_type' => 'Payment',
             'certificate_no' => $installment->stock_number,
             'shareholder' => $installment->subscriber,
             'remarks' => $paymentData['payment_remarks'] ?: 'Auto-generated from installment payment.',
@@ -645,9 +673,7 @@ class StockTransferInstallmentController extends Controller
             }
         }
 
-        return $candidate !== ''
-            ? $candidate
-            : trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+        return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
     }
 
     private function resolvePreviewHolderName(StockTransferInstallment $installment, $relatedLedgers): string

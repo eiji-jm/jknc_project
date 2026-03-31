@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
 use App\Http\Controllers\Concerns\MatchesShareholder;
 use App\Models\AuthorizedCapitalStock;
 use App\Models\GisRecord;
-use App\Models\Stockholder;
 use App\Models\StockTransferCertificate;
 use App\Models\StockTransferInstallment;
 use App\Models\StockTransferIssuanceRequest;
 use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
-use App\Http\Controllers\Concerns\GeneratesStockTransferIds;
+use App\Models\Stockholder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Http\Request;
 
 class StockTransferLookupController extends Controller
 {
@@ -31,59 +31,18 @@ class StockTransferLookupController extends Controller
                 'ledger' => null,
                 'journal' => null,
                 'installment' => null,
+                'stockholder_record' => null,
+                'company' => null,
+                'issuance_request' => null,
             ]);
         }
 
-        $certificate = StockTransferCertificate::query()
-            ->where(function ($query) use ($key) {
-                $query->where('stock_number', $key)
-                    ->orWhere('issued_to', 'like', '%' . $key . '%')
-                    ->orWhere('stockholder_name', 'like', '%' . $key . '%');
-            })
-            ->latest()
-            ->first();
-
-        $ledger = StockTransferLedger::query()
-            ->whereNull('journal_id')
-            ->where(function ($query) use ($key) {
-                $query->where('certificate_no', $key);
-                $this->applyNameTokens($query, $key, ['first_name', 'middle_name', 'family_name']);
-            })
-            ->latest()
-            ->first();
-
-        $journal = StockTransferJournal::query()
-            ->where(function ($query) use ($key) {
-                $query->where('certificate_no', $key);
-                $this->applyNameTokens($query, $key, ['shareholder']);
-            })
-            ->latest()
-            ->first();
-
-        $installment = StockTransferInstallment::query()
-            ->where(function ($query) use ($key) {
-                $query->where('stock_number', $key);
-                $this->applyNameTokens($query, $key, ['subscriber']);
-            })
-            ->latest()
-            ->first();
-
-        $stockholderName = $installment?->subscriber
-            ?: $certificate?->stockholder_name
-            ?: ($ledger ? trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')) : null);
-
-        $hasStockholdersTable = Schema::hasTable('stockholders');
         $hasCompanyTables = Schema::hasTable('gis_records');
         $hasAuthorizedCapitalTable = Schema::hasTable('authorized_capital_stocks');
-
-        $stockholderRecord = null;
-        if ($hasStockholdersTable && $stockholderName) {
-            $stockholderQuery = Stockholder::query();
-            $this->applyNameTokens($stockholderQuery, $stockholderName, ['stockholder_name']);
-            $stockholderRecord = $stockholderQuery->latest()->first();
-        }
+        $hasStockholdersTable = Schema::hasTable('stockholders');
 
         $latestCompany = $hasCompanyTables ? GisRecord::query()->latest()->first() : null;
+
         $parValue = $hasAuthorizedCapitalTable
             ? AuthorizedCapitalStock::query()->latest()->value('par_value')
             : null;
@@ -94,9 +53,76 @@ class StockTransferLookupController extends Controller
                 ?? optional($latestCompany?->paidUpCapital()->latest()->first())->par_value;
         }
 
+        $ledger = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->where(function ($query) use ($key) {
+                if ($key !== '') {
+                    $query->orWhere('certificate_no', $key);
+                    $this->applyNameTokens($query, $key, ['first_name', 'middle_name', 'family_name']);
+                }
+            })
+            ->latest()
+            ->first();
+
+        $installment = StockTransferInstallment::query()
+            ->where(function ($query) use ($key, $ledger) {
+                if ($key !== '') {
+                    $query->orWhere('stock_number', $key);
+                }
+
+                if ($ledger) {
+                    $fullName = trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+                    $this->applyNameTokens($query, $fullName, ['subscriber']);
+                } else {
+                    $this->applyNameTokens($query, $key, ['subscriber']);
+                }
+            })
+            ->latest()
+            ->first();
+
+        $certificate = StockTransferCertificate::query()
+            ->where(function ($query) use ($key, $ledger) {
+                if ($key !== '') {
+                    $query->orWhere('stock_number', $key)
+                        ->orWhere('issued_to', 'like', '%' . $key . '%')
+                        ->orWhere('stockholder_name', 'like', '%' . $key . '%');
+                }
+
+                if ($ledger && $ledger->certificate_no) {
+                    $query->orWhere('stock_number', $ledger->certificate_no);
+                }
+            })
+            ->latest()
+            ->first();
+
+        $journal = StockTransferJournal::query()
+            ->where(function ($query) use ($key, $ledger) {
+                if ($key !== '') {
+                    $query->orWhere('certificate_no', $key);
+                    $this->applyNameTokens($query, $key, ['shareholder']);
+                }
+
+                if ($ledger && $ledger->certificate_no) {
+                    $query->orWhere('certificate_no', $ledger->certificate_no);
+                }
+            })
+            ->latest()
+            ->first();
+
+        $stockholderName = $ledger
+            ? trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '))
+            : ($installment?->subscriber ?: $certificate?->stockholder_name);
+
+        $stockholderRecord = null;
+        if ($hasStockholdersTable && $stockholderName) {
+            $stockholderQuery = Stockholder::query();
+            $this->applyNameTokens($stockholderQuery, $stockholderName, ['stockholder_name']);
+            $stockholderRecord = $stockholderQuery->latest()->first();
+        }
+
         $amount = $installment?->total_value
             ?? $certificate?->amount
-            ?? (($installment?->no_shares && $parValue) ? ((float) $installment->no_shares * (float) $parValue) : null);
+            ?? (($ledger?->shares && $parValue) ? ((float) $ledger->shares * (float) $parValue) : null);
 
         $requestRecord = Schema::hasTable('stock_transfer_issuance_requests')
             ? StockTransferIssuanceRequest::query()
@@ -116,11 +142,11 @@ class StockTransferLookupController extends Controller
                 'par_value' => $certificate->par_value ?: $parValue,
                 'number' => $certificate->number,
                 'amount' => $certificate->amount ?: $amount,
-                'amount_in_words' => $certificate->amount_in_words ?: $this->amountToWords($amount),
                 'date_issued' => optional($certificate->date_issued)->toDateString(),
                 'president' => $certificate->president,
                 'corporate_secretary' => $certificate->corporate_secretary,
             ] : null,
+
             'ledger' => $ledger ? [
                 'family_name' => $ledger->family_name,
                 'first_name' => $ledger->first_name,
@@ -136,6 +162,7 @@ class StockTransferLookupController extends Controller
                 'date_registered' => optional($ledger->date_registered)->toDateString(),
                 'status' => $ledger->status,
             ] : null,
+
             'journal' => $journal ? [
                 'entry_date' => optional($journal->entry_date)->toDateString(),
                 'journal_no' => $journal->journal_no,
@@ -147,12 +174,11 @@ class StockTransferLookupController extends Controller
                 'shareholder' => $journal->shareholder,
                 'remarks' => $journal->remarks,
             ] : null,
+
             'installment' => $installment ? [
                 'stock_number' => $installment->stock_number,
                 'subscriber' => $installment->subscriber,
-                'holder_name' => $stockholderRecord?->stockholder_name
-                    ?: $installment->subscriber
-                    ?: ($ledger ? trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')) : null),
+                'holder_name' => $installment->subscriber ?: $stockholderName,
                 'installment_date' => optional($installment->installment_date)->toDateString(),
                 'no_shares' => $installment->no_shares,
                 'no_installments' => $installment->no_installments,
@@ -163,8 +189,8 @@ class StockTransferLookupController extends Controller
                 'payment_total' => $installment->paymentTotal(),
                 'payment_count' => $installment->paymentCount(),
                 'mode' => $installment->installmentMode(),
-                'amount_in_words' => $this->amountToWords($installment->total_value),
             ] : null,
+
             'stockholder_record' => $stockholderRecord ? [
                 'stockholder_name' => $stockholderRecord->stockholder_name,
                 'shares' => $stockholderRecord->shares,
@@ -172,13 +198,14 @@ class StockTransferLookupController extends Controller
                 'amount_paid' => $stockholderRecord->amount_paid,
                 'tin' => $stockholderRecord->tin,
             ] : null,
+
             'company' => $latestCompany ? [
                 'corporation_name' => $latestCompany->corporation_name,
                 'company_reg_no' => $latestCompany->company_reg_no,
                 'par_value' => $parValue,
                 'computed_amount' => $amount,
-                'computed_amount_in_words' => $this->amountToWords($amount),
             ] : null,
+
             'issuance_request' => $requestRecord ? [
                 'reference_no' => $requestRecord->reference_no,
                 'requested_at' => optional($requestRecord->requested_at)->format('Y-m-d\TH:i'),
@@ -190,52 +217,6 @@ class StockTransferLookupController extends Controller
                 'status' => $requestRecord->status,
             ] : null,
         ]);
-    }
-
-    private function amountToWords($amount): ?string
-    {
-        if ($amount === null || $amount === '') {
-            return null;
-        }
-
-        $amount = round((float) $amount, 2);
-        $whole = (int) floor($amount);
-        $cents = (int) round(($amount - $whole) * 100);
-
-        $words = $this->integerToWords($whole) . ' Pesos';
-        if ($cents > 0) {
-            $words .= ' and ' . $this->integerToWords($cents) . ' Centavos';
-        }
-
-        return $words . ' Only';
-    }
-
-    private function integerToWords(int $number): string
-    {
-        $ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-        $tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-        if ($number < 20) {
-            return $number === 0 ? 'Zero' : $ones[$number];
-        }
-
-        if ($number < 100) {
-            return trim($tens[intdiv($number, 10)] . ' ' . $ones[$number % 10]);
-        }
-
-        if ($number < 1000) {
-            return trim($ones[intdiv($number, 100)] . ' Hundred ' . $this->integerToWords($number % 100));
-        }
-
-        if ($number < 1000000) {
-            return trim($this->integerToWords(intdiv($number, 1000)) . ' Thousand ' . $this->integerToWords($number % 1000));
-        }
-
-        if ($number < 1000000000) {
-            return trim($this->integerToWords(intdiv($number, 1000000)) . ' Million ' . $this->integerToWords($number % 1000000));
-        }
-
-        return trim($this->integerToWords(intdiv($number, 1000000000)) . ' Billion ' . $this->integerToWords($number % 1000000000));
     }
 
     public function defaults()

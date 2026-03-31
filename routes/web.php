@@ -167,7 +167,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
 
     Route::get('/stock-transfer-book', function () {
-        return redirect()->route('stock-transfer-book.journal');
+        return redirect()->route('stock-transfer-book.index');
     })->name('stock-transfer-book');
 
     Route::get('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'index'])->name('stock-transfer-book.ledger');
