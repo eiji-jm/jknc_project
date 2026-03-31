@@ -9,15 +9,23 @@
             (int) ($entry->id ?? 0)
         ))
         ->values();
+
     $isIssuanceSheet = strtolower((string) ($journal->transaction_type ?? '')) !== 'cancellation';
+
     $sheetRows = $historyRows
         ->filter(fn ($entry) => $isIssuanceSheet
             ? strtolower((string) ($entry->transaction_type ?? '')) !== 'cancellation'
             : strtolower((string) ($entry->transaction_type ?? '')) === 'cancellation')
         ->take(26)
         ->values();
+
     $blankRows = max(26 - $sheetRows->count(), 0);
     $runningTotal = 0;
+
+    $baseCertificateNo = $journal->certificate_no ?? null;
+    $baseSubscriptionShares = collect($relatedInstallments ?? [])
+        ->filter(fn ($installment) => ($installment->stock_number ?? null) === $baseCertificateNo)
+        ->sum(fn ($installment) => (int) ($installment->no_shares ?? 0));
 @endphp
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
@@ -83,14 +91,25 @@
                                     <tbody class="text-gray-900">
                                         @foreach ($sheetRows as $entry)
                                             @php
-                                                $runningTotal += $isIssuanceSheet ? (int) ($entry->no_shares ?? 0) : 0;
-                                            @endphp
+    $entryType = strtolower((string) ($entry->transaction_type ?? ''));
+    $isShareAddingEntry = $isIssuanceSheet
+        && (
+            str_contains(strtolower((string) ($entry->particulars ?? '')), 'subscription')
+            || str_contains(strtolower((string) ($entry->remarks ?? '')), 'subscription')
+        );
+
+    if ($isShareAddingEntry) {
+        $runningTotal += (int) ($entry->no_shares ?? 0);
+    } elseif ($runningTotal === 0 && $baseSubscriptionShares > 0) {
+        $runningTotal = (int) $baseSubscriptionShares;
+    }
+@endphp
                                             <tr>
                                                 @if ($isIssuanceSheet)
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->shareholder ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->ledger_folio ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->certificate_no ?? '' }}</td>
-                                                    <td class="border border-gray-300 px-2 py-2">{{ $entry->no_shares ?? '' }}</td>
+                                                    <td class="border border-gray-300 px-2 py-2">{{ $isShareAddingEntry ? ($entry->no_shares ?? '') : '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $runningTotal }}</td>
                                                     <td class="border border-gray-300 px-2 py-2"></td>
                                                 @else
@@ -98,7 +117,7 @@
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->shareholder ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->ledger_folio ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->certificate_no ?? '' }}</td>
-                                                    <td class="border border-gray-300 px-2 py-2">{{ $entry->no_shares ?? '' }}</td>
+                                                    <td class="border border-gray-300 px-2 py-2">{{ $isShareAddingEntry ? ($entry->no_shares ?? '') : '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2"></td>
                                                 @endif
                                             </tr>

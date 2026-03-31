@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false, autoStockNumber: true }" @keydown.escape.window="showAddPanel = false">
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4">
             <a href="{{ route('stock-transfer-book') }}" class="text-gray-500 hover:text-gray-700">
@@ -52,10 +52,10 @@
                                 <td class="px-4 py-3">{{ optional($installment->installment_date)->format('M d, Y') }}</td>
                                 <td class="px-4 py-3">{{ $installment->no_shares }}</td>
                                 <td class="px-4 py-3">{{ $installment->no_installments }}</td>
-                                <td class="px-4 py-3">{{ $installment->total_value }}</td>
+                                <td class="px-4 py-3">{{ number_format((float) $installment->total_value, 2) }}</td>
                                 <td class="px-4 py-3">
                                     @php
-                                        $status = strtolower((string) ($installment->payment_status ?? 'unpaid'));
+                                        $status = strtolower((string) ($installment->payment_status ?? $installment->status ?? 'unpaid'));
                                         $statusClasses = match ($status) {
                                             'paid' => 'bg-green-100 text-green-800',
                                             'partial' => 'bg-blue-100 text-blue-800',
@@ -95,62 +95,132 @@
             <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
                 <div class="text-lg font-semibold">Add Installment Plan</div>
                 <div class="flex-1"></div>
-                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false">
+                <button class="text-gray-500 hover:text-gray-700" @click="showAddPanel = false" type="button">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
+
             <form method="POST" action="{{ route('stock-transfer-book.installment.store') }}" enctype="multipart/form-data" class="p-6 overflow-y-auto space-y-4">
                 @csrf
                 <input type="hidden" name="installment_mode" value="stock_subscribe">
+                <input type="hidden" name="status" value="unpaid">
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-4">
                         <div class="text-sm font-semibold text-gray-900 mb-3">Stock Subscribed</div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="text-xs text-gray-600">Holder</label>
+                                <select
+                                    name="subscriber"
+                                    id="holderSelect"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                    required
+                                >
+                                    <option value="">Select holder from Index</option>
+                                    @foreach (($indexShareholders ?? []) as $holder)
+                                        <option
+                                            value="{{ $holder['name'] }}"
+                                            data-stock-number="{{ $holder['stock_number'] }}"
+                                            data-shares="{{ $holder['shares'] }}"
+                                            data-par-value="{{ $holder['par_value'] }}"
+                                        >
+                                            {{ $holder['name'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-[11px] text-gray-500">This should come from Index.</p>
+                            </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">Stock Number</label>
-                                <input type="text" name="stock_number" list="installment-stock-numbers" data-autofill-key data-autofill-field="stock_number" data-default-field="stock_number" x-bind:readonly="autoStockNumber" x-bind:class="autoStockNumber ? 'bg-gray-50' : 'bg-white'" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="STK-0001">
-                                <label class="mt-2 inline-flex items-center gap-2 text-xs text-gray-700">
-                                    <input type="checkbox" x-model="autoStockNumber" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span>Auto-increment stock number</span>
-                                </label>
+                                <input
+                                    type="text"
+                                    name="stock_number"
+                                    id="stockNumberInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                                    placeholder="Auto-filled from Index"
+                                    readonly
+                                >
                             </div>
+
                             <div>
-                                <label class="text-xs text-gray-600">Holder</label>
-                                <input type="text" name="subscriber" list="index-shareholders" data-autofill-field="subscriber" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="Holder name">
+                                <label class="text-xs text-gray-600">Date Subscribed</label>
+                                <input
+                                    type="date"
+                                    name="installment_date"
+                                    id="installmentDateInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                >
                             </div>
-                            <div>
-                                <label class="text-xs text-gray-600">Date</label>
-                                <input type="date" name="installment_date" data-autofill-field="installment_date" data-default-field="today" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                            </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">No. Shares</label>
-                                <input type="number" name="no_shares" data-autofill-field="no_shares" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="1000">
+                                <input
+                                    type="number"
+                                    name="no_shares"
+                                    id="sharesInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                    placeholder="Auto-filled from Index"
+                                >
                             </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">No. of Installments</label>
-                                <input type="number" name="no_installments" data-autofill-field="no_installments" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="4">
+                                <input
+                                    type="number"
+                                    name="no_installments"
+                                    id="installmentsInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                    placeholder="4"
+                                    min="1"
+                                    required
+                                >
                             </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">PAR</label>
-                                <input type="number" step="0.01" name="par_value" data-autofill-field="par_value" oninput="window.updateInstallmentFinancials && window.updateInstallmentFinancials(this.closest('[data-add-panel]'))" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="100.00">
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    name="par_value"
+                                    id="parValueInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                    placeholder="100.00"
+                                    value="{{ $defaultParValue }}"
+                                >
                             </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">Total Value (PhP)</label>
-                                <input type="text" name="total_value" data-autofill-field="total_value" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm" placeholder="100000.00" readonly>
+                                <input
+                                    type="text"
+                                    name="total_value"
+                                    id="totalValueInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                                    placeholder="100000.00"
+                                    readonly
+                                >
                             </div>
+
                             <div>
                                 <label class="text-xs text-gray-600">Per Installment</label>
-                                <input type="text" name="installment_amount" data-autofill-field="installment_amount" class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm" placeholder="25000.00" readonly>
+                                <input
+                                    type="text"
+                                    name="installment_amount"
+                                    id="perInstallmentInput"
+                                    class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                                    placeholder="25000.00"
+                                    readonly
+                                >
                             </div>
+
                             <div>
-                                <label class="text-xs text-gray-600">Status</label>
-                                <select name="status" data-status-select class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
-                                    <option value="unpaid">Unpaid</option>
-                                    <option value="partial">Partial</option>
-                                    <option value="paid">Paid</option>
-                                    <option value="cancelled">Cancelled</option>
-                                    <option value="voided">Voided</option>
-                                </select>
+                                <label class="text-xs text-gray-600">Initial Status</label>
+                                <div class="mt-1 flex h-[42px] items-center rounded-md border border-gray-300 bg-gray-50 px-3 text-sm text-gray-700">
+                                    Unpaid
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -160,6 +230,7 @@
                         <input type="file" name="document_path" class="mt-1 block w-full text-sm text-gray-600">
                     </div>
                 </div>
+
                 <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-2 -mx-6 -mb-6 mt-4">
                     <button class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg" @click="showAddPanel = false" type="button">
                         Cancel
@@ -175,27 +246,13 @@
 </div>
 @endsection
 
-<datalist id="index-shareholders">
-    @foreach (($indexShareholders ?? collect()) as $name)
-        <option value="{{ $name }}"></option>
-    @endforeach
-</datalist>
-
-<datalist id="installment-stock-numbers">
-    @foreach (($installments ?? collect())->pluck('stock_number')->filter()->unique() as $stockNumber)
-        <option value="{{ $stockNumber }}"></option>
-    @endforeach
-</datalist>
-
 <script>
-    window.updateInstallmentFinancials = (panel) => {
-        if (!panel) return;
-
-        const sharesInput = panel.querySelector('[name="no_shares"]');
-        const installmentsInput = panel.querySelector('[name="no_installments"]');
-        const parInput = panel.querySelector('[name="par_value"]');
-        const totalValueInput = panel.querySelector('[name="total_value"]');
-        const perInstallmentInput = panel.querySelector('[name="installment_amount"]');
+    function updateInstallmentFinancials() {
+        const sharesInput = document.getElementById('sharesInput');
+        const installmentsInput = document.getElementById('installmentsInput');
+        const parInput = document.getElementById('parValueInput');
+        const totalValueInput = document.getElementById('totalValueInput');
+        const perInstallmentInput = document.getElementById('perInstallmentInput');
 
         const shares = parseFloat(sharesInput?.value || '0');
         const installments = parseInt(installmentsInput?.value || '0', 10);
@@ -211,178 +268,92 @@
         if (perInstallmentInput) {
             perInstallmentInput.value = perInstallment > 0 ? perInstallment.toFixed(2) : '';
         }
-    };
+    }
 
-    (function () {
+    document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('installment-search');
         const tableBody = document.getElementById('installment-table-body');
-        if (!searchInput || !tableBody) return;
 
-        const filterRows = () => {
-            const query = searchInput.value.trim().toLowerCase();
-            const rows = Array.from(tableBody.querySelectorAll('[data-search-row]'));
-            const emptyRow = tableBody.querySelector('[data-empty-row]');
-            let visibleCount = 0;
+        if (searchInput && tableBody) {
+            const filterRows = () => {
+                const query = searchInput.value.trim().toLowerCase();
+                const rows = Array.from(tableBody.querySelectorAll('[data-search-row]'));
+                const emptyRow = tableBody.querySelector('[data-empty-row]');
+                let visibleCount = 0;
 
-            rows.forEach((row) => {
-                const matches = query === '' || row.textContent.toLowerCase().includes(query);
-                row.style.display = matches ? '' : 'none';
-                if (matches) visibleCount += 1;
-            });
+                rows.forEach((row) => {
+                    const matches = query === '' || row.textContent.toLowerCase().includes(query);
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleCount += 1;
+                });
 
-            if (emptyRow) {
-                emptyRow.style.display = rows.length === 0 || visibleCount === 0 ? '' : 'none';
-            }
-        };
+                if (emptyRow) {
+                    emptyRow.style.display = rows.length === 0 || visibleCount === 0 ? '' : 'none';
+                }
+            };
 
-        searchInput.addEventListener('input', filterRows);
-        filterRows();
-    })();
+            searchInput.addEventListener('input', filterRows);
+            filterRows();
+        }
 
-    (function () {
-        const endpoint = "{{ route('stock-transfer-book.lookup') }}";
-        const defaultsEndpoint = "{{ route('stock-transfer-book.defaults') }}";
-        const addPanel = document.querySelector('[data-add-panel]');
-        if (!addPanel) return;
+        const holderSelect = document.getElementById('holderSelect');
+        const stockNumberInput = document.getElementById('stockNumberInput');
+        const installmentDateInput = document.getElementById('installmentDateInput');
+        const sharesInput = document.getElementById('sharesInput');
+        const installmentsInput = document.getElementById('installmentsInput');
+        const parValueInput = document.getElementById('parValueInput');
+        const totalValueInput = document.getElementById('totalValueInput');
+        const perInstallmentInput = document.getElementById('perInstallmentInput');
+        const openButton = document.querySelector('[data-open-add-panel]');
+        const addPanelForm = document.querySelector('[data-add-panel] form');
 
-        const keyInput = addPanel.querySelector('[data-autofill-key]');
-        const holderInput = addPanel.querySelector('[name="subscriber"]');
-        const fieldInputs = Array.from(addPanel.querySelectorAll('[data-autofill-field]'));
-        const parValueInput = addPanel.querySelector('[name="par_value"]');
-        const installmentAmountInput = addPanel.querySelector('[name="installment_amount"]');
-        const totalValueInput = addPanel.querySelector('[name="total_value"]');
-        const sharesInput = addPanel.querySelector('[name="no_shares"]');
-        const noInstallmentsInput = addPanel.querySelector('[name="no_installments"]');
-        const statusSelect = addPanel.querySelector('[data-status-select]');
         const today = new Date().toISOString().split('T')[0];
-        let existingPaymentTotal = 0;
 
-        const valueFrom = (field, data) => {
-            const installment = data.installment || {};
-            const cert = data.certificate || {};
-            const ledger = data.ledger || {};
-
-            switch (field) {
-                case 'stock_number':
-                    return installment.stock_number || cert.stock_number || ledger.certificate_no || '';
-                case 'subscriber':
-                    return installment.holder_name || installment.subscriber || cert.stockholder_name || ledger.full_name || '';
-                case 'installment_date':
-                    return installment.installment_date || '';
-                case 'no_shares':
-                    return installment.no_shares || cert.number || ledger.shares || '';
-                case 'no_installments':
-                    return installment.no_installments || '';
-                case 'par_value':
-                    return installment.par_value || cert.par_value || data.company?.par_value || '';
-                case 'total_value':
-                    return installment.total_value || cert.amount || '';
-                case 'installment_amount':
-                    return installment.installment_amount || '';
-                case 'status':
-                    return installment.status || '';
-                default:
-                    return '';
-            }
-        };
-
-        const refreshStatus = () => {
-            if (!statusSelect) return;
-
-            const paidAmount = existingPaymentTotal;
-            const expectedAmount = parseFloat(totalValueInput?.value || '0');
-
-            let nextStatus = 'unpaid';
-            if (paidAmount > 0 && (expectedAmount <= 0 || paidAmount >= expectedAmount)) {
-                nextStatus = 'paid';
-            } else if (paidAmount > 0) {
-                nextStatus = 'partial';
-            }
-
-            statusSelect.value = nextStatus;
-        };
-
-        const refreshFinancials = () => {
-            window.updateInstallmentFinancials(addPanel);
-            refreshStatus();
-        };
-
-        const runLookup = async (value) => {
-            const key = (value ?? keyInput?.value ?? holderInput?.value ?? '').trim();
-            if (!key) {
-                existingPaymentTotal = 0;
-                refreshStatus();
+        function applyHolderData() {
+            const selected = holderSelect.options[holderSelect.selectedIndex];
+            if (!selected || !selected.value) {
+                stockNumberInput.value = '';
+                sharesInput.value = '';
+                updateInstallmentFinancials();
                 return;
             }
 
-            try {
-                const res = await fetch(`${endpoint}?key=${encodeURIComponent(key)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-
-                fieldInputs.forEach((input) => {
-                    const field = input.getAttribute('data-autofill-field');
-                    const nextValue = valueFrom(field, data);
-                    if (nextValue !== '' && nextValue !== null && nextValue !== undefined) {
-                        input.value = nextValue;
-                    }
-                });
-
-                existingPaymentTotal = parseFloat(data.installment?.payment_total || '0');
-                refreshFinancials();
-                refreshStatus();
-            } catch (e) {
-                // Ignore lookup errors.
+            stockNumberInput.value = selected.dataset.stockNumber || '';
+            sharesInput.value = selected.dataset.shares || '';
+            if ((!parValueInput.value || parseFloat(parValueInput.value || '0') <= 0) && selected.dataset.parValue) {
+                parValueInput.value = selected.dataset.parValue;
             }
-        };
+            if (!installmentDateInput.value) {
+                installmentDateInput.value = today;
+            }
 
-        const applyDefaults = (defaults = {}) => {
-            addPanel.querySelectorAll('[data-default-field]').forEach((field) => {
-                const key = field.getAttribute('data-default-field');
-                if (!key) return;
+            updateInstallmentFinancials();
+        }
 
-                if (key in defaults && defaults[key] !== null && defaults[key] !== undefined && defaults[key] !== '') {
-                    field.value = defaults[key];
-                    return;
-                }
-
-                if (key === 'today' && !field.value) {
-                    field.value = today;
-                }
+        if (openButton) {
+            openButton.addEventListener('click', function () {
+                if (addPanelForm) addPanelForm.reset();
+                if (installmentDateInput) installmentDateInput.value = today;
+                if (stockNumberInput) stockNumberInput.value = '';
+                if (sharesInput) sharesInput.value = '';
+                if (totalValueInput) totalValueInput.value = '';
+                if (perInstallmentInput) perInstallmentInput.value = '';
+                @if(!empty($defaultParValue))
+                    parValueInput.value = "{{ $defaultParValue }}";
+                @endif
             });
-        };
+        }
 
-        document.querySelector('[data-open-add-panel]')?.addEventListener('click', async () => {
-            existingPaymentTotal = 0;
-            addPanel.querySelector('form')?.reset();
-            applyDefaults();
-            refreshFinancials();
-            refreshStatus();
+        if (holderSelect) {
+            holderSelect.addEventListener('change', applyHolderData);
+            holderSelect.addEventListener('input', applyHolderData);
+        }
 
-            try {
-                const res = await fetch(defaultsEndpoint);
-                if (!res.ok) return;
-                const defaults = await res.json();
-                applyDefaults(defaults);
-                refreshFinancials();
-                refreshStatus();
-            } catch (e) {
-                // Ignore defaults errors.
-            }
+        [sharesInput, installmentsInput, parValueInput].forEach((input) => {
+            if (!input) return;
+            input.addEventListener('input', updateInstallmentFinancials);
+            input.addEventListener('change', updateInstallmentFinancials);
+            input.addEventListener('keyup', updateInstallmentFinancials);
         });
-
-        keyInput?.addEventListener('change', () => runLookup(keyInput.value));
-        keyInput?.addEventListener('blur', () => runLookup(keyInput.value));
-        holderInput?.addEventListener('change', () => runLookup(holderInput.value));
-        holderInput?.addEventListener('blur', () => runLookup(holderInput.value));
-
-        [sharesInput, noInstallmentsInput, parValueInput].forEach((input) => {
-            input?.addEventListener('input', refreshFinancials);
-            input?.addEventListener('keyup', refreshFinancials);
-            input?.addEventListener('paste', () => requestAnimationFrame(refreshFinancials));
-            input?.addEventListener('change', refreshFinancials);
-        });
-
-        refreshFinancials();
-    })();
+    });
 </script>
