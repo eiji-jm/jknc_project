@@ -154,7 +154,7 @@ class StockTransferInstallmentController extends Controller
                 'ledger_folio' => $this->nextLedgerFolio(),
                 'particulars' => 'Stock subscription recorded',
                 'no_shares' => (int) ($installment->no_shares ?? 0),
-                'transaction_type' => 'Subscription',
+                'transaction_type' => 'Issuance',
                 'certificate_no' => $installment->stock_number,
                 'shareholder' => $installment->subscriber,
                 'remarks' => 'Auto-generated from installment subscription.',
@@ -281,6 +281,7 @@ class StockTransferInstallmentController extends Controller
 
         DB::transaction(function () use ($stockTransferInstallment, $ledger, $data, $paymentTargets) {
             $paymentRemarks = trim((string) ($data['payment_remarks'] ?? ''));
+
             $paymentTargets->each(function (array $targetRow) use ($stockTransferInstallment, $ledger, $data, $paymentRemarks) {
                 $scheduleNote = 'Installment ' . $targetRow['no'];
 
@@ -301,7 +302,7 @@ class StockTransferInstallmentController extends Controller
         return redirect()
             ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
             ->with('success', $data['payment_scope'] === 'all_remaining'
-                ? 'All remaining installments were recorded as paid.'
+                ? 'All remaining installments were recorded as paid and the draft certificate was generated automatically.'
                 : 'Installment payment recorded.');
     }
 
@@ -599,6 +600,7 @@ class StockTransferInstallmentController extends Controller
     private function recordPayment(StockTransferInstallment $installment, StockTransferLedger $ledger, array $paymentData): void
     {
         $schedule = $this->markNextInstallmentAsPaid($installment, $paymentData);
+
         $totalPaid = (float) collect($schedule['installments'] ?? [])->sum(
             fn (array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0
         );
@@ -615,7 +617,7 @@ class StockTransferInstallmentController extends Controller
             'ledger_folio' => $this->nextLedgerFolio(),
             'particulars' => 'Installment payment recorded',
             'no_shares' => 0,
-            'transaction_type' => 'Payment',
+            'transaction_type' => 'Issuance',
             'certificate_no' => $installment->stock_number,
             'shareholder' => $installment->subscriber,
             'remarks' => $paymentData['payment_remarks'] ?: 'Auto-generated from installment payment.',
@@ -637,6 +639,113 @@ class StockTransferInstallmentController extends Controller
 
         $installment->update($updates);
         $installment->refresh();
+
+        $this->autoCreateDraftCertificateIfFullyPaid($installment, $ledger);
+    }
+
+    private function autoCreateDraftCertificateIfFullyPaid(StockTransferInstallment $installment, ?StockTransferLedger $ledger = null): void
+    {
+        if (!$installment->isFullyPaid()) {
+            return;
+        }
+
+        $existingActiveCertificate = StockTransferCertificate::query()
+            ->whereNull('source_certificate_id')
+            ->where('stock_number', $installment->stock_number)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'voided');
+            })
+            ->latest()
+            ->first();
+
+        if ($existingActiveCertificate) {
+            if (!$existingActiveCertificate->installment_id) {
+                $existingActiveCertificate->installment_id = $installment->id;
+                $existingActiveCertificate->save();
+            }
+            return;
+        }
+
+        $ledger = $ledger ?: $this->resolvePaymentLedgerForInstallment($installment);
+
+        $parValue = $installment->par_value;
+        if (($parValue === null || $parValue === '') && Schema::hasTable('authorized_capital_stocks')) {
+            $parValue = AuthorizedCapitalStock::query()->latest()->value('par_value');
+        }
+
+        $numberOfShares = (int) ($installment->no_shares ?? $ledger?->shares ?? 0);
+        $amount = $installment->total_value;
+
+        if (($amount === null || $amount === '') && $parValue !== null && $numberOfShares > 0) {
+            $amount = (float) $parValue * $numberOfShares;
+        }
+
+        StockTransferCertificate::create([
+            'installment_id' => $installment->id,
+            'date_uploaded' => now()->toDateString(),
+            'uploaded_by' => auth()->user()?->name,
+            'corporation_name' => null,
+            'company_reg_no' => null,
+            'certificate_type' => 'COS',
+            'stock_number' => $installment->stock_number,
+            'stockholder_name' => $installment->subscriber,
+            'par_value' => $parValue,
+            'number' => $numberOfShares,
+            'amount' => $amount,
+            'amount_in_words' => $this->amountToWords($amount),
+            'date_issued' => now()->toDateString(),
+            'president' => null,
+            'corporate_secretary' => null,
+            'status' => 'draft',
+            'document_path' => null,
+        ]);
+    }
+
+    private function amountToWords($amount): ?string
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+
+        $amount = round((float) $amount, 2);
+        $whole = (int) floor($amount);
+        $cents = (int) round(($amount - $whole) * 100);
+
+        $words = $this->integerToWords($whole) . ' Pesos';
+        if ($cents > 0) {
+            $words .= ' and ' . $this->integerToWords($cents) . ' Centavos';
+        }
+
+        return trim($words . ' Only');
+    }
+
+    private function integerToWords(int $number): string
+    {
+        $ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        $tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        if ($number < 20) {
+            return $number === 0 ? 'Zero' : $ones[$number];
+        }
+
+        if ($number < 100) {
+            return trim($tens[intdiv($number, 10)] . ' ' . $ones[$number % 10]);
+        }
+
+        if ($number < 1000) {
+            return trim($ones[intdiv($number, 100)] . ' Hundred ' . $this->integerToWords($number % 100));
+        }
+
+        if ($number < 1000000) {
+            return trim($this->integerToWords(intdiv($number, 1000)) . ' Thousand ' . $this->integerToWords($number % 1000));
+        }
+
+        if ($number < 1000000000) {
+            return trim($this->integerToWords(intdiv($number, 1000000)) . ' Million ' . $this->integerToWords($number % 1000000));
+        }
+
+        return trim($this->integerToWords(intdiv($number, 1000000000)) . ' Billion ' . $this->integerToWords($number % 1000000000));
     }
 
     private function buildInstallmentRows(array $data): array

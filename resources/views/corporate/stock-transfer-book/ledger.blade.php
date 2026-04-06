@@ -10,7 +10,10 @@
             <a href="{{ route('stock-transfer-book') }}" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left"></i>
             </a>
-            <div class="text-lg font-semibold">Ledger</div>
+            <div>
+                <div class="text-lg font-semibold">Ledger</div>
+                <div class="text-xs text-gray-500">Shows shareholding records only. Payment entries do not increase shares here.</div>
+            </div>
             <div class="flex-1"></div>
             <a href="{{ route('stock-transfer-book.index') }}" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Go to Index</a>
         </div>
@@ -157,7 +160,6 @@
 @endsection
 
 <script>
-    // Filter only actual ledger rows and keep the empty state predictable.
     (function () {
         const searchInput = document.getElementById('ledger-search');
         const tableBody = document.getElementById('ledger-table-body');
