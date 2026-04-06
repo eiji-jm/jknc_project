@@ -3,8 +3,28 @@
 @section('content')
 @php
     $fullName = trim(collect([$ledger->first_name ?? '', $ledger->middle_name ?? '', $ledger->family_name ?? ''])->filter()->implode(' '));
+
     $issuedRows = collect($journalEntries ?? [])
-        ->filter(fn ($entry) => strtolower((string) ($entry->transaction_type ?? '')) !== 'cancellation')
+        ->filter(function ($entry) {
+            $type = strtolower((string) ($entry->transaction_type ?? ''));
+            $particulars = strtolower((string) ($entry->particulars ?? ''));
+            $remarks = strtolower((string) ($entry->remarks ?? ''));
+            $shares = (int) ($entry->no_shares ?? 0);
+
+            if ($type === 'cancellation') {
+                return false;
+            }
+
+            if ($shares <= 0) {
+                return false;
+            }
+
+            if (str_contains($particulars, 'payment') || str_contains($remarks, 'payment')) {
+                return false;
+            }
+
+            return true;
+        })
         ->sortBy(fn ($entry) => sprintf(
             '%s-%010d',
             optional($entry->entry_date)->format('Ymd') ?: '00000000',
@@ -12,6 +32,7 @@
         ))
         ->take(26)
         ->values();
+
     $cancelledRows = collect($journalEntries ?? [])
         ->filter(fn ($entry) => strtolower((string) ($entry->transaction_type ?? '')) === 'cancellation')
         ->sortBy(fn ($entry) => sprintf(
@@ -21,6 +42,7 @@
         ))
         ->take(26)
         ->values();
+
     $maxRows = max(26, $issuedRows->count(), $cancelledRows->count());
 @endphp
 
@@ -44,7 +66,7 @@
                     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
                         <div class="px-4 py-4 border-b border-gray-100">
                             <div class="text-sm font-semibold text-gray-900">Ledger In-System Table</div>
-                            <div class="text-xs text-gray-500">Certificate cancelled and certificate issued ledger sheet.</div>
+                            <div class="text-xs text-gray-500">Ledger shows shareholding records only. Payment transactions are not treated as additional share issuance.</div>
                         </div>
                         <div class="p-4">
                             <div class="overflow-x-auto">
@@ -55,7 +77,7 @@
                                         </tr>
                                         <tr class="bg-gray-50 text-[10px] font-semibold text-gray-700">
                                             <th colspan="4" class="border border-gray-800 px-2 py-2 text-center">Certificate Cancelled</th>
-                                            <th colspan="4" class="border border-gray-800 px-2 py-2 text-center">Certificate Issued</th>
+                                            <th colspan="4" class="border border-gray-800 px-2 py-2 text-center">Share-Issuing Entries</th>
                                         </tr>
                                         <tr class="bg-gray-50 text-[10px] font-semibold text-gray-700">
                                             <th class="border border-gray-800 px-2 py-2 text-center">Date</th>
@@ -115,7 +137,7 @@
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Address</span><div class="font-medium text-gray-900">{{ $ledger->address ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">TIN</span><div class="font-medium text-gray-900">{{ $ledger->tin ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Certificate No.</span><div class="font-medium text-gray-900">{{ $ledger->certificate_no ?? '-' }}</div></div>
-                            <div><span class="text-xs text-gray-600 uppercase tracking-wide">Base Shares</span><div class="font-medium text-gray-900">{{ $ledger->shares ?? '-' }}</div></div>
+                            <div><span class="text-xs text-gray-600 uppercase tracking-wide">Recorded Shareholding</span><div class="font-medium text-gray-900">{{ $ledger->shares ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Registered</span><div class="font-medium text-gray-900">{{ optional($ledger->date_registered)->format('M d, Y') ?: '-' }}</div></div>
                         </div>
                     </div>

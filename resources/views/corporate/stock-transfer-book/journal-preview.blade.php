@@ -9,19 +9,15 @@
             (int) ($entry->id ?? 0)
         ))
         ->values();
-
     $isIssuanceSheet = strtolower((string) ($journal->transaction_type ?? '')) !== 'cancellation';
-
     $sheetRows = $historyRows
         ->filter(fn ($entry) => $isIssuanceSheet
             ? strtolower((string) ($entry->transaction_type ?? '')) !== 'cancellation'
             : strtolower((string) ($entry->transaction_type ?? '')) === 'cancellation')
         ->take(26)
         ->values();
-
     $blankRows = max(26 - $sheetRows->count(), 0);
     $runningTotal = 0;
-
     $baseCertificateNo = $journal->certificate_no ?? null;
     $baseSubscriptionShares = collect($relatedInstallments ?? [])
         ->filter(fn ($installment) => ($installment->stock_number ?? null) === $baseCertificateNo)
@@ -49,7 +45,7 @@
                         <div class="px-4 py-4 border-b border-gray-100">
                             <div class="text-sm font-semibold text-gray-900">Journal In-System Table</div>
                             <div class="text-xs text-gray-500">
-                                {{ $isIssuanceSheet ? 'Certificate issued journal sheet.' : 'Certificate cancelled journal sheet.' }}
+                                {{ $isIssuanceSheet ? 'Journal records subscription and payment transactions.' : 'Journal records cancellation transactions.' }}
                             </div>
                         </div>
                         <div class="p-4">
@@ -69,7 +65,7 @@
                                                 <th class="border border-gray-800 px-2 py-2 text-center">Ledger Portfolio</th>
                                                 <th class="border border-gray-800 px-2 py-2 text-center">Certificate Number</th>
                                                 <th class="border border-gray-800 px-2 py-2 text-center">No. Shares</th>
-                                                <th class="border border-gray-800 px-2 py-2 text-center">Total No. Shares</th>
+                                                <th class="border border-gray-800 px-2 py-2 text-center">Running Share Balance</th>
                                             </tr>
                                         @else
                                             <tr class="bg-gray-50">
@@ -91,25 +87,27 @@
                                     <tbody class="text-gray-900">
                                         @foreach ($sheetRows as $entry)
                                             @php
-    $entryType = strtolower((string) ($entry->transaction_type ?? ''));
-    $isShareAddingEntry = $isIssuanceSheet
-        && (
-            str_contains(strtolower((string) ($entry->particulars ?? '')), 'subscription')
-            || str_contains(strtolower((string) ($entry->remarks ?? '')), 'subscription')
-        );
+                                                $entryType = strtolower((string) ($entry->transaction_type ?? ''));
+                                                $isShareAddingEntry = $isIssuanceSheet
+                                                    && (
+                                                        str_contains(strtolower((string) ($entry->particulars ?? '')), 'subscription')
+                                                        || str_contains(strtolower((string) ($entry->remarks ?? '')), 'subscription')
+                                                    );
 
-    if ($isShareAddingEntry) {
-        $runningTotal += (int) ($entry->no_shares ?? 0);
-    } elseif ($runningTotal === 0 && $baseSubscriptionShares > 0) {
-        $runningTotal = (int) $baseSubscriptionShares;
-    }
-@endphp
+                                                if ($isShareAddingEntry) {
+                                                    $runningTotal += (int) ($entry->no_shares ?? 0);
+                                                } elseif ($runningTotal === 0 && $baseSubscriptionShares > 0) {
+                                                    $runningTotal = (int) $baseSubscriptionShares;
+                                                }
+                                            @endphp
                                             <tr>
                                                 @if ($isIssuanceSheet)
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->shareholder ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->ledger_folio ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->certificate_no ?? '' }}</td>
-                                                    <td class="border border-gray-300 px-2 py-2">{{ $isShareAddingEntry ? ($entry->no_shares ?? '') : '' }}</td>
+                                                    <td class="border border-gray-300 px-2 py-2">
+                                                        {{ $isShareAddingEntry ? ($entry->no_shares ?? '') : '' }}
+                                                    </td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $runningTotal }}</td>
                                                     <td class="border border-gray-300 px-2 py-2"></td>
                                                 @else
@@ -117,7 +115,7 @@
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->shareholder ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->ledger_folio ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2">{{ $entry->certificate_no ?? '' }}</td>
-                                                    <td class="border border-gray-300 px-2 py-2">{{ $isShareAddingEntry ? ($entry->no_shares ?? '') : '' }}</td>
+                                                    <td class="border border-gray-300 px-2 py-2">{{ $entry->no_shares ?? '' }}</td>
                                                     <td class="border border-gray-300 px-2 py-2"></td>
                                                 @endif
                                             </tr>
@@ -153,13 +151,14 @@
                 <div class="xl:col-span-2 space-y-4">
                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <div class="text-sm font-semibold text-gray-900 mb-3">Journal Information</div>
+                        <div class="text-xs text-gray-500 mb-3">Journal shows transaction history such as subscription, payment, and cancellation. Payment entries do not add to share balance.</div>
                         <div class="space-y-2 text-sm">
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Journal No.</span><div class="font-medium text-gray-900">{{ $journal->journal_no ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Entry Date</span><div class="font-medium text-gray-900">{{ optional($journal->entry_date)->format('M d, Y') ?: '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Ledger Folio</span><div class="font-medium text-gray-900">{{ $journal->ledger_folio ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Transaction Type</span><div class="font-medium text-gray-900">{{ $journal->transaction_type ?? '-' }}</div></div>
                             <div><span class="text-xs text-gray-600 uppercase tracking-wide">Certificate No.</span><div class="font-medium text-gray-900">{{ $journal->certificate_no ?? '-' }}</div></div>
-                            <div><span class="text-xs text-gray-600 uppercase tracking-wide">Total Shares</span><div class="font-medium text-gray-900">{{ $journal->no_shares ?? '-' }}</div></div>
+                            <div><span class="text-xs text-gray-600 uppercase tracking-wide">Shares for This Entry</span><div class="font-medium text-gray-900">{{ $journal->no_shares ?? '-' }}</div></div>
                         </div>
                     </div>
 

@@ -1,6 +1,25 @@
 @php
-    $issuedRows = ($journalEntries ?? collect())
-        ->filter(fn ($entry) => strtolower((string) ($entry->transaction_type ?? '')) !== 'cancellation')
+    $issuedRows = collect($journalEntries ?? [])
+        ->filter(function ($entry) {
+            $type = strtolower((string) ($entry->transaction_type ?? ''));
+            $particulars = strtolower((string) ($entry->particulars ?? ''));
+            $remarks = strtolower((string) ($entry->remarks ?? ''));
+            $shares = (int) ($entry->no_shares ?? 0);
+
+            if ($type === 'cancellation') {
+                return false;
+            }
+
+            if ($shares <= 0) {
+                return false;
+            }
+
+            if (str_contains($particulars, 'payment') || str_contains($remarks, 'payment')) {
+                return false;
+            }
+
+            return true;
+        })
         ->sortBy(fn ($entry) => sprintf(
             '%s-%010d',
             optional($entry->entry_date)->format('Ymd') ?: '00000000',
@@ -8,7 +27,8 @@
         ))
         ->take(30)
         ->values();
-    $cancelledRows = ($journalEntries ?? collect())
+
+    $cancelledRows = collect($journalEntries ?? [])
         ->filter(fn ($entry) => strtolower((string) ($entry->transaction_type ?? '')) === 'cancellation')
         ->sortBy(fn ($entry) => sprintf(
             '%s-%010d',
@@ -17,6 +37,7 @@
         ))
         ->take(30)
         ->values();
+
     $maxRows = max(30, $issuedRows->count(), $cancelledRows->count());
 @endphp
 <!DOCTYPE html>
@@ -40,7 +61,7 @@
         <thead>
             <tr>
                 <th colspan="4" class="header">Certificate Cancelled</th>
-                <th colspan="4" class="header">Certificate Issued</th>
+                <th colspan="4" class="header">Share-Issuing Entries</th>
             </tr>
             <tr>
                 <th class="subheader">Date</th>
