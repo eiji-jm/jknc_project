@@ -48,6 +48,8 @@ class StockTransferInstallmentController extends Controller
                 return [
                     'id' => $ledger->id,
                     'name' => $fullName,
+                    // Keep showing current base reference in UI if needed,
+                    // but new subscriptions will still get a NEW stock number on save.
                     'stock_number' => $ledger->certificate_no,
                     'shares' => $ledger->shares,
                     'par_value' => $defaultParValue,
@@ -99,12 +101,10 @@ class StockTransferInstallmentController extends Controller
 
         $holderName = $this->resolveHolderName($ledger, $data['subscriber'] ?? null);
 
-        $stockNumber = trim((string) ($ledger->certificate_no ?? ''));
-        if ($stockNumber === '') {
-            $stockNumber = $this->nextStockNumber();
-            $ledger->certificate_no = $stockNumber;
-            $ledger->save();
-        }
+        // IMPORTANT:
+        // Every NEW subscription gets a NEW stock number,
+        // even if the same shareholder already bought before.
+        $stockNumber = $this->nextStockNumber();
 
         $data['stock_number'] = $stockNumber;
         $data['subscriber'] = $holderName;
@@ -302,7 +302,7 @@ class StockTransferInstallmentController extends Controller
         return redirect()
             ->route('stock-transfer-book.installment.show', $stockTransferInstallment)
             ->with('success', $data['payment_scope'] === 'all_remaining'
-                ? 'All remaining installments were recorded as paid and the draft certificate was generated automatically.'
+                ? 'All remaining installments were recorded as paid. Certificate stock and voucher were generated automatically.'
                 : 'Installment payment recorded.');
     }
 
@@ -640,30 +640,12 @@ class StockTransferInstallmentController extends Controller
         $installment->update($updates);
         $installment->refresh();
 
-        $this->autoCreateDraftCertificateIfFullyPaid($installment, $ledger);
+        $this->autoCreateDraftCertificateAndVoucherIfFullyPaid($installment, $ledger);
     }
 
-    private function autoCreateDraftCertificateIfFullyPaid(StockTransferInstallment $installment, ?StockTransferLedger $ledger = null): void
+    private function autoCreateDraftCertificateAndVoucherIfFullyPaid(StockTransferInstallment $installment, ?StockTransferLedger $ledger = null): void
     {
         if (!$installment->isFullyPaid()) {
-            return;
-        }
-
-        $existingActiveCertificate = StockTransferCertificate::query()
-            ->whereNull('source_certificate_id')
-            ->where('stock_number', $installment->stock_number)
-            ->where(function ($query) {
-                $query->whereNull('status')
-                    ->orWhere('status', '!=', 'voided');
-            })
-            ->latest()
-            ->first();
-
-        if ($existingActiveCertificate) {
-            if (!$existingActiveCertificate->installment_id) {
-                $existingActiveCertificate->installment_id = $installment->id;
-                $existingActiveCertificate->save();
-            }
             return;
         }
 
@@ -681,25 +663,80 @@ class StockTransferInstallmentController extends Controller
             $amount = (float) $parValue * $numberOfShares;
         }
 
-        StockTransferCertificate::create([
-            'installment_id' => $installment->id,
-            'date_uploaded' => now()->toDateString(),
-            'uploaded_by' => auth()->user()?->name,
-            'corporation_name' => null,
-            'company_reg_no' => null,
-            'certificate_type' => 'COS',
-            'stock_number' => $installment->stock_number,
-            'stockholder_name' => $installment->subscriber,
-            'par_value' => $parValue,
-            'number' => $numberOfShares,
-            'amount' => $amount,
-            'amount_in_words' => $this->amountToWords($amount),
-            'date_issued' => now()->toDateString(),
-            'president' => null,
-            'corporate_secretary' => null,
-            'status' => 'draft',
-            'document_path' => null,
-        ]);
+        $stockCertificate = StockTransferCertificate::query()
+            ->whereNull('source_certificate_id')
+            ->where('stock_number', $installment->stock_number)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'voided');
+            })
+            ->latest()
+            ->first();
+
+        if (!$stockCertificate) {
+            $stockCertificate = StockTransferCertificate::create([
+                'installment_id' => $installment->id,
+                'date_uploaded' => now()->toDateString(),
+                'uploaded_by' => auth()->user()?->name,
+                'corporation_name' => null,
+                'company_reg_no' => null,
+                'certificate_type' => 'COS',
+                'stock_number' => $installment->stock_number,
+                'stockholder_name' => $installment->subscriber,
+                'issued_to' => $installment->subscriber,
+                'issued_to_type' => 'Stockholder',
+                'par_value' => $parValue,
+                'number' => $numberOfShares,
+                'amount' => $amount,
+                'amount_in_words' => $this->amountToWords($amount),
+                'date_issued' => now()->toDateString(),
+                'president' => null,
+                'corporate_secretary' => null,
+                'status' => 'draft',
+                'document_path' => null,
+            ]);
+        } elseif (!$stockCertificate->installment_id) {
+            $stockCertificate->installment_id = $installment->id;
+            $stockCertificate->save();
+        }
+
+        $existingVoucher = StockTransferCertificate::query()
+            ->whereNotNull('source_certificate_id')
+            ->where('source_certificate_id', $stockCertificate->id)
+            ->where('stock_number', $installment->stock_number)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'voided');
+            })
+            ->latest()
+            ->first();
+
+        if (!$existingVoucher) {
+            StockTransferCertificate::create([
+                'source_certificate_id' => $stockCertificate->id,
+                'issuance_request_id' => null,
+                'installment_id' => null,
+                'date_uploaded' => now()->toDateString(),
+                'uploaded_by' => auth()->user()?->name,
+                'corporation_name' => $stockCertificate->corporation_name,
+                'company_reg_no' => $stockCertificate->company_reg_no,
+                'certificate_type' => 'CV',
+                'stock_number' => $stockCertificate->stock_number,
+                'stockholder_name' => $stockCertificate->stockholder_name,
+                'issued_to' => $stockCertificate->stockholder_name,
+                'issued_to_type' => 'Stockholder',
+                'par_value' => $stockCertificate->par_value,
+                'number' => $stockCertificate->number,
+                'amount' => $stockCertificate->amount,
+                'amount_in_words' => $stockCertificate->amount_in_words,
+                'date_issued' => now()->toDateString(),
+                'released_at' => now(),
+                'president' => $stockCertificate->president,
+                'corporate_secretary' => $stockCertificate->corporate_secretary,
+                'document_path' => null,
+                'status' => 'released',
+            ]);
+        }
     }
 
     private function amountToWords($amount): ?string
