@@ -23,9 +23,6 @@ use App\Models\Operation;
 use App\Models\Correspondence;
 use App\Models\Legal;
 use App\Models\StockTransferCertificate;
-use App\Models\StockTransferInstallment;
-use App\Models\StockTransferJournal;
-use App\Models\StockTransferLedger;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -506,53 +503,29 @@ class CorporateApprovalController extends Controller
             ]);
         }
 
-        foreach (StockTransferLedger::query()->latest()->get() as $row) {
-            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
-            $this->addDocumentWorkflowItem($items, [
-                'id' => $row->id,
-                'module' => 'Stock Transfer Book - Index',
-                'title' => trim(collect([$row->first_name, $row->middle_name, $row->family_name])->filter()->implode(' ')) ?: ('Index #' . $row->id),
-                'company_reg_no' => $row->certificate_no ?? '',
-                'uploaded_by' => $row->created_by ?? '',
-                'date_uploaded' => $row->date_registered ? $row->date_registered->format('Y-m-d') : '',
-                'status' => $status,
-                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
-                'show_route' => route('stock-transfer-book.ledger.show', $row),
-            ]);
-        }
-
-        foreach (StockTransferJournal::latest()->get() as $row) {
-            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
-            $this->addDocumentWorkflowItem($items, [
-                'id' => $row->id,
-                'module' => 'Stock Transfer Book - Journal',
-                'title' => $row->journal_no ?: ('Journal #' . $row->id),
-                'company_reg_no' => $row->certificate_no ?? '',
-                'uploaded_by' => '',
-                'date_uploaded' => $row->entry_date ? $row->entry_date->format('Y-m-d') : '',
-                'status' => $status,
-                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
-                'show_route' => route('stock-transfer-book.journal.show', $row),
-            ]);
-        }
-
-        foreach (StockTransferInstallment::latest()->get() as $row) {
-            $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
-            $this->addDocumentWorkflowItem($items, [
-                'id' => $row->id,
-                'module' => 'Stock Transfer Book - Installment',
-                'title' => $row->stock_number ?: ('Installment #' . $row->id),
-                'company_reg_no' => $row->stock_number ?? '',
-                'uploaded_by' => '',
-                'date_uploaded' => $row->installment_date ? $row->installment_date->format('Y-m-d') : '',
-                'status' => $status,
-                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
-                'show_route' => route('stock-transfer-book.installment.show', $row),
-            ]);
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | STOCK TRANSFER BOOK
+        |--------------------------------------------------------------------------
+        | Cleaned for admin dashboard:
+        | - Removed Index / Ledger
+        | - Removed Journal
+        | - Removed Installment
+        | - Keep only Certificate STOCK records that matter for review
+        | - Skip voucher rows (source_certificate_id not null)
+        */
 
         foreach (StockTransferCertificate::latest()->get() as $row) {
+            if (!is_null($row->source_certificate_id)) {
+                continue; // skip voucher rows
+            }
+
             $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
+
+            if (!in_array($status, ['Submitted', 'Reverted'], true)) {
+                continue;
+            }
+
             $this->addDocumentWorkflowItem($items, [
                 'id' => $row->id,
                 'module' => 'Stock Transfer Book - Certificate',
@@ -561,7 +534,7 @@ class CorporateApprovalController extends Controller
                 'uploaded_by' => $row->uploaded_by ?? '',
                 'date_uploaded' => $row->date_uploaded ? $row->date_uploaded->format('Y-m-d') : '',
                 'status' => $status,
-                'approval_status' => $status === 'Accepted' ? 'Approved' : ($status === 'Reverted' ? 'Rejected' : 'Pending'),
+                'approval_status' => $status === 'Reverted' ? 'Rejected' : 'Pending',
                 'show_route' => route('stock-transfer-book.certificates.show', $row),
             ]);
         }
