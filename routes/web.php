@@ -9,6 +9,7 @@ use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\LegalController;
+use App\Http\Controllers\OrganizationalController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -19,8 +20,6 @@ Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 Route::get('/register', [RegisterController::class, 'show'])->name('register');
 Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-
 
 Route::middleware('auth')->group(function () {
     Route::get('/permits', [PermitController::class, 'index']);
@@ -35,14 +34,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
     Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
     Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
-    Route::post('/correspondence', [CorrespondenceController::class, 'store']);
+    Route::post('/correspondence', [CorrespondenceController::class, 'store'])->name('correspondence.store');
 
     Route::get('/legal/data', [LegalController::class, 'index'])->name('legal.index');
     Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
-
-    Route::get('/legal', function () {
-        return view('corporate.legal');
-    })->name('legal');
 
     Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
     Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
@@ -81,29 +76,26 @@ Route::middleware('auth')->group(function () {
         return view('corporate.correspondence');
     })->name('correspondence');
 
-    Route::get('/human-capital', function () {
-    return view('human-capital');
-    })->name('human-capital');
+    /*
+    |--------------------------------------------------------------------------
+    | HUMAN CAPITAL
+    |--------------------------------------------------------------------------
+    */
 
-});
+    Route::prefix('human-capital')->name('human-capital.')->group(function () {
+        Route::view('/', 'human-capital')->name('dashboard');
 
-/*
-|--------------------------------------------------------------------------
-| HUMAN CAPITAL
-|--------------------------------------------------------------------------
-*/
+        Route::get('/organizational', [OrganizationalController::class, 'index'])->name('organizational');
+        Route::post('/organizational', [OrganizationalController::class, 'store'])->name('organizational.store');
 
-Route::prefix('human-capital')->name('human-capital.')->group(function () {
-    Route::view('/', 'human-capital')->name('dashboard');
-
-    Route::view('/organizational', 'human-capital.organizational')->name('organizational');
-    Route::view('/payroll', 'human-capital.payroll')->name('payroll');
-    Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
-    Route::view('/recruitment', 'human-capital.recruitment')->name('recruitment');
-    Route::view('/attendance', 'human-capital.attendance')->name('attendance');
-    Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');
-    Route::view('/employee-relations', 'human-capital.employee-relations')->name('employee-relations');
-    Route::view('/training', 'human-capital.training')->name('training');
-    Route::view('/performance', 'human-capital.performance')->name('performance');
-    Route::view('/offboarding', 'human-capital.offboarding')->name('offboarding');
+        Route::view('/payroll', 'human-capital.payroll')->name('payroll');
+        Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
+        Route::view('/recruitment', 'human-capital.recruitment')->name('recruitment');
+        Route::view('/attendance', 'human-capital.attendance')->name('attendance');
+        Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');
+        Route::view('/employee-relations', 'human-capital.employee-relations')->name('employee-relations');
+        Route::view('/training', 'human-capital.training')->name('training');
+        Route::view('/performance', 'human-capital.performance')->name('performance');
+        Route::view('/offboarding', 'human-capital.offboarding')->name('offboarding');
+    });
 });
