@@ -30,6 +30,7 @@ class StockTransferCertificateController extends Controller
     public function index()
     {
         $manilaNow = Carbon::now('Asia/Manila');
+
         $existingActiveStockNumbers = StockTransferCertificate::query()
             ->whereNull('source_certificate_id')
             ->where(function ($query) {
@@ -56,6 +57,7 @@ class StockTransferCertificateController extends Controller
             $certificateStocks = StockTransferCertificate::query()
                 ->latest()
                 ->get();
+
             $certificateVouchers = collect();
         }
 
@@ -108,6 +110,7 @@ class StockTransferCertificateController extends Controller
 
         $availableInstallments = $availableInstallments->map(function ($installment) use ($latestCompany, $companyParValue, $hasStockholdersTable) {
             $stockholderRecord = null;
+
             if ($hasStockholdersTable && !empty($installment->subscriber)) {
                 $query = Stockholder::query();
                 $this->applyNameTokens($query, $installment->subscriber, ['stockholder_name']);
@@ -304,6 +307,7 @@ class StockTransferCertificateController extends Controller
 
         DB::transaction(function () use ($data, $ledger) {
             $stockPayload = $data;
+
             if ($this->hasCertificateWorkflowColumns()) {
                 $stockPayload = array_merge($stockPayload, [
                     'issued_to' => $data['stockholder_name'] ?? null,
@@ -352,7 +356,7 @@ class StockTransferCertificateController extends Controller
                 'status' => $stock->status,
             ]);
 
-            $ledger->update([ 
+            $ledger->update([
                 'shares' => $ledger->shares ?: $stock->number,
                 'certificate_no' => $ledger->certificate_no ?: $stock->stock_number,
                 'status' => $ledger->status ?: 'active',
@@ -365,6 +369,7 @@ class StockTransferCertificateController extends Controller
     public function show(StockTransferCertificate $stockTransferCertificate)
     {
         $stockTransferCertificate->load(['sourceCertificate', 'issuanceRequests', 'installment']);
+
         $stockNumber = $stockTransferCertificate->stock_number;
         $stockholderName = $stockTransferCertificate->stockholder_name;
 
@@ -438,6 +443,25 @@ class StockTransferCertificateController extends Controller
             return redirect()
                 ->route('stock-transfer-book.certificates.show', $stockTransferCertificate)
                 ->with('warning', 'Voided certificates cannot be issued.');
+        }
+
+        $installment = null;
+
+        if (!empty($stockTransferCertificate->installment_id)) {
+            $installment = StockTransferInstallment::find($stockTransferCertificate->installment_id);
+        }
+
+        if (!$installment && !empty($stockTransferCertificate->stock_number)) {
+            $installment = StockTransferInstallment::query()
+                ->where('stock_number', $stockTransferCertificate->stock_number)
+                ->latest()
+                ->first();
+        }
+
+        if ($installment && !$installment->isFullyPaid()) {
+            return redirect()
+                ->route('stock-transfer-book.certificates.show', $stockTransferCertificate)
+                ->with('warning', 'Cannot issue certificate: installment is not fully paid.');
         }
 
         $documentPath = $stockTransferCertificate->document_path;
@@ -577,7 +601,10 @@ class StockTransferCertificateController extends Controller
 
         $selectedTypes = collect($data['cancellation_types'] ?? []);
 
-        if (!$request->hasFile('scanned_stock_certificate') && !($request->hasFile('affidavit_of_loss') && $request->hasFile('shareholder_valid_id'))) {
+        if (
+            !$request->hasFile('scanned_stock_certificate')
+            && !($request->hasFile('affidavit_of_loss') && $request->hasFile('shareholder_valid_id'))
+        ) {
             return back()->withErrors([
                 'scanned_stock_certificate' => 'Upload the scanned stock certificate, or provide both the Affidavit of Loss and Valid ID of Shareholder.',
             ])->withInput();
@@ -708,13 +735,7 @@ class StockTransferCertificateController extends Controller
 
         if (!$certificate) {
             return back()->withErrors([
-                'certificate_id' => 'Please select a valid certificate stock item that matches the chosen COS/CV type.',
-            ])->withInput();
-        }
-
-        if (($certificate->certificate_type ?? 'COS') !== $data['issuance_type']) {
-            return back()->withErrors([
-                'issuance_type' => 'The selected certificate stock does not match the requested issuance type.',
+                'certificate_id' => 'Please select a valid certificate stock record.',
             ])->withInput();
         }
 
@@ -734,7 +755,7 @@ class StockTransferCertificateController extends Controller
             'issuance_type' => $data['issuance_type'],
             'requester' => $data['requester'],
             'received_by' => $data['received_by'] ?: auth()->user()?->name,
-            'issued_by' => $data['issued_by'],
+            'issued_by' => $data['issued_by'] ?: auth()->user()?->name,
             'certificate_id' => $certificate->id,
             'status' => 'pending',
             'notes' => $data['notes'] ?? null,
@@ -753,7 +774,6 @@ class StockTransferCertificateController extends Controller
     {
         $stockTransferIssuanceRequest->load(['certificate', 'journal', 'ledger']);
 
-        $generatedPreviewPath = null;
         $generatedPreviewPath = $this->generatePdfPreview(
             'corporate.stock-transfer-book.issuance-request-pdf',
             ['requestRecord' => $stockTransferIssuanceRequest],
@@ -801,8 +821,8 @@ class StockTransferCertificateController extends Controller
                 'journal_no' => $this->nextJournalNo(),
                 'ledger_folio' => $this->nextLedgerFolio(),
                 'particulars' => sprintf('%s approved for %s', $stockTransferIssuanceRequest->request_type, $stockTransferIssuanceRequest->requester),
-                'no_shares' => $certificate->number,
-                'transaction_type' => 'Issuance',
+                'no_shares' => 0,
+                'transaction_type' => 'Issuance Request',
                 'certificate_no' => $certificate->stock_number,
                 'shareholder' => $stockTransferIssuanceRequest->requester,
                 'remarks' => sprintf(
@@ -814,32 +834,53 @@ class StockTransferCertificateController extends Controller
                 'status' => 'approved',
             ]);
 
-            $ledger = $journal->ledgers()->first();
+            $voucher = StockTransferCertificate::query()
+                ->whereNotNull('source_certificate_id')
+                ->where('source_certificate_id', $certificate->id)
+                ->where('stock_number', $certificate->stock_number)
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', '!=', 'voided');
+                })
+                ->latest()
+                ->first();
 
-            $voucher = StockTransferCertificate::create([
-                'source_certificate_id' => $certificate->id,
-                'issuance_request_id' => $stockTransferIssuanceRequest->id,
-                'date_uploaded' => $certificate->date_uploaded,
-                'uploaded_by' => $certificate->uploaded_by,
-                'corporation_name' => $certificate->corporation_name,
-                'company_reg_no' => $certificate->company_reg_no,
-                'certificate_type' => $stockTransferIssuanceRequest->issuance_type,
-                'stock_number' => $certificate->stock_number,
-                'stockholder_name' => $certificate->stockholder_name ?: $stockTransferIssuanceRequest->requester,
-                'issued_to' => $stockTransferIssuanceRequest->requester,
-                'issued_to_type' => 'Requester',
-                'par_value' => $certificate->par_value,
-                'number' => $certificate->number,
-                'amount' => $certificate->amount,
-                'amount_in_words' => $certificate->amount_in_words,
-                'date_issued' => now()->toDateString(),
-                'released_at' => now(),
-                'president' => $certificate->president,
-                'corporate_secretary' => $certificate->corporate_secretary,
-                'document_path' => $certificate->document_path,
-                'status' => 'released',
-                'installment_id' => null,
-            ]);
+            if ($voucher) {
+                $voucher->update([
+                    'issuance_request_id' => $stockTransferIssuanceRequest->id,
+                    'certificate_type' => $stockTransferIssuanceRequest->issuance_type,
+                    'issued_to' => $stockTransferIssuanceRequest->requester,
+                    'issued_to_type' => 'Requester',
+                    'date_issued' => now()->toDateString(),
+                    'released_at' => now(),
+                    'status' => 'released',
+                ]);
+            } else {
+                $voucher = StockTransferCertificate::create([
+                    'source_certificate_id' => $certificate->id,
+                    'issuance_request_id' => $stockTransferIssuanceRequest->id,
+                    'date_uploaded' => $certificate->date_uploaded,
+                    'uploaded_by' => $certificate->uploaded_by,
+                    'corporation_name' => $certificate->corporation_name,
+                    'company_reg_no' => $certificate->company_reg_no,
+                    'certificate_type' => $stockTransferIssuanceRequest->issuance_type,
+                    'stock_number' => $certificate->stock_number,
+                    'stockholder_name' => $certificate->stockholder_name ?: $stockTransferIssuanceRequest->requester,
+                    'issued_to' => $stockTransferIssuanceRequest->requester,
+                    'issued_to_type' => 'Requester',
+                    'par_value' => $certificate->par_value,
+                    'number' => $certificate->number,
+                    'amount' => $certificate->amount,
+                    'amount_in_words' => $certificate->amount_in_words,
+                    'date_issued' => now()->toDateString(),
+                    'released_at' => now(),
+                    'president' => $certificate->president,
+                    'corporate_secretary' => $certificate->corporate_secretary,
+                    'document_path' => $certificate->document_path,
+                    'status' => 'released',
+                    'installment_id' => null,
+                ]);
+            }
 
             $stockTransferIssuanceRequest->update([
                 'status' => 'approved',
@@ -847,11 +888,11 @@ class StockTransferCertificateController extends Controller
                 'approved_by' => auth()->user()?->name,
                 'issued_by' => $stockTransferIssuanceRequest->issued_by ?: auth()->user()?->name,
                 'journal_id' => $journal->id,
-                'ledger_id' => $ledger?->id,
+                'ledger_id' => null,
                 'certificate_id' => $certificate->id,
                 'notes' => trim(implode(' ', array_filter([
                     $stockTransferIssuanceRequest->notes,
-                    'Voucher Ref: ' . $voucher->stock_number,
+                    'Voucher Ref: ' . ($voucher->stock_number ?: $certificate->stock_number),
                 ]))),
             ]);
         });
@@ -938,10 +979,13 @@ class StockTransferCertificateController extends Controller
 
         $requestRecord = $certificate->issuanceRequests()->latest()->first()
             ?: collect($relatedRequests ?? collect())->firstWhere('certificate_id', $certificate->id);
+
         $sourceCertificate = $certificate->sourceCertificate;
+
         $ledger = collect($relatedLedgers ?? collect())
             ->first(fn ($entry) => ($entry->journal_id ?? null) === null)
             ?: collect($relatedLedgers ?? collect())->first();
+
         $journal = collect($relatedJournals ?? collect())->first();
 
         return [
@@ -1058,5 +1102,20 @@ class StockTransferCertificateController extends Controller
         }
 
         return trim($this->integerToWords(intdiv($number, 1000000000)) . ' Billion ' . $this->integerToWords($number % 1000000000));
+    }
+
+    private function nextIssuanceRequestReference(): string
+    {
+        $lastReference = StockTransferIssuanceRequest::query()
+            ->latest('id')
+            ->value('reference_no');
+
+        $nextNumber = 1;
+
+        if ($lastReference && preg_match('/(\d+)$/', $lastReference, $matches)) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        }
+
+        return 'REQ-' . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 }

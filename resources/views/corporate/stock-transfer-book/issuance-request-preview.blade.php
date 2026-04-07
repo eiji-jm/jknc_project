@@ -90,7 +90,7 @@
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Approved At</span><div class="font-medium text-gray-900">{{ optional($requestRecord->approved_at)->format('M d, Y h:i A') ?: '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Approved By</span><div class="font-medium text-gray-900">{{ $requestRecord->approved_by ?: '-' }}</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Journal</span><div class="font-medium text-gray-900">{{ $requestRecord->journal?->journal_no ?: '-' }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Ledger</span><div class="font-medium text-gray-900">{{ $requestRecord->ledger?->certificate_no ?: '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Ledger</span><div class="font-medium text-gray-900">No ledger posting for issuance requests</div></div>
                         <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notes</span><div class="font-medium text-gray-900 whitespace-pre-line">{{ $requestRecord->notes ?: '-' }}</div></div>
                     </div>
                 </div>
