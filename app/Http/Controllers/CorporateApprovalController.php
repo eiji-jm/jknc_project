@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
@@ -134,25 +135,51 @@ class CorporateApprovalController extends Controller
     private function sendStatusEmail($record, string $module, string $decision, ?string $reviewNote = null): void
     {
         if (empty($record->submitted_by)) {
+            Log::warning('Corporate status email skipped: submitted_by is empty.', [
+                'module' => $module,
+                'record_id' => $record->id ?? null,
+            ]);
             return;
         }
 
         $employee = User::find($record->submitted_by);
 
         if (!$employee || empty($employee->email)) {
+            Log::warning('Corporate status email skipped: employee not found or email missing.', [
+                'module' => $module,
+                'record_id' => $record->id ?? null,
+                'submitted_by' => $record->submitted_by,
+            ]);
             return;
         }
 
-        Mail::to($employee->email)->send(
-            new CorporateStatusNotificationMail(
-                $employee->name,
-                $this->getModuleName($module),
-                $this->getCorporationName($record, $module),
-                $this->getReferenceNumber($record, $module),
-                $decision,
-                $reviewNote
-            )
-        );
+        try {
+            Mail::to($employee->email)->send(
+                new CorporateStatusNotificationMail(
+                    $employee->name,
+                    $this->getModuleName($module),
+                    $this->getCorporationName($record, $module),
+                    $this->getReferenceNumber($record, $module),
+                    $decision,
+                    $reviewNote
+                )
+            );
+
+            Log::info('Corporate status email sent successfully.', [
+                'module' => $module,
+                'record_id' => $record->id ?? null,
+                'email' => $employee->email,
+                'decision' => $decision,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Corporate status email failed.', [
+                'module' => $module,
+                'record_id' => $record->id ?? null,
+                'email' => $employee->email,
+                'decision' => $decision,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function canAppearInAdminDashboard(string $workflow): bool
@@ -503,21 +530,9 @@ class CorporateApprovalController extends Controller
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | STOCK TRANSFER BOOK
-        |--------------------------------------------------------------------------
-        | Cleaned for admin dashboard:
-        | - Removed Index / Ledger
-        | - Removed Journal
-        | - Removed Installment
-        | - Keep only Certificate STOCK records that matter for review
-        | - Skip voucher rows (source_certificate_id not null)
-        */
-
         foreach (StockTransferCertificate::latest()->get() as $row) {
             if (!is_null($row->source_certificate_id)) {
-                continue; // skip voucher rows
+                continue;
             }
 
             $status = $this->dashboardStatusBadge($row->status ?: 'Submitted');
