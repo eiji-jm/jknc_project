@@ -54,6 +54,22 @@ class FinanceController extends Controller
         return self::MODULES[$moduleKey] ?? Str::headline($moduleKey);
     }
 
+    private function acceptedRecordQuery(string $moduleKey, array $dataConstraints = [])
+    {
+        $query = FinanceRecord::query()
+            ->where('module_key', $moduleKey)
+            ->where(function ($statusQuery) {
+                $statusQuery->where('workflow_status', 'Accepted')
+                    ->orWhere('approval_status', 'Approved');
+            });
+
+        foreach ($dataConstraints as $field => $value) {
+            $query->where("data->{$field}", $value);
+        }
+
+        return $query;
+    }
+
     private function canEditRecord(FinanceRecord $record): bool
     {
         if ($this->canApproveFinance()) {
@@ -109,12 +125,7 @@ class FinanceController extends Controller
         $options = [];
 
         foreach (self::MODULES as $moduleKey => $label) {
-            $options[$moduleKey] = FinanceRecord::query()
-                ->where('module_key', $moduleKey)
-                ->where(function ($query) {
-                    $query->where('workflow_status', 'Accepted')
-                        ->orWhere('approval_status', 'Approved');
-                })
+            $options[$moduleKey] = $this->acceptedRecordQuery($moduleKey)
                 ->orderByDesc('record_date')
                 ->orderByDesc('created_at')
                 ->get()
@@ -126,6 +137,30 @@ class FinanceController extends Controller
                 ])
                 ->values();
         }
+
+        $options['dv_ca'] = $this->acceptedRecordQuery('dv', ['source_document_type' => 'ca'])
+            ->orderByDesc('record_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (FinanceRecord $record) => [
+                'id' => $record->id,
+                'label' => $this->optionLabel($record),
+                'record_number' => $record->record_number,
+                'record_title' => $record->record_title,
+            ])
+            ->values();
+
+        $options['lr_overage'] = $this->acceptedRecordQuery('lr', ['variance_indicator' => 'Overage'])
+            ->orderByDesc('record_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (FinanceRecord $record) => [
+                'id' => $record->id,
+                'label' => $this->optionLabel($record),
+                'record_number' => $record->record_number,
+                'record_title' => $record->record_title,
+            ])
+            ->values();
 
         return $options;
     }
@@ -206,14 +241,18 @@ class FinanceController extends Controller
         ];
     }
 
-    private function acceptedLinkedRecordRule(string $moduleKey)
+    private function acceptedLinkedRecordRule(string $moduleKey, array $dataConstraints = [])
     {
-        return Rule::exists('finance_records', 'id')->where(function ($query) use ($moduleKey) {
+        return Rule::exists('finance_records', 'id')->where(function ($query) use ($moduleKey, $dataConstraints) {
             $query->where('module_key', $moduleKey)
                 ->where(function ($statusQuery) {
                     $statusQuery->where('workflow_status', 'Accepted')
                         ->orWhere('approval_status', 'Approved');
                 });
+
+            foreach ($dataConstraints as $field => $value) {
+                $query->where("data->{$field}", $value);
+            }
         });
     }
 
@@ -269,7 +308,8 @@ class FinanceController extends Controller
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'lr' => [
-                'data.linked_ca_id' => ['required', $this->acceptedLinkedRecordRule('ca')],
+                'data.linked_dv_id' => ['required', $this->acceptedLinkedRecordRule('dv', ['source_document_type' => 'ca'])],
+                'data.linked_ca_id' => ['nullable', $this->acceptedLinkedRecordRule('ca')],
                 'data.total_cash_advance' => 'required|numeric|min:0',
                 'data.actual_expenses' => 'required|numeric|min:0',
                 'data.variance' => 'required|numeric',
@@ -298,7 +338,7 @@ class FinanceController extends Controller
                 'data.payroll_expense_coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'crf' => [
-                'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr')],
+                'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr', ['variance_indicator' => 'Overage'])],
                 'data.amount_returned' => 'required|numeric|min:0',
                 'data.receiving_bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
@@ -336,6 +376,10 @@ class FinanceController extends Controller
                 'required',
                 'integer',
             ];
+        }
+
+        if ($moduleKey === 'lr') {
+            $rules['data.linked_ca_id'] = ['nullable', $this->acceptedLinkedRecordRule('ca')];
         }
 
         if ($moduleKey === 'arf') {
@@ -413,6 +457,38 @@ class FinanceController extends Controller
             }
         }
 
+        if ($moduleKey === 'lr') {
+            $linkedDvId = data_get($validated, 'data.linked_dv_id');
+
+            if (!$this->recordExistsForWorkflow('dv', $linkedDvId, ['source_document_type' => 'ca'])) {
+                throw ValidationException::withMessages([
+                    'data.linked_dv_id' => 'The selected DV must come from a cash advance.',
+                ]);
+            }
+
+            $linkedCaId = data_get($validated, 'data.linked_ca_id');
+            if (!blank($linkedCaId)) {
+                $linkedDv = FinanceRecord::query()->find($linkedDvId);
+                $linkedCaFromDv = data_get($linkedDv?->data, 'source_document_id');
+
+                if ((string) $linkedCaFromDv !== (string) $linkedCaId) {
+                    throw ValidationException::withMessages([
+                        'data.linked_ca_id' => 'The selected CA must match the CA used by the linked DV.',
+                    ]);
+                }
+            }
+        }
+
+        if ($moduleKey === 'crf') {
+            $linkedLrId = data_get($validated, 'data.linked_lr_id');
+
+            if (!$this->recordExistsForWorkflow('lr', $linkedLrId, ['variance_indicator' => 'Overage'])) {
+                throw ValidationException::withMessages([
+                    'data.linked_lr_id' => 'The selected LR must be approved and marked as overage.',
+                ]);
+            }
+        }
+
         if ($moduleKey === 'arf') {
             $linkedPoId = data_get($validated, 'data.linked_po_id');
             $linkedDvId = data_get($validated, 'data.linked_dv_id');
@@ -441,19 +517,10 @@ class FinanceController extends Controller
         return $data;
     }
 
-    private function recordExistsForWorkflow(string $moduleKey, mixed $recordId): bool
+    private function recordExistsForWorkflow(string $moduleKey, mixed $recordId, array $dataConstraints = []): bool
     {
-        if (blank($recordId)) {
-            return false;
-        }
-
-        return FinanceRecord::query()
+        return $this->acceptedRecordQuery($moduleKey, $dataConstraints)
             ->where('id', $recordId)
-            ->where('module_key', $moduleKey)
-            ->where(function ($query) {
-                $query->where('workflow_status', 'Accepted')
-                    ->orWhere('approval_status', 'Approved');
-            })
             ->exists();
     }
 

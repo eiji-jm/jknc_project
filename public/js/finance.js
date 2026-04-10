@@ -334,8 +334,12 @@
             recordNumberLabel: 'LR Number',
             recordTitleLabel: 'Liquidating Person',
             recordDateLabel: 'Date',
-            summaryKeys: ['linked_ca_id', 'variance_indicator', 'actual_expenses', 'supplier_id'],
+            summaryKeys: ['linked_dv_id', 'linked_ca_id', 'variance_indicator', 'actual_expenses', 'supplier_id'],
+            summaryLookupSources: {
+                linked_dv_id: 'dv_ca',
+            },
             fields: [
+                selectField('linked_dv_id', 'Linked DV', { source: 'dv_ca', required: true }),
                 selectField('linked_ca_id', 'Linked CA', { source: 'ca' }),
                 numberField('total_cash_advance', 'Total Cash Advance'),
                 numberField('actual_expenses', 'Actual Expenses'),
@@ -455,7 +459,7 @@
             recordDateLabel: 'Date',
             summaryKeys: ['linked_lr_id', 'amount_returned', 'receiving_bank_account_id', 'coa_id'],
             fields: [
-                selectField('linked_lr_id', 'Linked LR', { source: 'lr' }),
+                selectField('linked_lr_id', 'Linked LR', { source: 'lr_overage', required: true }),
                 numberField('amount_returned', 'Amount Returned', { required: true }),
                 selectField('mode_of_return', 'Mode of Return', {
                     options: [
@@ -578,8 +582,8 @@
             linked_pr_id: 'pr',
             linked_po_id: 'po',
             linked_ca_id: 'ca',
-            linked_lr_id: 'lr',
             linked_dv_id: 'dv',
+            linked_lr_id: 'lr',
             master_item_id: (record.data && record.data.master_item_type) ? record.data.master_item_type : null,
             source_document_id: (record.data && record.data.source_document_type) ? record.data.source_document_type : null,
         };
@@ -587,7 +591,7 @@
             const value = getFieldValue(record, key);
             if (!value) return '';
             if (key.endsWith('_id')) {
-                const lookup = lookupMap[key] || key.replace('_id', '');
+                const lookup = (config.summaryLookupSources && config.summaryLookupSources[key]) || lookupMap[key] || key.replace('_id', '');
                 return getLookupLabel(lookup, value) || String(value);
             }
             return String(value);
