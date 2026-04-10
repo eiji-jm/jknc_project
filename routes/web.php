@@ -38,6 +38,8 @@ use App\Http\Controllers\ResolutionController;
 use App\Http\Controllers\SecretaryCertificateController;
 use App\Http\Controllers\UploadedFileController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\TransmittalController;
+use App\Http\Controllers\TransmittalReceiptController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -374,4 +376,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/calls/{id}/upload-audio', [ActivityController::class, 'uploadCallAudio']);
         Route::delete('/calls/{id}/audio', [ActivityController::class, 'destroyCallAudio']);
     });
+
+    Route::get('/transmittal', function () {
+    return view('transmittal.index');
+})->name('transmittal.index');
+
+
+Route::get('/transmittal', [TransmittalController::class, 'index'])->name('transmittal.index');
+Route::get('/transmittal/data', [TransmittalController::class, 'data'])->name('transmittal.data');
+Route::post('/transmittal', [TransmittalController::class, 'store'])->name('transmittal.store');
+Route::post('/transmittal/{id}/submit', [TransmittalController::class, 'submit'])->name('transmittal.submit');
+Route::post('/corporate-approvals/{module}/{id}/approve', [CorporateApprovalController::class, 'approve'])->name('corporate.approvals.approve');
+Route::post('/corporate-approvals/{module}/{id}/reject', [CorporateApprovalController::class, 'reject'])->name('corporate.approvals.reject');
+Route::post('/corporate-approvals/{module}/{id}/revise', [CorporateApprovalController::class, 'revise'])->name('corporate.approvals.revise');
+Route::post('/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])->name('corporate.approvals.archive');
+Route::get('/transmittal-receipts/{id}', [TransmittalReceiptController::class, 'show'])->name('transmittal.receipts.show');
 });

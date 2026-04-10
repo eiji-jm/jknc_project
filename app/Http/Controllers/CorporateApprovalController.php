@@ -24,6 +24,8 @@ use App\Models\Operation;
 use App\Models\Correspondence;
 use App\Models\Legal;
 use App\Models\StockTransferCertificate;
+use App\Models\Transmittal;
+use App\Models\TransmittalReceipt;
 use App\Mail\CorporateStatusNotificationMail;
 
 class CorporateApprovalController extends Controller
@@ -64,9 +66,64 @@ class CorporateApprovalController extends Controller
             'operations' => 'Operations',
             'correspondence' => 'Correspondence',
             'legal' => 'Legal',
+            'transmittal' => 'Transmittal',
             default => 'Corporate Module',
         };
     }
+
+        private function buildTransmittalDeliveryDetail($record): string
+    {
+        return match ($record->delivery_type) {
+            'By Person' => $record->by_person_who ? 'By Person - ' . $record->by_person_who : 'By Person',
+            'Registered Mail' => $record->registered_mail_provider ? 'Registered Mail - ' . $record->registered_mail_provider : 'Registered Mail',
+            'Electronic' => $record->electronic_method ? 'Electronic - ' . $record->electronic_method : 'Electronic',
+            default => '',
+        };
+    }
+
+    private function buildTransmittalActionsSummary($record): string
+    {
+        $actions = [];
+
+        if ($record->action_delivery) $actions[] = 'Delivery';
+        if ($record->action_pick_up) $actions[] = 'Pick Up';
+        if ($record->action_drop_off) $actions[] = 'Drop Off';
+        if ($record->action_email) $actions[] = 'Email';
+
+        return implode(', ', $actions);
+    }
+
+    private function generateTransmittalReceipt($record): void
+{
+    if ($record->receipt) {
+        return;
+    }
+
+    $nextId = TransmittalReceipt::max('id') + 1;
+    $receiptNo = 'TRR-' . str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+
+    TransmittalReceipt::create([
+        'transmittal_id' => $record->id,
+        'receipt_no' => $receiptNo,
+        'receipt_date' => now()->toDateString(),
+        'mode' => $record->mode,
+        'from_name' => $record->from_value,
+        'to_name' => $record->to_value,
+        'office_name' => $record->office_name,
+        'delivery_type' => $record->delivery_type,
+        'delivery_detail' => $this->buildTransmittalDeliveryDetail($record),
+        'recipient_email' => $record->recipient_email,
+        'actions_summary' => $this->buildTransmittalActionsSummary($record),
+        'prepared_by_name' => $record->prepared_by_name,
+        'approved_by_name' => $record->approved_by_name,
+        'approved_position' => $record->approved_position,
+        'document_custodian' => $record->document_custodian,
+        'delivered_by' => $record->delivered_by,
+        'received_by' => $record->received_by,
+        'received_at' => $record->received_at,
+        'generated_by' => Auth::id(),
+    ]);
+}
 
     private function getCorporationName($record, string $module): string
     {
@@ -81,6 +138,7 @@ class CorporateApprovalController extends Controller
             'operations' => ($record->client ?? 'Operations Record') . ' - ' . ($record->operation_type ?? ''),
             'correspondence' => ($record->type ?? 'Correspondence') . ' - ' . ($record->subject ?? ''),
             'legal' => ($record->client ?? 'Legal Record') . ' - ' . ($record->legal_type ?? ''),
+            'transmittal' => ($record->mode ?? 'Transmittal') . ' - ' . ($record->transmittal_no ?? ('TRN-' . $record->id)),
             default => '',
         };
     }
@@ -94,6 +152,7 @@ class CorporateApprovalController extends Controller
             'operations' => $record->tin ?? '',
             'correspondence' => $record->tin ?? '',
             'legal' => $record->tin ?? '',
+            'transmittal' => $record->transmittal_no ?? '',
             default => $record->company_reg_no ?? '',
         };
     }
@@ -414,6 +473,27 @@ class CorporateApprovalController extends Controller
             ]);
         }
 
+        foreach (Transmittal::latest()->get() as $row) {
+            $workflow = $this->normalizeWorkflow($row);
+            if (!$this->canAppearInAdminDashboard($workflow)) continue;
+
+            $items->push((object) [
+                'id' => $row->id,
+                'module' => 'Transmittal',
+                'title' => ($row->mode ?? 'Transmittal') . ' - ' . ($row->transmittal_no ?? ('TRN-' . $row->id)),
+                'company_reg_no' => $row->transmittal_no ?? '',
+                'uploaded_by' => $row->submitted_by,
+                'date_uploaded' => $row->transmittal_date ? \Carbon\Carbon::parse($row->transmittal_date)->format('Y-m-d') : '',
+                'status' => $workflow,
+                'approval_status' => $row->approval_status,
+                'show_route' => route('transmittal.index'),
+                'approve_route' => route('corporate.approvals.approve', ['module' => 'transmittal', 'id' => $row->id]),
+                'reject_route' => route('corporate.approvals.reject', ['module' => 'transmittal', 'id' => $row->id]),
+                'revise_route' => route('corporate.approvals.revise', ['module' => 'transmittal', 'id' => $row->id]),
+                'archive_route' => route('corporate.approvals.archive', ['module' => 'transmittal', 'id' => $row->id]),
+            ]);
+        }
+
         foreach (Notice::latest()->get() as $row) {
             if (empty($row->document_path)) {
                 continue;
@@ -583,6 +663,7 @@ class CorporateApprovalController extends Controller
             'operations' => Operation::findOrFail($id),
             'correspondence' => Correspondence::findOrFail($id),
             'legal' => Legal::findOrFail($id),
+            'transmittal' => Transmittal::findOrFail($id),
             default => abort(404),
         };
     }
@@ -604,6 +685,10 @@ class CorporateApprovalController extends Controller
             'approved_at' => now(),
             'review_note' => null,
         ]);
+
+        if ($module === 'transmittal') {
+             $this->generateTransmittalReceipt($record);
+        }
 
         $this->sendStatusEmail($record, $module, 'Approved', null);
 
