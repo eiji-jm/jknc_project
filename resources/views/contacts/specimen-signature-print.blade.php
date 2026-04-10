@@ -6,15 +6,17 @@
     <title>Specimen Signature</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @page { margin: 14mm; }
+        html, body { min-height: 100%; }
         body {
-            background: #eef2f7;
+            background: linear-gradient(180deg, #eaf1fb 0%, #f8fafc 100%);
             color: #000;
             margin: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .print-shell {
             margin: 0 auto;
-            max-width: 1280px;
+            max-width: 1200px;
             padding: 24px;
         }
         .document-page {
@@ -26,11 +28,11 @@
             border-collapse: collapse;
             table-layout: fixed;
             font-family: "Times New Roman", serif;
-            font-size: 10px;
+            font-size: 11.5px;
         }
         td {
             border: 1px solid #000;
-            padding: 3px;
+            padding: 4px;
             vertical-align: top;
         }
         .doc {
@@ -39,26 +41,37 @@
         }
         .line {
             border-bottom: 1px solid #000;
-            min-height: 12px;
+            min-height: 14px;
+        }
+        .specimen-print-document {
+            width: 100%;
         }
         @media print {
             .no-print { display: none !important; }
+            @page { margin: 6mm; size: A4 portrait; }
             body { background: #fff; }
             .print-shell { margin: 0; max-width: none; padding: 0; }
             .document-page { box-shadow: none; }
+            .specimen-print-document {
+                max-width: none !important;
+                width: 100% !important;
+                transform: scale(0.93);
+                transform-origin: top center;
+            }
         }
     </style>
 </head>
 <body>
 @php
     $authenticationData = (array) ($data->authentication_data ?? []);
+    $isBusinessContact = ($contact->customer_type ?? null) === 'business';
     $signatories = collect((array) ($data->signatories ?? []))
         ->map(fn ($entry) => is_array($entry) ? ($entry['name'] ?? null) : null)
         ->pad(6, null)
         ->take(6)
         ->values()
         ->all();
-    $logo = public_path('images/jk-logo.png');
+    $logo = asset('images/imaglogo.png');
 @endphp
 
 <div class="print-shell">
@@ -70,7 +83,7 @@
             </div>
 
             <div class="flex gap-2">
-                <button type="button" onclick="window.location.href='{{ route('contacts.show', $contact->id) }}?tab=kyc'"
+                <button type="button" onclick="window.location.href='{{ $backUrl ?? route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}'"
                     class="inline-flex h-10 items-center rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-100">
                     Back
                 </button>
@@ -83,21 +96,24 @@
         </div>
     @endunless
 
-<div class="doc document-page">
+<div class="doc document-page specimen-print-document">
     <table>
         <tr>
-            <td width="20%" style="border-right:0; border-bottom:0; padding:4px 4px 2px 4px;">
-                @if (file_exists($logo))
-                    <img src="{{ $logo }}" style="height:54px;" alt="JK Logo">
-                @else
-                    John Kelly &amp; Company
-                @endif
+            <td width="20%" style="border-right:0; border-bottom:0; padding:6px 6px 2px 6px;">
+                <img src="{{ $logo }}" style="height:48px; width:auto; object-fit:contain;" alt="John Kelly and Company">
             </td>
             <td width="46%" style="border-left:0; border-right:0; border-bottom:0;">&nbsp;</td>
-            <td width="34%" style="border-left:0; border-bottom:0; text-align:right; line-height:1.2; font-weight:bold;">
-                AUTHORIZED SIGNATORY/SIGNATORY<br>
-                (Sole / OPC / INDIVIDUAL)<br>
-                SPECIMEN SIGNATURE CARD
+            <td width="34%" style="border-left:0; border-bottom:0; text-align:right; line-height:1.2; font-weight:bold; font-size:12px;">
+                @if ($isBusinessContact)
+                    AUTHORIZED SIGNATORY<br>
+                    SPECIMEN SIGNATURE CARD<br>
+                    <span style="font-style:italic; font-size:11px;">CORPORATION / PARTNERSHIP / OTHER JURIDICAL ENTITY</span><br>
+                    <span style="font-size:10px;">CASA-F-005-V1.0-03.16.26</span>
+                @else
+                    AUTHORIZED SIGNATORY/SIGNATORY<br>
+                    (Sole / OPC / INDIVIDUAL)<br>
+                    SPECIMEN SIGNATURE CARD
+                @endif
             </td>
         </tr>
 
@@ -117,21 +133,24 @@
             </td>
         </tr>
 
+        @if ($isBusinessContact)
         <tr>
-            <td colspan="3" style="padding-top:8px; padding-bottom:8px;">
-                <table style="border:0;">
+            <td colspan="3" style="padding:4px 8px;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
                     <tr>
-                        <td width="4%" style="border:0; text-align:center;">[{{ ($data->client_type ?? '') === 'new' ? 'x' : ' ' }}]</td>
-                        <td width="16%" style="border:0;">New Client</td>
-                        <td width="4%" style="border:0; text-align:center;">[{{ ($data->client_type ?? '') === 'existing' ? 'x' : ' ' }}]</td>
-                        <td width="17%" style="border:0;">Existing Client</td>
-                        <td width="4%" style="border:0; text-align:center;">[{{ ($data->client_type ?? '') === 'change' ? 'x' : ' ' }}]</td>
-                        <td width="25%" style="border:0;">Change Information</td>
-                        <td width="30%" style="border:0;">&nbsp;</td>
+                        @foreach (['new' => 'New Client', 'existing' => 'Existing Client', 'change' => 'Change Information'] as $value => $label)
+                            <td style="border:0; text-align:center;">
+                                <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px;">
+                                    <span style="display:inline-block; width:12px; height:12px; border:1px solid #000; text-align:center; line-height:10px; font-size:10px;">{{ ($data->client_type ?? '') === $value ? 'x' : '' }}</span>
+                                    <span>{{ $label }}</span>
+                                </span>
+                            </td>
+                        @endforeach
                     </tr>
                 </table>
             </td>
         </tr>
+        @endif
 
         <tr>
             <td colspan="3" style="padding:0;">
@@ -187,7 +206,7 @@
         </tr>
 
         <tr>
-            <td colspan="3" style="text-align:center; font-weight:bold; font-size:12px; padding-top:2px; padding-bottom:2px;">AUTHORIZE SIGNATORIES</td>
+            <td colspan="3" style="text-align:center; font-weight:bold; font-size:13px; padding-top:3px; padding-bottom:3px;">AUTHORIZE SIGNATORIES</td>
         </tr>
 
         <tr>
@@ -239,7 +258,7 @@
             <td colspan="3" style="padding:0;">
                 <table width="100%" border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed; border:1px solid #000;">
                     <tr>
-                        <td width="60%" style="vertical-align:top; font-size:10px; line-height:1.15; text-align:justify; border-right:1px solid #000;">
+                        <td width="60%" style="vertical-align:top; font-size:11px; line-height:1.18; text-align:justify; border-right:1px solid #000;">
                             By my/our signature(s) herein, I/we certify that the information and specimen signatures provided are true, correct, and duly authorized for use by JK&amp;C Inc. The above-listed individual(s) are the authorized signatory/ies of the business entity or the individual client, and JK&amp;C Inc. may rely on these specimen signatures for verification, documentation, and official transactions. I/we undertake to notify JK&amp;C Inc. in writing of any change to the authorized signatory/ies or their authority. In the absence of a Board Resolution, Secretary's Certificate, or Special Power of Attorney (SPA), the signature(s) appearing herein shall be presumed to be the true and rightful authorized signatory/ies of the business entity or individual client, unless otherwise notified in writing.
                         </td>
                         <td width="40%" style="vertical-align:top; padding:0;">
@@ -250,26 +269,26 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="border:0; padding-top:10px;">
+                                    <td style="border:0; padding-top:8px;">
                                         Board Resolution / Secretary's Certificate / Special Power of Attorney (SPA) No.
                                         <div class="line">{{ $authenticationData['board_resolution_spa_no'] ?? '' }}</div>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="border:0; padding-top:8px;">
+                                    <td style="border:0; padding-top:6px;">
                                         Board Resolution / Secretary's Certificate / Special Power of Attorney (SPA) Date
                                         <div class="line">{{ $authenticationData['board_resolution_spa_date'] ?? '' }}</div>
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="border:0; text-align:center; padding-top:8px;">
-                                        <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                        <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000; min-height:14px;">{{ $authenticationData['signature_over_printed_name'] ?? '' }}</div>
                                         Signature over Printed Name
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="border:0; text-align:center; padding-top:2px;">
-                                        <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                        <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000; min-height:14px;">{{ $authenticationData['authorized_signatory_date'] ?? '' }}</div>
                                         Date
                                     </td>
                                 </tr>
@@ -281,11 +300,11 @@
                             <table width="100%" border="0" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed;">
                                 <tr>
                                     <td width="68%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
-                                        <div style="margin:0 auto 4px auto; width:70%; border-bottom:1px solid #000;"></div>
+                                        <div style="margin:0 auto 4px auto; width:70%; border-bottom:1px solid #000; min-height:14px;">{{ $authenticationData['authorized_signatory_signature'] ?? '' }}</div>
                                         Authorized Signatory's Signature over Printed Name
                                     </td>
                                     <td width="32%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
-                                        <div style="margin:0 auto 4px auto; width:78%; border-bottom:1px solid #000;"></div>
+                                        <div style="margin:0 auto 4px auto; width:78%; border-bottom:1px solid #000; min-height:14px;">{{ $authenticationData['authorized_signatory_date'] ?? '' }}</div>
                                         Date
                                     </td>
                                 </tr>
@@ -299,11 +318,11 @@
                     <tr>
                         <td width="36%" style="vertical-align:top; border-right:1px solid #000;">
                             <div style="font-weight:bold;">PROCESSING INSTRUCTION (FOR JK&amp;C USE ONLY)</div>
-                            <div style="min-height:78px; line-height:1.15;">{{ $authenticationData['processing_instruction'] ?? '' }}</div>
+                            <div style="min-height:68px; line-height:1.15;">{{ $authenticationData['processing_instruction'] ?? '' }}</div>
                         </td>
                         <td width="64%" style="vertical-align:top;">
                             <div style="font-weight:bold;">REMARKS:</div>
-                            <div style="min-height:78px; line-height:1.15;">{{ $data->remarks ?? '' }}</div>
+                            <div style="min-height:68px; line-height:1.15;">{{ $data->remarks ?? '' }}</div>
                         </td>
                     </tr>
                     <tr>
@@ -324,6 +343,7 @@
                                     <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:1px solid #000;">
                                         <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
                                         {{ $authenticationData['processed_by'] ?? '' }}<br>
+                                        {{ $authenticationData['processed_date'] ?? '' }}<br>
                                         Signature over Printed Name
                                     </td>
                                     <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:1px solid #000;">
@@ -334,7 +354,33 @@
                                     <td style="text-align:center; vertical-align:bottom; padding:10px 4px 6px 4px; border-top:0; border-bottom:1px solid #000; border-left:0; border-right:0;">
                                         <div style="margin:0 auto 4px auto; width:68%; border-bottom:1px solid #000;"></div>
                                         {{ $authenticationData['scanned_by'] ?? '' }}<br>
+                                        {{ $authenticationData['scanned_date'] ?? '' }}<br>
                                         Signature over Printed Name
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" style="text-align:center; font-style:italic; vertical-align:bottom; padding:18px 8px 6px 8px; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">
+                                        Record Custodian ( Name and Signature)
+                                    </td>
+                                    <td style="padding:0; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                                            <tr>
+                                                <td style="border:0; border-bottom:1px solid #000; padding:6px 6px 4px 6px;">Date Recorded:</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="border:0; padding:6px 6px 4px 6px;">Date Signed :</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td style="padding:0; border-top:0; border-bottom:0; border-left:0; border-right:0;">
+                                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                                            <tr>
+                                                <td style="border:0; border-bottom:1px solid #000; padding:6px 6px 4px 6px;">{{ $authenticationData['processed_date'] ?? '' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="border:0; padding:6px 6px 4px 6px;">{{ $authenticationData['scanned_date'] ?? '' }}</td>
+                                            </tr>
+                                        </table>
                                     </td>
                                 </tr>
                             </table>

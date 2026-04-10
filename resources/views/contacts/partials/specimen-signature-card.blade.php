@@ -1,6 +1,9 @@
 @php
     $readonly = $readonly ?? false;
+    $clientMode = $clientMode ?? false;
     $form = $form ?? [];
+    $contact = $contact ?? null;
+    $isBusinessContact = ($isBusinessContact ?? null) ?? (($contact?->customer_type ?? null) === 'business');
     $signatories = array_pad($form['signatories'] ?? [], 6, null);
     $inputClass = 'h-9 w-full rounded border border-gray-300 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
     $readonlyClass = 'min-h-9 rounded border border-gray-200 bg-gray-50 px-2 py-2 text-sm text-gray-700';
@@ -10,9 +13,15 @@
     <table class="w-full border-collapse text-xs text-gray-900">
         <tr>
             <td colspan="4" class="border border-gray-300 p-3 text-right align-top">
-                <p class="font-semibold uppercase">AUTHORIZED SIGNATORY/SIGNATORY</p>
-                <p class="font-semibold uppercase">(Sole / OPC / INDIVIDUAL)</p>
+                <p class="font-semibold uppercase">{{ $isBusinessContact ? 'AUTHORIZED SIGNATORY' : 'AUTHORIZED SIGNATORY/SIGNATORY' }}</p>
+                <p class="font-semibold uppercase">{{ $isBusinessContact ? 'SPECIMEN SIGNATURE CARD' : '(Sole / OPC / INDIVIDUAL)' }}</p>
+                @if ($isBusinessContact)
+                    <p class="font-semibold uppercase italic">CORPORATION / PARTNERSHIP / OTHER JURIDICAL ENTITY</p>
+                    <p class="text-[10px] uppercase">CASA-F-005-V1.0-03.16.26</p>
+                @endif
+                @if (! $isBusinessContact)
                 <p class="font-bold uppercase">SPECIMEN SIGNATURE CARD</p>
+                @endif
             </td>
         </tr>
         <tr>
@@ -33,6 +42,7 @@
                 @endif
             </td>
         </tr>
+        @if ($isBusinessContact)
         <tr>
             <td colspan="4" class="border border-gray-300 p-2">
                 <div class="flex flex-wrap items-center gap-6 text-sm">
@@ -49,6 +59,7 @@
                 </div>
             </td>
         </tr>
+        @endif
         <tr>
             <td class="border border-gray-300 p-2 font-semibold">BUSINESS NAME</td>
             <td class="border border-gray-300 p-2">
@@ -254,6 +265,7 @@
                 @endif
             </td>
         </tr>
+        @if (! $clientMode)
         <tr>
             <td colspan="4" class="border border-gray-300 p-2 text-center font-bold uppercase">FOR JKNC USE ONLY</td>
         </tr>
@@ -313,5 +325,6 @@
                 @endif
             </td>
         </tr>
+        @endif
     </table>
 </div>

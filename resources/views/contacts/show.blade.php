@@ -165,12 +165,16 @@
                                             Preview the current document or export a print-friendly PDF.
                                         </p>
 
-                                        <button onclick="window.open('{{ route('contacts.cif.preview', $contact->id) }}', '_blank')"
+                                        <button type="button"
+                                            data-cif-pdf-preview
+                                            data-preview-url="{{ route('contacts.cif.preview', $contact->id) }}"
                                             class="mb-2 w-full rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                                             Preview PDF
                                         </button>
 
-                                        <button onclick="window.open('{{ route('contacts.cif.download', $contact->id) }}?autoprint=1', '_blank')"
+                                        <button type="button"
+                                            data-cif-pdf-download
+                                            data-download-url="{{ route('contacts.cif.download', $contact->id) }}?autoprint=1"
                                             class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
                                             Download PDF
                                         </button>
@@ -611,16 +615,14 @@
                                 <input type="hidden" name="requirement" value="cif_signed_document">
                                 <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]">
                                 <div class="border-b border-gray-100 p-5 lg:border-b-0 lg:border-r">
-                                    <div id="documentPreviewPanel" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-sm text-gray-500">
+                                    <div id="documentPreviewPanel" class="flex min-h-[620px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center text-sm text-gray-500">
                                         <i class="far fa-file-pdf text-6xl text-gray-400"></i>
                                         <p class="mt-2">No CIF document selected</p>
                                         <p class="text-xs">Upload a PDF or image file to preview</p>
                                     </div>
                                 </div>
                                 <div class="space-y-3 p-5">
-                                    <div><label for="docTitle" class="mb-1 block text-sm font-medium text-gray-700">Document Title</label><input id="docTitle" name="document_title" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><p id="docErrorTitle" class="mt-1 hidden text-xs text-red-600">Document title is required.</p></div>
                                     <div><label for="docCertificateNo" class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input id="docCertificateNo" name="cif_no" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                    <div><label for="docCompanyRegNo" class="mb-1 block text-sm font-medium text-gray-700">Company Reg No.</label><input id="docCompanyRegNo" name="company_reg_no" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                     <div class="grid grid-cols-2 gap-3"><div><label for="docUploadDate" class="mb-1 block text-sm font-medium text-gray-700">Date Upload</label><input id="docUploadDate" name="date_upload" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docCreatedDate" class="mb-1 block text-sm font-medium text-gray-700">Date Created</label><input id="docCreatedDate" name="date_created" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                     <div class="grid grid-cols-2 gap-3"><div><label for="docIssuedOn" class="mb-1 block text-sm font-medium text-gray-700">Issued On</label><input id="docIssuedOn" name="issued_on" type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div><div><label for="docIssuedBy" class="mb-1 block text-sm font-medium text-gray-700">Issued By</label><input id="docIssuedBy" name="issued_by" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                     <div>
@@ -663,7 +665,7 @@
                         <div class="absolute inset-y-0 right-0 flex w-full justify-end overflow-hidden pointer-events-none">
                         <div data-slideover-panel class="pointer-events-auto flex h-full w-full max-w-[900px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out">
                             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8"><h3 id="documentViewTitle" class="text-xl font-semibold text-gray-900">Document Details</h3><button id="closeDocumentViewModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-900">&times;</button></div>
-                            <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.1fr_0.9fr]"><div id="documentViewPreview" class="m-4 flex min-h-[430px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500"></div><div class="space-y-3 border-l border-gray-100 p-5 text-sm"><div><p class="text-gray-500">Document Type</p><p id="viewDocType" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Title</p><p id="viewDocTitle" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">CIF No.</p><p id="viewDocCertificateNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Company Reg No.</p><p id="viewDocCompanyRegNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Upload</p><p id="viewDocUploadDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Created</p><p id="viewDocCreatedDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued On</p><p id="viewDocIssuedOn" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued By</p><p id="viewDocIssuedBy" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Remarks</p><p id="viewDocRemarks" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">File Name</p><p id="viewDocFileName" class="font-medium text-gray-900"></p></div></div></div>
+                            <div class="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-y-auto lg:grid-cols-[1.25fr_0.75fr]"><div id="documentViewPreview" class="m-4 flex min-h-[620px] items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500"></div><div class="space-y-3 border-l border-gray-100 p-5 text-sm"><div><p class="text-gray-500">CIF No.</p><p id="viewDocCertificateNo" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Upload</p><p id="viewDocUploadDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Date Created</p><p id="viewDocCreatedDate" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued On</p><p id="viewDocIssuedOn" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Issued By</p><p id="viewDocIssuedBy" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">Remarks</p><p id="viewDocRemarks" class="font-medium text-gray-900"></p></div><div><p class="text-gray-500">File Name</p><p id="viewDocFileName" class="font-medium text-gray-900"></p></div></div></div>
                             <div class="flex justify-end border-t border-gray-100 px-6 py-4"><button id="closeDocumentViewFooter" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 hover:bg-gray-50">Close</button></div>
                         </div>
                         </div>
@@ -683,6 +685,15 @@
                         </div>
                     </div>
 
+                    @php
+                        $cifDocumentDefaultsJs = [
+                            'document_title' => 'CIF Document (Signed)',
+                            'cif_no' => $contact->cif_no ?: ($cifData['cif_no'] ?? ''),
+                            'date_created' => $cifData['cif_date'] ?? '',
+                            'issued_on' => ($cifData['cif_document_issued_on'] ?? null) ?: optional($contact->cif_form_sent_at)->toDateString(),
+                            'issued_by' => $cifData['cif_document_issued_by'] ?? '',
+                        ];
+                    @endphp
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {
                             const app = document.getElementById('kycTabApp');
@@ -698,6 +709,7 @@
                             const requiredKycRequirementKeys = @json($requiredKycRequirementKeys);
                             const kycRequirementLabels = @json($kycRequirementLabels);
                             const cifSignedDocument = @json($cifSignedRequirement['file'] ?? null);
+                            const cifDocumentDefaults = @json($cifDocumentDefaultsJs);
                             const specimenSignatureRoutes = {
                                 create: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
                                 view: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
@@ -781,8 +793,8 @@
                             const renderPreview = (name, url, mime) => {
                                 const label = 'document';
                                 if (!name) { q('documentPreviewPanel').innerHTML = `<i class="far fa-file-pdf text-6xl text-gray-400"></i><p class="mt-2">No ${label.toLowerCase()} selected</p><p class="text-xs">Upload a PDF or image file to preview</p>`; return; }
-                                if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
-                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="Document preview" class="h-[420px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
+                                if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[620px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
+                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="Document preview" class="h-[620px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
                                 else q('documentPreviewPanel').innerHTML = `<div class="text-center"><i class="far fa-file text-5xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${name}</p><p class="text-xs text-gray-500">${mime || 'Document file'}</p></div>`;
                             };
 
@@ -817,21 +829,18 @@
                                 const doc = currentDocs[currentIndex] || {};
                                 const filePath = currentFiles[currentIndex] || '';
                                 const previewUrl = filePath ? `/storage/${filePath}` : (doc.url || '');
-                                q('documentModalTitle').textContent = activeDoc === 'cif_signed_document' ? 'Edit CIF Document' : 'View Document';
-                                q('docTitle').value = doc.document_title || (doc.file_name ? doc.file_name.replace(/\.[^.]+$/, '') : 'Document');
-                                q('docCertificateNo').value = doc.cif_no || kyc.cif || '';
-                                q('docCompanyRegNo').value = doc.company_reg_no || '';
+                                q('documentModalTitle').textContent = kycRequirementLabels[activeDoc] || 'Document';
+                                q('docCertificateNo').value = doc.cif_no || cifDocumentDefaults.cif_no || kyc.cif || '';
                                 q('docUploadDate').value = normalizeDateInput(doc.uploaded_at) || todayIso;
-                                q('docCreatedDate').value = normalizeDateInput(doc.date_created);
-                                q('docIssuedOn').value = normalizeDateInput(doc.issued_on);
-                                q('docIssuedBy').value = doc.issued_by || '';
+                                q('docCreatedDate').value = normalizeDateInput(doc.date_created) || normalizeDateInput(cifDocumentDefaults.date_created);
+                                q('docIssuedOn').value = normalizeDateInput(doc.issued_on) || normalizeDateInput(cifDocumentDefaults.issued_on);
+                                q('docIssuedBy').value = doc.issued_by || cifDocumentDefaults.issued_by || '';
                                 q('docRemarks').value = doc.remarks || '';
                                 q('docFileNameLabel').textContent = doc.file_name ? 'Replace file' : 'Upload File';
                                 q('docCurrentFileMeta').textContent = doc.file_name ? `Current file: ${doc.file_name}` : 'No file uploaded yet';
                                 q('removeCifSignedDocumentBtn').classList.toggle('hidden', !doc.file_name);
                                 const showCifFields = activeDoc === 'cif_signed_document';
                                 q('docCertificateNo').closest('div').classList.toggle('hidden', !showCifFields);
-                                q('docCompanyRegNo').closest('div').classList.toggle('hidden', !showCifFields);
                                 q('docCreatedDate').closest('div').classList.toggle('hidden', !showCifFields);
                                 renderPreview(doc.file_name || '', previewUrl, doc.mime_type || '');
                                 renderPreviewSwitcher();
@@ -857,7 +866,6 @@
                                 file = null;
                                 fileUrl = '';
                                 q('documentForm').reset();
-                                q('docErrorTitle').classList.add('hidden');
                                 q('docErrorFile').classList.add('hidden');
                                 q('clearDocFileBtn').classList.add('hidden');
                                 renderActiveDocument();
@@ -916,10 +924,8 @@
                                 const activeFile = currentDocs[currentIndex] || {};
                                 const hasExistingFile = !!activeFile?.file_name;
                                 const hasReplacementFile = !!q('docFileInput').files?.[0];
-                                const hasTitle = !!q('docTitle').value.trim();
-                                q('docErrorTitle').classList.toggle('hidden', hasTitle);
                                 q('docErrorFile').classList.toggle('hidden', hasExistingFile || hasReplacementFile);
-                                if (!hasTitle || (!hasExistingFile && !hasReplacementFile)) {
+                                if (!hasExistingFile && !hasReplacementFile) {
                                     event.preventDefault();
                                 }
                             });
@@ -2321,6 +2327,39 @@
 
         bindSlideOver('sendCifModal', '[data-open-send-cif-modal]', '[data-close-send-cif-modal]');
         bindSlideOver('sendSpecimenModal', '[data-open-send-specimen-modal]', '[data-close-send-specimen-modal]');
+
+        const cifPreviewButton = document.querySelector('[data-cif-pdf-preview]');
+        const cifDownloadButton = document.querySelector('[data-cif-pdf-download]');
+
+        const openCifPrintFrame = (url) => {
+            if (!url) {
+                return;
+            }
+
+            const frame = document.createElement('iframe');
+            frame.style.position = 'fixed';
+            frame.style.width = '0';
+            frame.style.height = '0';
+            frame.style.border = '0';
+            frame.style.opacity = '0';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.src = url;
+            document.body.appendChild(frame);
+
+            const cleanup = () => {
+                window.setTimeout(() => frame.remove(), 1500);
+            };
+
+            frame.addEventListener('load', cleanup, { once: true });
+        };
+
+        cifPreviewButton?.addEventListener('click', () => {
+            window.open(cifPreviewButton.dataset.previewUrl, '_blank');
+        });
+
+        cifDownloadButton?.addEventListener('click', () => {
+            openCifPrintFrame(cifDownloadButton.dataset.downloadUrl);
+        });
     });
 </script>
 @endsection

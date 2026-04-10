@@ -768,13 +768,25 @@ class ContactsController extends Controller
             'cif_form_sent_at' => now(),
         ]);
 
+        $cifData = $this->loadCifData($contactModel);
+        $cifData['cif_document_issued_on'] = now()->toDateString();
+        $cifData['cif_document_issued_by'] = $request->user()?->name ?? 'Admin User';
+        $this->saveCifDataToStorage($contactModel, $cifData);
+
         $clientUrl = route('contacts.cif.client.show', ['token' => $token]);
-        Mail::raw(
-            "Please complete your Client Information Form using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
-            function ($message) use ($recipientEmail, $contactModel) {
-                $message->to($recipientEmail)->subject("Client Information Form for {$contactModel->first_name} {$contactModel->last_name}");
-            }
-        );
+        $emailHtml = view('emails.contacts.cif-client-link', [
+            'contact' => $contactModel,
+            'clientName' => trim(($contactModel->first_name ?? '').' '.($contactModel->last_name ?? '')) ?: 'Client',
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $contactModel) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("Client Information Form for {$contactModel->first_name} {$contactModel->last_name}");
+        });
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
@@ -806,12 +818,19 @@ class ContactsController extends Controller
         ]);
 
         $clientUrl = route('contacts.specimen.client.show', ['token' => $token]);
-        Mail::raw(
-            "Please complete your Specimen Signature Form using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
-            function ($message) use ($recipientEmail, $contactModel) {
-                $message->to($recipientEmail)->subject("Specimen Signature Form for {$contactModel->first_name} {$contactModel->last_name}");
-            }
-        );
+        $emailHtml = view('emails.contacts.specimen-client-link', [
+            'contact' => $contactModel,
+            'clientName' => trim(($contactModel->first_name ?? '').' '.($contactModel->last_name ?? '')) ?: 'Client',
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $contactModel) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("Specimen Signature Form for {$contactModel->first_name} {$contactModel->last_name}");
+        });
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
@@ -825,6 +844,7 @@ class ContactsController extends Controller
     public function clientCifForm(Request $request, string $token): View
     {
         $contact = $this->findContactByClientToken('cif', $token);
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
 
         abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
 
@@ -832,6 +852,10 @@ class ContactsController extends Controller
             'contact' => $contact,
             'cifData' => $this->loadCifData($contact),
             'clientFormAction' => route('contacts.cif.client.submit', ['token' => $token]),
+            'clientPreviewUrl' => route('contacts.cif.client.preview', ['token' => $token]),
+            'clientDownloadUrl' => route('contacts.cif.client.download', ['token' => $token, 'autoprint' => 1]),
+            'kycRequirementState' => $this->kycRequirementState($contact, $specimenSignature),
+            'requiredKycRequirementKeys' => $this->requiredKycRequirementKeysForContact($contact),
         ]);
     }
 
@@ -841,13 +865,27 @@ class ContactsController extends Controller
 
         abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
 
+        $request->validate([
+            'client_acknowledgment' => ['accepted'],
+            'sig_name_left' => ['required', 'string', 'max:150'],
+            'sig_position_left' => ['required', 'string', 'max:150'],
+        ], [
+            'client_acknowledgment.accepted' => 'Please acknowledge the CIF terms before submitting.',
+            'sig_name_left.required' => 'Please enter your printed name in the acknowledgment section.',
+            'sig_position_left.required' => 'Please enter your position in the acknowledgment section.',
+        ]);
+
         $validated = $this->validatedCifPayload($request);
 
         $this->saveCifDataToStorage($contact, [
             ...$this->loadCifData($contact),
             ...$validated,
             'cif_no' => $contact->cif_no ?: ($validated['cif_no'] ?? ''),
+            'client_acknowledgment' => true,
+            'client_acknowledged_at' => now()->toDateTimeString(),
         ]);
+
+        $this->storeClientSubmittedKycDocuments($request, $contact);
 
         $this->syncContactKycSnapshot($contact, [
             'cif_no' => $contact->cif_no ?: ($validated['cif_no'] ?? null),
@@ -859,17 +897,53 @@ class ContactsController extends Controller
             ->with('success', 'Your Client Information Form has been submitted successfully.');
     }
 
+    public function previewClientCif(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('cif', $token);
+
+        abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
+
+        return view('contacts.cif-preview', [
+            'contact' => $contact,
+            'cifData' => $this->loadCifData($contact),
+            'cifDocuments' => $this->loadCifDocuments($contact),
+            'downloadMode' => false,
+            'autoPrint' => false,
+            'backUrl' => route('contacts.cif.client.show', ['token' => $token]),
+        ]);
+    }
+
+    public function downloadClientCif(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('cif', $token);
+
+        abort_if($contact->cif_access_expires_at && $contact->cif_access_expires_at->isPast(), 403, 'This CIF link has expired.');
+
+        return view('contacts.cif-preview', [
+            'contact' => $contact,
+            'cifData' => $this->loadCifData($contact),
+            'cifDocuments' => $this->loadCifDocuments($contact),
+            'downloadMode' => true,
+            'autoPrint' => $request->boolean('autoprint'),
+            'backUrl' => route('contacts.cif.client.show', ['token' => $token]),
+        ]);
+    }
+
     public function clientSpecimenForm(Request $request, string $token): View
     {
         $contact = $this->findContactByClientToken('specimen', $token);
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
 
         abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
 
         return view('contacts.specimen-client-form', [
             'contact' => $contact,
-            'specimenSignature' => SpecimenSignature::query()->where('contact_id', $contact->id)->first(),
-            'specimenForm' => $this->specimenFormData($contact, SpecimenSignature::query()->where('contact_id', $contact->id)->first()),
+            'specimenSignature' => $specimenSignature,
+            'specimenForm' => $this->specimenFormData($contact, $specimenSignature),
             'clientFormAction' => route('contacts.specimen.client.submit', ['token' => $token]),
+            'clientPreviewUrl' => route('contacts.specimen.client.preview', ['token' => $token]),
+            'clientDownloadUrl' => route('contacts.specimen.client.download', ['token' => $token, 'autoprint' => 1]),
+            'kycRequirementState' => $this->kycRequirementState($contact, $specimenSignature),
         ]);
     }
 
@@ -880,7 +954,9 @@ class ContactsController extends Controller
         abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
 
         $validated = $this->validatedSpecimenPayload($request);
+        $this->validateClientSpecimenSignedUpload($request);
         $existing = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
+        $existingAuthenticationData = (array) ($existing?->authentication_data ?? []);
 
         SpecimenSignature::query()->updateOrCreate(
             ['contact_id' => $contact->id],
@@ -908,16 +984,20 @@ class ContactsController extends Controller
                     'signature_over_printed_name' => $validated['signature_over_printed_name'] ?? null,
                     'authorized_signatory_signature' => $validated['authorized_signatory_signature'] ?? null,
                     'authorized_signatory_date' => $validated['authorized_signatory_date'] ?? null,
-                    'processing_instruction' => $validated['processing_instruction'] ?? null,
-                    'sales_marketing' => $validated['sales_marketing'] ?? null,
-                    'processed_by' => $validated['processed_by'] ?? null,
-                    'finance' => $validated['finance'] ?? null,
-                    'scanned_by' => $validated['scanned_by'] ?? null,
+                    'processing_instruction' => $existingAuthenticationData['processing_instruction'] ?? null,
+                    'sales_marketing' => $existingAuthenticationData['sales_marketing'] ?? null,
+                    'processed_by' => $existingAuthenticationData['processed_by'] ?? null,
+                    'processed_date' => $existingAuthenticationData['processed_date'] ?? null,
+                    'finance' => $existingAuthenticationData['finance'] ?? null,
+                    'scanned_by' => $existingAuthenticationData['scanned_by'] ?? null,
+                    'scanned_date' => $existingAuthenticationData['scanned_date'] ?? null,
                 ],
-                'remarks' => $validated['remarks'] ?? null,
+                'remarks' => $existing?->remarks,
                 'created_by' => $existing?->created_by ?: ($contact->owner_name ?: 'Client'),
             ]
         );
+
+        $this->storeClientSubmittedSpecimenDocuments($request, $contact);
 
         $this->syncContactKycSnapshot($contact, [
             'cif_no' => $validated['left_cif_no'] ?? $contact->cif_no,
@@ -926,6 +1006,38 @@ class ContactsController extends Controller
         return redirect()
             ->route('contacts.specimen.client.show', ['token' => $token])
             ->with('success', 'Your Specimen Signature Form has been submitted successfully.');
+    }
+
+    public function previewClientSpecimenForm(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('specimen', $token);
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
+
+        abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
+
+        return view('contacts.specimen-signature-print', [
+            'contact' => $contact,
+            'data' => $this->buildSpecimenPrintData($contact, $specimenSignature),
+            'autoPrint' => false,
+            'embedMode' => false,
+            'backUrl' => route('contacts.specimen.client.show', ['token' => $token]),
+        ]);
+    }
+
+    public function downloadClientSpecimenForm(Request $request, string $token): View
+    {
+        $contact = $this->findContactByClientToken('specimen', $token);
+        $specimenSignature = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
+
+        abort_if($contact->specimen_access_expires_at && $contact->specimen_access_expires_at->isPast(), 403, 'This specimen signature link has expired.');
+
+        return view('contacts.specimen-signature-print', [
+            'contact' => $contact,
+            'data' => $this->buildSpecimenPrintData($contact, $specimenSignature),
+            'autoPrint' => $request->boolean('autoprint'),
+            'embedMode' => false,
+            'backUrl' => route('contacts.specimen.client.show', ['token' => $token]),
+        ]);
     }
 
     public function saveCif(Request $request, string $contact): RedirectResponse
@@ -1140,6 +1252,7 @@ class ContactsController extends Controller
             $documents['two_valid_ids'] = $existing;
         } elseif ($requirement === 'cif_signed_document') {
             $existing = is_array($documents[$requirement] ?? null) ? $documents[$requirement] : null;
+            $cifDocumentDefaults = $this->cifSignedDocumentDefaults($contactModel);
 
             if (! $upload && $existing === null) {
                 return redirect()
@@ -1168,13 +1281,14 @@ class ContactsController extends Controller
 
             $document['document_title'] = $validated['document_title']
                 ?? ($document['document_title']
-                ?? pathinfo((string) ($document['file_name'] ?? ''), PATHINFO_FILENAME));
+                ?? ($cifDocumentDefaults['document_title']
+                ?? pathinfo((string) ($document['file_name'] ?? ''), PATHINFO_FILENAME)));
             $document['cif_no'] = $validated['cif_no']
-                ?? ($document['cif_no'] ?? ($contactModel->cif_no ?: ($this->loadCifData($contactModel)['cif_no'] ?? '')));
-            $document['company_reg_no'] = $validated['company_reg_no'] ?? ($document['company_reg_no'] ?? '');
-            $document['date_created'] = $validated['date_created'] ?? ($document['date_created'] ?? '');
-            $document['issued_on'] = $validated['issued_on'] ?? ($document['issued_on'] ?? '');
-            $document['issued_by'] = $validated['issued_by'] ?? ($document['issued_by'] ?? '');
+                ?? ($document['cif_no'] ?? $cifDocumentDefaults['cif_no']);
+            $document['company_reg_no'] = '';
+            $document['date_created'] = $validated['date_created'] ?? ($document['date_created'] ?? $cifDocumentDefaults['date_created']);
+            $document['issued_on'] = $validated['issued_on'] ?? ($document['issued_on'] ?? $cifDocumentDefaults['issued_on']);
+            $document['issued_by'] = $validated['issued_by'] ?? ($document['issued_by'] ?? $cifDocumentDefaults['issued_by']);
             $document['remarks'] = $validated['remarks'] ?? ($document['remarks'] ?? '');
 
             $documents[$requirement] = $document;
@@ -1546,14 +1660,58 @@ class ContactsController extends Controller
         abort_unless($contactModel, 404);
 
         $data = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
-        abort_unless($data, 404);
 
         return view('contacts.specimen-signature-print', [
             'contact' => $contactModel,
-            'data' => $data,
+            'data' => $this->buildSpecimenPrintData($contactModel, $data),
             'autoPrint' => $request->boolean('autoprint'),
             'embedMode' => $request->boolean('embed'),
+            'backUrl' => route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']),
         ]);
+    }
+
+    private function buildSpecimenPrintData(Contact $contact, ?SpecimenSignature $data): object
+    {
+        if ($data) {
+            return $data;
+        }
+
+        $form = $this->specimenFormData($contact, null);
+
+        return (object) [
+            'bif_no' => $form['bif_no'] ?? '',
+            'date' => filled($form['date'] ?? null) ? \Carbon\Carbon::parse($form['date']) : null,
+            'client_type' => $form['client_type'] ?? 'new',
+            'business_name_left' => $form['business_name_left'] ?? '',
+            'business_name_right' => $form['business_name_right'] ?? '',
+            'account_number_left' => $form['account_number_left'] ?? '',
+            'account_number_right' => $form['account_number_right'] ?? '',
+            'signatories' => collect($form['signatories'] ?? [])->map(fn ($name) => ['name' => $name, 'signature' => null])->all(),
+            'authentication_data' => [
+                'left_client_name' => $form['left_client_name'] ?? '',
+                'left_cif_no' => $form['left_cif_no'] ?? '',
+                'left_cif_dated' => $form['left_cif_dated'] ?? '',
+                'right_client_name' => $form['right_client_name'] ?? '',
+                'right_cif_no' => $form['right_cif_no'] ?? '',
+                'right_cif_dated' => $form['right_cif_dated'] ?? '',
+                'signature_combination' => $form['signature_combination'] ?? '',
+                'signature_class' => $form['signature_class'] ?? '',
+                'authenticated_by' => $form['authenticated_by'] ?? '',
+                'board_resolution_spa_no' => $form['board_resolution_spa_no'] ?? '',
+                'board_resolution_spa_date' => $form['board_resolution_spa_date'] ?? '',
+                'signature_over_printed_name' => $form['signature_over_printed_name'] ?? '',
+                'authorized_signatory_signature' => $form['authorized_signatory_signature'] ?? '',
+                'authorized_signatory_date' => $form['authorized_signatory_date'] ?? '',
+                'processing_instruction' => $form['processing_instruction'] ?? '',
+                'sales_marketing' => $form['sales_marketing'] ?? '',
+                'processed_by' => $form['processed_by'] ?? '',
+                'processed_date' => $form['processed_date'] ?? '',
+                'finance' => $form['finance'] ?? '',
+                'scanned_by' => $form['scanned_by'] ?? '',
+                'scanned_date' => $form['scanned_date'] ?? '',
+            ],
+            'remarks' => $form['remarks'] ?? '',
+        ];
     }
 
     private function ownerOptions(): array
@@ -1738,7 +1896,7 @@ class ContactsController extends Controller
     {
         return [
             'cif_date' => now()->toDateString(),
-            'cif_no' => $contact->cif_no ?? '',
+            'cif_no' => $contact->cif_no ?: ($contact->id ? $this->generateCifNumber($contact) : ''),
             'is_new_client' => true,
             'is_existing_client' => false,
             'is_change_information' => false,
@@ -1792,6 +1950,21 @@ class ContactsController extends Controller
             'date_verified' => '',
             'verified_by' => '',
             'remarks' => '',
+            'cif_document_issued_on' => '',
+            'cif_document_issued_by' => '',
+        ];
+    }
+
+    private function cifSignedDocumentDefaults(Contact $contact): array
+    {
+        $cifData = $this->loadCifData($contact);
+
+        return [
+            'document_title' => 'CIF Document (Signed)',
+            'cif_no' => $contact->cif_no ?: ($cifData['cif_no'] ?? ''),
+            'date_created' => $cifData['cif_date'] ?? '',
+            'issued_on' => $cifData['cif_document_issued_on'] ?? optional($contact->cif_form_sent_at)->toDateString() ?? '',
+            'issued_by' => $cifData['cif_document_issued_by'] ?? '',
         ];
     }
 
@@ -2075,7 +2248,7 @@ class ContactsController extends Controller
                 'form_exists' => $specimenFormExists,
                 'file' => $specimenUploadFiles[0] ?? null,
                 'files' => $specimenUploadFiles,
-                'complete' => $specimenFormExists || count($specimenUploadFiles) > 0,
+                'complete' => count($specimenUploadFiles) > 0,
             ],
             'tin_proof' => [
                 'file' => $tinProofFiles[0] ?? null,
@@ -2218,7 +2391,7 @@ class ContactsController extends Controller
             $contact->middle_name,
             $contact->last_name,
         ])));
-        $defaultCifNo = (string) ($cifData['cif_no'] ?? ($contact->cif_no ?? ($contact->id ? 'CIF-'.$contact->id : '')));
+        $defaultCifNo = (string) ($cifData['cif_no'] ?? ($contact->cif_no ?: ($contact->id ? $this->generateCifNumber($contact) : '')));
         $defaultCifDate = (string) ($cifData['cif_date'] ?? '');
 
         return [
@@ -2691,7 +2864,7 @@ class ContactsController extends Controller
 
     private function validatedCifPayload(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'cif_date' => ['nullable', 'date'],
             'cif_no' => ['nullable', 'string', 'max:100'],
             'is_new_client' => ['nullable', 'boolean'],
@@ -2748,6 +2921,132 @@ class ContactsController extends Controller
             'verified_by' => ['nullable', 'string', 'max:150'],
             'remarks' => ['nullable', 'string'],
         ]);
+
+        $citizenshipType = strtolower((string) ($validated['citizenship_type'] ?? ''));
+
+        if ($citizenshipType === 'filipino') {
+            $validated['citizenship_nationality'] = 'FILIPINO';
+        } else {
+            $validated['citizenship_nationality'] = strtoupper(trim((string) ($validated['citizenship_nationality'] ?? '')));
+        }
+
+        if (($validated['civil_status'] ?? '') !== 'married') {
+            $validated['spouse_name'] = '';
+        }
+
+        return $validated;
+    }
+
+    private function storeClientSubmittedKycDocuments(Request $request, Contact $contact): void
+    {
+        $request->validate([
+            'cif_signed_document_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'two_valid_ids_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'tin_proof_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'passport_proof_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'visa_proof_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'acr_card_proof_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'aaep_proof_uploads.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
+
+        $documents = $this->loadKycRequirementDocuments($contact);
+        $uploadedBy = trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')) ?: 'Client';
+
+        $signedCifUpload = $request->file('cif_signed_document_upload');
+        if ($signedCifUpload) {
+            $existingSignedCif = is_array($documents['cif_signed_document'] ?? null) ? $documents['cif_signed_document'] : null;
+            $existingPath = $existingSignedCif['file_path'] ?? $existingSignedCif['path'] ?? null;
+            $cifDocumentDefaults = $this->cifSignedDocumentDefaults($contact);
+
+            if ($existingPath && Storage::disk('public')->exists($existingPath)) {
+                Storage::disk('public')->delete($existingPath);
+            }
+
+            $storedPath = $signedCifUpload->store('contact-kyc-documents', 'public');
+            $documents['cif_signed_document'] = [
+                'path' => $storedPath,
+                'file_path' => $storedPath,
+                'file_name' => $signedCifUpload->getClientOriginalName(),
+                'mime_type' => $signedCifUpload->getMimeType(),
+                'uploaded_at' => now()->toDateTimeString(),
+                'uploaded_by' => $uploadedBy,
+                'document_title' => $existingSignedCif['document_title'] ?? $cifDocumentDefaults['document_title'],
+                'cif_no' => $existingSignedCif['cif_no'] ?? $cifDocumentDefaults['cif_no'],
+                'date_created' => $existingSignedCif['date_created'] ?? $cifDocumentDefaults['date_created'],
+                'issued_on' => $existingSignedCif['issued_on'] ?? $cifDocumentDefaults['issued_on'],
+                'issued_by' => $existingSignedCif['issued_by'] ?? $cifDocumentDefaults['issued_by'],
+                'remarks' => 'Uploaded by client through secure CIF form.',
+            ];
+        }
+
+        $appendDocuments = function (string $inputName, string $requirement) use ($request, &$documents, $uploadedBy): void {
+            $uploads = $request->file($inputName, []);
+
+            if (! is_array($uploads) || $uploads === []) {
+                return;
+            }
+
+            $existing = array_values(array_filter((array) ($documents[$requirement] ?? []), fn ($item) => is_array($item)));
+
+            foreach ($uploads as $upload) {
+                if (! $upload) {
+                    continue;
+                }
+
+                $storedPath = $upload->store('contact-kyc-documents', 'public');
+                $existing[] = [
+                    'path' => $storedPath,
+                    'file_path' => $storedPath,
+                    'file_name' => $upload->getClientOriginalName(),
+                    'mime_type' => $upload->getMimeType(),
+                    'uploaded_at' => now()->toDateTimeString(),
+                    'uploaded_by' => $uploadedBy,
+                ];
+            }
+
+            $documents[$requirement] = $existing;
+        };
+
+        $appendDocuments('two_valid_ids_uploads', 'two_valid_ids');
+        $appendDocuments('tin_proof_uploads', 'tin_proof');
+        $appendDocuments('passport_proof_uploads', 'passport_proof');
+        $appendDocuments('visa_proof_uploads', 'visa_proof');
+        $appendDocuments('acr_card_proof_uploads', 'acr_card_proof');
+        $appendDocuments('aaep_proof_uploads', 'aaep_proof');
+
+        $this->saveKycRequirementDocuments($contact, $documents);
+    }
+
+    private function validateClientSpecimenSignedUpload(Request $request): void
+    {
+        $request->validate([
+            'specimen_signature_signed_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
+    }
+
+    private function storeClientSubmittedSpecimenDocuments(Request $request, Contact $contact): void
+    {
+        $upload = $request->file('specimen_signature_signed_upload');
+        if (! $upload) {
+            return;
+        }
+
+        $documents = $this->loadKycRequirementDocuments($contact);
+        $uploadedBy = trim(($contact->first_name ?? '').' '.($contact->last_name ?? '')) ?: 'Client';
+        $existing = array_values(array_filter((array) ($documents['specimen_signature_upload'] ?? []), fn ($item) => is_array($item)));
+        $storedPath = $upload->store('contact-kyc-documents', 'public');
+
+        $existing[] = [
+            'path' => $storedPath,
+            'file_path' => $storedPath,
+            'file_name' => $upload->getClientOriginalName(),
+            'mime_type' => $upload->getMimeType(),
+            'uploaded_at' => now()->toDateTimeString(),
+            'uploaded_by' => $uploadedBy,
+        ];
+
+        $documents['specimen_signature_upload'] = $existing;
+        $this->saveKycRequirementDocuments($contact, $documents);
     }
 
     private function validatedSpecimenPayload(Request $request): array

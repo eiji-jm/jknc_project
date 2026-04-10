@@ -12,6 +12,7 @@
         @include('contacts.partials.specimen-signature-card', [
             'form' => $specimenForm,
             'readonly' => true,
+            'contact' => $contact,
         ])
     </div>
 </div>

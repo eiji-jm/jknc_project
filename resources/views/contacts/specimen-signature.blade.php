@@ -5,6 +5,7 @@
     $form = $specimenForm ?? [];
     $signatories = array_pad($form['signatories'] ?? [], 6, '');
     $clientType = old('client_type', $form['client_type'] ?? 'new');
+    $isBusinessContact = ($contact->customer_type ?? null) === 'business';
     $contactName = trim(($contact->first_name ?? '').' '.($contact->last_name ?? ''));
     $contactDisplayName = $contact->name ?? ($contactName !== '' ? $contactName : ('Contact #'.$contact->id));
     $lineInput = 'width:100%; height:18px; border:0; border-bottom:1px solid #000; padding:0 2px; box-sizing:border-box; font-family:\'Times New Roman\', serif; font-size:12px; background:transparent;';
@@ -64,9 +65,16 @@
                     </td>
                     <td width="46%" style="border-left:0; border-right:0; border-bottom:0;">&nbsp;</td>
                     <td width="34%" style="border-left:0; border-bottom:0; text-align:right; line-height:1.2; font-weight:bold;">
-                        AUTHORIZED SIGNATORY/SIGNATORY<br>
-                        (Sole / OPC / INDIVIDUAL)<br>
-                        SPECIMEN SIGNATURE CARD
+                        @if ($isBusinessContact)
+                            AUTHORIZED SIGNATORY<br>
+                            SPECIMEN SIGNATURE CARD<br>
+                            <span style="font-style:italic; font-size:11px;">CORPORATION / PARTNERSHIP / OTHER JURIDICAL ENTITY</span><br>
+                            <span style="font-size:10px;">CASA-F-005-V1.0-03.16.26</span>
+                        @else
+                            AUTHORIZED SIGNATORY/SIGNATORY<br>
+                            (Sole / OPC / INDIVIDUAL)<br>
+                            SPECIMEN SIGNATURE CARD
+                        @endif
                     </td>
                 </tr>
 
@@ -86,22 +94,28 @@
                     </td>
                 </tr>
 
+                @if (! $isBusinessContact)
+                    <input type="hidden" name="client_type" value="{{ $clientType }}">
+                @endif
+
+                @if ($isBusinessContact)
                 <tr>
-                    <td colspan="3" style="padding-top:8px; padding-bottom:8px;">
+                    <td colspan="3" style="padding:4px 8px;">
                         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
                             <tr>
-                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'new') onclick="return false;" @disabled(! $isEditMode) class="preview-field"></td>
-                                <td width="16%" style="border:0;">New Client</td>
-                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'existing') onclick="return false;" @disabled(! $isEditMode) class="preview-field"></td>
-                                <td width="17%" style="border:0;">Existing Client</td>
-                                <td width="4%" style="border:0; text-align:center;"><input type="checkbox" @checked($clientType === 'change') onclick="return false;" @disabled(! $isEditMode) class="preview-field"></td>
-                                <td width="25%" style="border:0;">Change Information</td>
-                                <td width="30%" style="border:0;">&nbsp;</td>
+                                @foreach (['new' => 'New Client', 'existing' => 'Existing Client', 'change' => 'Change Information'] as $value => $label)
+                                    <td style="border:0; text-align:center;">
+                                        <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px;">
+                                            <input type="radio" name="client_type" value="{{ $value }}" @checked(old('client_type', $form['client_type'] ?? 'new') === $value) @disabled(! $isEditMode)>
+                                            <span>{{ $label }}</span>
+                                        </label>
+                                    </td>
+                                @endforeach
                             </tr>
                         </table>
-                        <input type="hidden" name="client_type" value="{{ $clientType }}">
                     </td>
                 </tr>
+                @endif
 
                 <tr>
                     <td colspan="3" style="padding:0;">
@@ -233,13 +247,17 @@
                                         </tr>
                                         <tr>
                                             <td style="border:0; text-align:center; padding-top:8px;">
-                                                <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                                <div style="margin:0 auto 2px auto; width:72%; border-bottom:1px solid #000; min-height:16px; display:flex; align-items:flex-end; justify-content:center;">
+                                                    <input type="text" name="signature_over_printed_name" value="{{ old('signature_over_printed_name', $form['signature_over_printed_name'] ?? '') }}" style="width:100%; border:0; padding:0 2px 1px; box-sizing:border-box; font-family:'Times New Roman', serif; font-size:12px; background:transparent; text-align:center;" @disabled(! $isEditMode) class="preview-field">
+                                                </div>
                                                 Signature over Printed Name
                                             </td>
                                         </tr>
                                         <tr>
                                             <td style="border:0; text-align:center; padding-top:2px;">
-                                                <div style="margin:0 auto 4px auto; width:72%; border-bottom:1px solid #000;"></div>
+                                                <div style="margin:0 auto 2px auto; width:72%; border-bottom:1px solid #000; min-height:16px; display:flex; align-items:flex-end; justify-content:center;">
+                                                    <input type="date" name="authorized_signatory_date" value="{{ old('authorized_signatory_date', $form['authorized_signatory_date'] ?? '') }}" style="width:100%; border:0; padding:0 2px 1px; box-sizing:border-box; font-family:'Times New Roman', serif; font-size:12px; background:transparent; text-align:center;" @disabled(! $isEditMode) class="preview-field">
+                                                </div>
                                                 Date
                                             </td>
                                         </tr>
@@ -251,11 +269,15 @@
                                     <table width="100%" border="0" cellspacing="0" cellpadding="4" style="border-collapse:collapse; table-layout:fixed;">
                                         <tr>
                                             <td width="68%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
-                                                <div style="margin:0 auto 4px auto; width:70%; border-bottom:1px solid #000;"></div>
+                                                <div style="margin:0 auto 2px auto; width:70%; border-bottom:1px solid #000; min-height:16px; display:flex; align-items:flex-end; justify-content:center;">
+                                                    <input type="text" name="authorized_signatory_signature" value="{{ old('authorized_signatory_signature', $form['authorized_signatory_signature'] ?? '') }}" style="width:100%; border:0; padding:0 2px 1px; box-sizing:border-box; font-family:'Times New Roman', serif; font-size:12px; background:transparent; text-align:center;" @disabled(! $isEditMode) class="preview-field">
+                                                </div>
                                                 Authorized Signatory's Signature over Printed Name
                                             </td>
                                             <td width="32%" style="border:0; text-align:center; vertical-align:bottom; padding-top:10px;">
-                                                <div style="margin:0 auto 4px auto; width:78%; border-bottom:1px solid #000;"></div>
+                                                <div style="margin:0 auto 2px auto; width:78%; border-bottom:1px solid #000; min-height:16px; display:flex; align-items:flex-end; justify-content:center;">
+                                                    <input type="date" name="authorized_signatory_date" value="{{ old('authorized_signatory_date', $form['authorized_signatory_date'] ?? '') }}" style="width:100%; border:0; padding:0 2px 1px; box-sizing:border-box; font-family:'Times New Roman', serif; font-size:12px; background:transparent; text-align:center;" @disabled(! $isEditMode) class="preview-field">
+                                                </div>
                                                 Date
                                             </td>
                                         </tr>
@@ -307,6 +329,35 @@
                                                 Signature over Printed Name
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <td colspan="2" style="text-align:center; font-style:italic; vertical-align:bottom; padding:18px 8px 6px 8px; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">
+                                                Record Custodian ( Name and Signature)
+                                            </td>
+                                            <td style="padding:0; border-top:0; border-bottom:0; border-left:0; border-right:1px solid #000;">
+                                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                                                    <tr>
+                                                        <td style="border:0; border-bottom:1px solid #000; padding:6px 6px 4px 6px;">Date Recorded:</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="border:0; padding:6px 6px 4px 6px;">Date Signed :</td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                            <td style="padding:0; border-top:0; border-bottom:0; border-left:0; border-right:0;">
+                                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse; table-layout:fixed;">
+                                                    <tr>
+                                                        <td style="border:0; border-bottom:1px solid #000; padding:2px 6px;">
+                                                            <input type="date" name="processed_date" value="{{ old('processed_date', $form['processed_date'] ?? '') }}" style="{{ $boxInput }}" @disabled(! $isEditMode) class="preview-field">
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="border:0; padding:2px 6px;">
+                                                            <input type="date" name="scanned_date" value="{{ old('scanned_date', $form['scanned_date'] ?? '') }}" style="{{ $boxInput }}" @disabled(! $isEditMode) class="preview-field">
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
                                     </table>
                                 </td>
                             </tr>
@@ -327,12 +378,16 @@
                     Preview the document or export a print-friendly PDF.
                 </p>
 
-                <button onclick="window.open('{{ route('contacts.specimen-signature.download', ['id' => $contact->id]) }}','_blank')"
+                <button type="button"
+                    data-specimen-pdf-preview
+                    data-preview-url="{{ route('contacts.specimen-signature.download', ['id' => $contact->id]) }}"
                     class="mb-2 w-full rounded border px-4 py-2 text-sm hover:bg-gray-50">
                     Preview PDF
                 </button>
 
-                <button onclick="window.open('{{ route('contacts.specimen-signature.download', ['id' => $contact->id]) }}?autoprint=1','_blank')"
+                <button type="button"
+                    data-specimen-pdf-download
+                    data-download-url="{{ route('contacts.specimen-signature.download', ['id' => $contact->id]) }}?autoprint=1"
                     class="w-full rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
                     Download PDF
                 </button>
@@ -381,6 +436,41 @@
             saveButton.classList.add('hidden');
             cancelButton.classList.add('hidden');
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const specimenPreviewButton = document.querySelector('[data-specimen-pdf-preview]');
+            const specimenDownloadButton = document.querySelector('[data-specimen-pdf-download]');
+
+            const openPrintFrame = (url) => {
+                if (!url) {
+                    return;
+                }
+
+                const frame = document.createElement('iframe');
+                frame.style.position = 'fixed';
+                frame.style.width = '0';
+                frame.style.height = '0';
+                frame.style.border = '0';
+                frame.style.opacity = '0';
+                frame.setAttribute('aria-hidden', 'true');
+                frame.src = url;
+                document.body.appendChild(frame);
+
+                const cleanup = () => {
+                    window.setTimeout(() => frame.remove(), 1500);
+                };
+
+                frame.addEventListener('load', cleanup, { once: true });
+            };
+
+            specimenPreviewButton?.addEventListener('click', () => {
+                window.open(specimenPreviewButton.dataset.previewUrl, '_blank');
+            });
+
+            specimenDownloadButton?.addEventListener('click', () => {
+                openPrintFrame(specimenDownloadButton.dataset.downloadUrl);
+            });
+        });
     </script>
 
 </div>

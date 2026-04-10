@@ -90,17 +90,6 @@
                             @endforeach
                         </div>
                     </div>
-                    <div class="grid items-center gap-2 sm:grid-cols-[72px_1fr]">
-                        <label class="text-sm font-medium text-gray-700">Status</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            @foreach (['new' => 'New Client', 'existing' => 'Existing Client'] as $value => $label)
-                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50/40">
-                                    <input type="radio" name="client_status" value="{{ $value }}" @checked(old('client_status', $contact->client_status) === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    <span>{{ $label }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
                 </div>
             </section>
 

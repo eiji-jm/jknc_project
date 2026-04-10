@@ -1,4 +1,9 @@
-<form method="POST" action="{{ route('contacts.cif.save', $contact->id) }}" class="space-y-5">
+@php
+    $selectedCitizenshipType = old('citizenship_type', $cifData['citizenship_type'] ?? '');
+    $selectedCivilStatus = old('civil_status', $cifData['civil_status'] ?? '');
+@endphp
+
+<form method="POST" action="{{ route('contacts.cif.save', $contact->id) }}" class="space-y-5" data-cif-card-form>
     @csrf
 
     <section class="rounded-lg border border-gray-200 p-4">
@@ -6,11 +11,6 @@
         <div class="grid gap-4 md:grid-cols-2">
             <div><label class="mb-1 block text-sm font-medium text-gray-700">Date</label><input type="date" name="cif_date" value="{{ old('cif_date', $cifData['cif_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
             <div><label class="mb-1 block text-sm font-medium text-gray-700">CIF No.</label><input name="cif_no" value="{{ old('cif_no', $cifData['cif_no'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
-        </div>
-        <div class="mt-3 grid gap-2 sm:grid-cols-3">
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="is_new_client" value="1" @checked(old('is_new_client', $cifData['is_new_client'] ?? false))> New Client</label>
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="is_existing_client" value="1" @checked(old('is_existing_client', $cifData['is_existing_client'] ?? false))> Existing Client</label>
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="is_change_information" value="1" @checked(old('is_change_information', $cifData['is_change_information'] ?? false))> Change Information</label>
         </div>
     </section>
 
@@ -50,7 +50,7 @@
         <div class="grid gap-4 md:grid-cols-3">
             <div><label class="mb-1 block text-sm font-medium text-gray-700">Date of Birth</label><input type="date" name="date_of_birth" value="{{ old('date_of_birth', $cifData['date_of_birth'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
             <div><label class="mb-1 block text-sm font-medium text-gray-700">Place of Birth</label><input name="place_of_birth" value="{{ old('place_of_birth', $cifData['place_of_birth'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
-            <div><label class="mb-1 block text-sm font-medium text-gray-700">Citizenship / Nationality</label><input name="citizenship_nationality" value="{{ old('citizenship_nationality', $cifData['citizenship_nationality'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
+            <div><label class="mb-1 block text-sm font-medium text-gray-700">Citizenship / Nationality</label><input name="citizenship_nationality" value="{{ old('citizenship_nationality', $cifData['citizenship_nationality'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-citizenship-nationality-input @if($selectedCitizenshipType === 'filipino') readonly @endif></div>
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
             @foreach (['filipino' => 'Filipino', 'foreigner' => 'Foreigner', 'dual_citizen' => 'Dual Citizen'] as $value => $label)
@@ -75,7 +75,7 @@
                     @endforeach
                 </div>
             </div>
-            <div><label class="mb-1 block text-sm font-medium text-gray-700">Spouse's Name</label><input name="spouse_name" value="{{ old('spouse_name', $cifData['spouse_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
+            <div data-spouse-row @if($selectedCivilStatus !== 'married') style="display:none;" @endif><label class="mb-1 block text-sm font-medium text-gray-700">Spouse's Name</label><input name="spouse_name" value="{{ old('spouse_name', $cifData['spouse_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
         </div>
     </section>
 
@@ -100,7 +100,7 @@
         <div class="mt-3"><label class="mb-1 block text-sm font-medium text-gray-700">Others (Specify)</label><input name="source_of_funds_other_text" value="{{ old('source_of_funds_other_text', $cifData['source_of_funds_other_text'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
     </section>
 
-    <section class="rounded-lg border border-gray-200 p-4">
+    <section class="rounded-lg border border-gray-200 p-4" data-foreign-section @if(!in_array($selectedCitizenshipType, ['foreigner', 'dual_citizen'], true)) style="display:none;" @endif>
         <h3 class="mb-3 text-sm font-semibold text-gray-900">Foreigner Details</h3>
         <div class="grid gap-4 md:grid-cols-3">
             <div><label class="mb-1 block text-sm font-medium text-gray-700">Foreigner Passport No.</label><input name="foreigner_passport_no" value="{{ old('foreigner_passport_no', $cifData['foreigner_passport_no'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></div>
@@ -125,10 +125,13 @@
 
     <section class="rounded-lg border border-gray-200 p-4">
         <h3 class="mb-3 text-sm font-semibold text-gray-900">Client Onboarding Requirements</h3>
-        <div class="grid gap-2">
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="onboarding_two_valid_ids" value="1" @checked(old('onboarding_two_valid_ids', $cifData['onboarding_two_valid_ids'] ?? false))> 2 Valid Government IDs</label>
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="onboarding_tin_id" value="1" @checked(old('onboarding_tin_id', $cifData['onboarding_tin_id'] ?? false))> TIN ID</label>
-            <label class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"><input type="checkbox" name="onboarding_authorized_signatory_card" value="1" @checked(old('onboarding_authorized_signatory_card', $cifData['onboarding_authorized_signatory_card'] ?? false))> Authorized Signatory / Specimen Signature Card</label>
+        <div class="grid gap-2 text-sm">
+            <div>1 | 2 Valid Government IDs</div>
+            <div>2 | TIN ID (Signatory/Representative/Stockholders/Partners/Others)</div>
+            <div>3 | AUTHORIZED SIGNATORY/SIGNATORY (Sole / OPC / Individual) SPECIMEN SIGNATURE CARD</div>
+            <div data-foreign-requirement @if(!in_array($selectedCitizenshipType, ['foreigner', 'dual_citizen'], true)) style="display:none;" @endif>4 | If Foreign Signatory/Director/Officer: Passport (Bio Page)</div>
+            <div data-foreign-requirement @if(!in_array($selectedCitizenshipType, ['foreigner', 'dual_citizen'], true)) style="display:none;" @endif>5 | If Foreign Signatory/Director/Officer: Valid Visa / ACR I-Card</div>
+            <div data-foreign-requirement @if(!in_array($selectedCitizenshipType, ['foreigner', 'dual_citizen'], true)) style="display:none;" @endif>6 | If Foreign Signatory/Director/Officer Alien Employment Permit (AEP)</div>
         </div>
     </section>
 
@@ -159,3 +162,55 @@
         <button type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">Save CIF</button>
     </div>
 </form>
+
+<script>
+    (function () {
+        const form = document.querySelector('[data-cif-card-form]');
+        if (!form) return;
+
+        const spouseRow = form.querySelector('[data-spouse-row]');
+        const foreignSection = form.querySelector('[data-foreign-section]');
+        const foreignRequirements = form.querySelectorAll('[data-foreign-requirement]');
+        const citizenshipNationalityInput = form.querySelector('[data-citizenship-nationality-input]');
+
+        const getSelectedValue = (name) => form.querySelector(`input[name="${name}"]:checked`)?.value || '';
+
+        const syncVisibility = () => {
+            const citizenshipType = getSelectedValue('citizenship_type');
+            const civilStatus = getSelectedValue('civil_status');
+            const showForeign = citizenshipType === 'foreigner' || citizenshipType === 'dual_citizen';
+
+            if (citizenshipNationalityInput) {
+                if (citizenshipType === 'filipino') {
+                    citizenshipNationalityInput.value = 'FILIPINO';
+                    citizenshipNationalityInput.readOnly = true;
+                    citizenshipNationalityInput.classList.add('bg-gray-100');
+                } else {
+                    citizenshipNationalityInput.readOnly = false;
+                    citizenshipNationalityInput.classList.remove('bg-gray-100');
+                    if (citizenshipNationalityInput.value.trim().toUpperCase() === 'FILIPINO') {
+                        citizenshipNationalityInput.value = '';
+                    }
+                }
+            }
+
+            if (spouseRow) {
+                spouseRow.style.display = civilStatus === 'married' ? '' : 'none';
+            }
+
+            if (foreignSection) {
+                foreignSection.style.display = showForeign ? '' : 'none';
+            }
+
+            foreignRequirements.forEach((item) => {
+                item.style.display = showForeign ? '' : 'none';
+            });
+        };
+
+        form.querySelectorAll('input[name="citizenship_type"], input[name="civil_status"]').forEach((input) => {
+            input.addEventListener('change', syncVisibility);
+        });
+
+        syncVisibility();
+    })();
+</script>

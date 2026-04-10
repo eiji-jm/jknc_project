@@ -65,32 +65,69 @@
             'JKNC Academy Courses',
         ],
     ];
-    $productOptions = [
-        'Printing',
-        'Photocopy',
-        'Drafting of Letters',
-        'Drafting of Notices',
-        'Drafting of Demand Letters',
-        'Drafting of Emails (Formal / Business)',
-        'Archive Retrieval',
-        'Digital Archive Copy',
-        'Drafting of Responses to Letters / Notices',
-        'Drafting of Memorandum (Internal / External)',
-        'Drafting of Certifications',
-        'Drafting of Compliance Documents',
-        'Document Delivery (Metro Cebu)',
-        'Document Delivery (Outside Metro Cebu/LBC)',
-        'Drafting of Affidavits (Non-Legal Advice)',
-        'Drafting of Agreements / Simple Contracts)',
-        'Drafting of Board Resolutions',
-        'Drafting of Endorsement / Request Letters',
-        'Notarization - Simple Documents',
-        'Notarization - Complex Documents',
-        "Drafting of Secretary's Certificates",
-        'Drafting of Policies & Procedures',
-        'Drafting of Reports / Formal Documents',
-        'Others',
+    $productOptionsByServiceArea = [
+        'Corporate & Regulatory Advisory' => [
+            'Printing',
+            'Photocopy',
+            'Drafting of Letters',
+            'Drafting of Notices',
+            'Drafting of Demand Letters',
+            'Drafting of Emails (Formal / Business)',
+        ],
+        'Accounting & Compliance Advisory' => [
+            'Archive Retrieval',
+            'Digital Archive Copy',
+            'Drafting of Responses to Letters / Notices',
+            'Drafting of Memorandum (Internal / External)',
+            'Drafting of Certifications',
+            'Drafting of Compliance Documents',
+        ],
+        'Governance & Policy Advisory' => [
+            'Document Delivery (Metro Cebu)',
+            'Document Delivery (Outside Metro Cebu/LBC)',
+            'Drafting of Affidavits (Non-Legal Advice)',
+            'Drafting of Agreements / Simple Contracts',
+            'Drafting of Board Resolutions',
+            'Drafting of Endorsement / Request Letters',
+        ],
+        'Business Strategy & Process Advisory' => [
+            'Notarization - Simple Documents',
+            'Notarization - Complex Documents',
+            "Drafting of Secretary's Certificates",
+            'Drafting of Policies & Procedures',
+            'Drafting of Reports / Formal Documents',
+        ],
+        'Strategic Situations Advisory' => [
+            'Printing',
+            'Photocopy',
+            'Drafting of Letters',
+            'Drafting of Notices',
+            'Drafting of Demand Letters',
+            'Drafting of Emails (Formal / Business)',
+        ],
+        'People & Talent Solutions' => [
+            'Archive Retrieval',
+            'Digital Archive Copy',
+            'Drafting of Responses to Letters / Notices',
+            'Drafting of Memorandum (Internal / External)',
+            'Drafting of Certifications',
+            'Drafting of Compliance Documents',
+        ],
+        'Learning & Capability Development' => [
+            'Document Delivery (Metro Cebu)',
+            'Document Delivery (Outside Metro Cebu/LBC)',
+            'Drafting of Affidavits (Non-Legal Advice)',
+            'Drafting of Agreements / Simple Contracts',
+            'Drafting of Board Resolutions',
+            'Drafting of Endorsement / Request Letters',
+        ],
     ];
+    $productOptions = collect($productOptionsByServiceArea)
+        ->flatten()
+        ->push('Others')
+        ->unique()
+        ->values()
+        ->all();
     $servicePricing = collect($serviceGroups)
         ->flatten()
         ->mapWithKeys(fn ($service) => [$service => 2500])
@@ -458,7 +495,7 @@
                     </section>
 
                     <section class="rounded-2xl border border-gray-200 p-4">
-                        <h3 class="text-base font-semibold text-gray-900">Select Existing Contact / Client</h3>
+                    <h3 id="dealSelectionSectionTitle" class="text-base font-semibold text-gray-900">Select Existing Contact / Client</h3>
                         <p id="dealSearchHelpText" class="mb-4 text-xs text-gray-500">Select a customer type, then search the matching records.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="relative sm:col-span-2">
@@ -592,13 +629,28 @@
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Products</h3>
-                            <div id="product-options-grid" class="mt-3 grid gap-2 sm:grid-cols-2">
-                                @foreach ($productOptions as $option)
-                                    <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="checkbox" name="product_options[]" value="{{ $option }}" @checked(in_array($option, $selectedProducts, true)) @if ($option === 'Others') data-other-target="deal_products_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
-                                    </label>
+                            <p id="dealProductsHelpText" class="mt-1 text-xs text-gray-500">Select a service area first to show the matching products offered.</p>
+                            <div id="dealProductsEmptyState" class="mt-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 {{ count(array_intersect($selectedServiceAreas, array_keys($productOptionsByServiceArea))) > 0 ? 'hidden' : '' }}">
+                                Select a matching service area first to show the available products.
+                            </div>
+                            <div id="product-options-grid" class="mt-3 grid gap-4">
+                                @foreach ($productOptionsByServiceArea as $serviceArea => $options)
+                                    <div class="{{ in_array($serviceArea, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-product-group="{{ $serviceArea }}">
+                                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $serviceArea }}</p>
+                                        <div class="grid gap-2 sm:grid-cols-2">
+                                            @foreach ($options as $option)
+                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-product-option data-service-area-product="{{ $serviceArea }}" data-product-value="{{ $option }}">
+                                                <input type="checkbox" name="product_options[]" value="{{ $option }}" @checked(in_array($option, $selectedProducts, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span>{{ $option }}</span>
+                                            </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
                                 @endforeach
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-product-option data-product-value="Others">
+                                    <input type="checkbox" name="product_options[]" value="Others" @checked(in_array('Others', $selectedProducts, true)) data-other-target="deal_products_other_wrap" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span>Others</span>
+                                </label>
                                 @foreach ($selectedProductCustomEntries as $customEntry)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
                                         <input type="checkbox" name="product_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
@@ -974,6 +1026,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const companyRecords = @json($companyRecords ?? []);
     const servicePricing = @json($servicePricing);
     const productPricing = @json($productPricing);
+    const productOptionsByServiceArea = @json($productOptionsByServiceArea);
     const customServicePrice = 2500;
     const customProductPrice = 350;
 
@@ -1162,6 +1215,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
         serviceEmptyState?.classList.toggle('hidden', visibleCount > 0);
         serviceGrid?.classList.toggle('hidden', visibleCount === 0);
+        recalculateTotal();
+    };
+
+    const syncProductOptions = () => {
+        const selectedAreas = Array.from(document.querySelectorAll('input[name="service_area_options[]"]:checked'))
+            .map((input) => String(input.value || '').trim())
+            .filter((value) => value !== '' && value !== 'Others');
+        const allowedProducts = new Set(
+            selectedAreas.flatMap((area) => productOptionsByServiceArea[area] || [])
+        );
+        const productOptions = Array.from(document.querySelectorAll('[data-product-option]'));
+        const productGroups = Array.from(document.querySelectorAll('[data-product-group]'));
+        const productEmptyState = document.getElementById('dealProductsEmptyState');
+
+        let visibleCount = 0;
+
+        productGroups.forEach((group) => {
+            const serviceArea = group.dataset.productGroup || '';
+            const isVisible = selectedAreas.includes(serviceArea);
+            group.classList.toggle('hidden', !isVisible);
+        });
+
+        productOptions.forEach((option) => {
+            const productValue = option.dataset.productValue || '';
+            const serviceArea = option.dataset.serviceAreaProduct || '';
+            const isOthers = productValue === 'Others';
+            const isVisible = isOthers || (serviceArea !== '' && allowedProducts.has(productValue));
+
+            option.classList.toggle('hidden', !isVisible);
+
+            if (!isVisible) {
+                const input = option.querySelector('input[name="product_options[]"]');
+                if (input) {
+                    input.checked = false;
+                }
+            } else {
+                visibleCount += 1;
+            }
+        });
+
+        productEmptyState?.classList.toggle('hidden', visibleCount > 1 || allowedProducts.size > 0);
+        applyOtherFieldToggles();
         recalculateTotal();
     };
 
@@ -1743,8 +1838,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const customerType = selectedCustomerType();
         const isBusiness = customerType === 'business';
 
+        const selectionSectionTitle = document.getElementById('dealSelectionSectionTitle');
+
         if (contactSearchLabel) {
-            contactSearchLabel.textContent = isBusiness ? 'Search Existing Company' : 'Search Existing Contact';
+            contactSearchLabel.textContent = isBusiness ? 'Search Existing Business / Company' : 'Search Existing Client';
+        }
+
+        if (selectionSectionTitle) {
+            selectionSectionTitle.textContent = isBusiness ? 'Select Existing Business / Company' : 'Select Existing Contact / Client';
         }
 
         if (contactSearchHelpText) {
@@ -1942,7 +2043,10 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('services-other-wrapper')?.classList.toggle('hidden', !this.checked);
     });
     Array.from(document.querySelectorAll('input[name="service_area_options[]"]')).forEach((input) => {
-        input.addEventListener('change', syncServiceGroups);
+        input.addEventListener('change', () => {
+            syncServiceGroups();
+            syncProductOptions();
+        });
     });
     const serviceAreaOthersCheckbox = document.querySelector('input[name="service_area_options[]"][value="Others"]');
     initOthersSelectableOptions({
@@ -1998,6 +2102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         optionDataAttribute: 'data-complexity-custom-option',
     });
     initClientRequirementsOthers();
+    syncProductOptions();
     initOthersTagInput({
         triggerElements: Array.from(document.querySelectorAll('input[name="payment_terms"]')),
         container: document.getElementById('deal_payment_terms_other_wrap'),
@@ -2034,6 +2139,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     syncCustomerSearchUi();
     syncServiceGroups();
+    syncProductOptions();
     syncAllClientRequirementRows();
     if (contactIdInput?.value) {
         setDependentDisabled(false);

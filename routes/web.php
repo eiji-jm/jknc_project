@@ -46,8 +46,12 @@ Route::get('/bif/respond/{token}', [CompanyBifController::class, 'clientForm'])-
 Route::post('/bif/respond/{token}', [CompanyBifController::class, 'submitClientForm'])->name('company.bif.client.submit');
 Route::get('/cif/respond/{token}', [ContactsController::class, 'clientCifForm'])->name('contacts.cif.client.show');
 Route::post('/cif/respond/{token}', [ContactsController::class, 'submitClientCifForm'])->name('contacts.cif.client.submit');
+Route::get('/cif/respond/{token}/preview', [ContactsController::class, 'previewClientCif'])->name('contacts.cif.client.preview');
+Route::get('/cif/respond/{token}/download', [ContactsController::class, 'downloadClientCif'])->name('contacts.cif.client.download');
 Route::get('/specimen/respond/{token}', [ContactsController::class, 'clientSpecimenForm'])->name('contacts.specimen.client.show');
 Route::post('/specimen/respond/{token}', [ContactsController::class, 'submitClientSpecimenForm'])->name('contacts.specimen.client.submit');
+Route::get('/specimen/respond/{token}/preview', [ContactsController::class, 'previewClientSpecimenForm'])->name('contacts.specimen.client.preview');
+Route::get('/specimen/respond/{token}/download', [ContactsController::class, 'downloadClientSpecimenForm'])->name('contacts.specimen.client.download');
 Route::get('/activities', function () {
     return view('activities.index');
 })->name('activities');
