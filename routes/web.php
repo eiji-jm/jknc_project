@@ -29,6 +29,7 @@ use App\Http\Controllers\PermitController;
 use App\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CorporateDocumentDefaultsController;
 use App\Http\Controllers\MinuteController;
 use App\Http\Controllers\NoticeController;
@@ -302,6 +303,16 @@ Route::middleware('auth')->group(function () {
     Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
     Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
 
+    Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
+    Route::get('/finance/{financeRecord}', [FinanceController::class, 'show'])->name('finance.show');
+    Route::post('/finance', [FinanceController::class, 'store'])->name('finance.store');
+    Route::put('/finance/{financeRecord}', [FinanceController::class, 'update'])->name('finance.update');
+    Route::post('/finance/{financeRecord}/submit', [FinanceController::class, 'submit'])->name('finance.submit');
+    Route::post('/finance/{financeRecord}/approve', [FinanceController::class, 'approve'])->name('finance.approve');
+    Route::post('/finance/{financeRecord}/revert', [FinanceController::class, 'revert'])->name('finance.revert');
+    Route::post('/finance/{financeRecord}/archive', [FinanceController::class, 'archive'])->name('finance.archive');
+    Route::post('/finance/{financeRecord}/share-supplier-link', [FinanceController::class, 'shareSupplierLink'])->name('finance.supplier.share');
+
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
     Route::get('/banking/{id}', [BankingController::class, 'show'])->name('banking.show');
@@ -338,3 +349,8 @@ Route::middleware('auth')->group(function () {
         return view('corporate.correspondence');
     })->name('correspondence');
 });
+
+Route::get('/finance/supplier/completion/{token}', [FinanceController::class, 'supplierCompletionForm'])
+    ->name('finance.supplier.completion');
+Route::post('/finance/supplier/completion/{token}', [FinanceController::class, 'submitSupplierCompletion'])
+    ->name('finance.supplier.completion.submit');
