@@ -144,7 +144,7 @@ class CompanyKycController extends Controller
 
     public function submitKycForVerification(Request $request, int $company): RedirectResponse
     {
-        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
 
         $bif = $this->latestCompanyBif($company);
         if (! $bif) {
@@ -292,7 +292,7 @@ class CompanyKycController extends Controller
 
     public function uploadRequirementDocument(Request $request, int $company, string $requirement): RedirectResponse
     {
-        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
 
         $bif = $this->latestCompanyBif($company);
         if (! $bif) {
@@ -338,7 +338,7 @@ class CompanyKycController extends Controller
 
     public function removeRequirementDocument(Request $request, int $company, string $requirement): RedirectResponse
     {
-        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
 
         $bif = $this->latestCompanyBif($company);
         if (! $bif) {
