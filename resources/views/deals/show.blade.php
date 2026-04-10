@@ -14,10 +14,9 @@
         'Closed Lost' => 'bg-red-100 text-red-700 border border-red-200',
     ];
     $dealStatusClasses = [
-        'Open' => 'bg-blue-100 text-blue-700 border border-blue-200',
-        'Won' => 'bg-green-100 text-green-700 border border-green-200',
-        'Lost' => 'bg-red-100 text-red-700 border border-red-200',
         'Pending' => 'bg-amber-100 text-amber-700 border border-amber-200',
+        'Approved' => 'bg-green-100 text-green-700 border border-green-200',
+        'Rejected' => 'bg-red-100 text-red-700 border border-red-200',
     ];
     $initials = strtoupper(substr((string) ($deal['contact_name'] ?? 'C'), 0, 1).substr(strrchr(' '.($deal['contact_name'] ?? 'C'), ' '), 1, 1));
     $progressCurrentStage = data_get($detail, 'progress.current_stage', []);
@@ -66,6 +65,8 @@
                         <div><p class="text-xs text-gray-500">Contact Number</p><p class="font-medium text-gray-800">{{ $detail['contact_number'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Client Type</p><p class="font-medium text-gray-800">{{ $detail['client_type'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Industry</p><p class="font-medium text-gray-800">{{ $detail['industry'] ?? '-' }}</p></div>
+                        <div><p class="text-xs text-gray-500">Qualification Result</p><p class="font-medium text-gray-800">{{ $detail['qualification_result'] ?? '-' }}</p></div>
+                        <div><p class="text-xs text-gray-500">Qualification Notes</p><p class="font-medium text-gray-800">{{ $detail['qualification_notes'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Deal Stage</p><p id="dealStageText" class="font-medium text-gray-800">{{ $detail['deal_stage'] ?? '-' }}</p></div>
                         <div><p class="text-xs text-gray-500">Expected Close Date</p><p class="font-medium text-gray-800">{{ $detail['expected_close_date'] ?? '-' }}</p></div>
                     </div>
@@ -248,10 +249,21 @@
                     <div class="space-y-2">
                         <button id="openCreateDealModalBtnSecondary" type="button" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Edit Deal</button>
                         <button id="openStageUpdateModalBtnSecondary" type="button" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Update Stage</button>
+                        @if (in_array((string) (auth()->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true))
+                            <form method="POST" action="{{ route('deals.approve', $deal['id']) }}">
+                                @csrf
+                                <button type="submit" class="w-full rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-left text-sm text-green-700 hover:bg-green-100">Mark Qualified</button>
+                            </form>
+                            <form method="POST" action="{{ route('deals.reject', $deal['id']) }}">
+                                @csrf
+                                <input type="hidden" name="reason" value="Not qualified for engagement.">
+                                <button type="submit" class="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-100">Mark Not Qualified</button>
+                            </form>
+                        @endif
                     </div>
                     <div class="mt-3 border-t border-gray-100 pt-3">
-                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Open'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">
-                            {{ $detail['deal_status'] ?? 'Open' }}
+                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">
+                            {{ $detail['deal_status'] ?? 'Pending' }}
                         </span>
                     </div>
                 </article>

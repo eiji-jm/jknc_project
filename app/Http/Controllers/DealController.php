@@ -599,7 +599,7 @@ class DealController extends Controller
             ]);
             $request->session()->forget('deals.preview_payload');
 
-            return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved successfully.');
+            return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
         }
 
         $createdDeal = Deal::query()->create([
@@ -624,7 +624,7 @@ class DealController extends Controller
 
         $request->session()->forget('deals.preview_payload');
 
-        return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created successfully.');
+        return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created and submitted for approval.');
     }
 
     public function update(Request $request, int $id): RedirectResponse
@@ -641,7 +641,7 @@ class DealController extends Controller
                 ...$validated,
             ]);
 
-            return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated successfully.');
+            return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
         }
 
         $deal = Deal::query()->findOrFail($id);
@@ -672,7 +672,63 @@ class DealController extends Controller
         $this->syncDealNameToCode($deal);
         $deal->save();
 
-        return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated successfully.');
+        return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
+    }
+
+    public function approve(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($this->isDealReviewer($request), 403);
+        abort_unless(Schema::hasTable('deals'), 404);
+
+        $deal = Deal::query()->findOrFail($id);
+
+        $deal->forceFill([
+            'qualification_result' => 'qualified',
+            'deal_status' => 'approved',
+            'stage' => $this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')),
+            'stage_id' => Schema::hasColumn('deals', 'stage_id')
+                ? $this->resolveStageIdByName($this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')))
+                : $deal->stage_id,
+            'approved_at' => now(),
+            'approved_by_name' => $request->user()?->name ?? 'System User',
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+        ])->save();
+
+        return redirect()
+            ->route('deals.show', $deal->id)
+            ->with('success', 'Deal qualified and approved successfully.');
+    }
+
+    public function reject(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($this->isDealReviewer($request), 403);
+        abort_unless(Schema::hasTable('deals'), 404);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $deal = Deal::query()->findOrFail($id);
+
+        $deal->forceFill([
+            'qualification_result' => 'not_qualified',
+            'deal_status' => 'rejected',
+            'stage' => 'Closed Lost',
+            'stage_id' => Schema::hasColumn('deals', 'stage_id')
+                ? $this->resolveStageIdByName('Closed Lost')
+                : $deal->stage_id,
+            'approved_at' => null,
+            'approved_by_name' => null,
+            'rejected_at' => now(),
+            'rejected_by_name' => $request->user()?->name ?? 'System User',
+            'rejection_reason' => trim((string) ($validated['reason'] ?? '')) ?: 'Not qualified for engagement.',
+        ])->save();
+
+        return redirect()
+            ->route('deals.show', $deal->id)
+            ->with('success', 'Deal marked as not qualified and rejected.');
     }
 
     public function show(int $id): View
@@ -747,7 +803,9 @@ class DealController extends Controller
                     'deal_owner' => $storedDeal->assigned_consultant ?: 'Unassigned',
                     'created_date' => optional($storedDeal->created_at)->format('n/j/Y') ?: '-',
                     'last_modified' => optional($storedDeal->updated_at)->format('Y-m-d h:i A') ?: '-',
-                    'deal_status' => $storedDeal->proposal_decision === 'decline engagement' ? 'Lost' : 'Open',
+                    'deal_status' => $this->displayDealApprovalStatus($storedDeal),
+                    'qualification_result' => $this->displayQualificationResult($storedDeal->qualification_result),
+                    'qualification_notes' => $storedDeal->qualification_notes ?: '-',
                     'service' => [
                         'service_type' => $storedDeal->services ?: '-',
                         'product_type' => $storedDeal->products ?: '-',
@@ -843,7 +901,13 @@ class DealController extends Controller
                 'deal_owner' => $deal['owner_name'],
                 'created_date' => now()->format('n/j/Y'),
                 'last_modified' => now()->format('Y-m-d h:i A'),
-                'deal_status' => 'Open',
+                'deal_status' => strtolower((string) ($mockPayload['deal_status'] ?? 'pending')) === 'approved'
+                    ? 'Approved'
+                    : (strtolower((string) ($mockPayload['deal_status'] ?? 'pending')) === 'rejected' ? 'Rejected' : 'Pending'),
+                'qualification_result' => strtolower((string) ($mockPayload['qualification_result'] ?? 'qualified')) === 'not_qualified'
+                    ? 'Not Qualified / Archived'
+                    : 'Qualified',
+                'qualification_notes' => $mockPayload['qualification_notes'] ?? '-',
                 'service' => [
                     'service_type' => $mockPayload['services'] ?? '-',
                     'product_type' => $mockPayload['products'] ?? '-',
@@ -926,7 +990,9 @@ class DealController extends Controller
             'deal_owner' => $deal['owner_name'],
             'created_date' => '2/22/2026',
             'last_modified' => '2026-02-24 01:49 PM',
-            'deal_status' => $deal['stage'] === 'Closed Lost' ? 'Lost' : 'Open',
+            'deal_status' => 'Pending',
+            'qualification_result' => 'Qualified',
+            'qualification_notes' => '-',
             'service' => [
                 'service_type' => 'Tax Advisory',
                 'product_type' => 'Compliance Audit',
@@ -1002,7 +1068,9 @@ class DealController extends Controller
                 'deal_owner' => 'John Admin',
                 'created_date' => '2026-03-17',
                 'last_modified' => '2026-03-17 10:00 AM',
-                'deal_status' => 'Open',
+                'deal_status' => 'Pending',
+                'qualification_result' => 'Qualified',
+                'qualification_notes' => '-',
                 'service' => [
                     'service_type' => 'Tax Advisory',
                     'product_type' => 'Compliance Audit',
@@ -1507,7 +1575,9 @@ class DealController extends Controller
                         'client_type' => $storedDeal->customer_type ?: '-',
                         'industry' => $storedDeal->service_area ?: '-',
                         'expected_close_date' => optional($storedDeal->estimated_completion_date)->format('M d, Y') ?: 'TBD',
-                        'deal_status' => $storedDeal->proposal_decision === 'decline engagement' ? 'Lost' : 'Open',
+                        'deal_status' => $this->displayDealApprovalStatus($storedDeal),
+                        'qualification_result' => $this->displayQualificationResult($storedDeal->qualification_result),
+                        'qualification_notes' => $storedDeal->qualification_notes ?: '-',
                     ],
                     'dealFormData' => $dealFormData,
                     'generatedAt' => now(),
@@ -1550,7 +1620,9 @@ class DealController extends Controller
                 'client_type' => 'Corporation',
                 'industry' => 'Consulting',
                 'expected_close_date' => 'Jun 10, 2026',
-                'deal_status' => ($mockDeal['stage'] ?? '') === 'Closed Lost' ? 'Lost' : 'Open',
+                'deal_status' => 'Pending',
+                'qualification_result' => 'Qualified',
+                'qualification_notes' => '-',
             ],
             'dealFormData' => $dealFormData,
             'generatedAt' => now(),
@@ -1677,6 +1749,7 @@ class DealController extends Controller
             'complexity_notes' => ['nullable', 'string'],
             'proposal_decision' => ['nullable', 'string', 'max:255'],
             'decline_reason' => ['nullable', 'string'],
+            'qualification_notes' => ['nullable', 'string'],
             'assigned_consultant' => ['nullable', 'string', 'max:255'],
             'assigned_associate' => ['nullable', 'string', 'max:255'],
             'service_department_unit' => ['nullable', 'string', 'max:255'],
@@ -1856,6 +1929,16 @@ class DealController extends Controller
         } elseif (($validated['payment_terms'] ?? null) !== 'Others') {
             $validated['payment_terms_other'] = null;
         }
+
+        $validated['qualification_result'] = 'pending_review';
+        $validated['qualification_notes'] = $this->truncateStringForColumn($validated['qualification_notes'] ?? null, 2000);
+        $validated['deal_status'] = 'pending';
+        $validated['approved_at'] = null;
+        $validated['approved_by_name'] = null;
+        $validated['rejected_at'] = null;
+        $validated['rejected_by_name'] = null;
+        $validated['rejection_reason'] = null;
+        $validated['stage'] = trim((string) ($validated['stage'] ?? 'Qualification')) ?: 'Qualification';
 
         return $validated;
     }
@@ -2271,6 +2354,9 @@ class DealController extends Controller
                 : 'TBD',
             'owner_name' => $validated['assigned_consultant'] ?? 'Unassigned',
             'stage' => $validated['stage'] ?? 'Inquiry',
+            'deal_status' => $validated['deal_status'] ?? 'pending',
+            'qualification_result' => $validated['qualification_result'] ?? 'qualified',
+            'qualification_notes' => $validated['qualification_notes'] ?? null,
             'created_by' => optional(Auth::user())->name ?: 'System',
             'created_at_label' => now()->format('F d, Y • h:i:s A'),
         ];
@@ -2462,6 +2548,44 @@ class DealController extends Controller
         $owner = collect($this->ownerOptions())->firstWhere('id', $ownerId);
 
         return is_array($owner) ? ($owner['name'] ?? null) : null;
+    }
+
+    private function isDealReviewer(Request $request): bool
+    {
+        return in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true);
+    }
+
+    private function displayDealApprovalStatus(Deal $deal): string
+    {
+        return match (strtolower((string) ($deal->deal_status ?? 'pending'))) {
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+            default => 'Pending',
+        };
+    }
+
+    private function displayQualificationResult(?string $value): string
+    {
+        return match (strtolower((string) $value)) {
+            'qualified' => 'Qualified',
+            'not_qualified' => 'Not Qualified / Archived',
+            default => 'Pending Review',
+        };
+    }
+
+    private function resolveQualifiedStage(string $qualificationResult, string $currentStage): string
+    {
+        if ($qualificationResult === 'not_qualified') {
+            return 'Closed Lost';
+        }
+
+        $stage = trim($currentStage);
+
+        if ($stage === '' || $stage === 'Qualification') {
+            return 'Proposal';
+        }
+
+        return $stage;
     }
 
     private function buildClientRequirementStatusMap(bool $hasApprovedCif, bool $hasApprovedBif): array

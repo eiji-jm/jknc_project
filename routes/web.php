@@ -135,6 +135,8 @@ Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.p
 Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
 Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
 Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
+Route::post('/deals/{id}/approve', [DealController::class, 'approve'])->name('deals.approve');
+Route::post('/deals/{id}/reject', [DealController::class, 'reject'])->name('deals.reject');
 Route::post('/deals/stages', [DealController::class, 'storeStage'])->name('deals.stages.store');
 Route::patch('/deals/stages/{stage}', [DealController::class, 'updateStage'])->name('deals.stages.update');
 Route::patch('/deals/stages/{stage}/move', [DealController::class, 'moveStage'])->name('deals.stages.move');

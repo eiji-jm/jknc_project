@@ -283,6 +283,22 @@ class ContactsController extends Controller
             'recommendation' => ['nullable', 'string', 'max:2000'],
             'owner_id' => ['nullable', 'integer'],
         ]);
+
+        $duplicateContact = $this->findDuplicateContact(
+            $validated['first_name'] ?? '',
+            $validated['last_name'] ?? '',
+            $validated['mobile_number'] ?? null,
+        );
+
+        if ($duplicateContact) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'duplicate_contact' => "Possible duplicate found. Contact {$duplicateContact->first_name} {$duplicateContact->last_name} with contact number {$duplicateContact->phone} already exists. Update the existing record instead of creating a new one.",
+                ])
+                ->withInput();
+        }
+
         $selectedOwnerId = (int) ($validated['owner_id'] ?? 0);
         $owner = $owners->get($selectedOwnerId) ?? $owners->first();
 
@@ -451,6 +467,22 @@ class ContactsController extends Controller
             'recommendation' => ['nullable', 'string', 'max:2000'],
             'owner_id' => ['nullable', 'integer'],
         ]);
+
+        $duplicateContact = $this->findDuplicateContact(
+            $validated['first_name'] ?? '',
+            $validated['last_name'] ?? '',
+            $validated['mobile_number'] ?? null,
+            $contactModel->id,
+        );
+
+        if ($duplicateContact) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'duplicate_contact' => "This update would duplicate an existing contact: {$duplicateContact->first_name} {$duplicateContact->last_name} ({$duplicateContact->phone}). Please update/link the existing record instead.",
+                ])
+                ->withInput();
+        }
 
         $selectedOwnerId = (int) ($validated['owner_id'] ?? 0);
         $owner = $owners->get($selectedOwnerId) ?? ['name' => $contactModel->owner_name ?: ($request->user()?->name ?? 'Admin User')];
@@ -2605,6 +2637,31 @@ class ContactsController extends Controller
         }
 
         return $logs;
+    }
+
+    private function findDuplicateContact(string $firstName, ?string $lastName, ?string $mobileNumber, ?int $ignoreId = null): ?Contact
+    {
+        $normalizedFirstName = Str::lower(trim($firstName));
+        $normalizedLastName = Str::lower(trim((string) $lastName));
+        $normalizedPhone = $this->normalizeContactNumber($mobileNumber);
+
+        if ($normalizedFirstName === '' || $normalizedPhone === '') {
+            return null;
+        }
+
+        return Contact::query()
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->get()
+            ->first(function (Contact $contact) use ($normalizedFirstName, $normalizedLastName, $normalizedPhone): bool {
+                return Str::lower(trim((string) $contact->first_name)) === $normalizedFirstName
+                    && Str::lower(trim((string) $contact->last_name)) === $normalizedLastName
+                    && $this->normalizeContactNumber($contact->phone) === $normalizedPhone;
+            });
+    }
+
+    private function normalizeContactNumber(?string $value): string
+    {
+        return preg_replace('/\D+/', '', (string) $value) ?? '';
     }
 
     private function applyContactSearchFilter($query, string $search): void
