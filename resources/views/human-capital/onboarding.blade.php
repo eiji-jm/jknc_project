@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col" x-data="recruitmentPage()">
+<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col" x-data="onboardingPage()">
 
     {{-- TABS --}}
     <div class="flex items-center border-b border-gray-200 mb-4 gap-1">
@@ -56,10 +56,10 @@
             <table class="w-full text-sm border-collapse">
                 <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
-                        <th class="px-4 py-3 text-left font-semibold">Request ID</th>
+                        <th class="px-4 py-3 text-left font-semibold">Name</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
-                        <th class="px-4 py-3 text-left font-semibold">Department</th>
-                        <th class="px-4 py-3 text-left font-semibold">Headcount</th>
+                        <th class="px-4 py-3 text-left font-semibold">Email</th>
+                        <th class="px-4 py-3 text-left font-semibold">Phone</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-left font-semibold">Date</th>
                     </tr>
@@ -79,19 +79,19 @@
                     </template>
                     <template x-for="(row, i) in filteredRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.id"></td>
-                            <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
-                            <td class="px-4 py-3 text-gray-600" x-text="row.department"></td>
-                            <td class="px-4 py-3 text-gray-600" x-text="row.headcount"></td>
+                            <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.email"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.phone"></td>
                             <td class="px-4 py-3">
                                 <span
                                     x-text="row.status"
                                     :class="{
-                                        'bg-green-100 text-green-700': row.status === 'Approved',
+                                        'bg-green-100 text-green-700': row.status === 'Completed',
                                         'bg-yellow-100 text-yellow-700': row.status === 'Pending',
+                                        'bg-blue-100 text-blue-700': row.status === 'In Progress',
                                         'bg-red-100 text-red-700': row.status === 'Rejected',
-                                        'bg-blue-100 text-blue-700': row.status === 'Open',
-                                        'bg-gray-100 text-gray-600': !['Approved','Pending','Rejected','Open'].includes(row.status),
+                                        'bg-gray-100 text-gray-600': !['Completed','Pending','In Progress','Rejected'].includes(row.status),
                                     }"
                                     class="px-2 py-0.5 rounded-full text-xs font-medium"
                                 ></span>
@@ -107,26 +107,22 @@
 
 @push('scripts')
 <script>
-function recruitmentPage() {
+function onboardingPage() {
     return {
-        activeTab: 'MRF',
+        activeTab: 'PDS',
         search: '',
         tabs: [
-            { key: 'MRF',        label: 'MRF' },
-            { key: 'JPF',        label: 'JPF' },
-            { key: 'CAF',        label: 'CAF' },
-            { key: 'Assessment', label: 'Assessment' },
-            { key: 'Interview',  label: 'Interview' },
-            { key: 'Job Offer',  label: 'Job Offer' },
+            { key: 'PDS',                  label: 'PDS' },
+            { key: 'Checklist Submission', label: 'Checklist Submission' },
+            { key: 'Employee Registration',label: 'Employee Registration' },
+            { key: 'Training',             label: 'Training' },
         ],
-        // Sample data per tab — replace with real data from back-end
+        // Populate these from your back-end as needed
         data: {
-            MRF: [],
-            JPF: [],
-            CAF: [],
-            Assessment: [],
-            Interview: [],
-            'Job Offer': [],
+            'PDS': [],
+            'Checklist Submission': [],
+            'Employee Registration': [],
+            'Training': [],
         },
         get filteredRows() {
             const rows = this.data[this.activeTab] ?? [];

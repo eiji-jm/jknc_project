@@ -185,6 +185,16 @@
                         Recruitment
                     </a>
 
+                    <a href="{{ route('human-capital.onboarding') }}"
+                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/onboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                        On Boarding
+                    </a>
+
+                    <a href="{{ route('human-capital.deployment') }}"
+                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/deployment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                        Deployment
+                    </a>
+
                     <a href="{{ route('human-capital.attendance') }}"
                        class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/attendance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
                         Attendance

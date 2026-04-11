@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
         Route::view('/payroll', 'human-capital.payroll')->name('payroll');
         Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
         Route::view('/recruitment', 'human-capital.recruitment')->name('recruitment');
+        Route::view('/onboarding', 'human-capital.onboarding')->name('onboarding');
+        Route::view('/deployment', 'human-capital.deployment')->name('deployment');
         Route::view('/attendance', 'human-capital.attendance')->name('attendance');
         Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');
         Route::view('/employee-relations', 'human-capital.employee-relations')->name('employee-relations');
