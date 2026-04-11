@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class SecAoi extends Model
 {
     protected $fillable = [
-        'company_id',
         'corporation_name',
         'company_reg_no',
         'principal_address',
@@ -19,6 +18,13 @@ class SecAoi extends Model
         'aoi_type',
         'uploaded_by',
         'date_upload',
-        'file_path'
+        'file_path',
+        'notary_file_path',
+        'approval_status',
+        'workflow_status',
+        'submitted_by',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
 }

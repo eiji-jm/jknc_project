@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RolePermission;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -10,7 +11,10 @@ class RolePermissionController extends Controller
 {
     public function index()
     {
-        if (!Auth::user()->hasPermission('manage_users')) {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$user->hasPermission('manage_users')) {
             abort(403, 'Unauthorized');
         }
 
@@ -59,12 +63,28 @@ class RolePermissionController extends Controller
             ]
         );
 
+        RolePermission::firstOrCreate(
+            ['role' => 'Client'],
+            [
+                'manage_users' => false,
+                'access_admin_dashboard' => false,
+                'approve_townhall' => false,
+                'create_townhall' => false,
+                'access_townhall' => true,
+                'access_corporate' => false,
+                'access_activities' => false,
+                'access_contacts' => false,
+                'access_company' => false,
+            ]
+        );
+
         $permissions = RolePermission::orderByRaw("
             CASE role
                 WHEN 'SuperAdmin' THEN 1
                 WHEN 'Admin' THEN 2
                 WHEN 'Employee' THEN 3
-                ELSE 4
+                WHEN 'Client' THEN 4
+                ELSE 5
             END
         ")->get();
 
@@ -73,7 +93,10 @@ class RolePermissionController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!Auth::user()->hasPermission('manage_users')) {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (!$user || !$user->hasPermission('manage_users')) {
             abort(403, 'Unauthorized');
         }
 
@@ -88,6 +111,8 @@ class RolePermissionController extends Controller
             'access_admin_dashboard' => $request->has('access_admin_dashboard'),
             'approve_townhall' => $request->has('approve_townhall'),
             'create_townhall' => $request->has('create_townhall'),
+            'create_corporate' => $request->has('create_corporate'),
+            'approve_corporate' => $request->has('approve_corporate'),
             'access_townhall' => $request->has('access_townhall'),
             'access_corporate' => $request->has('access_corporate'),
             'access_activities' => $request->has('access_activities'),
@@ -95,8 +120,7 @@ class RolePermissionController extends Controller
             'access_company' => $request->has('access_company'),
         ]);
 
-        return redirect()
-            ->route('admin.role-permissions')
+        return redirect()->route('admin.role-permissions')
             ->with('success', 'Role permissions updated successfully.');
     }
 }

@@ -2,160 +2,372 @@
 
 @section('content')
 @php
-    $sampleCertificates = [
-        [
-            'certificateNo' => 'SEC-2024-001',
-            'dateUploaded' => '2024-02-07',
-            'uploadedBy' => 'Admin User',
-            'governingBody' => 'Board of Directors',
-            'typeOfMeeting' => 'Regular',
-            'noticeRef' => '2024-001',
-            'meetingNo' => '1',
-            'resolutionNo' => 'RES-2024-001',
-            'dateIssued' => '2024-02-03',
-            'purpose' => 'Bank Account Opening',
-            'dateOfMeeting' => '2024-02-01',
-            'location' => 'Conference Room A',
-            'secretary' => 'Jane Doe',
-            'notaryDocNo' => '110',
-            'notaryPageNo' => '28',
-            'notaryBookNo' => 'III',
-            'notarySeriesNo' => '2024',
-            'notaryPublic' => 'Atty. Mark Cruz'
-        ],
-        [
-            'certificateNo' => 'SEC-2024-002',
-            'dateUploaded' => '2024-02-20',
-            'uploadedBy' => 'Compliance Officer',
-            'governingBody' => 'Shareholders',
-            'typeOfMeeting' => 'Annual General',
-            'noticeRef' => '2024-002',
-            'meetingNo' => '2',
-            'resolutionNo' => 'RES-2024-002',
-            'dateIssued' => '2024-02-16',
-            'purpose' => 'Appointment of Officers',
-            'dateOfMeeting' => '2024-02-15',
-            'location' => 'Main Hall',
-            'secretary' => 'Sarah Wilson',
-            'notaryDocNo' => '221',
-            'notaryPageNo' => '34',
-            'notaryBookNo' => 'IV',
-            'notarySeriesNo' => '2024',
-            'notaryPublic' => 'Atty. Paula Reyes'
-        ],
-        [
-            'certificateNo' => 'SEC-2024-003',
-            'dateUploaded' => '2024-02-12',
-            'uploadedBy' => 'Finance Manager',
-            'governingBody' => 'Audit Committee',
-            'typeOfMeeting' => 'Special',
-            'noticeRef' => '2024-003',
-            'meetingNo' => '3',
-            'resolutionNo' => 'RES-2024-003',
-            'dateIssued' => '2024-02-09',
-            'purpose' => 'Tax Compliance Filing',
-            'dateOfMeeting' => '2024-02-08',
-            'location' => 'Audit Office',
-            'secretary' => 'Emily Davis',
-            'notaryDocNo' => '259',
-            'notaryPageNo' => '15',
-            'notaryBookNo' => 'IV',
-            'notarySeriesNo' => '2024',
-            'notaryPublic' => 'Atty. Joel Perez'
-        ]
-    ];
-
-    $selectedRef = request('ref');
-    $selected = collect($sampleCertificates)->firstWhere('certificateNo', $selectedRef) ?? $sampleCertificates[0];
+    $draftUrl = $generatedDraftUrl ?? null;
+    $documentUrl = $certificate->document_path ? route('uploads.show', ['path' => $certificate->document_path]) : null;
+    $defaultSecretary = 'MA. LOURDES T. MATA';
+    $companyName = 'JK&C INC.';
+    $meetingDate = optional($certificate->date_of_meeting)->format('F d, Y') ?: '________________';
+    $issuedDate = optional($certificate->date_issued)->format('F d, Y') ?: '________________';
+    $companyAddress = '3RD FLOOR, UNIT 305 CEBU HOLDINGS CENTER CARDINAL ROSALES AVE. CEBU BUSINESS PARK HIPPODROMO, CEBU CITY (Capital), CEBU, REGION VII (CENTRAL VISAYAS), 6000';
+    $defaultTin = '903-658-744-000';
+    $certificateBody = $certificate->resolution_body ?: ($certificate->resolution?->resolution_body ?: ('Certified from Minutes Ref. ' . ($certificate->minutes_ref ?: ($certificate->minute?->minutes_ref ?: '________________')) . '.'));
 @endphp
 
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
+    <div class="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+            @include('corporate.partials.section-ribbon', ['activeTab' => 'secretary', 'topButtonLabel' => 'Add Certificate'])
+        </div>
+    </div>
+</div>
+
+<style>
+    .secretary-rich-editor[contenteditable="true"][data-placeholder]:empty::before {
+        content: attr(data-placeholder);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+
+    .certificate-workspace-card {
+        min-height: calc(100vh - 15rem);
+    }
+</style>
+
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activeVersion: 'draft', activeDraftPane: 'live' }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
-            <a href="{{ route('secretary-certificates') }}" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-arrow-left"></i>
-            </a>
+            <a href="{{ $backRoute }}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
             <div>
-                <div class="text-lg font-semibold">Certificate Preview</div>
-                <div class="text-xs text-gray-500">Certificate #: {{ $selected['certificateNo'] }}</div>
+                <div class="text-lg font-semibold">Secretary Certificate Preview</div>
+                <div class="text-xs text-gray-500">Certificate No. <span data-preview="certificate-no">{{ $certificate->certificate_no ?: 'Draft' }}</span></div>
             </div>
             <div class="flex-1"></div>
-            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{{ $selected['purpose'] }}</span>
+            <div class="inline-flex rounded-full bg-gray-100 p-1">
+                <button type="button" class="px-3 py-1.5 text-xs font-semibold rounded-full" :class="activeVersion === 'draft' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" @click="activeVersion = 'draft'">Draft</button>
+                <button type="button" class="px-3 py-1.5 text-xs font-semibold rounded-full" :class="activeVersion === 'original' ? 'bg-white shadow text-gray-900' : 'text-gray-500'" @click="activeVersion = 'original'">Original</button>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-
-            {{-- LEFT: PREVIEW --}}
-            <div class="lg:col-span-2 space-y-4">
-                <div class="bg-gray-900 rounded-xl overflow-hidden">
-                    <div class="bg-gray-800 px-4 py-3 flex items-center gap-2 border-b border-gray-700">
-                        <span class="text-gray-300 text-sm font-medium">Certificate PDF</span>
-                        <div class="flex-1"></div>
-                        <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition">
-                            <i class="fas fa-print"></i>
-                        </button>
-                        <button class="p-2 hover:bg-gray-700 rounded text-gray-300 transition">
-                            <i class="fas fa-download"></i>
-                        </button>
-                    </div>
-                    <div class="p-8 text-center text-gray-300">
-                        <p class="text-lg font-semibold">Secretary Certificate Preview</p>
-                        <p class="text-sm text-gray-400 mt-1">{{ $selected['location'] }} - {{ $selected['dateOfMeeting'] }}</p>
-                        <div class="mt-6">
-                            <input type="file" accept=".pdf" class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(420px,0.95fr)] gap-6 p-6">
+            <div class="space-y-4">
+                <div x-show="activeVersion === 'draft'">
+                    <div class="rounded-2xl border border-slate-200 overflow-hidden bg-[#f8fafc] flex flex-col certificate-workspace-card">
+                        <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-3 bg-white">
+                            <div>
+                                <div class="text-sm font-semibold text-gray-900">Template Builder Page</div>
+                                <div class="text-xs text-gray-500">This page mirrors the secretary certificate draft layout and updates in real time.</div>
+                            </div>
+                            <div class="flex-1"></div>
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Live Template</span>
+                            @if ($draftUrl)
+                                <button type="button" class="rounded-full px-3 py-1 text-xs font-semibold transition" :class="activeDraftPane === 'attachment' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'" @click="activeDraftPane = activeDraftPane === 'attachment' ? 'live' : 'attachment'">
+                                    <span x-text="activeDraftPane === 'attachment' ? 'Back To Live Template' : 'Open Built Draft PDF'"></span>
+                                </button>
+                            @endif
                         </div>
+                        <div class="flex-1 overflow-auto p-6">
+                            <div x-show="activeDraftPane === 'live'">
+                                <div class="mx-auto max-w-[860px] rounded-sm bg-white px-14 py-12 shadow-[0_18px_50px_rgba(15,23,42,0.08)] text-[13px] leading-7 text-gray-900 min-h-[920px]" style="font-family: Georgia, 'Times New Roman', serif;">
+                                    <div>Republic of the Philippines) City Of</div>
+                                    <div>________________) S.S.</div>
+
+                                    <div class="mt-8 text-center text-[20px] font-bold">SECRETARY'S CERTIFICATE</div>
+
+                                    <div class="mt-8 space-y-4 text-justify">
+                                        <p>I, <strong data-preview="certificate-secretary">{{ $certificate->secretary ?: $defaultSecretary }}</strong>, of legal age, single, Filipino and with residence at <strong>PEARL ST. STA. TERESITA VILL. TISA, CEBU CITY</strong>, depose under oath and hereby state:</p>
+                                        <p>That, I am the incumbent Corporate Secretary of <strong>{{ $companyName }}</strong>, a corporation duly organized and existing under the laws of the Republic of the Philippines, with principal office at <strong>{{ $companyAddress }}</strong>.</p>
+                                        <p>That, as Corporate Secretary, I have access to the corporate records of <strong>{{ $companyName }}</strong>.</p>
+                                        <p>That, per corporate records, at the <span data-preview="certificate-meeting-type">{{ $certificate->type_of_meeting ?: 'Special' }}</span> Meeting of the <span data-preview="certificate-governing-body">{{ $certificate->governing_body ?: 'Board of Directors' }}</span> of the Corporation held on <strong data-preview="certificate-meeting-date">{{ $meetingDate }}</strong>, and recorded under Minutes Ref. <strong>{{ $certificate->minutes_ref ?: '-' }}</strong>, the following corporate action was duly approved and recorded in the Minute Book, a legal quorum being present and voting, viz:</p>
+
+                                        <div class="my-6 text-center font-bold uppercase" data-preview="certificate-resolution-title">{{ $certificate->resolution_no ? 'BOARD RESOLUTION NO. ' . $certificate->resolution_no : 'CERTIFIED MINUTES EXTRACT' }}</div>
+                                        <p><strong data-preview="certificate-purpose">{{ $certificate->purpose ?: 'Corporate Purpose' }}</strong></p>
+                                        <div data-preview="certificate-body" class="min-h-[180px] whitespace-pre-wrap">{!! $certificateBody !!}</div>
+
+                                        <p>That, the foregoing resolution shall be in full force and effect unless revoked by the Board of Directors. Moreover, the foregoing resolution is in accordance and does not in any way contravene any provision of the Articles of Incorporation or By-Laws of the Corporation.</p>
+                                        <p>WITNESS MY HAND this ________ of ___________, <span data-preview="certificate-issued-year">{{ optional($certificate->date_issued)->format('Y') ?: now()->year }}</span> at Cebu City, Cebu, Philippines.</p>
+                                    </div>
+
+                                    <div class="mt-12 text-right">
+                                        <div class="inline-block min-w-[250px] border-t border-black pt-2 text-center">
+                                            <div><strong data-preview="certificate-secretary">{{ $certificate->secretary ?: $defaultSecretary }}</strong></div>
+                                            <div>Corporate Secretary</div>
+                                            <div class="text-[11px]">TIN {{ $defaultTin }}</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-10 text-[12px] leading-6">
+                                        <p>SUBSCRIBED AND SWORN to before me on the date and place above-mentioned, affiant exhibiting his/her TIN issued on <strong data-preview="certificate-issued-date">{{ $issuedDate }}</strong>, at Cebu City, Philippines.</p>
+                                        <div class="mt-8 text-right">
+                                            <div class="inline-block min-w-[250px] border-t border-black pt-2 text-center">
+                                                <div data-preview="certificate-notary-public">{{ $certificate->notary_public ?: 'Notary Public' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-6">
+                                            <div>Doc. No. <span data-preview="certificate-doc-no">{{ $certificate->notary_doc_no ?: '_____' }}</span>;</div>
+                                            <div>Page No. <span data-preview="certificate-page-no">{{ $certificate->notary_page_no ?: '_____' }}</span>;</div>
+                                            <div>Book No. <span data-preview="certificate-book-no">{{ $certificate->notary_book_no ?: '_____' }}</span>;</div>
+                                            <div>Series of <span data-preview="certificate-series-no" data-fallback-year="{{ now()->year }}">{{ $certificate->notary_series_no ?: now()->year }}</span>.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @if ($draftUrl)
+                                <div x-show="activeDraftPane === 'attachment'" class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                                    <div class="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <div class="text-sm font-semibold text-gray-900">Built Draft PDF</div>
+                                            <div class="text-xs text-gray-500">This is the generated PDF version of the certificate.</div>
+                                        </div>
+                                        <a href="{{ $draftUrl }}" target="_blank" class="inline-flex rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-black">Open in New Tab</a>
+                                    </div>
+                                    <iframe src="{{ $draftUrl }}" class="w-full h-[700px] border-0 bg-white"></iframe>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="activeVersion === 'original'">
+                    <div class="rounded-2xl border border-slate-200 overflow-hidden bg-white certificate-workspace-card">
+                        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                            <div class="text-sm font-semibold text-gray-900">Original Certificate Preview</div>
+                            <div class="text-xs text-gray-500">Review the uploaded original file here.</div>
+                        </div>
+                        @if ($documentUrl)
+                            <iframe src="{{ $documentUrl }}" class="w-full h-[820px] border-0 bg-white"></iframe>
+                        @else
+                            <div class="w-full h-[700px] flex items-center justify-center bg-gray-50 text-gray-400 text-sm">Original certificate not uploaded yet.</div>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            {{-- RIGHT: DETAILS --}}
-            <div class="space-y-4">
+            <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col certificate-workspace-card">
+                <div class="flex-1 overflow-y-auto">
+                    <div class="px-6 py-5 space-y-5">
+                <form method="POST" action="{{ route('secretary-certificates.update', $certificate) }}" enctype="multipart/form-data" class="rounded-2xl border border-gray-200 bg-white p-4 space-y-4 sticky top-0 z-10 shadow-sm" id="certificate-live-form">
+                    @csrf
+                    @method('PUT')
+                    <div>
+                        <div class="text-sm font-semibold text-gray-900">Secretary Certificate Builder</div>
+                        <div class="text-xs text-gray-500 mt-1">Write the certificate here with formatting tools. The template uses this exact content.</div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="text-xs text-gray-600">Certificate No.</label><input type="text" name="certificate_no" value="{{ $certificate->certificate_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-no" data-live-empty="Draft"></div>
+                        <div><label class="text-xs text-gray-600">Minutes Ref.</label><input type="text" name="minutes_ref" value="{{ $certificate->minutes_ref }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></div>
+                        <div><label class="text-xs text-gray-600">Resolution No.</label><input type="text" name="resolution_no" value="{{ $certificate->resolution_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-resolution-no" data-live-empty="25-004"></div>
+                        <div><label class="text-xs text-gray-600">Date Issued</label><input type="date" name="date_issued" value="{{ optional($certificate->date_issued)->toDateString() }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-issued-date" data-live-format="date-group"></div>
+                        <div><label class="text-xs text-gray-600">Meeting Date</label><input type="date" name="date_of_meeting" value="{{ optional($certificate->date_of_meeting)->toDateString() }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-meeting-date" data-live-format="meeting-date-group"></div>
+                        <div>
+                            <label class="text-xs text-gray-600">Governing Body</label>
+                            <select name="governing_body" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-governing-body">
+                                @foreach (['Stockholders', 'Board of Directors', 'Joint Stockholders and Board of Directors'] as $bodyOption)
+                                    <option value="{{ $bodyOption }}" @selected($certificate->governing_body === $bodyOption)>{{ $bodyOption }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-600">Meeting Type</label>
+                            <select name="type_of_meeting" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-meeting-type">
+                                @foreach (['Regular', 'Special'] as $meetingTypeOption)
+                                    <option value="{{ $meetingTypeOption }}" @selected($certificate->type_of_meeting === $meetingTypeOption)>{{ $meetingTypeOption }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-span-2"><label class="text-xs text-gray-600">Purpose</label><input type="text" name="purpose" value="{{ $certificate->purpose }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-purpose"></div>
+                        <div class="col-span-2">
+                            <div class="overflow-hidden rounded-xl border border-gray-300 bg-white">
+                                <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-3 py-3">
+                                    <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" data-secretary-rich-font>
+                                        <option value="Arial">Arial</option>
+                                        <option value="Times New Roman">Times New Roman</option>
+                                        <option value="Georgia">Georgia</option>
+                                        <option value="Verdana">Verdana</option>
+                                    </select>
+                                    <select class="rounded-lg border border-gray-300 px-2 py-1 text-xs" data-secretary-rich-size>
+                                        <option value="2">12</option>
+                                        <option value="3" selected>14</option>
+                                        <option value="4">16</option>
+                                        <option value="5">18</option>
+                                    </select>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="bold">Bold</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="italic">Italic</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="underline">Underline</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="insertUnorderedList">Bullets</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="insertOrderedList">Numbering</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="justifyLeft">Left</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="justifyCenter">Center</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="justifyRight">Right</button>
+                                    <button type="button" class="px-2 py-1 border border-gray-300 rounded-lg text-xs" data-secretary-rich-cmd="removeFormat">Clear</button>
+                                </div>
+                                <div id="certificate-body-editor" contenteditable="true" data-placeholder="Write the certified body here..." class="secretary-rich-editor min-h-[360px] p-4 text-sm leading-7 text-gray-900 outline-none">{!! $certificateBody !!}</div>
+                                <input type="hidden" name="resolution_body" id="certificate-body-input" value="{{ $certificateBody }}" data-live-target="certificate-body" data-live-format="multiline" data-live-empty="Certified from corporate minutes.">
+                            </div>
+                        </div>
+                        <div><label class="text-xs text-gray-600">Secretary</label><input type="text" name="secretary" value="{{ $certificate->secretary }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-secretary" data-live-empty="{{ $defaultSecretary }}"></div>
+                        <div><label class="text-xs text-gray-600">Notary Public</label><input type="text" name="notary_public" value="{{ $certificate->notary_public }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-notary-public" data-live-empty="Notary Public"></div>
+                        <div><label class="text-xs text-gray-600">Doc No.</label><input type="text" name="notary_doc_no" value="{{ $certificate->notary_doc_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-doc-no" data-live-empty="_____"></div>
+                        <div><label class="text-xs text-gray-600">Page No.</label><input type="text" name="notary_page_no" value="{{ $certificate->notary_page_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-page-no" data-live-empty="_____"></div>
+                        <div><label class="text-xs text-gray-600">Book No.</label><input type="text" name="notary_book_no" value="{{ $certificate->notary_book_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-book-no" data-live-empty="_____"></div>
+                        <div><label class="text-xs text-gray-600">Series No.</label><input type="text" name="notary_series_no" value="{{ $certificate->notary_series_no }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-live-target="certificate-series-no"></div>
+                    </div>
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="text-sm font-semibold text-gray-900">Template Notes</div>
+                        <div class="mt-1 text-xs text-gray-500">This builder mirrors the certificate template arrangement: oath heading, certification statements, resolution title, certified body, and notary section.</div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600">Original Certificate PDF</label>
+                        <input type="file" name="document_path" accept="application/pdf" class="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+                        @if ($certificate->document_path)
+                            <label class="mt-2 inline-flex items-center gap-2 text-xs font-medium text-red-700">
+                                <input type="checkbox" name="remove_document_path" value="1" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                Remove current original certificate PDF
+                            </label>
+                        @endif
+                    </div>
+                    <button type="submit" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Save Certificate Changes</button>
+                </form>
+
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Certificate Details</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Certificate No.</span><div class="font-medium text-gray-900">{{ $selected['certificateNo'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Issued</span><div class="font-medium text-gray-900">{{ $selected['dateIssued'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Purpose</span><div class="font-medium text-gray-900">{{ $selected['purpose'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Minutes Ref.</span><div class="font-medium text-gray-900">{{ $certificate->minutes_ref ?: '-' }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Resolution No.</span><div class="font-medium text-gray-900" data-preview="certificate-resolution-no">{{ $certificate->resolution_no }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notice Ref</span><div class="font-medium text-gray-900">{{ $certificate->notice_ref }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Date Issued</span><div class="font-medium text-gray-900" data-preview="certificate-issued-date-short">{{ optional($certificate->date_issued)->format('M d, Y') }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Purpose</span><div class="font-medium text-gray-900" data-preview="certificate-purpose">{{ $certificate->purpose }}</div></div>
                     </div>
                 </div>
 
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">Meeting References</div>
+                    <div class="text-sm font-semibold text-gray-900 mb-3">Shared Resolution Data</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Resolution No.</span><div class="font-medium text-gray-900">{{ $selected['resolutionNo'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notice Ref</span><div class="font-medium text-gray-900">{{ $selected['noticeRef'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting No.</span><div class="font-medium text-gray-900">{{ $selected['meetingNo'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Governing Body</span><div class="font-medium text-gray-900" data-preview="certificate-governing-body">{{ $certificate->governing_body }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting Type</span><div class="font-medium text-gray-900" data-preview="certificate-meeting-type">{{ $certificate->type_of_meeting }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Meeting Date</span><div class="font-medium text-gray-900" data-preview="certificate-meeting-date-short">{{ optional($certificate->date_of_meeting)->format('M d, Y') }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Location</span><div class="font-medium text-gray-900">{{ $certificate->location }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Secretary</span><div class="font-medium text-gray-900" data-preview="certificate-secretary">{{ $certificate->secretary }}</div></div>
                     </div>
                 </div>
 
                 <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                    <div class="text-sm font-semibold text-gray-900 mb-3">Signatories</div>
-                    <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Secretary</span><div class="font-medium text-gray-900">{{ $selected['secretary'] }}</div></div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Notary Details</div>
                     <div class="space-y-2 text-sm">
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notary Public</span><div class="font-medium text-gray-900">{{ $selected['notaryPublic'] }}</div></div>
-                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Doc / Page / Book / Series</span><div class="font-medium text-gray-900">{{ $selected['notaryDocNo'] }} / {{ $selected['notaryPageNo'] }} / {{ $selected['notaryBookNo'] }} / {{ $selected['notarySeriesNo'] }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Notary Public</span><div class="font-medium text-gray-900" data-preview="certificate-notary-public">{{ $certificate->notary_public }}</div></div>
+                        <div><span class="text-xs text-gray-600 uppercase tracking-wide">Doc / Page / Book / Series</span><div class="font-medium text-gray-900"><span data-preview="certificate-doc-no">{{ $certificate->notary_doc_no }}</span> / <span data-preview="certificate-page-no">{{ $certificate->notary_page_no }}</span> / <span data-preview="certificate-book-no">{{ $certificate->notary_book_no }}</span> / <span data-preview="certificate-series-no" data-fallback-year="{{ now()->year }}">{{ $certificate->notary_series_no }}</span></div></div>
                     </div>
                 </div>
-
-                <div class="space-y-2 pt-2">
-                    <button class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
-                        <i class="fas fa-download"></i>
-                        Download PDF
-                    </button>
-                    <button class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
-                        <i class="fas fa-print"></i>
-                        Print
-                    </button>
+                    </div>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
+
+<script>
+    (() => {
+        const form = document.getElementById('certificate-live-form');
+        const certificateBodyEditor = document.getElementById('certificate-body-editor');
+        const certificateBodyInput = document.getElementById('certificate-body-input');
+        const certificateBodyPreview = document.querySelector('[data-preview="certificate-body"]');
+        if (!form) return;
+
+        const formatDate = (value, style) => {
+            if (!value) return '';
+            const parsed = new Date(`${value}T00:00:00`);
+            if (Number.isNaN(parsed.getTime())) return value;
+            if (style === 'year') return String(parsed.getFullYear());
+            if (style === 'short') return parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            return parsed.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+        };
+
+        const applyValue = (input) => {
+            const targetName = input.dataset.liveTarget;
+            if (!targetName) return;
+            const targets = document.querySelectorAll(`[data-preview="${targetName}"]`);
+            if (!targets.length) return;
+
+            let value = input.value.trim();
+            if (input.dataset.liveFormat === 'date-group') {
+                const longValue = value ? formatDate(value, 'long') : '';
+                const shortValue = value ? formatDate(value, 'short') : '';
+                const yearValue = value ? formatDate(value, 'year') : '';
+                document.querySelectorAll('[data-preview="certificate-issued-date"]').forEach((target) => target.textContent = longValue || '________________');
+                document.querySelectorAll('[data-preview="certificate-issued-date-short"]').forEach((target) => target.textContent = shortValue || '');
+                document.querySelectorAll('[data-preview="certificate-issued-year"]').forEach((target) => target.textContent = yearValue || String(new Date().getFullYear()));
+                return;
+            }
+            if (input.dataset.liveFormat === 'meeting-date-group') {
+                const longValue = value ? formatDate(value, 'long') : '';
+                const shortValue = value ? formatDate(value, 'short') : '';
+                document.querySelectorAll('[data-preview="certificate-meeting-date"]').forEach((target) => target.textContent = longValue || '________________');
+                document.querySelectorAll('[data-preview="certificate-meeting-date-short"]').forEach((target) => target.textContent = shortValue || '');
+                return;
+            }
+            if (input.dataset.liveFormat === 'multiline') {
+                targets.forEach((target) => { target.innerHTML = value || 'Certified from corporate minutes.'; });
+                return;
+            }
+            if (targetName === 'certificate-series-no' && !value) value = String(new Date().getFullYear());
+            if (targetName === 'certificate-resolution-no') {
+                document.querySelectorAll('[data-preview="certificate-resolution-title"]').forEach((target) => {
+                    target.textContent = value ? `BOARD RESOLUTION NO. ${value}` : 'CERTIFIED MINUTES EXTRACT';
+                });
+            }
+            const fallback = input.dataset.liveEmpty || targets[0].dataset.fallbackYear || '';
+            targets.forEach((target) => { target.textContent = value || fallback; });
+        };
+
+        form.querySelectorAll('[data-live-target]').forEach((input) => {
+            input.addEventListener('input', () => applyValue(input));
+            input.addEventListener('change', () => applyValue(input));
+        });
+
+        if (certificateBodyEditor && certificateBodyInput) {
+            const syncCertificateBody = () => {
+                const html = String(certificateBodyEditor.innerHTML || '').trim();
+                const fallbackHtml = 'Certified from corporate minutes.';
+                certificateBodyInput.value = html;
+                applyValue(certificateBodyInput);
+                if (certificateBodyPreview) {
+                    certificateBodyPreview.innerHTML = html || fallbackHtml;
+                }
+            };
+
+            certificateBodyEditor.addEventListener('input', syncCertificateBody);
+
+            form.querySelectorAll('[data-secretary-rich-cmd]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    certificateBodyEditor.focus();
+                    document.execCommand(button.dataset.secretaryRichCmd, false, null);
+                    syncCertificateBody();
+                });
+            });
+
+            const fontSelect = form.querySelector('[data-secretary-rich-font]');
+            if (fontSelect) {
+                fontSelect.addEventListener('change', () => {
+                    certificateBodyEditor.focus();
+                    document.execCommand('fontName', false, fontSelect.value);
+                    syncCertificateBody();
+                });
+            }
+
+            const sizeSelect = form.querySelector('[data-secretary-rich-size]');
+            if (sizeSelect) {
+                sizeSelect.addEventListener('change', () => {
+                    certificateBodyEditor.focus();
+                    document.execCommand('fontSize', false, sizeSelect.value);
+                    syncCertificateBody();
+                });
+            }
+
+            syncCertificateBody();
+        }
+
+        form.querySelectorAll('[data-live-target]').forEach((input) => {
+            applyValue(input);
+        });
+    })();
+</script>
 @endsection

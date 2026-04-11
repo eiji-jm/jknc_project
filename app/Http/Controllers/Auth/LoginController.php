@@ -30,28 +30,17 @@ class LoginController extends Controller
 
             $request->session()->regenerate();
 
-            $user = Auth::user();
-
-            if ($user->role === 'SuperAdmin' || $user->role === 'Admin') {
-                if ($user->hasPermission('manage_users')) {
-                    return redirect()->route('admin.users');
-                }
-
-                if ($user->hasPermission('access_admin_dashboard')) {
-                    return redirect()->route('admin.dashboard');
-                }
-
-                return redirect()->route('townhall');
+            // ROLE REDIRECT
+            if (Auth::user()->role === 'SuperAdmin' || Auth::user()->role === 'Admin') {
+                return redirect()->route('admin.users');
             }
 
             return redirect()->route('townhall');
-
         }
 
         return back()->withErrors([
             'email' => 'Invalid credentials.'
         ]);
-
     }
 
     public function logout(Request $request)
@@ -63,7 +52,5 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
-
     }
-
 }

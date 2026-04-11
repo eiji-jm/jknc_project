@@ -12,6 +12,8 @@ class UserPermission extends Model
         'access_admin_dashboard',
         'approve_townhall',
         'create_townhall',
+        'create_corporate',
+        'approve_corporate',
         'access_townhall',
         'access_corporate',
         'access_activities',

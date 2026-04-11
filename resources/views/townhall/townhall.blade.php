@@ -13,7 +13,8 @@
     previewSubject: '',
     previewBody: '<p style=&quot;color:#9ca3af;&quot;>Write the formal communication here...</p>',
     previewCc: '',
-    previewAdditional: ''
+    previewAdditional: '',
+    previewExpiry: ''
 }">
 
     @if(session('success'))
@@ -33,7 +34,6 @@
     @endif
 
     @if(Auth::user()->hasPermission('create_townhall'))
-    {{-- FORM + LIVE PREVIEW OVERLAY --}}
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
         <div class="absolute inset-0 bg-black/40" @click="showSlideOver = false"></div>
 
@@ -61,7 +61,7 @@
                 </div>
 
                 <div class="max-w-[850px] mx-auto">
-                    <div id="memo-preview-pdf" class="memo-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px]">
+                    <div id="memo-preview-pdf" class="memo-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px] overflow-hidden">
 
                         {{-- LETTERHEAD --}}
                         <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
@@ -85,17 +85,17 @@
                         <div class="space-y-3 text-[14px] text-gray-800 mb-10">
                             <div class="grid grid-cols-[120px_1fr] gap-3">
                                 <p class="font-semibold uppercase tracking-wide" x-text="previewRecipientLabel"></p>
-                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewTo || '______________________________'"></p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewTo || '______________________________'"></p>
                             </div>
 
                             <div class="grid grid-cols-[120px_1fr] gap-3">
                                 <p class="font-semibold uppercase tracking-wide">From</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewFrom || '______________________________'"></p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewFrom || '______________________________'"></p>
                             </div>
 
                             <div class="grid grid-cols-[120px_1fr] gap-3">
                                 <p class="font-semibold uppercase tracking-wide">Department</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewDepartment || '______________________________'"></p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewDepartment || '______________________________'"></p>
                             </div>
 
                             <div class="grid grid-cols-[120px_1fr] gap-3">
@@ -105,13 +105,21 @@
 
                             <div class="grid grid-cols-[120px_1fr] gap-3">
                                 <p class="font-semibold uppercase tracking-wide">Subject</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 font-semibold" x-text="previewSubject || '______________________________'"></p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 font-semibold break-words [overflow-wrap:anywhere]" x-text="previewSubject || '______________________________'"></p>
+                            </div>
+
+                            <div class="grid grid-cols-[120px_1fr] gap-3">
+                                <p class="font-semibold uppercase tracking-wide">Expiry</p>
+                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewExpiry || '______________________________'"></p>
                             </div>
                         </div>
 
                         {{-- BODY --}}
-                        <div class="text-[15px] leading-8 text-gray-900 min-h-[420px]">
-                            <div class="prose prose-sm max-w-none [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4" x-html="previewBody"></div>
+                        <div class="text-[15px] leading-8 text-gray-900 min-h-[420px] max-w-full overflow-hidden">
+                            <div
+                                class="preview-body prose prose-sm max-w-none w-full overflow-x-auto break-words [overflow-wrap:anywhere] [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4"
+                                x-html="previewBody"
+                            ></div>
                         </div>
 
                         {{-- SIGNATURE AREA --}}
@@ -119,12 +127,12 @@
                             <div>
                                 <p>Respectfully,</p>
                                 <div class="mt-12 border-b border-gray-400 w-[260px]"></div>
-                                <p class="mt-2 font-semibold" x-text="previewFrom || '________________'"></p>
+                                <p class="mt-2 font-semibold break-words [overflow-wrap:anywhere]" x-text="previewFrom || '________________'"></p>
                             </div>
 
                             <div class="pt-6 border-t border-gray-200 space-y-2">
-                                <p><span class="font-semibold">CC:</span> <span x-text="previewCc || '______________________________'"></span></p>
-                                <p><span class="font-semibold">Additional:</span> <span x-text="previewAdditional || '______________________________'"></span></p>
+                                <p class="break-words [overflow-wrap:anywhere]"><span class="font-semibold">CC:</span> <span x-text="previewCc || '______________________________'"></span></p>
+                                <p class="break-words [overflow-wrap:anywhere]"><span class="font-semibold">Additional:</span> <span x-text="previewAdditional || '______________________________'"></span></p>
                             </div>
                         </div>
 
@@ -258,7 +266,20 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1">Body</label>
-                        <div id="editor">{!! old('message') !!}</div>
+
+                        <div class="rounded-xl border border-gray-300 bg-[#fafafa] overflow-hidden shadow-sm">
+                            <div class="word-ribbon border-b border-gray-200 bg-white px-3 py-2">
+                                <div class="text-[11px] font-medium text-gray-500">
+                                    Document Editor
+                                </div>
+                                <div class="mt-1 text-[11px] text-gray-400">
+                                    Tip: click the table icon to insert a table. For table actions, click inside the table and use the table menu.
+                                </div>
+                            </div>
+
+                            <div id="editor"></div>
+                        </div>
+
                         <input type="hidden" name="message" id="message">
                     </div>
 
@@ -298,6 +319,20 @@
                         >
                         <p class="mt-1 text-xs text-gray-400">
                             Allowed: JPG, JPEG, PNG, GIF, WEBP, PDF, DOC, DOCX
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">Expiry Date & Time</label>
+                        <input
+                            type="datetime-local"
+                            name="expires_at"
+                            x-model="previewExpiry"
+                            value="{{ old('expires_at') }}"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                        <p class="mt-1 text-xs text-gray-400">
+                            Communication will automatically archive after this date and time
                         </p>
                     </div>
 
@@ -359,6 +394,7 @@
                         <tr>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Ref#</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Date</th>
+                            <th class="px-3 py-3 border-r border-gray-200 font-semibold">Expiry</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Department/Stakeholder</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">From</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Subject</th>
@@ -377,7 +413,24 @@
                                 onclick="window.location='{{ route('townhall.show', $communication->id) }}'"
                             >
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->communication_date }}</td>
+
+                                <td class="px-3 py-3 border-r border-gray-200">
+                                    {{ $communication->communication_date
+                                        ? \Carbon\Carbon::parse($communication->communication_date)->format('M d, Y')
+                                        : '—' }}
+                                </td>
+
+                                <td class="px-3 py-3 border-r border-gray-200">
+                                    @if($communication->expires_at)
+                                        <div>{{ \Carbon\Carbon::parse($communication->expires_at)->format('M d, Y') }}</div>
+                                        <div class="text-[11px] text-gray-400">
+                                            {{ \Carbon\Carbon::parse($communication->expires_at)->format('h:i A') }}
+                                        </div>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->department_stakeholder }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->from_name }}</td>
                                 <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>
@@ -399,18 +452,24 @@
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @php
-                                        $approval = $communication->approval_status ?? 'Pending';
-                                        $approvalClasses = match($approval) {
-                                            'Approved' => 'bg-green-50 text-green-700',
-                                            'Rejected' => 'bg-red-50 text-red-700',
-                                            'Needs Revision' => 'bg-blue-50 text-blue-700',
-                                            default => 'bg-yellow-50 text-yellow-700',
-                                        };
-                                    @endphp
-                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $approvalClasses }}">
-                                        {{ $approval }}
-                                    </span>
+                                    @if($communication->is_archived)
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium bg-gray-200 text-gray-700">
+                                            Expired
+                                        </span>
+                                    @else
+                                        @php
+                                            $approval = $communication->approval_status ?? 'Pending';
+                                            $approvalClasses = match($approval) {
+                                                'Approved' => 'bg-green-50 text-green-700',
+                                                'Rejected' => 'bg-red-50 text-red-700',
+                                                'Needs Revision' => 'bg-blue-50 text-blue-700',
+                                                default => 'bg-yellow-50 text-yellow-700',
+                                            };
+                                        @endphp
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium {{ $approvalClasses }}">
+                                            {{ $approval }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
@@ -440,7 +499,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-3 py-8 text-center text-gray-500">
+                                <td colspan="11" class="px-3 py-8 text-center text-gray-500">
                                     No Town Hall communications found.
                                 </td>
                             </tr>
@@ -497,7 +556,169 @@
 </div>
 @endsection
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css" rel="stylesheet">
+
+<style>
+    .memo-preview {
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .word-ribbon {
+        background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    }
+
+    #editor .ql-toolbar.ql-snow {
+        border: 0 !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        background: #fff;
+        padding: 10px 12px;
+    }
+
+    #editor .ql-container.ql-snow {
+        border: 0 !important;
+        min-height: 340px;
+        background: #fff;
+    }
+
+    #editor .ql-editor {
+        min-height: 340px;
+        padding: 28px 26px;
+        font-size: 15px;
+        line-height: 1.85;
+        color: #111827;
+        font-family: "Calibri", "Arial", sans-serif;
+    }
+
+    #editor .ql-editor.ql-blank::before {
+        left: 26px;
+        right: 26px;
+        font-style: italic;
+        color: #9ca3af;
+    }
+
+    #editor .ql-picker-label,
+    #editor .ql-picker-item,
+    #editor .ql-stroke,
+    #editor .ql-fill {
+        color: #374151;
+        stroke: #374151;
+    }
+
+    #editor .ql-editor p {
+        margin-bottom: 0.65rem;
+    }
+
+    #editor .ql-editor h1,
+    #editor .ql-editor h2,
+    #editor .ql-editor h3 {
+        line-height: 1.35;
+        margin: 0.75rem 0;
+    }
+
+    /* PREVIEW TABLE */
+    .preview-body table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        margin: 12px 0 !important;
+    }
+
+    .preview-body table tbody,
+    .preview-body table thead,
+    .preview-body table tr {
+        width: 100% !important;
+    }
+
+    .preview-body table colgroup,
+    .preview-body table col {
+        width: auto !important;
+    }
+
+    .preview-body th,
+    .preview-body td {
+        width: auto !important;
+        min-width: 0 !important;
+        border: 1px solid #94a3b8 !important;
+        padding: 10px 12px !important;
+        vertical-align: top !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        white-space: normal !important;
+    }
+
+    .preview-body th {
+        background: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+
+    /* EDITOR TABLE */
+    .ql-editor table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        margin: 12px 0 !important;
+    }
+
+    .ql-editor table colgroup,
+    .ql-editor table col {
+        width: auto !important;
+    }
+
+    .ql-editor th,
+    .ql-editor td {
+        min-width: 0 !important;
+        border: 1px solid #94a3b8 !important;
+        padding: 10px 12px !important;
+        vertical-align: top !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        white-space: normal !important;
+        background: #fff !important;
+    }
+
+    .ql-editor th {
+        background: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+
+    .preview-body p,
+    .preview-body li,
+    .preview-body span,
+    .preview-body div,
+    .ql-editor p,
+    .ql-editor li,
+    .ql-editor span,
+    .ql-editor div {
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .preview-body h1, .preview-body h2, .preview-body h3 {
+        line-height: 1.35;
+        margin: 0.75rem 0;
+    }
+
+    .preview-body ul, .preview-body ol {
+        padding-left: 1.5rem;
+    }
+
+    .qlbt-operation-menu,
+    .ql-table-better-menu,
+    .quill-table-better-wrapper {
+        z-index: 9999 !important;
+    }
+</style>
+@endpush
+
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
@@ -505,38 +726,69 @@ document.addEventListener('DOMContentLoaded', function () {
     const editorEl = document.getElementById('editor');
     const hiddenInput = document.getElementById('message');
     const form = document.getElementById('townhall-form');
+    const defaultHtml = '<p style="color:#9ca3af;">Write the formal communication here...</p>';
 
-    if (editorEl && hiddenInput && form) {
+    if (editorEl && hiddenInput && form && window.Quill && window.QuillTableBetter) {
+        Quill.register({
+            'modules/table-better': QuillTableBetter
+        }, true);
+
+        const rootEl = document.getElementById('townhall-page');
+        const alpineData = rootEl ? Alpine.$data(rootEl) : null;
+
         const quill = new Quill('#editor', {
             theme: 'snow',
             placeholder: 'Write the formal communication here...',
             modules: {
                 toolbar: [
                     [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
-                    ['bold', 'italic', 'underline'],
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ script: 'sub' }, { script: 'super' }],
                     [{ color: [] }, { background: [] }],
                     [{ list: 'ordered' }, { list: 'bullet' }],
+                    [{ indent: '-1' }, { indent: '+1' }],
                     [{ align: [] }],
-                    ['link'],
+                    ['blockquote', 'link'],
+                    ['table-better'],
                     ['clean']
-                ]
+                ],
+                table: false,
+                'table-better': {
+                    language: 'en_US',
+                    menus: ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'copy', 'delete'],
+                    toolbarTable: true
+                },
+                keyboard: {
+                    bindings: QuillTableBetter.keyboardBindings
+                }
             }
         });
 
         const oldMessage = {!! json_encode(old('message')) !!};
-        const rootEl = document.getElementById('townhall-page');
-        const alpineData = rootEl ? Alpine.$data(rootEl) : null;
+
+        function updatePreview() {
+            const html = quill.root.innerHTML;
+            const hasText = quill.getText().trim().length > 0;
+            const hasTable = !!quill.root.querySelector('table');
+
+            hiddenInput.value = html;
+
+            if (alpineData) {
+                alpineData.previewBody = (hasText || hasTable) ? html : defaultHtml;
+            }
+        }
 
         if (oldMessage) {
-            quill.root.innerHTML = oldMessage;
+            const delta = quill.clipboard.convert({ html: oldMessage });
+            quill.setContents(delta);
             hiddenInput.value = oldMessage;
 
             if (alpineData) {
                 alpineData.previewBody = oldMessage;
             }
         } else {
-            const defaultHtml = '<p style="color:#9ca3af;">Write the formal communication here...</p>';
-            quill.root.innerHTML = '';
+            quill.setText('');
             hiddenInput.value = '';
 
             if (alpineData) {
@@ -545,14 +797,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         quill.on('text-change', function () {
-            const html = quill.root.innerHTML;
-            hiddenInput.value = html;
-
-            if (alpineData) {
-                alpineData.previewBody = quill.getText().trim()
-                    ? html
-                    : '<p style="color:#9ca3af;">Write the formal communication here...</p>';
-            }
+            updatePreview();
         });
 
         form.addEventListener('submit', function () {

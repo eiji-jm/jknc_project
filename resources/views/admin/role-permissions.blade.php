@@ -82,8 +82,18 @@
                             <span>Create Town Hall</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
-                            <input type="checkbox" name="access_townhall" {{ $permission->access_townhall ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                        <label class="flex items-center gap-3 border rounded-lg p-3">
+                            <input type="checkbox" name="create_corporate" {{ $permission->create_corporate ? 'checked' : '' }}>
+                            <span>Create Corporate</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3">
+                            <input type="checkbox" name="approve_corporate" {{ $permission->approve_corporate ? 'checked' : '' }}>
+                            <span>Approve Corporate</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3">
+                            <input type="checkbox" name="access_townhall" {{ $permission->access_townhall ? 'checked' : '' }}>
                             <span>Access Town Hall</span>
                         </label>
 
