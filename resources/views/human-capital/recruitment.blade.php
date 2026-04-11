@@ -24,25 +24,16 @@
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
-            <input
-                type="text"
-                x-model="search"
-                :placeholder="'Search ' + activeTab + '...'"
-                class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white"
-            >
+            <input type="text" x-model="search" :placeholder="'Search ' + activeTab + '...'"
+                class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white">
         </div>
-
         <button type="button" class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition">
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M3 6h18M6 12h12M10 18h4"/>
-            </svg>
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
             Filter
         </button>
-
-        <button type="button" class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path d="M12 5v14M5 12h14"/>
-            </svg>
+        <button type="button" @click="openModal()"
+            class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             Add New
         </button>
     </div>
@@ -61,11 +52,17 @@
                         <th class="px-4 py-3 text-left font-semibold">Headcount</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-left font-semibold">Date</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-if="filteredRows.length === 0">
-                        <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
+                        <tr><td colspan="7" class="px-4 py-16 text-center text-gray-400">
+                            <div class="flex flex-col items-center gap-2">
+                                <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                                <span class="text-sm">No MRF records found. Click <strong>+ Add New</strong> to create one.</span>
+                            </div>
+                        </td></tr>
                     </template>
                     <template x-for="(row, i) in filteredRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
@@ -73,8 +70,14 @@
                             <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.department"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.headcount"></td>
-                            <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3">
+                                <span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span>
+                            </td>
                             <td class="px-4 py-3 text-gray-500" x-text="row.date"></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewMRF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="deleteMRF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
                         </tr>
                     </template>
                 </tbody>
@@ -225,6 +228,501 @@
 
         </div>
     </div>
+
+    {{-- ===================== MRF MODAL (SPLIT PANEL) ===================== --}}
+    <div
+        x-show="showModal"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+    >
+        <div
+            x-show="showModal"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="bg-gray-100 rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden"
+        >
+            {{-- Top bar --}}
+            <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest">New Manpower Request</h2>
+                <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Split body --}}
+            <div class="flex flex-1 overflow-hidden gap-4 p-4">
+
+                {{-- RIGHT: INPUT FORM --}}
+                <div class="w-[42%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
+                    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
+                        <p class="text-xs font-bold text-white uppercase tracking-wider">Fill Up Form</p>
+                    </div>
+                    <form @submit.prevent="submitMRF()" class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Requesting Department <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="form.department" required placeholder="e.g. Human Resources"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Position / Title <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="form.position" required placeholder="e.g. Engineer"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Date Requested <span class="text-red-500">*</span></label>
+                                <input type="date" x-model="form.dateRequested" required
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Date Required</label>
+                                <input type="date" x-model="form.dateRequired"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Employment Type</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <template x-for="et in ['Student Trainee','Project Hire','Contractual','Regular']" :key="et">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:bg-blue-50 hover:border-blue-300 transition"
+                                        :class="form.employmentType === et ? 'bg-blue-50 border-blue-400 text-blue-700 font-semibold' : ''">
+                                        <input type="radio" x-model="form.employmentType" :value="et" class="accent-blue-600">
+                                        <span x-text="et"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Brief Description of Duties</label>
+                            <textarea x-model="form.duties" rows="3" placeholder="Describe duties and responsibilities..."
+                                class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Nature of Request</label>
+                                <template x-for="n in ['New / Addition','Replacement']" :key="n">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.natureOfRequest" :value="n" class="accent-blue-600">
+                                        <span x-text="n"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Civil Status</label>
+                                <template x-for="s in ['Single','Married','No Preference']" :key="s">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.civilStatus" :value="s" class="accent-blue-600">
+                                        <span x-text="s"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
+                                <template x-for="g in ['Male','Female','No Preference']" :key="g">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.gender" :value="g" class="accent-blue-600">
+                                        <span x-text="g"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Age Range</label>
+                                <input type="text" x-model="form.ageRange" placeholder="e.g. 20-35"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Headcount <span class="text-red-500">*</span></label>
+                                <input type="number" x-model="form.headcount" min="1" required placeholder="e.g. 2"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Educational Requirement</label>
+                            <input type="text" x-model="form.education" placeholder="e.g. Bachelor's Degree in IT"
+                                class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred Qualifications / Experience</label>
+                            <textarea x-model="form.qualifications" rows="2" placeholder="List preferred skills or experience..."
+                                class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Approvals</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Requested by</label>
+                                    <input type="text" x-model="form.requestedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Approved by</label>
+                                    <input type="text" x-model="form.approvedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">For HRS Use Only</p>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Additional Remarks</label>
+                                <textarea x-model="form.remarks" rows="2" placeholder="Reason for request..."
+                                    class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                            </div>
+                            <div class="mt-3">
+                                <label class="block text-xs font-semibold text-gray-600 mb-2">Request Status</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <template x-for="rs in ['Filled','Cancelled','Hold','Disapproved']" :key="rs">
+                                        <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                            <input type="radio" x-model="form.requestStatus" :value="rs" class="accent-blue-600">
+                                            <span x-text="rs"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 mt-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Charged to (Dept)</label>
+                                    <input type="text" x-model="form.chargedTo" placeholder="Department"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Breakdown Details</label>
+                                    <input type="text" x-model="form.breakdownDetails" placeholder="Details"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Name of Hired Personnel</label>
+                                    <input type="text" x-model="form.hiredPersonnel" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Date Hired</label>
+                                    <input type="date" x-model="form.dateHired"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Processed by</label>
+                                    <input type="text" x-model="form.processedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Checked / Approved by</label>
+                                    <input type="text" x-model="form.checkedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Submit --}}
+                        <div class="flex justify-end gap-3 pt-2 pb-1">
+                            <button type="button" @click="showModal = false"
+                                class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition">
+                                Submit Request
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+
+                {{-- LEFT: LIVE MRF DOCUMENT PREVIEW --}}
+                <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-5">
+                        <div class="border border-gray-400 text-xs text-gray-800 font-sans max-w-2xl mx-auto shadow-sm">
+
+                            {{-- Title --}}
+                            <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-b border-gray-400">
+                                Manpower Request Form
+                            </div>
+
+                            {{-- Row 1 --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Requesting Department:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.department || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Date Requested:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.dateRequested || ''"></p>
+                                    <span class="text-gray-500 block mt-2">Date Required:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.dateRequired || ''"></p>
+                                </div>
+                            </div>
+
+                            {{-- Row 2 --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Position / Title:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.position || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Employment Type:</span>
+                                    <div class="grid grid-cols-2 gap-x-2 mt-1">
+                                        <template x-for="et in ['Student Trainee','Project Hire','Contractual','Regular']" :key="et">
+                                            <div class="flex items-center gap-1">
+                                                <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                    :class="form.employmentType === et ? 'bg-blue-600 border-blue-600' : ''">
+                                                    <svg x-show="form.employmentType === et" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                                </span>
+                                                <span x-text="et"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Row 3: Duties --}}
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Brief Description of Duties <em>(or attach the Job Description)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[3rem]" x-text="form.duties || ''"></p>
+                            </div>
+
+                            {{-- Row 4: Nature / Age / Status / Gender --}}
+                            <div class="grid grid-cols-4 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Nature of Request:</span>
+                                    <template x-for="n in ['New / Addition','Replacement']" :key="n">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.natureOfRequest === n ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.natureOfRequest === n" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="n"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Age Range:</span>
+                                    <p class="font-semibold mt-1 min-h-[1rem]" x-text="form.ageRange || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Status:</span>
+                                    <template x-for="s in ['Single','Married','No Preference']" :key="s">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.civilStatus === s ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.civilStatus === s" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="s"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Gender:</span>
+                                    <template x-for="g in ['Male','Female','No Preference']" :key="g">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.gender === g ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.gender === g" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="g"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            {{-- Row 5: Education / Headcount --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Educational Requirement:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.education || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Headcount Requested:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.headcount || ''"></p>
+                                </div>
+                            </div>
+
+                            {{-- Row 6: Qualifications --}}
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Preferred Qualifications / Experience <em>(not mentioned above or in the JD)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[2.5rem]" x-text="form.qualifications || ''"></p>
+                            </div>
+
+                            {{-- APPROVALS header --}}
+                            <div class="bg-blue-700 text-white text-center font-bold py-1.5 text-xs tracking-widest uppercase border-b border-gray-400">
+                                Approvals
+                            </div>
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Requested by:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.requestedBy || ''"></p>
+                                    <p class="text-center text-gray-400 italic mt-4 text-[9px]">Signature Over Printed Name</p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Approved by:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.approvedBy || ''"></p>
+                                    <p class="text-center text-gray-400 italic mt-4 text-[9px]">Signature Over Printed Name</p>
+                                </div>
+                            </div>
+
+                            {{-- FOR HRS USE ONLY --}}
+                            <div class="bg-gray-200 text-center font-bold py-1.5 text-xs tracking-widest uppercase border-b border-gray-400 text-gray-700">
+                                For HRS Use Only
+                            </div>
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Additional Remarks <em>(Reason for Request)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[2rem]" x-text="form.remarks || ''"></p>
+                            </div>
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Request Status:</span>
+                                    <div class="grid grid-cols-2 gap-x-2 mt-1">
+                                        <template x-for="rs in ['Filled','Cancelled','Hold','Disapproved']" :key="rs">
+                                            <div class="flex items-center gap-1 mt-0.5">
+                                                <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                    :class="form.requestStatus === rs ? 'bg-blue-600 border-blue-600' : ''">
+                                                    <svg x-show="form.requestStatus === rs" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                                </span>
+                                                <span x-text="rs"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p class="mt-2 text-gray-500">Name of Hired Personnel:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.hiredPersonnel || ''"></p>
+                                    <p class="mt-2 text-gray-500">Date Hired:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.dateHired || ''"></p>
+                                    <p class="mt-2 text-gray-500">Processed by:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.processedBy || ''"></p>
+                                    <p class="text-center text-gray-400 italic mt-2 text-[9px]">Signature Over Printed Name</p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Charged to (Department):</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.chargedTo || ''"></p>
+                                    <p class="mt-2 text-gray-500">Breakdown Details:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.breakdownDetails || ''"></p>
+                                    <p class="mt-6 text-gray-500">Checked / Approved by:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.checkedBy || ''"></p>
+                                    <p class="text-center text-gray-400 italic mt-2 text-[9px]">Signature Over Printed Name</p>
+                                </div>
+                            </div>
+
+                        </div>{{-- end form doc --}}
+                    </div>
+                </div>{{-- end right panel --}}
+
+            </div>{{-- end split body --}}
+        </div>
+    </div>
+
+    {{-- ===================== MRF VIEW MODAL ===================== --}}
+
+    <div
+        x-show="showViewModal"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showViewModal = false"
+    >
+        <div
+            x-show="showViewModal"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto mx-4"
+        >
+            <div class="flex items-center justify-between px-6 py-4 border-b">
+                <h2 class="text-base font-bold text-gray-800 tracking-wide uppercase">Manpower Request Form</h2>
+                <button @click="showViewModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="px-6 py-5 text-sm text-gray-800" x-show="viewData">
+                <template x-if="viewData">
+                <div class="border border-gray-300">
+                    <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase">Manpower Request Form</div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Requesting Department:</span><p class="font-medium mt-1" x-text="viewData.department"></p></div>
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500">Date Requested:</span><p class="font-medium mt-1" x-text="viewData.dateRequested"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Date Required:</span><p class="font-medium mt-1" x-text="viewData.dateRequired || '—'"></p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Position / Title:</span><p class="font-medium mt-1" x-text="viewData.position"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Employment Type:</span><p class="font-medium mt-1" x-text="viewData.employmentType || '—'"></p></div>
+                    </div>
+                    <div class="border-b border-gray-300 p-3">
+                        <span class="text-xs text-gray-500">Brief Description of Duties:</span>
+                        <p class="mt-1 whitespace-pre-wrap" x-text="viewData.duties || '—'"></p>
+                    </div>
+                    <div class="grid grid-cols-4 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Nature of Request:</span><p class="font-medium mt-1" x-text="viewData.natureOfRequest || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Age Range:</span><p class="font-medium mt-1" x-text="viewData.ageRange || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Civil Status:</span><p class="font-medium mt-1" x-text="viewData.civilStatus || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Gender:</span><p class="font-medium mt-1" x-text="viewData.gender || '—'"></p></div>
+                    </div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Headcount:</span><p class="font-medium mt-1" x-text="viewData.headcount"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Educational Requirement:</span><p class="font-medium mt-1" x-text="viewData.education || '—'"></p></div>
+                    </div>
+                    <div class="border-b border-gray-300 p-3">
+                        <span class="text-xs text-gray-500">Preferred Qualifications / Experience:</span>
+                        <p class="mt-1 whitespace-pre-wrap" x-text="viewData.qualifications || '—'"></p>
+                    </div>
+                    <div class="bg-blue-700 text-white text-center text-xs font-bold py-1.5 tracking-widest uppercase">Approvals</div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Requested by:</span><p class="font-medium mt-1" x-text="viewData.requestedBy || '—'"></p><p class="text-[10px] text-gray-400 mt-2 text-center italic">Signature Over Printed Name</p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Approved by:</span><p class="font-medium mt-1" x-text="viewData.approvedBy || '—'"></p><p class="text-[10px] text-gray-400 mt-2 text-center italic">Signature Over Printed Name</p></div>
+                    </div>
+                    <div class="bg-gray-100 text-center text-xs font-bold py-1.5 tracking-widest uppercase text-gray-700">For HRS Use Only</div>
+                    <div class="border-b border-gray-300 p-3"><span class="text-xs text-gray-500">Additional Remarks:</span><p class="mt-1" x-text="viewData.remarks || '—'"></p></div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500">Request Status:</span><p class="font-medium mt-1" x-text="viewData.requestStatus || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Name of Hired Personnel:</span><p class="font-medium mt-1" x-text="viewData.hiredPersonnel || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Date Hired:</span><p class="font-medium mt-1" x-text="viewData.dateHired || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Processed by:</span><p class="font-medium mt-1" x-text="viewData.processedBy || '—'"></p>
+                            <p class="text-[10px] text-gray-400 mt-1 text-center italic">Signature Over Printed Name</p>
+                        </div>
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500">Charged to (Department):</span><p class="font-medium mt-1" x-text="viewData.chargedTo || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Breakdown Details:</span><p class="font-medium mt-1" x-text="viewData.breakdownDetails || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Checked / Approved by:</span><p class="font-medium mt-1" x-text="viewData.checkedBy || '—'"></p>
+                            <p class="text-[10px] text-gray-400 mt-1 text-center italic">Signature Over Printed Name</p>
+                        </div>
+                    </div>
+                </div>
+                </template>
+            </div>
+            <div class="flex justify-end px-6 pb-5">
+                <button @click="showViewModal = false" class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">Close</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @push('scripts')
@@ -233,6 +731,11 @@ function recruitmentPage() {
     return {
         activeTab: 'MRF',
         search: '',
+        showModal: false,
+        showViewModal: false,
+        viewData: null,
+        mrfCounter: 1,
+
         tabs: [
             { key: 'MRF',        label: 'MRF' },
             { key: 'JPF',        label: 'JPF' },
@@ -241,6 +744,7 @@ function recruitmentPage() {
             { key: 'Interview',  label: 'Interview' },
             { key: 'Job Offer',  label: 'Job Offer' },
         ],
+
         data: {
             'MRF':        [],
             'JPF':        [],
@@ -249,23 +753,86 @@ function recruitmentPage() {
             'Interview':  [],
             'Job Offer':  [],
         },
+
+        form: {
+            department: '', dateRequested: '', dateRequired: '',
+            position: '', employmentType: '',
+            duties: '', natureOfRequest: '', ageRange: '',
+            civilStatus: 'No Preference', gender: 'No Preference',
+            headcount: '', education: '', qualifications: '',
+            requestedBy: '', approvedBy: '',
+            remarks: '', requestStatus: '',
+            chargedTo: '', breakdownDetails: '',
+            hiredPersonnel: '', dateHired: '',
+            processedBy: '', checkedBy: '',
+        },
+
+        openModal() {
+            // Reset form
+            this.form = {
+                department: '', dateRequested: '', dateRequired: '',
+                position: '', employmentType: '',
+                duties: '', natureOfRequest: '', ageRange: '',
+                civilStatus: 'No Preference', gender: 'No Preference',
+                headcount: '', education: '', qualifications: '',
+                requestedBy: '', approvedBy: '',
+                remarks: '', requestStatus: '',
+                chargedTo: '', breakdownDetails: '',
+                hiredPersonnel: '', dateHired: '',
+                processedBy: '', checkedBy: '',
+            };
+            this.showModal = true;
+        },
+
+        submitMRF() {
+            const pad = (n) => String(n).padStart(4, '0');
+            const id = 'MRF-' + pad(this.mrfCounter++);
+            this.data['MRF'].push({
+                id,
+                position:   this.form.position,
+                department: this.form.department,
+                headcount:  this.form.headcount,
+                status:     'Pending',
+                date:       this.form.dateRequested,
+                // full form snapshot for view
+                ...this.form,
+            });
+            this.showModal = false;
+        },
+
+        viewMRF(row) {
+            this.viewData = row;
+            this.showViewModal = true;
+        },
+
+        deleteMRF(index) {
+            if (confirm('Delete this MRF record?')) {
+                this.data['MRF'].splice(index, 1);
+            }
+        },
+
         statusClass(status) {
             const map = {
                 'Approved':    'bg-green-100 text-green-700',
                 'Completed':   'bg-green-100 text-green-700',
                 'Passed':      'bg-green-100 text-green-700',
                 'Accepted':    'bg-green-100 text-green-700',
+                'Filled':      'bg-green-100 text-green-700',
                 'Open':        'bg-blue-100 text-blue-700',
                 'Active':      'bg-blue-100 text-blue-700',
                 'In Progress': 'bg-blue-100 text-blue-700',
                 'Pending':     'bg-yellow-100 text-yellow-700',
                 'For Review':  'bg-yellow-100 text-yellow-700',
+                'Hold':        'bg-yellow-100 text-yellow-700',
                 'Rejected':    'bg-red-100 text-red-700',
                 'Failed':      'bg-red-100 text-red-700',
                 'Declined':    'bg-red-100 text-red-700',
+                'Cancelled':   'bg-red-100 text-red-700',
+                'Disapproved': 'bg-red-100 text-red-700',
             };
             return map[status] ?? 'bg-gray-100 text-gray-600';
         },
+
         get filteredRows() {
             const rows = this.data[this.activeTab] ?? [];
             if (!this.search.trim()) return rows;
