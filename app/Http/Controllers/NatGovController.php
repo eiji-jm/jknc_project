@@ -19,7 +19,9 @@ class NatGovController extends Controller
 
     public function index()
     {
-        $natgovs = NatGov::latest()->get();
+        $natgovs = Schema::hasTable('nat_govs')
+            ? NatGov::latest()->get()
+            : collect();
 
         return view('corporate.natgov.index', [
             'natgovs' => $natgovs,

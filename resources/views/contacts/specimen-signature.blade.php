@@ -81,7 +81,11 @@
                 <tr>
                     <td style="border-top:0; border-right:0; padding-top:14px;">
                         <div style="font-weight:bold;">BIF NO.</div>
-                        <input type="text" name="bif_no" value="{{ old('bif_no', $form['bif_no'] ?? '') }}" style="{{ $lineInput }}" @disabled(! $isEditMode) class="preview-field">
+                        @if ($isBusinessContact)
+                            <input type="text" name="bif_no" value="{{ old('bif_no', $form['bif_no'] ?? '') }}" style="{{ $lineInput }}" disabled class="preview-field">
+                        @else
+                            <input type="text" name="bif_no" value="{{ old('bif_no', $form['bif_no'] ?? '') }}" style="{{ $lineInput }}" @disabled(! $isEditMode) class="preview-field">
+                        @endif
                     </td>
                     <td style="border-top:0; border-left:0; border-right:0;">&nbsp;</td>
                     <td style="border-top:0; border-left:0; padding-top:14px;">

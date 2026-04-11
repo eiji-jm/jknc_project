@@ -11,6 +11,7 @@ use App\Models\StockTransferJournal;
 use App\Models\StockTransferLedger;
 use App\Models\StockTransferInstallment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class StockTransferJournalController extends Controller
 {
@@ -21,19 +22,23 @@ class StockTransferJournalController extends Controller
 
     public function index()
     {
-        $journals = StockTransferJournal::query()
-            ->latest()
-            ->get();
+        $journals = Schema::hasTable('stock_transfer_journals')
+            ? StockTransferJournal::query()
+                ->latest()
+                ->get()
+            : collect();
 
-        $indexShareholders = StockTransferLedger::query()
-            ->whereNull('journal_id')
-            ->get(['first_name', 'middle_name', 'family_name'])
-            ->map(function ($ledger) {
-                return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
-            })
-            ->filter()
-            ->unique()
-            ->values();
+        $indexShareholders = Schema::hasTable('stock_transfer_ledgers')
+            ? StockTransferLedger::query()
+                ->whereNull('journal_id')
+                ->get(['first_name', 'middle_name', 'family_name'])
+                ->map(function ($ledger) {
+                    return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+                })
+                ->filter()
+                ->unique()
+                ->values()
+            : collect();
 
         return view('corporate.stock-transfer-book.journal', compact('journals', 'indexShareholders'));
     }

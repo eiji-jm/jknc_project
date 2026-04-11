@@ -19,7 +19,9 @@ class BirTaxController extends Controller
 
     public function index()
     {
-        $taxes = BirTax::latest()->get();
+        $taxes = Schema::hasTable('bir_taxes')
+            ? BirTax::latest()->get()
+            : collect();
 
         return view('corporate.bir-tax.index', [
             'taxes' => $taxes,

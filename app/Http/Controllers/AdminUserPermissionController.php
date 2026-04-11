@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class AdminUserPermissionController extends Controller
 {
@@ -74,19 +75,27 @@ class AdminUserPermissionController extends Controller
 
         $permission = UserPermission::firstOrCreate(['user_id' => $user->id]);
 
-        $permission->update([
-            'manage_users' => $request->has('manage_users'),
-            'access_admin_dashboard' => $request->has('access_admin_dashboard'),
-            'approve_townhall' => $request->has('approve_townhall'),
-            'create_townhall' => $request->has('create_townhall'),
-            'create_corporate' => $request->has('create_corporate'),
-            'approve_corporate' => $request->has('approve_corporate'),
-            'access_townhall' => $request->has('access_townhall'),
-            'access_corporate' => $request->has('access_corporate'),
-            'access_activities' => $request->has('access_activities'),
-            'access_contacts' => $request->has('access_contacts'),
-            'access_company' => $request->has('access_company'),
-        ]);
+        $updates = [];
+
+        foreach ([
+            'manage_users',
+            'access_admin_dashboard',
+            'approve_townhall',
+            'create_townhall',
+            'create_corporate',
+            'approve_corporate',
+            'access_townhall',
+            'access_corporate',
+            'access_activities',
+            'access_contacts',
+            'access_company',
+        ] as $column) {
+            if (Schema::hasColumn('user_permissions', $column)) {
+                $updates[$column] = $request->has($column);
+            }
+        }
+
+        $permission->update($updates);
 
         return redirect()->route('admin.user-permissions')->with('success', 'User permissions updated successfully.');
     }

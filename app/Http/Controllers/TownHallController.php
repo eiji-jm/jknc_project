@@ -10,6 +10,7 @@ use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Schema;
 
 class TownHallController extends Controller
 {
@@ -19,8 +20,11 @@ class TownHallController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $query = TownHallCommunication::where('approval_status', 'Approved')
-            ->where('is_archived', false);
+        $query = TownHallCommunication::where('approval_status', 'Approved');
+
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $query->where('is_archived', false);
+        }
 
         if ($request->filled('department')) {
             $query->where('department_stakeholder', $request->department);
@@ -28,8 +32,11 @@ class TownHallController extends Controller
 
         $communications = $query->latest()->paginate(10);
 
-        $departments = TownHallCommunication::where('is_archived', false)
-            ->select('department_stakeholder')
+        $departmentQuery = TownHallCommunication::query();
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $departmentQuery->where('is_archived', false);
+        }
+        $departments = $departmentQuery->select('department_stakeholder')
             ->distinct()
             ->pluck('department_stakeholder');
 
@@ -87,13 +94,18 @@ class TownHallController extends Controller
 
     public function department(Request $request)
     {
-        $departments = TownHallCommunication::where('is_archived', false)
-            ->select('department_stakeholder')
+        $departmentQuery = TownHallCommunication::query();
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $departmentQuery->where('is_archived', false);
+        }
+        $departments = $departmentQuery->select('department_stakeholder')
             ->distinct()
             ->pluck('department_stakeholder');
 
-        $query = TownHallCommunication::where('approval_status', 'Approved')
-            ->where('is_archived', false);
+        $query = TownHallCommunication::where('approval_status', 'Approved');
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $query->where('is_archived', false);
+        }
 
         if ($request->filled('department')) {
             $query->where('department_stakeholder', $request->department);
@@ -111,8 +123,11 @@ class TownHallController extends Controller
         }
 
         $query = TownHallCommunication::whereNotNull('attachment')
-            ->where('approval_status', 'Approved')
-            ->where('is_archived', false);
+            ->where('approval_status', 'Approved');
+
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $query->where('is_archived', false);
+        }
 
         if ($request->filled('search')) {
             $search = $request->search;

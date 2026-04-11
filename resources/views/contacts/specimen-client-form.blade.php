@@ -61,7 +61,7 @@
                 </div>
             </section>
 
-            <form method="POST" action="{{ $clientFormAction }}" class="space-y-4 border-x border-b border-slate-300 bg-white px-4 py-5 md:px-6">
+            <form method="POST" action="{{ $clientFormAction }}" enctype="multipart/form-data" class="space-y-4 border-x border-b border-slate-300 bg-white px-4 py-5 md:px-6">
                 @csrf
 
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">

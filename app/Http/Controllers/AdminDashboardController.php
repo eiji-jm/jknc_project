@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use App\Models\TownHallCommunication;
+use Illuminate\Support\Facades\Schema;
 
 class AdminDashboardController extends Controller
 {
@@ -20,23 +21,13 @@ class AdminDashboardController extends Controller
             ->latest()
             ->paginate(10);
 
-        $pendingCount = TownHallCommunication::where('approval_status', 'Pending')
-            ->where('is_archived', false)
-            ->count();
-
-        $approvedCount = TownHallCommunication::where('approval_status', 'Approved')
-            ->where('is_archived', false)
-            ->count();
-
-        $rejectedCount = TownHallCommunication::where('approval_status', 'Rejected')
-            ->where('is_archived', false)
-            ->count();
-
-        $revisionCount = TownHallCommunication::where('approval_status', 'Needs Revision')
-            ->where('is_archived', false)
-            ->count();
-
-        $expiredCount = TownHallCommunication::where('is_archived', true)->count();
+        $pendingCount = $this->townHallCountByStatus('Pending');
+        $approvedCount = $this->townHallCountByStatus('Approved');
+        $rejectedCount = $this->townHallCountByStatus('Rejected');
+        $revisionCount = $this->townHallCountByStatus('Needs Revision');
+        $expiredCount = Schema::hasColumn('townhall_communications', 'is_archived')
+            ? TownHallCommunication::where('is_archived', true)->count()
+            : 0;
 
         return view('admin.admin-dashboard', compact(
             'communications',
@@ -46,5 +37,16 @@ class AdminDashboardController extends Controller
             'revisionCount',
             'expiredCount'
         ));
+    }
+
+    private function townHallCountByStatus(string $status): int
+    {
+        $query = TownHallCommunication::where('approval_status', $status);
+
+        if (Schema::hasColumn('townhall_communications', 'is_archived')) {
+            $query->where('is_archived', false);
+        }
+
+        return $query->count();
     }
 }

@@ -6,6 +6,7 @@ use App\Models\RolePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class RolePermissionController extends Controller
 {
@@ -106,19 +107,27 @@ class RolePermissionController extends Controller
             abort(403, 'SuperAdmin role permissions cannot be modified.');
         }
 
-        $permission->update([
-            'manage_users' => $request->has('manage_users'),
-            'access_admin_dashboard' => $request->has('access_admin_dashboard'),
-            'approve_townhall' => $request->has('approve_townhall'),
-            'create_townhall' => $request->has('create_townhall'),
-            'create_corporate' => $request->has('create_corporate'),
-            'approve_corporate' => $request->has('approve_corporate'),
-            'access_townhall' => $request->has('access_townhall'),
-            'access_corporate' => $request->has('access_corporate'),
-            'access_activities' => $request->has('access_activities'),
-            'access_contacts' => $request->has('access_contacts'),
-            'access_company' => $request->has('access_company'),
-        ]);
+        $updates = [];
+
+        foreach ([
+            'manage_users',
+            'access_admin_dashboard',
+            'approve_townhall',
+            'create_townhall',
+            'create_corporate',
+            'approve_corporate',
+            'access_townhall',
+            'access_corporate',
+            'access_activities',
+            'access_contacts',
+            'access_company',
+        ] as $column) {
+            if (Schema::hasColumn('role_permissions', $column)) {
+                $updates[$column] = $request->has($column);
+            }
+        }
+
+        $permission->update($updates);
 
         return redirect()->route('admin.role-permissions')
             ->with('success', 'Role permissions updated successfully.');

@@ -34,29 +34,45 @@
             <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                 <h3 class="text-base font-semibold text-gray-900">Primary Contact Link</h3>
                 <p class="mb-4 text-xs text-gray-500">Select the approved contact record to link this company profile.</p>
+                @if (!($hasApprovedCompanyCreateContacts ?? false))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        No approved contacts are available yet. Approve a contact CIF first before creating a company.
+                    </div>
+                @endif
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">Contact <span class="text-red-500">*</span></label>
-                    <select name="contact_id" x-on:change="hydrateFromContact($event)" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
+                    <select name="contact_id" x-on:change="hydrateFromContact($event)" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-500" required @disabled(!($hasApprovedCompanyCreateContacts ?? false))>
                         <option value="">Select contact</option>
                         @foreach (($companyCreateContacts ?? collect()) as $contact)
                             @php
                                 $contactName = trim(collect([$contact->first_name, $contact->last_name])->filter()->implode(' '));
                                 $contactCompany = $contact->company_name ? ' • '.$contact->company_name : '';
-                                $contactStatus = strtoupper((string) ($contact->cif_status ?? 'draft'));
                             @endphp
                             <option
                                 value="{{ $contact->id }}"
-                                data-company-name="{{ $contact->company_name }}"
-                                data-email="{{ $contact->email }}"
-                                data-phone="{{ $contact->phone }}"
-                                data-address="{{ $contact->contact_address }}"
-                                data-tin="{{ $contact->tin }}"
+                                data-company-name="{{ ($contact->company_autofill['business_name'] ?? null) ?: $contact->company_name }}"
+                                data-email="{{ ($contact->company_autofill['authorized_contact_person_email'] ?? null) ?: $contact->email }}"
+                                data-phone="{{ ($contact->company_autofill['authorized_contact_person_phone'] ?? null) ?: $contact->phone }}"
+                                data-business-phone="{{ ($contact->company_autofill['business_phone'] ?? null) ?: $contact->phone }}"
+                                data-mobile="{{ ($contact->company_autofill['mobile_no'] ?? null) ?: $contact->phone }}"
+                                data-address="{{ ($contact->company_autofill['business_address'] ?? null) ?: $contact->contact_address }}"
+                                data-tin="{{ ($contact->company_autofill['tin_no'] ?? null) ?: $contact->tin }}"
+                                data-zip-code="{{ $contact->company_autofill['zip_code'] ?? '' }}"
+                                data-nationality-status="{{ $contact->company_autofill['nationality_status'] ?? '' }}"
+                                data-business-organization="{{ $contact->company_autofill['business_organization'] ?? '' }}"
+                                data-business-organization-other="{{ $contact->company_autofill['business_organization_other'] ?? '' }}"
+                                data-office-type="{{ $contact->company_autofill['office_type'] ?? '' }}"
+                                data-office-type-other="{{ $contact->company_autofill['office_type_other'] ?? '' }}"
+                                data-alternative-business-name="{{ $contact->company_autofill['alternative_business_name'] ?? '' }}"
+                                data-contact-name="{{ ($contact->company_autofill['authorized_contact_person_name'] ?? null) ?: ($contact->contact_full_name ?: trim(collect([$contact->first_name, $contact->last_name])->filter()->implode(' '))) }}"
+                                data-contact-position="{{ ($contact->company_autofill['authorized_contact_person_position'] ?? null) ?: $contact->position }}"
                                 @selected((string) old('contact_id') === (string) $contact->id)
                             >
-                                {{ $contactName !== '' ? $contactName : 'Contact #'.$contact->id }}{{ $contactCompany }} • CIF: {{ $contactStatus }}
+                                {{ $contactName !== '' ? $contactName : 'Contact #'.$contact->id }}{{ $contactCompany }} • CIF: APPROVED
                             </option>
                         @endforeach
                     </select>
+                    <p class="mt-2 text-xs text-gray-500">Only contacts with approved CIF can be linked to a new company.</p>
                 </div>
             </section>
 
@@ -279,24 +295,32 @@
             <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                 <h3 class="text-base font-semibold text-gray-900">Business Onboarding Requirements</h3>
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700" x-show="businessOrganization === 'sole_proprietorship' || !businessOrganization" x-cloak>
                         <p class="mb-2 font-semibold text-gray-900">Sole / Individual</p>
                         <ul class="list-disc space-y-1 pl-5">
-                            <li>Client Contact Form</li>
-                            <li>Business Client Information Form</li>
-                            <li>Authorized Signatory Specimen Signature Card</li>
-                            <li>2 Valid Government IDs</li>
-                            <li>TIN ID</li>
+                            <li>DTI Certificate of Registration (if Sole Prop)</li>
+                            <li>BIR Certificate of Registration (COR)</li>
+                            <li>Business Permit / Mayor's Permit</li>
+                            <li>Proof of Billing (Residential)</li>
+                            <li>Proof of Billing (Business Address if different)</li>
+                            <li>Special Power of Attorney (if representative)</li>
+                            <li>Representative's 2 Valid IDs (if applicable)</li>
                         </ul>
                     </div>
-                    <div class="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700">
+                    <div class="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700" x-show="['partnership', 'corporation', 'cooperative', 'ngo', 'other'].includes(businessOrganization) || !businessOrganization" x-cloak>
                         <p class="mb-2 font-semibold text-gray-900">Juridical Entity</p>
                         <ul class="list-disc space-y-1 pl-5">
-                            <li>Proof of Billing / Secretary Certificate / Board Resolution</li>
-                            <li>Articles of Incorporation / Partnership / By-Laws</li>
-                            <li>Latest GIS / UBO Declaration / Appointment of Officers</li>
                             <li>SEC / CDA Certificate of Registration</li>
-                            <li>BIR COR / Business Permit</li>
+                            <li>BIR Certificate of Registration (COR)</li>
+                            <li>Business Permit / Mayor's Permit</li>
+                            <li>Articles of Incorporation / Partnership</li>
+                            <li>By-Laws</li>
+                            <li>Latest General Information Sheet (GIS)</li>
+                            <li>Appointment of Officers (for OPC, if applicable)</li>
+                            <li>Secretary Certificate OR Board Resolution</li>
+                            <li>Ultimate Beneficial Owner (UBO) Declaration</li>
+                            <li>Proof of Billing (Company Address)</li>
+                            <li>Proof of Billing (Authorized Representative, if applicable)</li>
                         </ul>
                     </div>
                 </div>
@@ -320,7 +344,7 @@
         <div class="mt-auto border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
             <div class="flex items-center justify-end gap-3">
                 <button type="button" data-close-company-modal class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">Save Company</button>
+                <button type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60" @disabled(!($hasApprovedCompanyCreateContacts ?? false))>Save Company</button>
             </div>
         </div>
     </form>
@@ -362,6 +386,13 @@ function companyBifForm() {
             if (String(value || '').trim() === '') return;
             input.value = value;
         },
+        setFieldValue(fieldName, value) {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            if (!input) return;
+            const nextValue = String(value || '').trim();
+            if (nextValue === '' && String(input.value || '').trim() !== '') return;
+            input.value = String(value || '');
+        },
         hydrateFromContact(event) {
             const option = event?.target?.selectedOptions?.[0];
             if (!option) return;
@@ -369,16 +400,46 @@ function companyBifForm() {
             const companyName = option.dataset.companyName || '';
             const email = option.dataset.email || '';
             const phone = option.dataset.phone || '';
+            const businessPhone = option.dataset.businessPhone || phone;
+            const mobile = option.dataset.mobile || phone;
             const address = option.dataset.address || '';
             const tin = option.dataset.tin || '';
+            const zipCode = option.dataset.zipCode || '';
+            const nationalityStatus = option.dataset.nationalityStatus || '';
+            const businessOrganization = option.dataset.businessOrganization || '';
+            const businessOrganizationOther = option.dataset.businessOrganizationOther || '';
+            const officeType = option.dataset.officeType || '';
+            const officeTypeOther = option.dataset.officeTypeOther || '';
+            const alternativeBusinessName = option.dataset.alternativeBusinessName || '';
+            const contactName = option.dataset.contactName || '';
+            const contactPosition = option.dataset.contactPosition || '';
 
-            this.fillIfBlank('business_name', companyName);
-            this.fillIfBlank('authorized_contact_person_email', email);
-            this.fillIfBlank('authorized_contact_person_phone', phone);
-            this.fillIfBlank('business_phone', phone);
-            this.fillIfBlank('mobile_no', phone);
-            this.fillIfBlank('business_address', address);
-            this.fillIfBlank('tin_no', tin);
+            this.setFieldValue('business_name', companyName);
+            this.setFieldValue('alternative_business_name', alternativeBusinessName);
+            this.setFieldValue('authorized_contact_person_email', email);
+            this.setFieldValue('authorized_contact_person_phone', phone);
+            this.setFieldValue('authorized_contact_person_name', contactName);
+            this.setFieldValue('authorized_contact_person_position', contactPosition);
+            this.setFieldValue('business_phone', businessPhone);
+            this.setFieldValue('mobile_no', mobile);
+            this.setFieldValue('business_address', address);
+            this.setFieldValue('tin_no', tin);
+            this.setFieldValue('zip_code', zipCode);
+            if (String(businessOrganization || '').trim() !== '' || String(this.businessOrganization || '').trim() === '') {
+                this.businessOrganization = businessOrganization;
+            }
+            this.setFieldValue('business_organization_other', businessOrganizationOther);
+            if (String(officeType || '').trim() !== '' || String(this.officeType || '').trim() === '') {
+                this.officeType = officeType;
+            }
+            this.setFieldValue('office_type_other', officeTypeOther);
+
+            if (nationalityStatus) {
+                const nationalityInput = document.querySelector(`[name="nationality_status"][value="${nationalityStatus}"]`);
+                if (nationalityInput) {
+                    nationalityInput.checked = true;
+                }
+            }
         },
         syncEmployeeTotal() {
             this.employees.total = (Number(this.employees.male) || 0) + (Number(this.employees.female) || 0) + (Number(this.employees.pwd) || 0);

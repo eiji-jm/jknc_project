@@ -703,19 +703,26 @@ class CompanyBifController extends Controller
     {
         return [
             'sole_proprietorship' => [
-                ['key' => 'sole_dti_document', 'label' => 'DTI Certificate of Registration'],
-                ['key' => 'sole_bmbe_document', 'label' => 'BMBE Certificate of Registration'],
+                ['key' => 'sole_dti_certificate_document', 'label' => 'DTI Certificate of Registration (if Sole Prop)'],
+                ['key' => 'sole_bir_cor_document', 'label' => 'BIR Certificate of Registration (COR)'],
+                ['key' => 'sole_business_permit_document', 'label' => 'Business Permit / Mayor\'s Permit'],
+                ['key' => 'sole_proof_of_billing_residential_document', 'label' => 'Proof of Billing (Residential)'],
+                ['key' => 'sole_proof_of_billing_business_document', 'label' => 'Proof of Billing (Business Address if different)'],
+                ['key' => 'sole_spa_document', 'label' => 'Special Power of Attorney (if representative)'],
+                ['key' => 'sole_representative_ids_document', 'label' => 'Representative\'s 2 Valid IDs (if applicable)'],
             ],
             'juridical_entity' => [
-                ['key' => 'entity_sec_cda_document', 'label' => 'SEC / CDA Certificate of Registration'],
-                ['key' => 'entity_business_permit_document', 'label' => 'Business Permit / Mayor\'s Permit'],
-                ['key' => 'entity_bir_cor_document', 'label' => 'BIR Certificate of Registration (COR)'],
-                ['key' => 'entity_articles_document', 'label' => 'Articles of Incorporation / Partnership'],
-                ['key' => 'entity_bylaws_document', 'label' => 'By-Laws'],
-            ],
-            'common' => [
-                ['key' => 'common_proof_of_billing_document', 'label' => 'Proof of Billing'],
-                ['key' => 'common_spa_document', 'label' => 'SPA if applicable'],
+                ['key' => 'juridical_sec_cda_certificate_document', 'label' => 'SEC / CDA Certificate of Registration'],
+                ['key' => 'juridical_bir_cor_document', 'label' => 'BIR Certificate of Registration (COR)'],
+                ['key' => 'juridical_business_permit_document', 'label' => 'Business Permit / Mayor\'s Permit'],
+                ['key' => 'juridical_articles_document', 'label' => 'Articles of Incorporation / Partnership'],
+                ['key' => 'juridical_bylaws_document', 'label' => 'By-Laws'],
+                ['key' => 'juridical_gis_document', 'label' => 'Latest General Information Sheet (GIS)'],
+                ['key' => 'juridical_appointment_of_officers_document', 'label' => 'Appointment of Officers (for OPC, if applicable)'],
+                ['key' => 'juridical_secretary_certificate_document', 'label' => 'Secretary Certificate OR Board Resolution'],
+                ['key' => 'juridical_ubo_declaration_document', 'label' => 'Ultimate Beneficial Owner (UBO) Declaration'],
+                ['key' => 'juridical_company_billing_document', 'label' => 'Proof of Billing (Company Address)'],
+                ['key' => 'juridical_representative_billing_document', 'label' => 'Proof of Billing (Authorized Representative, if applicable)'],
             ],
         ];
     }

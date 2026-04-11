@@ -89,7 +89,7 @@
 
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4" data-contact-empty>
                             <div class="text-sm text-gray-600">No contact selected.</div>
-                            <a href="{{ route('contacts') }}" class="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50">
+                            <a href="{{ route('contacts.index') }}" class="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50">
                                 Go to Contacts
                             </a>
                         </div>

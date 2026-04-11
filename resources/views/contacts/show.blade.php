@@ -41,6 +41,11 @@
     $requiresForeignerDocuments = collect($requiredKycRequirementKeys)->intersect(array_column($foreignerDocumentRequirements, 'key'))->isNotEmpty();
     $canReviewKyc = in_array((string) (auth()->user()->role ?? ''), ['Admin', 'SuperAdmin'], true);
     $cifStatus = strtolower((string) ($contact->cif_status ?? 'draft'));
+    $changeRequestStatus = strtolower((string) ($cifData['change_request_status'] ?? ''));
+    $changeRequestPending = $changeRequestStatus === 'pending';
+    $changeRequestApproved = $changeRequestStatus === 'approved';
+    $kycLockedForRequester = ! $canReviewKyc && $cifStatus === 'approved' && ! $changeRequestApproved;
+    $canModifyKyc = ! $kycLockedForRequester;
 @endphp
 
 <div class="bg-white">
@@ -114,8 +119,10 @@
                                 </div>
                                 @if ($cifEditMode)
                                     <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']) }}" class="text-sm text-gray-600 hover:text-gray-900">Cancel</a>
-                                @else
+                                @elseif ($canModifyKyc)
                                     <a href="{{ route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc', 'edit_cif' => 1]) }}" class="text-sm text-blue-600 hover:text-blue-700">Edit</a>
+                                @else
+                                    <span class="text-sm text-amber-700">Request change to edit</span>
                                 @endif
                             </div>
                             <div class="p-4">
@@ -223,7 +230,23 @@
                                 <div class="space-y-2 px-4 py-4">
                                     @if (! $canReviewKyc)
                                         @if ($cifStatus === 'approved')
-                                            <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-green-100 text-sm font-medium text-green-700">Approved</button>
+                                            @if ($changeRequestPending)
+                                                <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-amber-100 text-sm font-medium text-amber-700">Change Request Pending</button>
+                                                <p class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                                                    Your request is waiting for admin approval before editing is unlocked.
+                                                </p>
+                                            @elseif ($changeRequestApproved)
+                                                <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-blue-100 text-sm font-medium text-blue-700">Editing Unlocked</button>
+                                                <p class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                                                    Update the forms and requirements, then submit for verification again.
+                                                </p>
+                                            @else
+                                                <form method="POST" action="{{ route('contacts.kyc.change-request', $contact->id) }}" class="space-y-2">
+                                                    @csrf
+                                                    <textarea name="change_request_note" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Optional note for the admin reviewer"></textarea>
+                                                    <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Request Change Information</button>
+                                                </form>
+                                            @endif
                                         @elseif ($cifStatus === 'pending')
                                             <button type="button" disabled class="h-10 w-full cursor-not-allowed rounded-lg bg-amber-100 text-sm font-medium text-amber-700">Pending Approval</button>
                                         @else
@@ -243,6 +266,12 @@
                                             <input id="rejectReasonField" type="hidden" name="reason" value="">
                                             <button id="rejectKycBtn" type="button" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300">Reject</button>
                                         </form>
+                                        @if ($changeRequestPending && $cifStatus === 'approved')
+                                            <form method="POST" action="{{ route('contacts.kyc.change-request.approve', $contact->id) }}">
+                                                @csrf
+                                                <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Approve Change Request</button>
+                                            </form>
+                                        @endif
                                     @endif
                                     <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
                                     <div class="pt-2">
@@ -286,14 +315,16 @@
                                             <p class="mt-2 text-xs text-gray-500">{{ $cifSignedRequirement['file']['file_name'] ?? 'No file uploaded' }}</p>
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
-                                                @csrf
-                                                <input type="hidden" name="requirement" value="cif_signed_document">
-                                                <label class="{{ $actionBtn }} cursor-pointer">
-                                                    Upload
-                                                    <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
-                                                </label>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                    @csrf
+                                                    <input type="hidden" name="requirement" value="cif_signed_document">
+                                                    <label class="{{ $actionBtn }} cursor-pointer">
+                                                        Upload
+                                                        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                    </label>
+                                                </form>
+                                            @endif
                                             <button
                                                 id="viewCifSignedDocumentBtn"
                                                 type="button"
@@ -304,11 +335,13 @@
                                             >
                                                 View
                                             </button>
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'cif_signed_document']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded signed CIF document?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="{{ $dangerBtn }} {{ $cifSignedRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'cif_signed_document']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded signed CIF document?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="{{ $dangerBtn }} {{ $cifSignedRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>
@@ -338,14 +371,16 @@
                                             @endif
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
-                                                @csrf
-                                                <input type="hidden" name="requirement" value="two_valid_ids">
-                                                <label class="{{ $actionBtn }} cursor-pointer">
-                                                    Upload
-                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
-                                                </label>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                    @csrf
+                                                    <input type="hidden" name="requirement" value="two_valid_ids">
+                                                    <label class="{{ $actionBtn }} cursor-pointer">
+                                                        Upload
+                                                        <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                    </label>
+                                                </form>
+                                            @endif
                                             @php $twoValidFirstFile = $twoValidIds['files'][0] ?? null; @endphp
                                             <button
                                                 type="button"
@@ -356,11 +391,13 @@
                                             >
                                                 View
                                             </button>
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'two_valid_ids']) }}" class="inline-flex" onsubmit="return confirm('Remove all uploaded valid IDs for this requirement?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="{{ $dangerBtn }} {{ $twoValidIds['count'] > 0 ? '' : $disabledBtn }}">Remove</button>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'two_valid_ids']) }}" class="inline-flex" onsubmit="return confirm('Remove all uploaded valid IDs for this requirement?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="{{ $dangerBtn }} {{ $twoValidIds['count'] > 0 ? '' : $disabledBtn }}">Remove</button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>
@@ -398,18 +435,22 @@
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
                                             @if ($specimenRequirement['form_exists'])
                                                 <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id]) }}" class="{{ $actionBtn }}">View Form</a>
-                                                <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1]) }}" class="{{ $actionBtn }}">Edit Form</a>
-                                            @else
+                                                @if ($canModifyKyc)
+                                                    <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1]) }}" class="{{ $actionBtn }}">Edit Form</a>
+                                                @endif
+                                            @elseif ($canModifyKyc)
                                                 <a href="{{ route('contacts.specimen-signature', ['id' => $contact->id]) }}" class="{{ $primaryBtn }}">Create Form</a>
                                             @endif
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
-                                                @csrf
-                                                <input type="hidden" name="requirement" value="specimen_signature_upload">
-                                                <label class="{{ $actionBtn }} cursor-pointer">
-                                                    Upload
-                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
-                                                </label>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                    @csrf
+                                                    <input type="hidden" name="requirement" value="specimen_signature_upload">
+                                                    <label class="{{ $actionBtn }} cursor-pointer">
+                                                        Upload
+                                                        <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                    </label>
+                                                </form>
+                                            @endif
                                             <button
                                                 type="button"
                                                 @if ($specimenRequirement['file'])
@@ -419,11 +460,13 @@
                                             >
                                                 View
                                             </button>
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'specimen_signature_upload']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded specimen signature file?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="{{ $dangerBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'specimen_signature_upload']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded specimen signature file?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="{{ $dangerBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>
@@ -457,14 +500,16 @@
                                             @endif
                                         </div>
                                         <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
-                                                @csrf
-                                                <input type="hidden" name="requirement" value="tin_proof">
-                                                <label class="{{ $actionBtn }} cursor-pointer">
-                                                    Upload
-                                                    <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
-                                                </label>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.upload', $contact->id) }}" enctype="multipart/form-data" class="inline-flex">
+                                                    @csrf
+                                                    <input type="hidden" name="requirement" value="tin_proof">
+                                                    <label class="{{ $actionBtn }} cursor-pointer">
+                                                        Upload
+                                                        <input type="file" name="document_file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="this.form.submit()">
+                                                    </label>
+                                                </form>
+                                            @endif
                                             <button
                                                 type="button"
                                                 @if ($tinRequirement['file'])
@@ -474,11 +519,13 @@
                                             >
                                                 View
                                             </button>
-                                            <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'tin_proof']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded TIN document?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="{{ $dangerBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
-                                            </form>
+                                            @if ($canModifyKyc)
+                                                <form method="POST" action="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => 'tin_proof']) }}" class="inline-flex" onsubmit="return confirm('Remove the uploaded TIN document?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="{{ $dangerBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}">Remove</button>
+                                                </form>
+                                            @endif
                                         </div>
                                     </div>
                                 </article>

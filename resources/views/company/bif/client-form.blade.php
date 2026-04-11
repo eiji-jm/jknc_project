@@ -77,6 +77,11 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
+    @php
+        $selectedOrganization = old('business_organization', $bif->business_organization);
+        $showSoleRequirements = $selectedOrganization === 'sole_proprietorship';
+        $showJuridicalRequirements = in_array($selectedOrganization, ['partnership', 'corporation', 'cooperative', 'ngo', 'other'], true);
+    @endphp
     <div class="mx-auto max-w-5xl px-4 sm-px-6 py-6">
         <div class="mb-6 rounded-3xl bg-gradient px-6 py-8 text-white shadow-lg">
             <p class="text-sm font-medium uppercase tracking-[0.2em] text-blue-100">Secure Client Form</p>
@@ -297,7 +302,7 @@
                     <p class="mt-1 text-sm text-slate-500">Upload the applicable onboarding documents based on your client type and business organization.</p>
                 </div>
                 <div class="space-y-6 px-5 py-5">
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4" id="soleRequirementsCard" style="{{ $showSoleRequirements || (! $showSoleRequirements && ! $showJuridicalRequirements) ? '' : 'display:none;' }}">
                         <h3 class="text-sm font-semibold text-slate-900">Sole / Natural Person / Individual</h3>
                         <div class="grid md-grid-2" style="margin-top:1rem;">
                             @foreach ($documentFields['sole_proprietorship'] as $document)
@@ -309,7 +314,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4" id="juridicalRequirementsCard" style="{{ $showJuridicalRequirements || (! $showSoleRequirements && ! $showJuridicalRequirements) ? '' : 'display:none;' }}">
                         <h3 class="text-sm font-semibold text-slate-900">Juridical Entity</h3>
                         <div class="grid md-grid-2" style="margin-top:1rem;">
                             @foreach ($documentFields['juridical_entity'] as $document)
@@ -321,17 +326,6 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <h3 class="text-sm font-semibold text-slate-900">Common Additional Documents</h3>
-                        <div class="grid md-grid-2" style="margin-top:1rem;">
-                            @foreach ($documentFields['common'] as $document)
-                                <div>
-                                    <label for="{{ $document['key'] }}" class="mb-1 block text-sm font-medium text-slate-700">{{ $document['label'] }}</label>
-                                    <input id="{{ $document['key'] }}" name="{{ $document['key'] }}" type="file" class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700">
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -360,5 +354,31 @@
             </div>
         </form>
     </div>
+    <script>
+        (() => {
+            const organizationSelect = document.getElementById('business_organization');
+            const soleCard = document.getElementById('soleRequirementsCard');
+            const juridicalCard = document.getElementById('juridicalRequirementsCard');
+
+            if (!organizationSelect || !soleCard || !juridicalCard) {
+                return;
+            }
+
+            const juridicalTypes = new Set(['partnership', 'corporation', 'cooperative', 'ngo', 'other']);
+
+            const syncRequirementCards = () => {
+                const value = organizationSelect.value;
+                const showSole = value === 'sole_proprietorship';
+                const showJuridical = juridicalTypes.has(value);
+                const showBoth = !showSole && !showJuridical;
+
+                soleCard.style.display = (showSole || showBoth) ? '' : 'none';
+                juridicalCard.style.display = (showJuridical || showBoth) ? '' : 'none';
+            };
+
+            organizationSelect.addEventListener('change', syncRequirementCards);
+            syncRequirementCards();
+        })();
+    </script>
 </body>
 </html>

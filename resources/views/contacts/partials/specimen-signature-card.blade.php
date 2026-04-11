@@ -27,7 +27,7 @@
         <tr>
             <td class="border border-gray-300 p-2 font-semibold">BIF NO.</td>
             <td class="border border-gray-300 p-2">
-                @if ($readonly)
+                @if ($readonly || $clientMode)
                     <div class="{{ $readonlyClass }}">{{ $form['bif_no'] ?: '-' }}</div>
                 @else
                     <input name="bif_no" value="{{ old('bif_no', $form['bif_no'] ?? '') }}" class="{{ $inputClass }}">
@@ -133,7 +133,7 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <span class="font-semibold">CIF NO.:</span>
-                            @if ($readonly)
+                            @if ($readonly || $clientMode)
                                 <div class="{{ $readonlyClass }}">{{ $form['left_cif_no'] ?: '-' }}</div>
                             @else
                                 <input name="left_cif_no" value="{{ old('left_cif_no', $form['left_cif_no'] ?? '') }}" class="{{ $inputClass }}">
@@ -176,7 +176,7 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <span class="font-semibold">CIF NO.:</span>
-                            @if ($readonly)
+                            @if ($readonly || $clientMode)
                                 <div class="{{ $readonlyClass }}">{{ $form['right_cif_no'] ?: '-' }}</div>
                             @else
                                 <input name="right_cif_no" value="{{ old('right_cif_no', $form['right_cif_no'] ?? '') }}" class="{{ $inputClass }}">

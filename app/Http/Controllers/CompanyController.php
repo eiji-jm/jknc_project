@@ -84,6 +84,56 @@ class CompanyController extends Controller
             ->map(fn ($items) => $items->count())
             ->all();
 
+        $companyCreateContacts = collect();
+
+        if (Schema::hasTable('contacts')) {
+            $companyCreateContacts = Contact::query()
+                ->where('cif_status', 'approved')
+                ->with([
+                    'primaryCompanies.latestBif',
+                    'companies.latestBif',
+                ])
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get([
+                    'id',
+                    'first_name',
+                    'middle_name',
+                    'last_name',
+                    'name_extension',
+                    'position',
+                    'email',
+                    'phone',
+                    'contact_address',
+                    'company_name',
+                    'company_address',
+                    'business_type_organization',
+                    'organization_type',
+                    'organization_type_other',
+                    'cif_no',
+                    'tin',
+                    'cif_status',
+                ])
+                ->map(function (Contact $contact): Contact {
+                    $autofill = $this->buildCompanyAutofillPayload(
+                        $contact,
+                        $this->loadContactCifData($contact),
+                        $this->loadLinkedBifData($contact)
+                    );
+
+                    $contact->setAttribute('company_autofill', $autofill);
+                    $contact->setAttribute('contact_full_name', trim(collect([
+                        $contact->first_name,
+                        $contact->middle_name,
+                        $contact->last_name,
+                        $contact->name_extension,
+                    ])->filter()->implode(' ')));
+
+                    return $contact;
+                })
+                ->values();
+        }
+
         return view('company.company', [
             'companies' => $paginatedCompanies,
             'search' => $search,
@@ -94,12 +144,10 @@ class CompanyController extends Controller
             'customFields' => $customFields,
             'fieldTypes' => collect($this->fieldTypes()),
             'lookupModules' => $this->lookupModules(),
-            'companyCreateContacts' => Schema::hasTable('contacts')
-                ? Contact::query()
-                    ->orderBy('first_name')
-                    ->orderBy('last_name')
-                    ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'contact_address', 'company_name', 'cif_no', 'tin', 'cif_status'])
-                : collect(),
+            'companyCreateContacts' => $companyCreateContacts,
+            'hasApprovedCompanyCreateContacts' => Schema::hasTable('contacts')
+                ? Contact::query()->where('cif_status', 'approved')->exists()
+                : false,
         ]);
     }
 
@@ -116,8 +164,12 @@ class CompanyController extends Controller
         }
 
         $cifData = $this->loadContactCifData($contact);
-        $autofill = $this->buildCompanyAutofillPayload($contact, $cifData);
+        $autofill = $this->buildCompanyAutofillPayload($contact, $cifData, $this->loadLinkedBifData($contact));
         $normalizedValidated = array_merge($validated, array_filter([
+            'business_organization' => $validated['business_organization'] ?: ($autofill['business_organization'] ?? null),
+            'business_organization_other' => $validated['business_organization_other'] ?: ($autofill['business_organization_other'] ?? null),
+            'office_type' => $validated['office_type'] ?: ($autofill['office_type'] ?? null),
+            'office_type_other' => $validated['office_type_other'] ?: ($autofill['office_type_other'] ?? null),
             'business_phone' => $validated['business_phone'] ?: ($autofill['business_phone'] ?? null),
             'mobile_no' => $validated['mobile_no'] ?: ($autofill['mobile_no'] ?? null),
             'business_address' => $validated['business_address'] ?: ($autofill['business_address'] ?? null),
@@ -129,6 +181,7 @@ class CompanyController extends Controller
             'zip_code' => $validated['zip_code'] ?: ($autofill['zip_code'] ?? null),
             'nationality_status' => $validated['nationality_status'] ?: ($autofill['nationality_status'] ?? null),
             'business_name' => $validated['business_name'] ?: ($autofill['business_name'] ?? null),
+            'alternative_business_name' => $validated['alternative_business_name'] ?: ($autofill['alternative_business_name'] ?? null),
         ], static fn ($value) => filled($value)));
 
         $company = Company::query()->create([
@@ -1073,7 +1126,38 @@ class CompanyController extends Controller
         return json_decode((string) Storage::disk('local')->get($path), true) ?: [];
     }
 
-    private function buildCompanyAutofillPayload(Contact $contact, array $cifData): array
+    private function loadLinkedBifData(Contact $contact): array
+    {
+        $linkedCompany = null;
+
+        if ($contact->relationLoaded('primaryCompanies')) {
+            $linkedCompany = $contact->primaryCompanies->first();
+        }
+
+        if (! $linkedCompany && $contact->relationLoaded('companies')) {
+            $linkedCompany = $contact->companies->first();
+        }
+
+        if (! $linkedCompany) {
+            $linkedCompany = $contact->primaryCompanies()->with('latestBif')->first()
+                ?: $contact->companies()->with('latestBif')->first();
+        }
+
+        return (array) ($linkedCompany?->latestBif?->toArray() ?? []);
+    }
+
+    private function firstFilledValue(mixed ...$values): mixed
+    {
+        foreach ($values as $value) {
+            if (filled($value)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function buildCompanyAutofillPayload(Contact $contact, array $cifData, array $bifData = []): array
     {
         $fullName = trim(collect([
             $cifData['first_name'] ?? $contact->first_name,
@@ -1083,24 +1167,66 @@ class CompanyController extends Controller
         ])->filter()->implode(' '));
 
         $citizenshipType = strtolower((string) ($cifData['citizenship_type'] ?? ''));
-        $nationalityStatus = $citizenshipType === 'foreigner' ? 'foreign' : 'filipino';
+        $organizationType = $this->firstFilledValue(
+            $this->mapContactOrganizationToBusinessOrganization((string) ($contact->organization_type ?? '')),
+            $this->mapContactOrganizationToBusinessOrganization((string) ($contact->business_type_organization ?? '')),
+            $bifData['business_organization'] ?? null
+        );
+        $nationalityStatus = $this->firstFilledValue(
+            $bifData['nationality_status'] ?? null,
+            $citizenshipType === 'foreigner' ? 'foreign' : null,
+            'filipino'
+        );
+        $businessAddress = collect([
+            $contact->company_address ?? null,
+            $bifData['business_address'] ?? null,
+            $cifData['present_address_line1'] ?? null,
+            $cifData['present_address_line2'] ?? null,
+        ])->filter()->implode(', ');
 
         return [
-            'business_name' => $contact->company_name,
-            'business_phone' => $cifData['mobile'] ?? $contact->phone,
-            'mobile_no' => $cifData['mobile'] ?? $contact->phone,
-            'business_address' => collect([
-                $cifData['present_address_line1'] ?? null,
-                $cifData['present_address_line2'] ?? null,
-            ])->filter()->implode(', '),
-            'zip_code' => $cifData['zip_code'] ?? null,
-            'tin_no' => $cifData['tin'] ?? $contact->tin,
+            'business_name' => $this->firstFilledValue(
+                $contact->company_name,
+                $bifData['business_name'] ?? null,
+                $fullName !== '' ? $fullName : trim($contact->first_name.' '.$contact->last_name)
+            ),
+            'business_organization' => $organizationType,
+            'business_organization_other' => $organizationType === 'other'
+                ? $this->firstFilledValue(
+                    $contact->organization_type_other,
+                    $contact->business_type_organization,
+                    $bifData['business_organization_other'] ?? null
+                )
+                : null,
+            'office_type' => $bifData['office_type'] ?? null,
+            'office_type_other' => $bifData['office_type_other'] ?? null,
+            'business_phone' => $this->firstFilledValue($cifData['mobile'] ?? null, $bifData['business_phone'] ?? null, $contact->phone),
+            'mobile_no' => $this->firstFilledValue($cifData['mobile'] ?? null, $bifData['mobile_no'] ?? null, $contact->phone),
+            'business_address' => $businessAddress !== '' ? $businessAddress : $contact->contact_address,
+            'zip_code' => $this->firstFilledValue($cifData['zip_code'] ?? null, $bifData['zip_code'] ?? null),
+            'tin_no' => $this->firstFilledValue($contact->tin, $cifData['tin'] ?? null, $bifData['tin_no'] ?? null),
             'authorized_contact_person_name' => $fullName !== '' ? $fullName : trim($contact->first_name.' '.$contact->last_name),
-            'authorized_contact_person_email' => $cifData['email'] ?? $contact->email,
-            'authorized_contact_person_phone' => $cifData['mobile'] ?? $contact->phone,
-            'authorized_contact_person_position' => $cifData['nature_of_work_business'] ?? $contact->position,
+            'authorized_contact_person_email' => $this->firstFilledValue($cifData['email'] ?? null, $contact->email),
+            'authorized_contact_person_phone' => $this->firstFilledValue($cifData['mobile'] ?? null, $contact->phone),
+            'authorized_contact_person_position' => $this->firstFilledValue($cifData['nature_of_work_business'] ?? null, $contact->position),
             'nationality_status' => $nationalityStatus,
+            'alternative_business_name' => $bifData['alternative_business_name'] ?? null,
         ];
+    }
+
+    private function mapContactOrganizationToBusinessOrganization(string $value): ?string
+    {
+        $normalized = Str::lower(trim($value));
+
+        return match ($normalized) {
+            'sole proprietorship' => 'sole_proprietorship',
+            'partnership' => 'partnership',
+            'corporation', 'stock' => 'corporation',
+            'cooperative' => 'cooperative',
+            'ngo', 'non-stock' => 'ngo',
+            'others', 'other' => 'other',
+            default => null,
+        };
     }
 
     private function validateCompany(Request $request): array

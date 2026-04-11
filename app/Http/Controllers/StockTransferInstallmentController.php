@@ -26,37 +26,39 @@ class StockTransferInstallmentController extends Controller
 
     public function index()
     {
-        $installments = StockTransferInstallment::latest()->get();
+        $installments = Schema::hasTable('stock_transfer_installments')
+            ? StockTransferInstallment::latest()->get()
+            : collect();
 
         $defaultParValue = null;
         if (Schema::hasTable('authorized_capital_stocks')) {
             $defaultParValue = AuthorizedCapitalStock::query()->latest()->value('par_value');
         }
 
-        $indexShareholders = StockTransferLedger::query()
-            ->whereNull('journal_id')
-            ->orderBy('family_name')
-            ->orderBy('first_name')
-            ->get()
-            ->map(function ($ledger) use ($defaultParValue) {
-                $fullName = trim(collect([
-                    $ledger->first_name,
-                    $ledger->middle_name,
-                    $ledger->family_name,
-                ])->filter()->implode(' '));
+        $indexShareholders = Schema::hasTable('stock_transfer_ledgers')
+            ? StockTransferLedger::query()
+                ->whereNull('journal_id')
+                ->orderBy('family_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($ledger) use ($defaultParValue) {
+                    $fullName = trim(collect([
+                        $ledger->first_name,
+                        $ledger->middle_name,
+                        $ledger->family_name,
+                    ])->filter()->implode(' '));
 
-                return [
-                    'id' => $ledger->id,
-                    'name' => $fullName,
-                    // Keep showing current base reference in UI if needed,
-                    // but new subscriptions will still get a NEW stock number on save.
-                    'stock_number' => $ledger->certificate_no,
-                    'shares' => $ledger->shares,
-                    'par_value' => $defaultParValue,
-                ];
-            })
-            ->filter(fn ($row) => !empty($row['name']))
-            ->values();
+                    return [
+                        'id' => $ledger->id,
+                        'name' => $fullName,
+                        'stock_number' => $ledger->certificate_no,
+                        'shares' => $ledger->shares,
+                        'par_value' => $defaultParValue,
+                    ];
+                })
+                ->filter(fn ($row) => !empty($row['name']))
+                ->values()
+            : collect();
 
         return view('corporate.stock-transfer-book.installment', compact(
             'installments',

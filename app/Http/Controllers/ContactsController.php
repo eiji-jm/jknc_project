@@ -171,31 +171,6 @@ class ContactsController extends Controller
 
         $contacts = $query->paginate($perPage)->withQueryString();
 
-        $mockContact = $this->mockContact();
-        $mockSearchBlob = collect([
-            $mockContact->salutation,
-            $mockContact->first_name,
-            $mockContact->middle_name,
-            $mockContact->last_name,
-            $mockContact->company_name,
-            $mockContact->email,
-            $mockContact->phone,
-            $mockContact->position,
-            $mockContact->contact_address,
-            $mockContact->owner_name,
-        ])->filter()->implode(' ');
-        $mockMatchesSearch = $search === '' || Str::contains(Str::lower($mockSearchBlob), Str::lower($search));
-        $mockMatchesKyc = $kycFilter === 'All' || $mockContact->kyc_status === $kycFilter;
-
-        if ($mockMatchesSearch && $mockMatchesKyc && ! $contacts->getCollection()->contains(fn ($contact) => (int) $contact->id === 101)) {
-            $contacts = new LengthAwarePaginator(
-                $contacts->getCollection()->prepend($mockContact),
-                $contacts->total() + 1,
-                $contacts->perPage(),
-                $contacts->currentPage(),
-                ['path' => $request->url(), 'query' => $request->query()]
-            );
-        }
         $customFields = collect($request->session()->get('contacts.custom_fields', []))
             ->values()
             ->all();
@@ -215,7 +190,7 @@ class ContactsController extends Controller
             'statusCounts' => [
                 'Verified' => Contact::query()->where('kyc_status', 'Verified')->count(),
                 'Pending Verification' => Contact::query()->where('kyc_status', 'Pending Verification')->count(),
-                'Not Submitted' => Contact::query()->where('kyc_status', 'Not Submitted')->count() + 1,
+                'Not Submitted' => Contact::query()->where('kyc_status', 'Not Submitted')->count(),
                 'Rejected' => Contact::query()->where('kyc_status', 'Rejected')->count(),
             ],
             'kycStatuses' => self::KYC_STATUSES,
@@ -710,7 +685,7 @@ class ContactsController extends Controller
 
     public function show(Request $request, string $contact): View
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
 
         $tab = strtolower((string) $request->query('tab', 'kyc'));
@@ -750,7 +725,7 @@ class ContactsController extends Controller
 
     public function sendCifClientForm(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
 
         $validated = $request->validate([
@@ -799,7 +774,7 @@ class ContactsController extends Controller
 
     public function sendSpecimenClientForm(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
 
         $validated = $request->validate([
@@ -957,12 +932,16 @@ class ContactsController extends Controller
         $this->validateClientSpecimenSignedUpload($request);
         $existing = SpecimenSignature::query()->where('contact_id', $contact->id)->first();
         $existingAuthenticationData = (array) ($existing?->authentication_data ?? []);
+        $resolvedBusinessBifNo = $this->resolvedBusinessBifNumber($contact);
+        $resolvedClientCifNo = (string) ($contact->cif_no ?? '');
 
         SpecimenSignature::query()->updateOrCreate(
             ['contact_id' => $contact->id],
             [
                 'date' => $validated['date'] ?? null,
-                'bif_no' => $validated['bif_no'] ?? null,
+                'bif_no' => $this->shouldUseBusinessBifNumber($contact)
+                    ? $resolvedBusinessBifNo
+                    : ($validated['bif_no'] ?? null),
                 'client_type' => $validated['client_type'] ?? 'new',
                 'business_name_left' => $validated['business_name_left'] ?? null,
                 'business_name_right' => $validated['business_name_right'] ?? null,
@@ -973,10 +952,10 @@ class ContactsController extends Controller
                     'signature_combination' => $validated['signature_combination'] ?? null,
                     'signature_class' => $validated['signature_class'] ?? null,
                     'left_client_name' => $validated['left_client_name'] ?? null,
-                    'left_cif_no' => $validated['left_cif_no'] ?? null,
+                    'left_cif_no' => $resolvedClientCifNo,
                     'left_cif_dated' => $validated['left_cif_dated'] ?? null,
                     'right_client_name' => $validated['right_client_name'] ?? null,
-                    'right_cif_no' => $validated['right_cif_no'] ?? null,
+                    'right_cif_no' => $resolvedClientCifNo,
                     'right_cif_dated' => $validated['right_cif_dated'] ?? null,
                     'authenticated_by' => $validated['authenticated_by'] ?? null,
                     'board_resolution_spa_no' => $validated['board_resolution_spa_no'] ?? null,
@@ -1000,7 +979,7 @@ class ContactsController extends Controller
         $this->storeClientSubmittedSpecimenDocuments($request, $contact);
 
         $this->syncContactKycSnapshot($contact, [
-            'cif_no' => $validated['left_cif_no'] ?? $contact->cif_no,
+            'cif_no' => $resolvedClientCifNo,
         ]);
 
         return redirect()
@@ -1042,8 +1021,9 @@ class ContactsController extends Controller
 
     public function saveCif(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
+        $this->abortIfApprovedKycLockedForUser($contactModel, $request->user());
         if ($contactModel->exists && blank($contactModel->cif_status) && Schema::hasColumn('contacts', 'cif_status')) {
             $contactModel->updateQuietly(['cif_status' => 'draft']);
         }
@@ -1136,17 +1116,16 @@ class ContactsController extends Controller
             && $this->hasCifDataChanges($existingCifData, $nextCifData)
             && in_array(Str::lower((string) ($contactModel->cif_status ?? 'draft')), ['approved', 'pending', 'rejected'], true)
         ) {
-            $draftResetPayload = $this->filterPersistableContactAttributes([
-                'cif_status' => 'draft',
-                'kyc_status' => 'Not Submitted',
-                'cif_submitted_at' => null,
-                'cif_reviewed_at' => null,
-                'cif_reviewed_by' => null,
-                'cif_rejection_reason' => null,
-            ]);
-            if (! empty($draftResetPayload)) {
-                $contactModel->forceFill($draftResetPayload)->save();
-            }
+            $this->resetContactKycForResubmission($contactModel);
+            $nextCifData['date_verified'] = '';
+            $nextCifData['verified_by'] = '';
+            $nextCifData['change_request_status'] = '';
+            $nextCifData['change_request_note'] = '';
+            $nextCifData['change_requested_at'] = '';
+            $nextCifData['change_requested_by'] = '';
+            $nextCifData['change_reviewed_at'] = '';
+            $nextCifData['change_reviewed_by'] = '';
+            $this->saveCifDataToStorage($contactModel, $nextCifData);
         }
 
         $this->syncContactKycSnapshot($contactModel, [
@@ -1161,8 +1140,9 @@ class ContactsController extends Controller
 
     public function uploadCifDocument(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
+        $this->abortIfApprovedKycLockedForUser($contactModel, $request->user());
 
         $validated = $request->validate([
             'document_type' => ['required', 'string', 'in:cif_document,valid_id,tin_document,registration_document,other'],
@@ -1182,6 +1162,7 @@ class ContactsController extends Controller
         ];
 
         $this->saveCifDocumentsToStorage($contactModel, $documents);
+        $this->resetApprovedKycAfterModificationIfNeeded($contactModel, $request->user());
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
@@ -1190,8 +1171,9 @@ class ContactsController extends Controller
 
     public function uploadKycRequirementDocument(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
+        $this->abortIfApprovedKycLockedForUser($contactModel, $request->user());
 
         $rawUpload = $request->file('document_file') ?? $request->file('document');
         if ($rawUpload && ! $rawUpload->isValid()) {
@@ -1313,6 +1295,7 @@ class ContactsController extends Controller
                 ? ($this->loadCifData($contactModel)['tin'] ?? $contactModel->tin)
                 : $contactModel->tin,
         ]);
+        $this->resetApprovedKycAfterModificationIfNeeded($contactModel, $request->user());
 
         return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
             ->with('success', 'KYC requirement document uploaded successfully.');
@@ -1320,8 +1303,9 @@ class ContactsController extends Controller
 
     public function removeKycRequirementDocument(Request $request, string $contact, string $requirement): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
+        $this->abortIfApprovedKycLockedForUser($contactModel, $request->user());
         $requirement = $this->normalizeKycRequirementKey($requirement);
         abort_unless(in_array($requirement, ['cif_signed_document', 'two_valid_ids', 'tin_proof', 'specimen_signature_upload', 'passport_proof', 'visa_proof', 'acr_card_proof', 'aaep_proof'], true), 404);
 
@@ -1374,6 +1358,7 @@ class ContactsController extends Controller
         }
 
         $this->saveKycRequirementDocuments($contactModel, $documents);
+        $this->resetApprovedKycAfterModificationIfNeeded($contactModel, $request->user());
 
         return redirect()->to(route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc']).'#kyc')
             ->with('success', 'KYC requirement document removed successfully.');
@@ -1381,7 +1366,7 @@ class ContactsController extends Controller
 
     public function previewCif(Request $request, string $contact): View
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
 
         return view('contacts.cif-preview', [
@@ -1409,11 +1394,12 @@ class ContactsController extends Controller
 
     public function specimenSignature(Request $request, string $id): View
     {
-        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($id);
         abort_unless($contactModel, 404);
 
         $specimenSignature = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
-        $isEditMode = $request->boolean('edit') || $request->session()->has('errors');
+        $isEditMode = ! $this->isApprovedKycLockedForUser($contactModel, $request->user())
+            && ($request->boolean('edit') || $request->session()->has('errors'));
 
         return view('contacts.specimen-signature', [
             'contact' => $contactModel,
@@ -1425,10 +1411,12 @@ class ContactsController extends Controller
 
     public function saveSpecimenSignature(Request $request, string $id): RedirectResponse
     {
-        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($id);
         abort_unless($contactModel, 404);
+        $this->abortIfApprovedKycLockedForUser($contactModel, $request->user());
 
         $existing = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
+        $resolvedBusinessBifNo = $this->resolvedBusinessBifNumber($contactModel);
 
         $validated = $request->validate([
             'date' => ['nullable', 'date'],
@@ -1520,7 +1508,9 @@ class ContactsController extends Controller
         SpecimenSignature::query()->updateOrCreate(
             ['contact_id' => $contactModel->id],
             [
-                'bif_no' => $validated['bif_no'] ?? null,
+                'bif_no' => $this->shouldUseBusinessBifNumber($contactModel)
+                    ? $resolvedBusinessBifNo
+                    : ($validated['bif_no'] ?? null),
                 'date' => $validated['date'] ?? now()->toDateString(),
                 'client_type' => $validated['client_type'] ?? null,
                 'business_name_left' => $validated['business_name_left'] ?? null,
@@ -1537,6 +1527,7 @@ class ContactsController extends Controller
         $this->syncContactKycSnapshot($contactModel, [
             'cif_no' => $validated['left_cif_no'] ?? $contactModel->cif_no,
         ]);
+        $this->resetApprovedKycAfterModificationIfNeeded($contactModel, $request->user());
 
         return redirect()
             ->route('contacts.specimen-signature', ['id' => $contactModel->id])
@@ -1545,7 +1536,7 @@ class ContactsController extends Controller
 
     public function submitKycForVerification(Request $request, string $contact): RedirectResponse
     {
-        $contactModel = Contact::query()->find($contact) ?: ((string) $contact === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($contact);
         abort_unless($contactModel, 404);
 
         $currentCifStatus = Str::lower((string) ($contactModel->cif_status ?? 'draft'));
@@ -1588,7 +1579,7 @@ class ContactsController extends Controller
 
     public function approveKyc(Request $request, string $contact): RedirectResponse
     {
-        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        abort_unless($this->isKycReviewer($request->user()), 403);
         $contactModel = Contact::query()->findOrFail($contact);
 
         if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'pending') {
@@ -1609,6 +1600,17 @@ class ContactsController extends Controller
             $contactModel->forceFill($payload)->save();
         }
 
+        $cifData = $this->loadCifData($contactModel);
+        $cifData['date_verified'] = now()->toDateString();
+        $cifData['verified_by'] = $request->user()?->name ?? '';
+        $cifData['change_request_status'] = '';
+        $cifData['change_request_note'] = '';
+        $cifData['change_requested_at'] = '';
+        $cifData['change_requested_by'] = '';
+        $cifData['change_reviewed_at'] = '';
+        $cifData['change_reviewed_by'] = '';
+        $this->saveCifDataToStorage($contactModel, $cifData);
+
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
             ->with('success', 'CIF approved successfully.');
@@ -1616,7 +1618,7 @@ class ContactsController extends Controller
 
     public function rejectKyc(Request $request, string $contact): RedirectResponse
     {
-        abort_unless(in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
+        abort_unless($this->isKycReviewer($request->user()), 403);
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -1646,6 +1648,8 @@ class ContactsController extends Controller
         if ($reason !== '') {
             $cifData = $this->loadCifData($contactModel);
             $cifData['remarks'] = $reason;
+            $cifData['date_verified'] = '';
+            $cifData['verified_by'] = '';
             $this->saveCifDataToStorage($contactModel, $cifData);
         }
 
@@ -1654,9 +1658,72 @@ class ContactsController extends Controller
             ->with('success', 'CIF rejected.');
     }
 
+    public function requestKycChange(Request $request, string $contact): RedirectResponse
+    {
+        $contactModel = Contact::query()->findOrFail($contact);
+        abort_if($this->isKycReviewer($request->user()), 403);
+
+        if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'approved') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Only approved CIF records can request change information.']);
+        }
+
+        $cifData = $this->loadCifData($contactModel);
+        if (strtolower((string) ($cifData['change_request_status'] ?? '')) === 'pending') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'A change request is already pending approval.']);
+        }
+
+        $validated = $request->validate([
+            'change_request_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $cifData['change_request_status'] = 'pending';
+        $cifData['change_request_note'] = trim((string) ($validated['change_request_note'] ?? ''));
+        $cifData['change_requested_at'] = now()->toDateTimeString();
+        $cifData['change_requested_by'] = $request->user()?->name ?? '';
+        $cifData['change_reviewed_at'] = '';
+        $cifData['change_reviewed_by'] = '';
+        $this->saveCifDataToStorage($contactModel, $cifData);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'Change request submitted. Please wait for admin approval before editing.');
+    }
+
+    public function approveKycChange(Request $request, string $contact): RedirectResponse
+    {
+        abort_unless($this->isKycReviewer($request->user()), 403);
+        $contactModel = Contact::query()->findOrFail($contact);
+
+        if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'approved') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Only approved CIF records can unlock change editing.']);
+        }
+
+        $cifData = $this->loadCifData($contactModel);
+        if (strtolower((string) ($cifData['change_request_status'] ?? '')) !== 'pending') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'There is no pending change request to approve.']);
+        }
+
+        $cifData['change_request_status'] = 'approved';
+        $cifData['change_reviewed_at'] = now()->toDateTimeString();
+        $cifData['change_reviewed_by'] = $request->user()?->name ?? '';
+        $this->saveCifDataToStorage($contactModel, $cifData);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'Change request approved. Editing is now unlocked until the next resubmission.');
+    }
+
     public function downloadSpecimenSignature(Request $request, string $id): View
     {
-        $contactModel = Contact::query()->find($id) ?: ((string) $id === '101' ? $this->mockContact() : null);
+        $contactModel = Contact::query()->find($id);
         abort_unless($contactModel, 404);
 
         $data = SpecimenSignature::query()->where('contact_id', $contactModel->id)->first();
@@ -1775,31 +1842,6 @@ class ContactsController extends Controller
         return $value;
     }
 
-    private function mockContact(): Contact
-    {
-        $contact = new Contact([
-            'customer_type' => 'Corporation',
-            'salutation' => 'Mr.',
-            'first_name' => 'David',
-            'middle_name' => 'S.',
-            'last_name' => 'Lee',
-            'email' => 'david.lee@consulting.com',
-            'phone' => '09331234567',
-            'position' => 'CEO',
-            'contact_address' => 'Cebu City, Philippines',
-            'company_name' => 'Consulting Group',
-            'owner_name' => 'John Admin',
-            'kyc_status' => 'Not Submitted',
-            'cif_status' => 'draft',
-            'lead_source' => 'Website',
-            'referred_by' => 'John Smith',
-            'service_inquiry_type' => 'Partner Referral',
-        ]);
-        $contact->id = 101;
-
-        return $contact;
-    }
-
     private function loadCifData(Contact $contact): array
     {
         $path = $this->cifDataPath($contact);
@@ -1892,6 +1934,51 @@ class ContactsController extends Controller
         return $items->values()->all();
     }
 
+    private function shouldUseBusinessBifNumber(Contact $contact): bool
+    {
+        return ($contact->customer_type ?? null) === 'business';
+    }
+
+    private function resolvedBusinessBifNumber(Contact $contact): ?string
+    {
+        if (! $this->shouldUseBusinessBifNumber($contact)) {
+            return null;
+        }
+
+        $company = Company::query()
+            ->with([
+                'latestBif' => fn ($query) => $query->select([
+                    'company_bifs.id',
+                    'company_bifs.company_id',
+                    'company_bifs.bif_no',
+                ]),
+            ])
+            ->where(function ($query) use ($contact) {
+                if (Schema::hasColumn('companies', 'primary_contact_id')) {
+                    $query->where('primary_contact_id', $contact->id);
+                }
+
+                if (method_exists($contact, 'companies')) {
+                    $query->orWhereHas('contacts', fn ($relation) => $relation->where('contacts.id', $contact->id));
+                }
+            })
+            ->get()
+            ->sortByDesc(function (Company $company) use ($contact) {
+                $exactNameMatch = filled($contact->company_name)
+                    && strcasecmp((string) $company->company_name, (string) $contact->company_name) === 0;
+
+                return sprintf(
+                    '%01d-%010d-%010d',
+                    $exactNameMatch ? 1 : 0,
+                    (int) (optional($company->latestBif)->id ?? 0),
+                    (int) $company->id
+                );
+            })
+            ->first();
+
+        return $company?->latestBif?->bif_no;
+    }
+
     private function defaultCifData(Contact $contact): array
     {
         return [
@@ -1966,6 +2053,70 @@ class ContactsController extends Controller
             'issued_on' => $cifData['cif_document_issued_on'] ?? optional($contact->cif_form_sent_at)->toDateString() ?? '',
             'issued_by' => $cifData['cif_document_issued_by'] ?? '',
         ];
+    }
+
+    private function isKycReviewer(?User $user): bool
+    {
+        return in_array((string) ($user?->role ?? ''), ['Admin', 'SuperAdmin'], true);
+    }
+
+    private function hasApprovedChangeRequest(Contact $contact): bool
+    {
+        $cifData = $this->loadCifData($contact);
+
+        return strtolower((string) ($cifData['change_request_status'] ?? '')) === 'approved';
+    }
+
+    private function isApprovedKycLockedForUser(Contact $contact, ?User $user): bool
+    {
+        return ! $this->isKycReviewer($user)
+            && strtolower((string) ($contact->cif_status ?? '')) === 'approved'
+            && ! $this->hasApprovedChangeRequest($contact);
+    }
+
+    private function abortIfApprovedKycLockedForUser(Contact $contact, ?User $user): void
+    {
+        abort_if(
+            $this->isApprovedKycLockedForUser($contact, $user),
+            403,
+            'Request change information first and wait for admin approval before editing this approved KYC.'
+        );
+    }
+
+    private function resetContactKycForResubmission(Contact $contact): void
+    {
+        $draftResetPayload = $this->filterPersistableContactAttributes([
+            'cif_status' => 'draft',
+            'kyc_status' => 'Not Submitted',
+            'cif_submitted_at' => null,
+            'cif_reviewed_at' => null,
+            'cif_reviewed_by' => null,
+            'cif_rejection_reason' => null,
+        ]);
+
+        if (! empty($draftResetPayload)) {
+            $contact->forceFill($draftResetPayload)->save();
+        }
+    }
+
+    private function resetApprovedKycAfterModificationIfNeeded(Contact $contact, ?User $user): void
+    {
+        if ($this->isKycReviewer($user) || strtolower((string) ($contact->cif_status ?? '')) !== 'approved' || ! $this->hasApprovedChangeRequest($contact)) {
+            return;
+        }
+
+        $this->resetContactKycForResubmission($contact);
+
+        $cifData = $this->loadCifData($contact);
+        $cifData['date_verified'] = '';
+        $cifData['verified_by'] = '';
+        $cifData['change_request_status'] = '';
+        $cifData['change_request_note'] = '';
+        $cifData['change_requested_at'] = '';
+        $cifData['change_requested_by'] = '';
+        $cifData['change_reviewed_at'] = '';
+        $cifData['change_reviewed_by'] = '';
+        $this->saveCifDataToStorage($contact, $cifData);
     }
 
     private function saveCifDataToStorage(Contact $contact, array $payload): void
@@ -2393,10 +2544,16 @@ class ContactsController extends Controller
         ])));
         $defaultCifNo = (string) ($cifData['cif_no'] ?? ($contact->cif_no ?: ($contact->id ? $this->generateCifNumber($contact) : '')));
         $defaultCifDate = (string) ($cifData['cif_date'] ?? '');
+        $resolvedBusinessBifNo = $this->resolvedBusinessBifNumber($contact);
 
         return [
             'date' => old('date', optional($specimenSignature?->date)->toDateString() ?? now()->toDateString()),
-            'bif_no' => old('bif_no', $specimenSignature?->bif_no ?? ''),
+            'bif_no' => old(
+                'bif_no',
+                $this->shouldUseBusinessBifNumber($contact)
+                    ? ($resolvedBusinessBifNo ?? $specimenSignature?->bif_no ?? '')
+                    : ($specimenSignature?->bif_no ?? '')
+            ),
             'client_type' => old('client_type', $specimenSignature?->client_type ?? 'new'),
             'business_name_left' => old('business_name_left', $specimenSignature?->business_name_left ?? $contact->company_name ?? ''),
             'business_name_right' => old('business_name_right', $specimenSignature?->business_name_right ?? $contact->company_name ?? ''),
@@ -3019,9 +3176,10 @@ class ContactsController extends Controller
 
     private function validateClientSpecimenSignedUpload(Request $request): void
     {
-        $request->validate([
-            'specimen_signature_signed_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-        ]);
+        Validator::make(
+            ['specimen_signature_signed_upload' => $request->file('specimen_signature_signed_upload')],
+            ['specimen_signature_signed_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120']]
+        )->validate();
     }
 
     private function storeClientSubmittedSpecimenDocuments(Request $request, Contact $contact): void

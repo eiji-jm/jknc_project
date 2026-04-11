@@ -55,28 +55,6 @@ class CompanyKycController extends Controller
         'empty' => 'bg-gray-100 text-gray-600 border border-gray-200',
     ];
 
-    private const REQUIREMENT_DEFINITIONS = [
-        [
-            'group' => 'IF Sole / Natural Person / Individual',
-            'items' => [
-                ['key' => 'dti', 'label' => 'DTI'],
-                ['key' => 'bmbe', 'label' => 'BMBE'],
-                ['key' => 'bir_cor', 'label' => 'BIR COR'],
-                ['key' => 'business_permit', 'label' => 'BUSINESS PERMIT'],
-                ['key' => 'proof_of_billing', 'label' => 'Proof of billing'],
-                ['key' => 'spa_if_applicable', 'label' => 'SPA if applicable'],
-            ],
-        ],
-        [
-            'group' => 'IF Juridical Entity',
-            'items' => [
-                ['key' => 'articles', 'label' => 'ARTICLES'],
-                ['key' => 'partnership', 'label' => 'PARTNERSHIP'],
-                ['key' => 'bylaws', 'label' => 'BYLAWS'],
-            ],
-        ],
-    ];
-
     public function index(Request $request, int $company): View
     {
         $companyData = $this->findCompany($request, $company);
@@ -413,7 +391,7 @@ class CompanyKycController extends Controller
 
     private function kycRequirements(int $company, ?CompanyBif $bif): array
     {
-        return collect(self::REQUIREMENT_DEFINITIONS)
+        return collect($this->requirementDefinitions($bif?->business_organization))
             ->map(function (array $group) use ($company, $bif) {
                 return [
                     'group' => $group['group'],
@@ -519,18 +497,66 @@ class CompanyKycController extends Controller
     private function requirementDocumentKey(string $requirement): ?string
     {
         $documentMap = [
-            'dti' => 'sole_dti_document',
-            'bmbe' => 'sole_bmbe_document',
-            'bir_cor' => 'entity_bir_cor_document',
-            'business_permit' => 'entity_business_permit_document',
-            'proof_of_billing' => 'common_proof_of_billing_document',
-            'spa_if_applicable' => 'common_spa_document',
-            'articles' => 'entity_articles_document',
-            'partnership' => 'entity_articles_document',
-            'bylaws' => 'entity_bylaws_document',
+            'sole_dti_certificate' => 'sole_dti_certificate_document',
+            'sole_bir_cor' => 'sole_bir_cor_document',
+            'sole_business_permit' => 'sole_business_permit_document',
+            'sole_proof_of_billing_residential' => 'sole_proof_of_billing_residential_document',
+            'sole_proof_of_billing_business' => 'sole_proof_of_billing_business_document',
+            'sole_spa' => 'sole_spa_document',
+            'sole_representative_ids' => 'sole_representative_ids_document',
+            'juridical_sec_cda_certificate' => 'juridical_sec_cda_certificate_document',
+            'juridical_bir_cor' => 'juridical_bir_cor_document',
+            'juridical_business_permit' => 'juridical_business_permit_document',
+            'juridical_articles' => 'juridical_articles_document',
+            'juridical_bylaws' => 'juridical_bylaws_document',
+            'juridical_gis' => 'juridical_gis_document',
+            'juridical_appointment_of_officers' => 'juridical_appointment_of_officers_document',
+            'juridical_secretary_certificate' => 'juridical_secretary_certificate_document',
+            'juridical_ubo_declaration' => 'juridical_ubo_declaration_document',
+            'juridical_company_billing' => 'juridical_company_billing_document',
+            'juridical_representative_billing' => 'juridical_representative_billing_document',
         ];
 
         return $documentMap[$requirement] ?? null;
+    }
+
+    private function requirementDefinitions(?string $organization): array
+    {
+        $sole = [
+            'group' => 'Required for Sole Proprietorship',
+            'items' => [
+                ['key' => 'sole_dti_certificate', 'label' => 'DTI Certificate of Registration (if Sole Prop)'],
+                ['key' => 'sole_bir_cor', 'label' => 'BIR Certificate of Registration (COR)'],
+                ['key' => 'sole_business_permit', 'label' => 'Business Permit / Mayor\'s Permit'],
+                ['key' => 'sole_proof_of_billing_residential', 'label' => 'Proof of Billing (Residential)'],
+                ['key' => 'sole_proof_of_billing_business', 'label' => 'Proof of Billing (Business Address if different)'],
+                ['key' => 'sole_spa', 'label' => 'Special Power of Attorney (if representative)'],
+                ['key' => 'sole_representative_ids', 'label' => 'Representative\'s 2 Valid IDs (if applicable)'],
+            ],
+        ];
+
+        $juridical = [
+            'group' => 'Required for Partnership / Corporation / Cooperative / NGO / Other Juridical Entity',
+            'items' => [
+                ['key' => 'juridical_sec_cda_certificate', 'label' => 'SEC / CDA Certificate of Registration'],
+                ['key' => 'juridical_bir_cor', 'label' => 'BIR Certificate of Registration (COR)'],
+                ['key' => 'juridical_business_permit', 'label' => 'Business Permit / Mayor\'s Permit'],
+                ['key' => 'juridical_articles', 'label' => 'Articles of Incorporation / Partnership'],
+                ['key' => 'juridical_bylaws', 'label' => 'By-Laws'],
+                ['key' => 'juridical_gis', 'label' => 'Latest General Information Sheet (GIS)'],
+                ['key' => 'juridical_appointment_of_officers', 'label' => 'Appointment of Officers (for OPC, if applicable)'],
+                ['key' => 'juridical_secretary_certificate', 'label' => 'Secretary Certificate OR Board Resolution'],
+                ['key' => 'juridical_ubo_declaration', 'label' => 'Ultimate Beneficial Owner (UBO) Declaration'],
+                ['key' => 'juridical_company_billing', 'label' => 'Proof of Billing (Company Address)'],
+                ['key' => 'juridical_representative_billing', 'label' => 'Proof of Billing (Authorized Representative, if applicable)'],
+            ],
+        ];
+
+        return match ((string) $organization) {
+            'sole_proprietorship' => [$sole],
+            'partnership', 'corporation', 'cooperative', 'ngo', 'other' => [$juridical],
+            default => [$sole, $juridical],
+        };
     }
 
     private function findCompany(Request $request, int $company): array
