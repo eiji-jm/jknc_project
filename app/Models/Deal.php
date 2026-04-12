@@ -59,8 +59,12 @@ class Deal extends Model
         'customer_type',
         'salutation',
         'first_name',
+        'middle_initial',
         'middle_name',
         'last_name',
+        'name_extension',
+        'sex',
+        'date_of_birth',
         'email',
         'mobile',
         'address',
@@ -70,6 +74,7 @@ class Deal extends Model
     ];
 
     protected $casts = [
+        'date_of_birth' => 'date',
         'planned_start_date' => 'date',
         'estimated_completion_date' => 'date',
         'client_preferred_completion_date' => 'date',

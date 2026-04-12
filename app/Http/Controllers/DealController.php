@@ -148,6 +148,7 @@ class DealController extends Controller
                     'email',
                     'phone',
                     'address',
+                    'primary_contact_id',
                     'owner_name',
                 ], fn (string $column): bool => Schema::hasColumn('companies', $column)));
 
@@ -161,6 +162,27 @@ class DealController extends Controller
                             'company_bifs.id',
                             'company_bifs.company_id',
                             'company_bifs.status',
+                            'company_bifs.authorized_contact_person_name',
+                            'company_bifs.authorized_contact_person_position',
+                            'company_bifs.authorized_contact_person_email',
+                            'company_bifs.authorized_contact_person_phone',
+                        ]),
+                        'primaryContact' => fn ($query) => $query->select([
+                            'contacts.id',
+                            'contacts.cif_status',
+                            'contacts.salutation',
+                            'contacts.first_name',
+                            'contacts.middle_initial',
+                            'contacts.middle_name',
+                            'contacts.last_name',
+                            'contacts.name_extension',
+                            'contacts.sex',
+                            'contacts.date_of_birth',
+                            'contacts.email',
+                            'contacts.phone',
+                            'contacts.contact_address',
+                            'contacts.position',
+                            'contacts.company_name',
                         ]),
                     ])
                     ->select($companyColumns)
@@ -169,6 +191,13 @@ class DealController extends Controller
 
                 $companyRecords = $companies
                     ->map(function (Company $company): array {
+                        $primaryContact = $company->primaryContact;
+                        $authorizedContactName = trim((string) ($company->latestBif?->authorized_contact_person_name ?: trim(collect([
+                            $primaryContact?->first_name,
+                            $primaryContact?->middle_name,
+                            $primaryContact?->last_name,
+                        ])->filter()->implode(' '))));
+
                         return [
                             'id' => $company->id,
                             'label' => $company->company_name,
@@ -178,14 +207,33 @@ class DealController extends Controller
                                 $company->phone,
                                 $company->owner_name,
                                 $company->address,
+                                $authorizedContactName,
+                                $company->latestBif?->authorized_contact_person_email,
+                                $company->latestBif?->authorized_contact_person_phone,
+                                $primaryContact?->email,
+                                $primaryContact?->phone,
                             ]))),
                             'company_name' => $company->company_name,
                             'company_address' => $company->address,
                             'email' => $company->email,
                             'mobile' => $company->phone,
                             'owner_name' => $company->owner_name,
+                            'primary_contact_id' => $primaryContact?->id,
+                            'authorized_contact_name' => $authorizedContactName,
+                            'authorized_contact_position' => $company->latestBif?->authorized_contact_person_position ?: $primaryContact?->position,
+                            'authorized_contact_email' => $company->latestBif?->authorized_contact_person_email ?: $primaryContact?->email,
+                            'authorized_contact_mobile' => $company->latestBif?->authorized_contact_person_phone ?: $primaryContact?->phone,
+                            'authorized_contact_first_name' => $primaryContact?->first_name,
+                            'authorized_contact_middle_initial' => $primaryContact?->middle_initial ?: (filled($primaryContact?->middle_name) ? mb_substr((string) $primaryContact?->middle_name, 0, 1) : null),
+                            'authorized_contact_middle_name' => $primaryContact?->middle_name,
+                            'authorized_contact_last_name' => $primaryContact?->last_name,
+                            'authorized_contact_salutation' => $primaryContact?->salutation,
+                            'authorized_contact_name_extension' => $primaryContact?->name_extension,
+                            'authorized_contact_sex' => $primaryContact?->sex,
+                            'authorized_contact_date_of_birth' => optional($primaryContact?->date_of_birth)->format('Y-m-d'),
+                            'authorized_contact_address' => $primaryContact?->contact_address,
                             'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
-                                false,
+                                strtolower((string) ($primaryContact?->cif_status ?? '')) === 'approved',
                                 strtolower((string) ($company->latestBif?->status ?? '')) === 'approved',
                             ),
                         ];
@@ -859,8 +907,8 @@ class DealController extends Controller
                     'deal' => $deal,
                     'detail' => $detail,
                     'stages' => $stages,
-                    'dealFormData' => $this->normalizeDealFormData($storedDeal->toArray()),
-                    ...$this->dealPanelContext($this->normalizeDealFormData($storedDeal->toArray())),
+                    'dealFormData' => $this->storedDealFormData($storedDeal),
+                    ...$this->dealPanelContext($this->storedDealFormData($storedDeal)),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
             }
@@ -1474,6 +1522,10 @@ class DealController extends Controller
     {
         $normalized = $payload;
 
+        if (is_array($normalized['stage'] ?? null)) {
+            $normalized['stage'] = (string) ($normalized['stage']['name'] ?? $normalized['stage']['stage'] ?? '');
+        }
+
         $normalized['service_area_options'] = $this->normalizeListValue($payload['service_area_options'] ?? ($payload['service_area'] ?? null));
         $normalized['service_area_other'] = $this->parseCustomEntries($payload['service_area_other'] ?? ($payload['service_area'] ?? null));
         $normalized['service_options'] = $this->normalizeListValue($payload['service_options'] ?? ($payload['services'] ?? null));
@@ -1487,6 +1539,9 @@ class DealController extends Controller
         $normalized['support_required_options'] = $this->normalizeListValue($payload['support_required_options'] ?? ($payload['support_required'] ?? null));
         $normalized['support_required_custom'] = $this->parseCustomEntries($payload['support_required_custom'] ?? ($payload['support_required'] ?? null));
         $normalized['requirements_status_map'] = $this->normalizeRequirementStatusMap($payload['requirements_status_map'] ?? ($payload['requirements_status'] ?? null));
+        if (filled($payload['id'] ?? null)) {
+            $normalized['requirements_status_map']['deal_form'] = 'provided';
+        }
         $normalized['other_fees'] = $this->normalizeOtherFees($payload['other_fees'] ?? null, $payload);
         $normalized['other_fees_titles'] = array_map(
             fn (array $fee): string => (string) ($fee['title'] ?? ''),
@@ -1521,6 +1576,35 @@ class DealController extends Controller
         return $normalized;
     }
 
+    private function storedDealFormData(Deal $storedDeal): array
+    {
+        $contact = $storedDeal->contact;
+        $stageName = (string) (($storedDeal->stage instanceof DealStage)
+            ? $storedDeal->stage->name
+            : ($storedDeal->stage ?: 'Inquiry'));
+
+        return $this->normalizeDealFormData([
+            ...$storedDeal->withoutRelations()->toArray(),
+            'stage' => $stageName,
+            'salutation' => $storedDeal->salutation ?: $contact?->salutation,
+            'first_name' => $storedDeal->first_name ?: $contact?->first_name,
+            'middle_initial' => $storedDeal->middle_initial ?? $contact?->middle_initial,
+            'middle_name' => $storedDeal->middle_name ?: $contact?->middle_name,
+            'last_name' => $storedDeal->last_name ?: $contact?->last_name,
+            'name_extension' => $storedDeal->name_extension ?? $contact?->name_extension,
+            'sex' => $storedDeal->sex ?: $contact?->sex,
+            'date_of_birth' => filled($storedDeal->date_of_birth)
+                ? optional($storedDeal->date_of_birth)->format('Y-m-d')
+                : optional($contact?->date_of_birth)->format('Y-m-d'),
+            'email' => $storedDeal->email ?: $contact?->email,
+            'mobile' => $storedDeal->mobile ?: $contact?->phone,
+            'address' => $storedDeal->address ?: $contact?->contact_address,
+            'company_name' => $storedDeal->company_name ?: $contact?->company_name,
+            'company_address' => $storedDeal->company_address ?: $contact?->company_address,
+            'position' => $storedDeal->position ?: $contact?->position,
+        ]);
+    }
+
     private function buildDealPdfPayload(int $id): array
     {
         if (Schema::hasTable('deals')) {
@@ -1541,21 +1625,7 @@ class DealController extends Controller
                 ])->filter()->implode(' '));
 
                 $stageName = (string) ($currentStage['name'] ?? $storedDeal->stage ?? 'Inquiry');
-                $dealFormData = $this->normalizeDealFormData([
-                    ...$storedDeal->toArray(),
-                    'stage' => $stageName,
-                    'first_name' => $storedDeal->first_name ?: $contact?->first_name,
-                    'middle_initial' => $storedDeal->middle_initial ?? $contact?->middle_initial,
-                    'middle_name' => $storedDeal->middle_name ?: $contact?->middle_name,
-                    'last_name' => $storedDeal->last_name ?: $contact?->last_name,
-                    'name_extension' => $storedDeal->name_extension ?? $contact?->name_extension,
-                    'email' => $storedDeal->email ?: $contact?->email,
-                    'mobile' => $storedDeal->mobile ?: $contact?->mobile,
-                    'address' => $storedDeal->address ?: $contact?->address,
-                    'company_name' => $storedDeal->company_name ?: $contact?->company_name,
-                    'company_address' => $storedDeal->company_address ?: $contact?->company_address,
-                    'position' => $storedDeal->position ?: $contact?->position,
-                ]);
+                $dealFormData = $this->storedDealFormData($storedDeal);
 
                 return [
                     'deal' => [
@@ -1874,6 +1944,7 @@ class DealController extends Controller
         if (! is_array($requirementsStatusInput)) {
             $requirementsStatusInput = [];
         }
+        $requirementsStatusInput['deal_form'] = 'provided';
         $validated['requirements_status_map'] = $requirementsStatusInput;
         $clientRequirementsCustom = $this->parseClientRequirementCustomEntries($validated['client_requirements_custom'] ?? []);
         $validated['requirements_status'] = $this->truncateStringForColumn(
@@ -2590,10 +2661,12 @@ class DealController extends Controller
 
     private function buildClientRequirementStatusMap(bool $hasApprovedCif, bool $hasApprovedBif): array
     {
-        return array_filter([
-            'client_contact_form' => $hasApprovedCif ? 'provided' : null,
-            'business_information_form' => $hasApprovedBif ? 'provided' : null,
-            'client_information_form' => $hasApprovedCif ? 'provided' : null,
-        ]);
+        return [
+            'client_contact_form' => $hasApprovedCif ? 'provided' : 'pending',
+            'deal_form' => 'pending',
+            'business_information_form' => $hasApprovedBif ? 'provided' : 'pending',
+            'client_information_form' => $hasApprovedCif ? 'provided' : 'pending',
+            'service_task_activation_routing_tracker' => 'pending',
+        ];
     }
 }

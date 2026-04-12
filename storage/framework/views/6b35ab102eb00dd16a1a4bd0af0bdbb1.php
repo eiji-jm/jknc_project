@@ -1,5 +1,5 @@
 ﻿
-@php
+<?php
     $formAction = $formAction ?? route('deals.store');
     $formMethod = strtoupper($formMethod ?? 'POST');
     $submitLabel = $submitLabel ?? 'Save & View Deal';
@@ -399,7 +399,7 @@
     $draftDealCode = old('deal_code', $draft['deal_code'] ?? 'Auto-generated after save');
     $draftCreatedBy = old('created_by', $draft['created_by'] ?? $currentUserName);
     $draftCreatedAt = old('created_at_label', $draft['created_at_label'] ?? now()->format('F d, Y • h:i:s A'));
-@endphp
+?>
 
 <div id="createDealModal" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
     <button id="createDealModalOverlay" type="button" aria-label="Close create deal panel" class="absolute inset-0 bg-slate-900/45 opacity-0 transition-opacity duration-300"></button>
@@ -414,13 +414,13 @@
                 <button id="closeCreateDealModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-800">&times;</button>
             </div>
 
-            <form id="createDealForm" method="POST" action="{{ $formAction }}" class="flex min-h-0 flex-1 flex-col">
-                @csrf
-                @if ($formMethod !== 'POST')
-                    @method($formMethod)
-                @endif
-                <input id="deal_selected_owner_id" type="hidden" name="owner_id" value="{{ old('owner_id', $selectedOwnerId) }}">
-                <input id="deal_selected_contact_id" type="hidden" name="contact_id" value="{{ old('contact_id', $draft['contact_id'] ?? '') }}">
+            <form id="createDealForm" method="POST" action="<?php echo e($formAction); ?>" class="flex min-h-0 flex-1 flex-col">
+                <?php echo csrf_field(); ?>
+                <?php if($formMethod !== 'POST'): ?>
+                    <?php echo method_field($formMethod); ?>
+                <?php endif; ?>
+                <input id="deal_selected_owner_id" type="hidden" name="owner_id" value="<?php echo e(old('owner_id', $selectedOwnerId)); ?>">
+                <input id="deal_selected_contact_id" type="hidden" name="contact_id" value="<?php echo e(old('contact_id', $draft['contact_id'] ?? '')); ?>">
 
                 <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6 sm:px-8">
                     <div class="flex flex-col gap-3 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
@@ -428,7 +428,7 @@
                         <div class="relative sm:flex-shrink-0">
                             <button id="dealOwnerDropdownTrigger" type="button" class="inline-flex h-10 w-full items-center justify-between gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 sm:w-auto">
                                 <span class="h-2 w-2 rounded-full bg-blue-500"></span>
-                                <span id="dealOwnerSelectedLabel">Owner: {{ $selectedOwnerName }}</span>
+                                <span id="dealOwnerSelectedLabel">Owner: <?php echo e($selectedOwnerName); ?></span>
                                 <i class="fas fa-chevron-down text-[10px] text-gray-400"></i>
                             </button>
                             <div id="dealOwnerDropdownMenu" class="absolute right-0 z-20 mt-2 hidden w-full min-w-0 rounded-xl border border-gray-200 bg-white p-2 shadow-lg sm:w-72">
@@ -437,22 +437,22 @@
                                     <input id="dealOwnerSearch" type="text" placeholder="Search owner..." class="h-9 w-full rounded-lg border border-gray-200 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                 </div>
                                 <div class="max-h-56 space-y-1 overflow-y-auto">
-                                    @foreach ($owners as $owner)
-                                        @php
+                                    <?php $__currentLoopData = $owners; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $owner): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <?php
                                             $ownerInitials = strtoupper(collect(explode(' ', trim($owner['name'])))
                                                 ->filter()
                                                 ->map(fn ($segment) => mb_substr($segment, 0, 1))
                                                 ->take(2)
                                                 ->implode(''));
-                                        @endphp
-                                        <button type="button" class="deal-owner-option flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-gray-700 hover:bg-gray-50" data-owner-id="{{ $owner['id'] }}" data-owner-name="{{ $owner['name'] }}" data-owner-email="{{ $owner['email'] }}">
-                                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">{{ $ownerInitials }}</span>
+                                        ?>
+                                        <button type="button" class="deal-owner-option flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-gray-700 hover:bg-gray-50" data-owner-id="<?php echo e($owner['id']); ?>" data-owner-name="<?php echo e($owner['name']); ?>" data-owner-email="<?php echo e($owner['email']); ?>">
+                                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700"><?php echo e($ownerInitials); ?></span>
                                             <span>
-                                                <span class="block text-sm text-gray-700">{{ $owner['name'] }}</span>
-                                                <span class="block text-xs text-gray-500">{{ $owner['email'] }}</span>
+                                                <span class="block text-sm text-gray-700"><?php echo e($owner['name']); ?></span>
+                                                <span class="block text-xs text-gray-500"><?php echo e($owner['email']); ?></span>
                                             </span>
                                         </button>
-                                    @endforeach
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </div>
                             </div>
                         </div>
@@ -464,12 +464,12 @@
                             <div class="grid items-center gap-2 sm:grid-cols-[72px_1fr]">
                                 <label class="text-sm font-medium text-gray-700">Type</label>
                                 <div class="grid grid-cols-2 gap-2">
-                                    @foreach (['business' => 'Business', 'individual' => 'Individual'] as $value => $label)
+                                    <?php $__currentLoopData = ['business' => 'Business', 'individual' => 'Individual']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                         <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                            <input type="radio" name="customer_type" value="{{ $value }}" @checked(old('customer_type', $draft['customer_type'] ?? '') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            <span>{{ $label }}</span>
+                                            <input type="radio" name="customer_type" value="<?php echo e($value); ?>" <?php if(old('customer_type', $draft['customer_type'] ?? '') === $value): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            <span><?php echo e($label); ?></span>
                                         </label>
-                                    @endforeach
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </div>
                             </div>
                         </div>
@@ -481,15 +481,15 @@
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Deal Code</p>
-                                <p id="deal_info_code" class="mt-1 text-sm text-gray-700">{{ $draftDealCode }}</p>
+                                <p id="deal_info_code" class="mt-1 text-sm text-gray-700"><?php echo e($draftDealCode); ?></p>
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Created By</p>
-                                <p id="deal_info_created_by" class="mt-1 text-sm text-gray-700">{{ $draftCreatedBy }}</p>
+                                <p id="deal_info_created_by" class="mt-1 text-sm text-gray-700"><?php echo e($draftCreatedBy); ?></p>
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Created At</p>
-                                <p id="deal_info_created_at" class="mt-1 text-sm text-gray-700">{{ $draftCreatedAt }}</p>
+                                <p id="deal_info_created_at" class="mt-1 text-sm text-gray-700"><?php echo e($draftCreatedAt); ?></p>
                             </div>
                         </div>
                     </section>
@@ -510,14 +510,14 @@
                                     CONDEAL-YYYY-###
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">Auto-generated and saved by the backend when the deal is created.</p>
-                                <input id="deal_name" name="deal_name" type="hidden" value="{{ old('deal_name', $draft['deal_name'] ?? '') }}">
+                                <input id="deal_name" name="deal_name" type="hidden" value="<?php echo e(old('deal_name', $draft['deal_name'] ?? '')); ?>">
                             </div>
                             <div>
                                 <label for="stage" class="mb-1 block text-sm font-medium text-gray-700">Pipeline Stage</label>
                                 <select id="stage" name="stage" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                    @foreach ($stageOptions as $stage)
-                                        <option value="{{ $stage }}" @selected(old('stage', $draft['stage'] ?? 'Inquiry') === $stage)>{{ $stage }}</option>
-                                    @endforeach
+                                    <?php $__currentLoopData = $stageOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $stage): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <option value="<?php echo e($stage); ?>" <?php if(old('stage', $draft['stage'] ?? 'Inquiry') === $stage): echo 'selected'; endif; ?>><?php echo e($stage); ?></option>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </select>
                             </div>
                         </div>
@@ -533,33 +533,33 @@
                                     <label for="deal_salutation" class="mb-1 block text-sm font-medium text-gray-700">Salutation</label>
                                     <select id="deal_salutation" name="salutation" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                         <option value="">Select salutation</option>
-                                        <option value="-" @selected(old('salutation', $draft['salutation'] ?? '') === '-')>-</option>
-                                        @foreach (['Mr.', 'Ms.', 'Mrs.', 'Atty.', 'CPA', 'Engr.', 'Dr.'] as $option)
-                                            <option value="{{ $option }}" @selected(old('salutation', $draft['salutation'] ?? '') === $option)>{{ $option }}</option>
-                                        @endforeach
+                                        <option value="-" <?php if(old('salutation', $draft['salutation'] ?? '') === '-'): echo 'selected'; endif; ?>>-</option>
+                                        <?php $__currentLoopData = ['Mr.', 'Ms.', 'Mrs.', 'Atty.', 'CPA', 'Engr.', 'Dr.']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <option value="<?php echo e($option); ?>" <?php if(old('salutation', $draft['salutation'] ?? '') === $option): echo 'selected'; endif; ?>><?php echo e($option); ?></option>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
                                 </div>
                                 <div>
                                     <label for="deal_sex" class="mb-1 block text-sm font-medium text-gray-700">Sex</label>
                                     <select id="deal_sex" name="sex" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                         <option value="">Select sex</option>
-                                        <option value="-" @selected(old('sex', $draft['sex'] ?? '') === '-')>-</option>
-                                        @foreach (['Male', 'Female', 'Prefer not to say'] as $option)
-                                            <option value="{{ $option }}" @selected(old('sex', $draft['sex'] ?? '') === $option)>{{ $option }}</option>
-                                        @endforeach
+                                        <option value="-" <?php if(old('sex', $draft['sex'] ?? '') === '-'): echo 'selected'; endif; ?>>-</option>
+                                        <?php $__currentLoopData = ['Male', 'Female', 'Prefer not to say']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <option value="<?php echo e($option); ?>" <?php if(old('sex', $draft['sex'] ?? '') === $option): echo 'selected'; endif; ?>><?php echo e($option); ?></option>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
                                 </div>
-                                <div><label for="deal_first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label><input id="deal_first_name" name="first_name" value="{{ old('first_name', $draft['first_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_middle_initial" class="mb-1 block text-sm font-medium text-gray-700">Middle Initial</label><input id="deal_middle_initial" name="middle_initial" value="{{ old('middle_initial', $draft['middle_initial'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_last_name" class="mb-1 block text-sm font-medium text-gray-700">Last Name</label><input id="deal_last_name" name="last_name" value="{{ old('last_name', $draft['last_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_name_extension" class="mb-1 block text-sm font-medium text-gray-700">Name Extension</label><input id="deal_name_extension" name="name_extension" value="{{ old('name_extension', $draft['name_extension'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_date_of_birth" class="mb-1 block text-sm font-medium text-gray-700">Date of Birth</label><input id="deal_date_of_birth" type="date" name="date_of_birth" value="{{ old('date_of_birth', $draft['date_of_birth'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_email" class="mb-1 block text-sm font-medium text-gray-700">Email Address</label><input id="deal_email" type="email" name="email" value="{{ old('email', $draft['email'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_mobile" class="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label><input id="deal_mobile" name="mobile" value="{{ old('mobile', $draft['mobile'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div class="sm:col-span-2"><label for="deal_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label><textarea id="deal_address" name="address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('address', $draft['address'] ?? '') }}</textarea></div>
-                                <div><label for="deal_company_name" class="mb-1 block text-sm font-medium text-gray-700">Company</label><input id="deal_company_name" name="company_name" value="{{ old('company_name', $draft['company_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="deal_position" class="mb-1 block text-sm font-medium text-gray-700">Position / Designation</label><input id="deal_position" name="position" value="{{ old('position', $draft['position'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div class="sm:col-span-2"><label for="deal_company_address" class="mb-1 block text-sm font-medium text-gray-700">Company Address</label><textarea id="deal_company_address" name="company_address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('company_address', $draft['company_address'] ?? '') }}</textarea></div>
+                                <div><label for="deal_first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label><input id="deal_first_name" name="first_name" value="<?php echo e(old('first_name', $draft['first_name'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_middle_initial" class="mb-1 block text-sm font-medium text-gray-700">Middle Initial</label><input id="deal_middle_initial" name="middle_initial" value="<?php echo e(old('middle_initial', $draft['middle_initial'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_last_name" class="mb-1 block text-sm font-medium text-gray-700">Last Name</label><input id="deal_last_name" name="last_name" value="<?php echo e(old('last_name', $draft['last_name'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_name_extension" class="mb-1 block text-sm font-medium text-gray-700">Name Extension</label><input id="deal_name_extension" name="name_extension" value="<?php echo e(old('name_extension', $draft['name_extension'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_date_of_birth" class="mb-1 block text-sm font-medium text-gray-700">Date of Birth</label><input id="deal_date_of_birth" type="date" name="date_of_birth" value="<?php echo e(old('date_of_birth', $draft['date_of_birth'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_email" class="mb-1 block text-sm font-medium text-gray-700">Email Address</label><input id="deal_email" type="email" name="email" value="<?php echo e(old('email', $draft['email'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_mobile" class="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label><input id="deal_mobile" name="mobile" value="<?php echo e(old('mobile', $draft['mobile'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div class="sm:col-span-2"><label for="deal_address" class="mb-1 block text-sm font-medium text-gray-700">Address</label><textarea id="deal_address" name="address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('address', $draft['address'] ?? '')); ?></textarea></div>
+                                <div><label for="deal_company_name" class="mb-1 block text-sm font-medium text-gray-700">Company</label><input id="deal_company_name" name="company_name" value="<?php echo e(old('company_name', $draft['company_name'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="deal_position" class="mb-1 block text-sm font-medium text-gray-700">Position / Designation</label><input id="deal_position" name="position" value="<?php echo e(old('position', $draft['position'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div class="sm:col-span-2"><label for="deal_company_address" class="mb-1 block text-sm font-medium text-gray-700">Company Address</label><textarea id="deal_company_address" name="company_address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('company_address', $draft['company_address'] ?? '')); ?></textarea></div>
                             </div>
                         </section>
                         <section class="rounded-2xl border border-gray-200 p-4">
@@ -568,61 +568,61 @@
                                 <div>
                                     <label class="mb-2 block text-sm font-medium text-gray-700">Service Area</label>
                                     <div id="service-area-options-grid" class="grid gap-2 sm:grid-cols-2">
-                                        @foreach ($serviceAreaOptions as $option)
+                                        <?php $__currentLoopData = $serviceAreaOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="service-area-other-wrapper" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span>{{ $option }}</span>
+                                                <input type="checkbox" name="service_area_options[]" value="<?php echo e($option); ?>" <?php if(in_array($option, $selectedServiceAreas, true)): echo 'checked'; endif; ?> <?php if($option === 'Others'): ?> data-other-target="service-area-other-wrapper" <?php endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span><?php echo e($option); ?></span>
                                             </label>
-                                        @endforeach
-                                        @foreach ($serviceAreaOtherEntries as $item)
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        <?php $__currentLoopData = $serviceAreaOtherEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
-                                                <input type="checkbox" name="service_area_options[]" value="{{ $item }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span class="flex-1">{{ $item }}</span>
+                                                <input type="checkbox" name="service_area_options[]" value="<?php echo e($item); ?>" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="flex-1"><?php echo e($item); ?></span>
                                                 <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
-                                                <input type="hidden" name="service_area_other[]" value="{{ $item }}" data-custom-option-hidden>
+                                                <input type="hidden" name="service_area_other[]" value="<?php echo e($item); ?>" data-custom-option-hidden>
                                             </label>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
-                                    <div id="service-area-other-wrapper" class="other-wrapper {{ (in_array('Others', $selectedServiceAreas, true) || count($serviceAreaOtherEntries) > 0) ? '' : 'hidden' }} mt-2">
+                                    <div id="service-area-other-wrapper" class="other-wrapper <?php echo e((in_array('Others', $selectedServiceAreas, true) || count($serviceAreaOtherEntries) > 0) ? '' : 'hidden'); ?> mt-2">
                                         <input id="service-area-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="service_area_other[]" placeholder="Enter custom service area and press Enter">
                                     </div>
                                 </div>
 
                                 <div class="space-y-4">
                                     <label class="block text-sm font-medium text-gray-700">Services</label>
-                                    <div id="dealServicesEmptyState" class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 {{ count($selectedServiceAreas) > 0 ? 'hidden' : '' }}">
+                                    <div id="dealServicesEmptyState" class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 <?php echo e(count($selectedServiceAreas) > 0 ? 'hidden' : ''); ?>">
                                         Select a service area first to show matching services.
                                     </div>
-                                    <div id="dealServicesGrid" class="grid gap-4 lg:grid-cols-2 {{ count($selectedServiceAreas) > 0 ? '' : 'hidden' }}">
-                                        @foreach ($serviceGroups as $group => $options)
-                                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3 {{ in_array($group, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-service-group="{{ $group }}">
-                                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $group }}</p>
+                                    <div id="dealServicesGrid" class="grid gap-4 lg:grid-cols-2 <?php echo e(count($selectedServiceAreas) > 0 ? '' : 'hidden'); ?>">
+                                        <?php $__currentLoopData = $serviceGroups; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $group => $options): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3 <?php echo e(in_array($group, $selectedServiceAreas, true) ? '' : 'hidden'); ?>" data-service-group="<?php echo e($group); ?>">
+                                                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600"><?php echo e($group); ?></p>
                                                 <div class="space-y-2">
-                                                    @foreach ($options as $option)
+                                                    <?php $__currentLoopData = $options; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                         <label class="flex items-start gap-2 text-sm text-gray-700">
-                                                            <input type="checkbox" name="service_options[]" value="{{ $option }}" data-service-group-option="{{ $group }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                            <span>{{ $option }}</span>
+                                                            <input type="checkbox" name="service_options[]" value="<?php echo e($option); ?>" data-service-group-option="<?php echo e($group); ?>" <?php if(in_array($option, $selectedServices, true)): echo 'checked'; endif; ?> class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                            <span><?php echo e($option); ?></span>
                                                         </label>
-                                                    @endforeach
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                                 </div>
                                             </div>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
                                     <div id="services-custom-options" class="grid gap-2 sm:grid-cols-2">
-                                        @foreach ($serviceIdentificationCustomEntries as $customEntry)
+                                        <?php $__currentLoopData = $serviceIdentificationCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
-                                                <input type="checkbox" name="service_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span class="flex-1">{{ $customEntry }}</span>
+                                                <input type="checkbox" name="service_options[]" value="<?php echo e($customEntry); ?>" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span class="flex-1"><?php echo e($customEntry); ?></span>
                                                 <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
-                                                <input type="hidden" name="services_other[]" value="{{ $customEntry }}" data-custom-option-hidden>
+                                                <input type="hidden" name="services_other[]" value="<?php echo e($customEntry); ?>" data-custom-option-hidden>
                                             </label>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input id="services-other-toggle" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $showServiceIdentificationCustomEntries ? 'checked' : '' }}>
+                                        <input id="services-other-toggle" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" <?php echo e($showServiceIdentificationCustomEntries ? 'checked' : ''); ?>>
                                         <span>Others</span>
                                     </label>
-                                    <div id="services-other-wrapper" class="other-wrapper {{ $showServiceIdentificationCustomEntries ? '' : 'hidden' }} mt-2">
+                                    <div id="services-other-wrapper" class="other-wrapper <?php echo e($showServiceIdentificationCustomEntries ? '' : 'hidden'); ?> mt-2">
                                         <input id="services-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="services_other[]" placeholder="Enter custom service and press Enter">
                                     </div>
                                 </div>
@@ -632,37 +632,37 @@
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Products</h3>
                             <p id="dealProductsHelpText" class="mt-1 text-xs text-gray-500">Select a service area first to show the matching products offered.</p>
-                            <div id="dealProductsEmptyState" class="mt-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 {{ count(array_intersect($selectedServiceAreas, array_keys($productOptionsByServiceArea))) > 0 ? 'hidden' : '' }}">
+                            <div id="dealProductsEmptyState" class="mt-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-4 text-sm text-gray-500 <?php echo e(count(array_intersect($selectedServiceAreas, array_keys($productOptionsByServiceArea))) > 0 ? 'hidden' : ''); ?>">
                                 Select a matching service area first to show the available products.
                             </div>
                             <div id="product-options-grid" class="mt-3 grid gap-4">
-                                @foreach ($productOptionsByServiceArea as $serviceArea => $options)
-                                    <div class="{{ in_array($serviceArea, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-product-group="{{ $serviceArea }}">
-                                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $serviceArea }}</p>
+                                <?php $__currentLoopData = $productOptionsByServiceArea; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $serviceArea => $options): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <div class="<?php echo e(in_array($serviceArea, $selectedServiceAreas, true) ? '' : 'hidden'); ?>" data-product-group="<?php echo e($serviceArea); ?>">
+                                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600"><?php echo e($serviceArea); ?></p>
                                         <div class="grid gap-2 sm:grid-cols-2">
-                                            @foreach ($options as $option)
-                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-product-option data-service-area-product="{{ $serviceArea }}" data-product-value="{{ $option }}">
-                                                <input type="checkbox" name="product_options[]" value="{{ $option }}" @checked(in_array($option, $selectedProducts, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                <span>{{ $option }}</span>
+                                            <?php $__currentLoopData = $options; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-product-option data-service-area-product="<?php echo e($serviceArea); ?>" data-product-value="<?php echo e($option); ?>">
+                                                <input type="checkbox" name="product_options[]" value="<?php echo e($option); ?>" <?php if(in_array($option, $selectedProducts, true)): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span><?php echo e($option); ?></span>
                                             </label>
-                                            @endforeach
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                         </div>
                                     </div>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-product-option data-product-value="Others">
-                                    <input type="checkbox" name="product_options[]" value="Others" @checked(in_array('Others', $selectedProducts, true)) data-other-target="deal_products_other_wrap" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <input type="checkbox" name="product_options[]" value="Others" <?php if(in_array('Others', $selectedProducts, true)): echo 'checked'; endif; ?> data-other-target="deal_products_other_wrap" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                     <span>Others</span>
                                 </label>
-                                @foreach ($selectedProductCustomEntries as $customEntry)
+                                <?php $__currentLoopData = $selectedProductCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
-                                        <input type="checkbox" name="product_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <input type="checkbox" name="product_options[]" value="<?php echo e($customEntry); ?>" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1"><?php echo e($customEntry); ?></span>
                                         <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
-                                        <input type="hidden" name="products_other_entries[]" value="{{ $customEntry }}" data-custom-option-hidden>
+                                        <input type="hidden" name="products_other_entries[]" value="<?php echo e($customEntry); ?>" data-custom-option-hidden>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </div>
-                            <div id="deal_products_other_wrap" class="other-wrapper {{ (in_array('Others', $selectedProducts, true) || $hasCustomProductEntries) ? '' : 'hidden' }} mt-3">
+                            <div id="deal_products_other_wrap" class="other-wrapper <?php echo e((in_array('Others', $selectedProducts, true) || $hasCustomProductEntries) ? '' : 'hidden'); ?> mt-3">
                                 <label class="mb-1 block text-sm font-medium text-gray-700">Others (Custom Product)</label>
                                 <input id="products-other-input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="products_other_entries[]" placeholder="Enter custom product and press Enter">
                             </div>
@@ -673,19 +673,19 @@
                             <p class="mb-2 text-xs text-gray-500">Describe the detailed scope of the engagement</p>
                             <div>
                                 <label for="scope_of_work" class="mb-1 block text-sm font-medium text-gray-700">Scope of Work</label>
-                                <textarea id="scope_of_work" name="scope_of_work" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('scope_of_work', $draft['scope_of_work'] ?? '') }}</textarea>
+                                <textarea id="scope_of_work" name="scope_of_work" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('scope_of_work', $draft['scope_of_work'] ?? '')); ?></textarea>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Engagement Type</h3>
                             <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                                @foreach (['Project Engagement', 'Regular (Retainer) Engagement', 'Hybrid Engagement'] as $option)
+                                <?php $__currentLoopData = ['Project Engagement', 'Regular (Retainer) Engagement', 'Hybrid Engagement']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="engagement_type" value="{{ $option }}" @checked(old('engagement_type', $draft['engagement_type'] ?? '') === $option) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="radio" name="engagement_type" value="<?php echo e($option); ?>" <?php if(old('engagement_type', $draft['engagement_type'] ?? '') === $option): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </div>
                         </section>
 
@@ -701,8 +701,8 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach ($requirementRows as $key => $label)
-                                            @php
+                                        <?php $__currentLoopData = $requirementRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <?php
                                                 $current = old(
                                                     "requirements_status.$key",
                                                     data_get($draft, "requirements_status_map.$key", data_get($draft, "requirements_status.$key"))
@@ -710,36 +710,37 @@
                                                 if ($key === 'others' && ! in_array($current, ['provided', 'pending'], true)) {
                                                     $current = $clientRequirementsOthersStatus;
                                                 }
-                                            @endphp
-                                            <tr data-client-requirement-row="{{ $key }}" @if ($key === 'others') data-client-others-row @endif>
-                                                <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
+                                            ?>
+                                            <tr data-client-requirement-row="<?php echo e($key); ?>" <?php if($key === 'others'): ?> data-client-others-row <?php endif; ?>>
+                                                <td class="border border-gray-200 px-3 py-2 text-gray-700"><?php echo e($label); ?></td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[<?php echo e($key); ?>]" value="provided" <?php if($current === 'provided'): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="<?php echo e($key); ?>:provided" <?php if($key === 'others'): ?> data-client-others-radio <?php endif; ?>>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[<?php echo e($key); ?>]" value="pending" <?php if($current === 'pending'): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="<?php echo e($key); ?>:pending" <?php if($key === 'others'): ?> data-client-others-radio <?php endif; ?>>
                                                 </td>
                                             </tr>
-                                        @endforeach
-                                        @foreach ($parsedClientRequirementCustomRows as $index => $customRow)
-                                            <tr data-client-custom-row data-client-custom-label="{{ $customRow['label'] }}">
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        <?php $__currentLoopData = $parsedClientRequirementCustomRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $customRow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <tr data-client-custom-row data-client-custom-label="<?php echo e($customRow['label']); ?>">
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">
-                                                    Other: {{ $customRow['label'] }}
-                                                    <input type="hidden" name="client_requirements_custom[]" value="{{ $customRow['raw'] }}" data-client-custom-hidden>
+                                                    Other: <?php echo e($customRow['label']); ?>
+
+                                                    <input type="hidden" name="client_requirements_custom[]" value="<?php echo e($customRow['raw']); ?>" data-client-custom-hidden>
                                                     <button type="button" class="ml-2 text-xs text-gray-500 hover:text-gray-700" data-client-custom-remove>&times;</button>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="client_requirements_custom_status_{{ $index }}" value="provided" @checked(($customRow['status'] ?? 'pending') === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-custom-status="provided">
+                                                    <input type="radio" name="client_requirements_custom_status_<?php echo e($index); ?>" value="provided" <?php if(($customRow['status'] ?? 'pending') === 'provided'): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-custom-status="provided">
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="client_requirements_custom_status_{{ $index }}" value="pending" @checked(($customRow['status'] ?? 'pending') === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-custom-status="pending">
+                                                    <input type="radio" name="client_requirements_custom_status_<?php echo e($index); ?>" value="pending" <?php if(($customRow['status'] ?? 'pending') === 'pending'): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-custom-status="pending">
                                                 </td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
                             </div>
-                            <div id="client_requirements_container" class="{{ $showClientRequirementsCustomEntries ? '' : 'hidden' }} mt-3">
+                            <div id="client_requirements_container" class="<?php echo e($showClientRequirementsCustomEntries ? '' : 'hidden'); ?> mt-3">
                                 <input id="client_requirements_input" type="text" placeholder="Enter custom requirement and press Enter" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                             </div>
                         </section>
@@ -747,33 +748,33 @@
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Required Actions</h3>
                             <div id="required_actions_grid" class="mt-3 grid gap-2 sm:grid-cols-2">
-                                @foreach ($requiredActions as $option)
+                                <?php $__currentLoopData = $requiredActions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="checkbox" name="required_actions_options[]" value="{{ $option }}" @checked(in_array($option, $selectedRequiredActions, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="checkbox" name="required_actions_options[]" value="<?php echo e($option); ?>" <?php if(in_array($option, $selectedRequiredActions, true)): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
-                                @foreach ($requiredActionsCustomEntries as $customEntry)
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                <?php $__currentLoopData = $requiredActionsCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-custom-option>
-                                        <input type="checkbox" name="required_actions_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <input type="checkbox" name="required_actions_options[]" value="<?php echo e($customEntry); ?>" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1"><?php echo e($customEntry); ?></span>
                                         <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
-                                        <input type="hidden" name="required_actions_custom[]" value="{{ $customEntry }}" data-custom-option-hidden>
+                                        <input type="hidden" name="required_actions_custom[]" value="<?php echo e($customEntry); ?>" data-custom-option-hidden>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                    <input id="required_actions_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $showRequiredActionsCustomEntries ? 'checked' : '' }}>
+                                    <input id="required_actions_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" <?php echo e($showRequiredActionsCustomEntries ? 'checked' : ''); ?>>
                                     <span>Others</span>
                                 </label>
                             </div>
-                            <div id="required_actions_container" class="other-wrapper {{ $showRequiredActionsCustomEntries ? '' : 'hidden' }} mt-3">
+                            <div id="required_actions_container" class="other-wrapper <?php echo e($showRequiredActionsCustomEntries ? '' : 'hidden'); ?> mt-3">
                                 <input id="required_actions_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="required_actions_custom[]" placeholder="Enter custom required action and press Enter">
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Fees</h3>
-                            @php
+                            <?php
                                 $estimatedProfessionalFeeValue = old(
                                     'estimated_professional_fee',
                                     $draft['estimated_professional_fee'] ?? ''
@@ -804,31 +805,31 @@
                                     $otherFees?->map(fn ($fee) => $fee['amount'] ?? '')->all() ?? data_get($draft, 'other_fees_amounts', [])
                                 );
                                 $otherFeesRowCount = max(count((array) $otherFeesTitles), count((array) $otherFeesAmounts));
-                            @endphp
+                            ?>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="{{ $estimatedProfessionalFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="{{ $estimatedGovernmentFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="{{ $estimatedServiceSupportFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><input id="total_service_fee" name="total_service_fee" value="{{ old('total_service_fee', $draft['total_service_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><input id="total_product_fee" name="total_product_fee" value="{{ old('total_product_fee', $draft['total_product_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $totalEstimatedValue }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="<?php echo e($estimatedProfessionalFeeValue); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="<?php echo e($estimatedGovernmentFeeValue); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="<?php echo e($estimatedServiceSupportFeeValue); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><input id="total_service_fee" name="total_service_fee" value="<?php echo e(old('total_service_fee', $draft['total_service_fee'] ?? '')); ?>" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><input id="total_product_fee" name="total_product_fee" value="<?php echo e(old('total_product_fee', $draft['total_product_fee'] ?? '')); ?>" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="<?php echo e($totalEstimatedValue); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             </div>
                             <div id="otherFeesRows" class="mt-3 space-y-3">
-                                @for ($i = 0; $i < $otherFeesRowCount; $i++)
+                                <?php for($i = 0; $i < $otherFeesRowCount; $i++): ?>
                                     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" data-other-fee-row>
                                         <div>
                                             <label class="mb-1 block text-sm font-medium text-gray-700">Fee Title</label>
-                                            <input name="other_fees_titles[]" value="{{ $otherFeesTitles[$i] ?? '' }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-title>
+                                            <input name="other_fees_titles[]" value="<?php echo e($otherFeesTitles[$i] ?? ''); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-title>
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
-                                            <input name="other_fees_amounts[]" value="{{ $otherFeesAmounts[$i] ?? '' }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+                                            <input name="other_fees_amounts[]" value="<?php echo e($otherFeesAmounts[$i] ?? ''); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
                                         </div>
                                         <div class="flex items-end">
                                             <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>
                                         </div>
                                     </div>
-                                @endfor
+                                <?php endfor; ?>
                             </div>
                             <div class="mt-3">
                                 <button id="addOtherFeeBtn" type="button" class="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">Add Other Fee</button>
@@ -838,24 +839,24 @@
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Payment Terms</h3>
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                                @foreach (['Full Payment Before Service', '50% Downpayment / 50% Completion', 'Milestone-Based Payment', 'Monthly Retainer', 'Others'] as $option)
+                                <?php $__currentLoopData = ['Full Payment Before Service', '50% Downpayment / 50% Completion', 'Milestone-Based Payment', 'Monthly Retainer', 'Others']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="payment_terms" value="{{ $option }}" @checked(old('payment_terms', $draft['payment_terms'] ?? '') === $option) @if ($option === 'Others') data-other-target="deal_payment_terms_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="radio" name="payment_terms" value="<?php echo e($option); ?>" <?php if(old('payment_terms', $draft['payment_terms'] ?? '') === $option): echo 'checked'; endif; ?> <?php if($option === 'Others'): ?> data-other-target="deal_payment_terms_other_wrap" <?php endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </div>
-                            <div id="deal_payment_terms_other_wrap" class="{{ old('payment_terms', $draft['payment_terms'] ?? '') === 'Others' || $hasPaymentTermsCustomEntries ? '' : 'hidden' }} mt-3">
+                            <div id="deal_payment_terms_other_wrap" class="<?php echo e(old('payment_terms', $draft['payment_terms'] ?? '') === 'Others' || $hasPaymentTermsCustomEntries ? '' : 'hidden'); ?> mt-3">
                                 <div id="payment_terms_container">
                                     <input id="payment_terms_input" type="text" placeholder="Enter custom payment term and press Enter" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="payment_terms_custom[]">
                                     <div id="payment_terms_tags" class="mt-2 flex flex-wrap gap-2">
-                                        @foreach ($paymentTermsCustomEntries as $customEntry)
+                                        <?php $__currentLoopData = $paymentTermsCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <span class="custom-tag inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs text-gray-700" data-tag-item>
-                                                <span>{{ $customEntry }}</span>
+                                                <span><?php echo e($customEntry); ?></span>
                                                 <button type="button" class="remove-tag text-gray-500 hover:text-gray-700" data-tag-remove>&times;</button>
-                                                <input type="hidden" name="payment_terms_custom[]" value="{{ $customEntry }}">
+                                                <input type="hidden" name="payment_terms_custom[]" value="<?php echo e($customEntry); ?>">
                                             </span>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
                                 </div>
                             </div>
@@ -863,129 +864,129 @@
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Estimated Timeline</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="planned_start_date" class="mb-1 block text-sm font-medium text-gray-700">Planned Start Date</label><input id="planned_start_date" type="date" name="planned_start_date" value="{{ old('planned_start_date', $draft['planned_start_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="{{ old('estimated_duration', $draft['estimated_duration'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Estimated Completion Date</label><input id="estimated_completion_date" type="date" name="estimated_completion_date" value="{{ old('estimated_completion_date', $draft['estimated_completion_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="client_preferred_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Client Preferred Completion Date</label><input id="client_preferred_completion_date" type="date" name="client_preferred_completion_date" value="{{ old('client_preferred_completion_date', $draft['client_preferred_completion_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="confirmed_delivery_date" class="mb-1 block text-sm font-medium text-gray-700">Confirmed Delivery Date</label><input id="confirmed_delivery_date" type="date" name="confirmed_delivery_date" value="{{ old('confirmed_delivery_date', $draft['confirmed_delivery_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div class="sm:col-span-2"><label for="timeline_notes" class="mb-1 block text-sm font-medium text-gray-700">Timeline Notes</label><textarea id="timeline_notes" name="timeline_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('timeline_notes', $draft['timeline_notes'] ?? '') }}</textarea></div>
+                                <div><label for="planned_start_date" class="mb-1 block text-sm font-medium text-gray-700">Planned Start Date</label><input id="planned_start_date" type="date" name="planned_start_date" value="<?php echo e(old('planned_start_date', $draft['planned_start_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="<?php echo e(old('estimated_duration', $draft['estimated_duration'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Estimated Completion Date</label><input id="estimated_completion_date" type="date" name="estimated_completion_date" value="<?php echo e(old('estimated_completion_date', $draft['estimated_completion_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="client_preferred_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Client Preferred Completion Date</label><input id="client_preferred_completion_date" type="date" name="client_preferred_completion_date" value="<?php echo e(old('client_preferred_completion_date', $draft['client_preferred_completion_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="confirmed_delivery_date" class="mb-1 block text-sm font-medium text-gray-700">Confirmed Delivery Date</label><input id="confirmed_delivery_date" type="date" name="confirmed_delivery_date" value="<?php echo e(old('confirmed_delivery_date', $draft['confirmed_delivery_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div class="sm:col-span-2"><label for="timeline_notes" class="mb-1 block text-sm font-medium text-gray-700">Timeline Notes</label><textarea id="timeline_notes" name="timeline_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('timeline_notes', $draft['timeline_notes'] ?? '')); ?></textarea></div>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Service Complexity Assessment</h3>
                             <div id="service_complexity_grid" class="mt-3 grid gap-3 sm:grid-cols-2">
-                                @foreach ($defaultServiceComplexityOptions as $option)
+                                <?php $__currentLoopData = $defaultServiceComplexityOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="service_complexity" value="{{ $option }}" @checked($selectedServiceComplexity === $option) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="radio" name="service_complexity" value="<?php echo e($option); ?>" <?php if($selectedServiceComplexity === $option): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
-                                @foreach ($serviceComplexityCustomEntries as $customEntry)
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                <?php $__currentLoopData = $serviceComplexityCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-complexity-custom-option>
-                                        <input type="radio" name="service_complexity" value="{{ $customEntry }}" @checked($selectedServiceComplexity === $customEntry) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <input type="radio" name="service_complexity" value="<?php echo e($customEntry); ?>" <?php if($selectedServiceComplexity === $customEntry): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1"><?php echo e($customEntry); ?></span>
                                         <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-radio-remove>&times;</button>
-                                        <input type="hidden" name="service_complexity_custom[]" value="{{ $customEntry }}" data-complexity-custom-hidden>
+                                        <input type="hidden" name="service_complexity_custom[]" value="<?php echo e($customEntry); ?>" data-complexity-custom-hidden>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                    <input id="service_complexity_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $hasServiceComplexityCustomEntries ? 'checked' : '' }}>
+                                    <input id="service_complexity_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" <?php echo e($hasServiceComplexityCustomEntries ? 'checked' : ''); ?>>
                                     <span>Others</span>
                                 </label>
                             </div>
-                            <div id="service_complexity_container" class="other-wrapper {{ $hasServiceComplexityCustomEntries ? '' : 'hidden' }} mt-3">
+                            <div id="service_complexity_container" class="other-wrapper <?php echo e($hasServiceComplexityCustomEntries ? '' : 'hidden'); ?> mt-3">
                                 <input id="service_complexity_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="service_complexity_custom[]" placeholder="Enter custom service complexity and press Enter">
                             </div>
                             <label class="mt-4 mb-2 block text-sm font-medium text-gray-700">Professional Support Required</label>
                             <div id="support_required_options_grid" class="grid gap-2 sm:grid-cols-2">
-                                @foreach (['Requires Senior Consultant', 'Requires Subject Matter Expert', 'Requires Lawyer / Legal Counsel', 'Requires CPA / Certified Public Accountant'] as $option)
+                                <?php $__currentLoopData = ['Requires Senior Consultant', 'Requires Subject Matter Expert', 'Requires Lawyer / Legal Counsel', 'Requires CPA / Certified Public Accountant']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="checkbox" name="support_required_options[]" value="{{ $option }}" @checked(in_array($option, $selectedSupportRequired, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="checkbox" name="support_required_options[]" value="<?php echo e($option); ?>" <?php if(in_array($option, $selectedSupportRequired, true)): echo 'checked'; endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
-                                @foreach ($supportRequiredCustomEntries as $customEntry)
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                <?php $__currentLoopData = $supportRequiredCustomEntries; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $customEntry): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700" data-support-custom-option>
-                                        <input type="checkbox" name="support_required_options[]" value="{{ $customEntry }}" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="flex-1">{{ $customEntry }}</span>
+                                        <input type="checkbox" name="support_required_options[]" value="<?php echo e($customEntry); ?>" checked class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="flex-1"><?php echo e($customEntry); ?></span>
                                         <button type="button" class="text-gray-500 hover:text-gray-700" data-custom-option-remove>&times;</button>
-                                        <input type="hidden" name="support_required_custom[]" value="{{ $customEntry }}" data-support-custom-hidden>
+                                        <input type="hidden" name="support_required_custom[]" value="<?php echo e($customEntry); ?>" data-support-custom-hidden>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                    <input id="support_required_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" {{ $hasSupportRequiredCustomEntries ? 'checked' : '' }}>
+                                    <input id="support_required_others" type="checkbox" class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" <?php echo e($hasSupportRequiredCustomEntries ? 'checked' : ''); ?>>
                                     <span>Others</span>
                                 </label>
                             </div>
-                            <div id="support_required_container" class="other-wrapper {{ $hasSupportRequiredCustomEntries ? '' : 'hidden' }} mt-3">
+                            <div id="support_required_container" class="other-wrapper <?php echo e($hasSupportRequiredCustomEntries ? '' : 'hidden'); ?> mt-3">
                                 <input id="support_required_input" type="text" class="other-input h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-name="support_required_custom[]" placeholder="Enter custom support requirement and press Enter">
                             </div>
                             <div class="mt-3">
                                 <label for="complexity_notes" class="mb-1 block text-sm font-medium text-gray-700">Notes / Explanation</label>
-                                <textarea id="complexity_notes" name="complexity_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('complexity_notes', $draft['complexity_notes'] ?? '') }}</textarea>
+                                <textarea id="complexity_notes" name="complexity_notes" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('complexity_notes', $draft['complexity_notes'] ?? '')); ?></textarea>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Proposal Decision</h3>
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
-                                @foreach (['Prepare Proposal', 'Prepare Engagement Letter', 'Schedule Client Consultation', 'Request Additional Documents', 'Decline Engagement'] as $option)
+                                <?php $__currentLoopData = ['Prepare Proposal', 'Prepare Engagement Letter', 'Schedule Client Consultation', 'Request Additional Documents', 'Decline Engagement']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="proposal_decision" value="{{ $option }}" @checked(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option) @if ($option === 'Decline Engagement') data-other-target="deal_decline_reason_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span>{{ $option }}</span>
+                                        <input type="radio" name="proposal_decision" value="<?php echo e($option); ?>" <?php if(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option): echo 'checked'; endif; ?> <?php if($option === 'Decline Engagement'): ?> data-other-target="deal_decline_reason_wrap" <?php endif; ?> class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span><?php echo e($option); ?></span>
                                     </label>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </div>
-                            <div id="deal_decline_reason_wrap" class="{{ old('proposal_decision', $draft['proposal_decision'] ?? '') === 'Decline Engagement' ? '' : 'hidden' }} mt-3">
+                            <div id="deal_decline_reason_wrap" class="<?php echo e(old('proposal_decision', $draft['proposal_decision'] ?? '') === 'Decline Engagement' ? '' : 'hidden'); ?> mt-3">
                                 <label for="decline_reason" class="mb-1 block text-sm font-medium text-gray-700">Reason (if declined)</label>
-                                <textarea id="decline_reason" name="decline_reason" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('decline_reason', $draft['decline_reason'] ?? '') }}</textarea>
+                                <textarea id="decline_reason" name="decline_reason" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('decline_reason', $draft['decline_reason'] ?? '')); ?></textarea>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Internal Assignment</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="assigned_consultant" class="mb-1 block text-sm font-medium text-gray-700">Assigned Consultant</label><input id="assigned_consultant" name="assigned_consultant" value="{{ old('assigned_consultant', $draft['assigned_consultant'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="assigned_associate" class="mb-1 block text-sm font-medium text-gray-700">Assigned Associate</label><input id="assigned_associate" name="assigned_associate" value="{{ old('assigned_associate', $draft['assigned_associate'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div class="sm:col-span-2"><label for="service_department_unit" class="mb-1 block text-sm font-medium text-gray-700">Service Department / Unit</label><input id="service_department_unit" name="service_department_unit" value="{{ old('service_department_unit', $draft['service_department_unit'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="assigned_consultant" class="mb-1 block text-sm font-medium text-gray-700">Assigned Consultant</label><input id="assigned_consultant" name="assigned_consultant" value="<?php echo e(old('assigned_consultant', $draft['assigned_consultant'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="assigned_associate" class="mb-1 block text-sm font-medium text-gray-700">Assigned Associate</label><input id="assigned_associate" name="assigned_associate" value="<?php echo e(old('assigned_associate', $draft['assigned_associate'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div class="sm:col-span-2"><label for="service_department_unit" class="mb-1 block text-sm font-medium text-gray-700">Service Department / Unit</label><input id="service_department_unit" name="service_department_unit" value="<?php echo e(old('service_department_unit', $draft['service_department_unit'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Notes</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="consultant_notes" class="mb-1 block text-sm font-medium text-gray-700">Consultant Notes</label><textarea id="consultant_notes" name="consultant_notes" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('consultant_notes', $draft['consultant_notes'] ?? '') }}</textarea></div>
-                                <div><label for="associate_notes" class="mb-1 block text-sm font-medium text-gray-700">Associate Notes</label><textarea id="associate_notes" name="associate_notes" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">{{ old('associate_notes', $draft['associate_notes'] ?? '') }}</textarea></div>
+                                <div><label for="consultant_notes" class="mb-1 block text-sm font-medium text-gray-700">Consultant Notes</label><textarea id="consultant_notes" name="consultant_notes" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('consultant_notes', $draft['consultant_notes'] ?? '')); ?></textarea></div>
+                                <div><label for="associate_notes" class="mb-1 block text-sm font-medium text-gray-700">Associate Notes</label><textarea id="associate_notes" name="associate_notes" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><?php echo e(old('associate_notes', $draft['associate_notes'] ?? '')); ?></textarea></div>
                             </div>
                         </section>
 
                         <section class="rounded-2xl border border-gray-200 p-4">
                             <h3 class="text-base font-semibold text-gray-900">Internal Approval</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="prepared_by" class="mb-1 block text-sm font-medium text-gray-700">Prepared By</label><input id="prepared_by" name="prepared_by" value="{{ old('prepared_by', $draft['prepared_by'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="reviewed_by" class="mb-1 block text-sm font-medium text-gray-700">Reviewed By</label><input id="reviewed_by" name="reviewed_by" value="{{ old('reviewed_by', $draft['reviewed_by'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_name" class="mb-1 block text-sm font-medium text-gray-700">Name</label><input id="internal_name" name="internal_name" value="{{ old('internal_name', $draft['internal_name'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_date" class="mb-1 block text-sm font-medium text-gray-700">Date</label><input id="internal_date" type="date" name="internal_date" value="{{ old('internal_date', $draft['internal_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div class="sm:col-span-2"><label for="client_fullname_signature" class="mb-1 block text-sm font-medium text-gray-700">Client Fullname & Signature</label><input id="client_fullname_signature" name="client_fullname_signature" value="{{ old('client_fullname_signature', $draft['client_fullname_signature'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="referred_closed_by" class="mb-1 block text-sm font-medium text-gray-700">Referred By / Closed By</label><input id="referred_closed_by" name="referred_closed_by" value="{{ old('referred_closed_by', $draft['referred_closed_by'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_sales_marketing" class="mb-1 block text-sm font-medium text-gray-700">Sales & Marketing</label><input id="internal_sales_marketing" name="internal_sales_marketing" value="{{ old('internal_sales_marketing', $draft['internal_sales_marketing'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="lead_consultant" class="mb-1 block text-sm font-medium text-gray-700">Lead Consultant</label><input id="lead_consultant" name="lead_consultant" value="{{ old('lead_consultant', $draft['lead_consultant'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="lead_associate_assigned" class="mb-1 block text-sm font-medium text-gray-700">Lead Associate Assigned</label><input id="lead_associate_assigned" name="lead_associate_assigned" value="{{ old('lead_associate_assigned', $draft['lead_associate_assigned'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_finance" class="mb-1 block text-sm font-medium text-gray-700">Finance</label><input id="internal_finance" name="internal_finance" value="{{ old('internal_finance', $draft['internal_finance'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_president" class="mb-1 block text-sm font-medium text-gray-700">President</label><input id="internal_president" name="internal_president" value="{{ old('internal_president', $draft['internal_president'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="prepared_by" class="mb-1 block text-sm font-medium text-gray-700">Prepared By</label><input id="prepared_by" name="prepared_by" value="<?php echo e(old('prepared_by', $draft['prepared_by'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="reviewed_by" class="mb-1 block text-sm font-medium text-gray-700">Reviewed By</label><input id="reviewed_by" name="reviewed_by" value="<?php echo e(old('reviewed_by', $draft['reviewed_by'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="internal_name" class="mb-1 block text-sm font-medium text-gray-700">Name</label><input id="internal_name" name="internal_name" value="<?php echo e(old('internal_name', $draft['internal_name'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="internal_date" class="mb-1 block text-sm font-medium text-gray-700">Date</label><input id="internal_date" type="date" name="internal_date" value="<?php echo e(old('internal_date', $draft['internal_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div class="sm:col-span-2"><label for="client_fullname_signature" class="mb-1 block text-sm font-medium text-gray-700">Client Fullname & Signature</label><input id="client_fullname_signature" name="client_fullname_signature" value="<?php echo e(old('client_fullname_signature', $draft['client_fullname_signature'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="referred_closed_by" class="mb-1 block text-sm font-medium text-gray-700">Referred By / Closed By</label><input id="referred_closed_by" name="referred_closed_by" value="<?php echo e(old('referred_closed_by', $draft['referred_closed_by'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="internal_sales_marketing" class="mb-1 block text-sm font-medium text-gray-700">Sales & Marketing</label><input id="internal_sales_marketing" name="internal_sales_marketing" value="<?php echo e(old('internal_sales_marketing', $draft['internal_sales_marketing'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="lead_consultant" class="mb-1 block text-sm font-medium text-gray-700">Lead Consultant</label><input id="lead_consultant" name="lead_consultant" value="<?php echo e(old('lead_consultant', $draft['lead_consultant'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="lead_associate_assigned" class="mb-1 block text-sm font-medium text-gray-700">Lead Associate Assigned</label><input id="lead_associate_assigned" name="lead_associate_assigned" value="<?php echo e(old('lead_associate_assigned', $draft['lead_associate_assigned'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="internal_finance" class="mb-1 block text-sm font-medium text-gray-700">Finance</label><input id="internal_finance" name="internal_finance" value="<?php echo e(old('internal_finance', $draft['internal_finance'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="internal_president" class="mb-1 block text-sm font-medium text-gray-700">President</label><input id="internal_president" name="internal_president" value="<?php echo e(old('internal_president', $draft['internal_president'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             </div>
                         </section>
                     </div>
 
-                    @if ($errors->any())
-                        <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ $errors->first() }}</div>
-                    @endif
+                    <?php if($errors->any()): ?>
+                        <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"><?php echo e($errors->first()); ?></div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="mt-auto flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
                     <button id="cancelCreateDealModal" type="button" class="h-10 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-                    <button id="saveDealBtn" type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">{{ $submitLabel }}</button>
+                    <button id="saveDealBtn" type="submit" class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700"><?php echo e($submitLabel); ?></button>
                 </div>
             </form>
         </div>
@@ -1024,11 +1025,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalInput = document.querySelector('[name="total_estimated_value"]') || document.querySelector('[name="total_estimated_engagement_value"]');
     const otherFeesRows = document.getElementById('otherFeesRows');
     const addOtherFeeBtn = document.getElementById('addOtherFeeBtn');
-    const contactRecords = @json($contactRecords);
-    const companyRecords = @json($companyRecords ?? []);
-    const servicePricing = @json($servicePricing);
-    const productPricing = @json($productPricing);
-    const productOptionsByServiceArea = @json($productOptionsByServiceArea);
+    const contactRecords = <?php echo json_encode($contactRecords, 15, 512) ?>;
+    const companyRecords = <?php echo json_encode($companyRecords ?? [], 15, 512) ?>;
+    const servicePricing = <?php echo json_encode($servicePricing, 15, 512) ?>;
+    const productPricing = <?php echo json_encode($productPricing, 15, 512) ?>;
+    const productOptionsByServiceArea = <?php echo json_encode($productOptionsByServiceArea, 15, 512) ?>;
     const customServicePrice = 2500;
     const customProductPrice = 350;
 
@@ -2167,8 +2168,9 @@ document.addEventListener('DOMContentLoaded', function () {
     applyOtherFieldToggles();
     recalculateTotal();
 
-    @if ($openDealModal || $errors->any())
+    <?php if($openDealModal || $errors->any()): ?>
         openModal();
-    @endif
+    <?php endif; ?>
 });
 </script>
+<?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/deals/partials/create-deal-modal.blade.php ENDPATH**/ ?>

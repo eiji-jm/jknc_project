@@ -1,5 +1,16 @@
 @php
     $data = $dealFormData ?? [];
+    $formatDisplayDate = static function ($value, string $fallback = '-'): string {
+        if (! filled($value)) {
+            return $fallback;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse((string) $value)->format('M d, Y');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
+    };
     $text = static function (string $key, string $fallback = '-') use ($data): string {
         $value = $data[$key] ?? null;
 
@@ -15,6 +26,23 @@
                     return (string) $item;
                 })
                 ->implode(', ');
+        }
+
+        return filled($value) ? (string) $value : $fallback;
+    };
+    $listText = static function (string $key, string $fallback = '-') use ($data): string {
+        $value = $data[$key] ?? null;
+
+        if (is_array($value)) {
+            $flattened = collect($value)
+                ->flatten()
+                ->filter(fn ($item) => filled($item))
+                ->map(fn ($item) => trim((string) $item))
+                ->filter()
+                ->values()
+                ->all();
+
+            return $flattened === [] ? $fallback : implode(', ', $flattened);
         }
 
         return filled($value) ? (string) $value : $fallback;
@@ -45,7 +73,7 @@
         <div class="col-span-2 p-2"><div class="text-[10px]">Sex</div><div class="mt-1 min-h-5">{{ $text('sex') }}</div></div>
     </div>
     <div class="grid grid-cols-12 border-b border-gray-700">
-        <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Date of Birth</div><div class="mt-1 min-h-5">{{ $text('date_of_birth') }}</div></div>
+        <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Date of Birth</div><div class="mt-1 min-h-5">{{ $formatDisplayDate($data['date_of_birth'] ?? null) }}</div></div>
         <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Email Address</div><div class="mt-1 min-h-5">{{ $text('email') }}</div></div>
         <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Mobile Number</div><div class="mt-1 min-h-5">{{ $text('mobile') }}</div></div>
         <div class="col-span-3 p-2"><div class="text-[10px]">Position / Designation</div><div class="mt-1 min-h-5">{{ $text('position') }}</div></div>
@@ -103,18 +131,18 @@
 
     <div class="border-b border-gray-700 bg-blue-900 px-3 py-1 text-center text-[12px] font-semibold text-white">Timeline & Assessment</div>
     <div class="grid grid-cols-12 border-b border-gray-700">
-        <div class="col-span-4 border-r border-gray-700 p-2"><div class="text-[10px]">Planned Start Date</div><div class="mt-1 min-h-5">{{ $text('planned_start_date') }}</div></div>
+        <div class="col-span-4 border-r border-gray-700 p-2"><div class="text-[10px]">Planned Start Date</div><div class="mt-1 min-h-5">{{ $formatDisplayDate($data['planned_start_date'] ?? null) }}</div></div>
         <div class="col-span-4 border-r border-gray-700 p-2"><div class="text-[10px]">Estimated Duration</div><div class="mt-1 min-h-5">{{ $text('estimated_duration') }}</div></div>
-        <div class="col-span-4 p-2"><div class="text-[10px]">Estimated Completion Date</div><div class="mt-1 min-h-5">{{ $text('estimated_completion_date') }}</div></div>
+        <div class="col-span-4 p-2"><div class="text-[10px]">Estimated Completion Date</div><div class="mt-1 min-h-5">{{ $formatDisplayDate($data['estimated_completion_date'] ?? null) }}</div></div>
     </div>
     <div class="grid grid-cols-12 border-b border-gray-700">
-        <div class="col-span-6 border-r border-gray-700 p-2"><div class="text-[10px]">Client Preferred Completion Date</div><div class="mt-1 min-h-5">{{ $text('client_preferred_completion_date') }}</div></div>
-        <div class="col-span-6 p-2"><div class="text-[10px]">Confirmed Delivery Date</div><div class="mt-1 min-h-5">{{ $text('confirmed_delivery_date') }}</div></div>
+        <div class="col-span-6 border-r border-gray-700 p-2"><div class="text-[10px]">Client Preferred Completion Date</div><div class="mt-1 min-h-5">{{ $formatDisplayDate($data['client_preferred_completion_date'] ?? null) }}</div></div>
+        <div class="col-span-6 p-2"><div class="text-[10px]">Confirmed Delivery Date</div><div class="mt-1 min-h-5">{{ $formatDisplayDate($data['confirmed_delivery_date'] ?? null) }}</div></div>
     </div>
     <div class="border-b border-gray-700 p-2"><div class="text-[10px]">Timeline Notes</div><div class="mt-1 min-h-6">{{ $text('timeline_notes') }}</div></div>
     <div class="grid grid-cols-12 border-b border-gray-700">
         <div class="col-span-4 border-r border-gray-700 p-2"><div class="text-[10px]">Service Complexity</div><div class="mt-1 min-h-5">{{ $text('service_complexity') }}</div></div>
-        <div class="col-span-8 p-2"><div class="text-[10px]">Professional Support Required</div><div class="mt-1 min-h-5">{{ $text('support_required') }}</div></div>
+        <div class="col-span-8 p-2"><div class="text-[10px]">Professional Support Required</div><div class="mt-1 min-h-5">{{ $listText('support_required_options', $listText('support_required')) }}</div></div>
     </div>
     <div class="border-b border-gray-700 p-2"><div class="text-[10px]">Notes / Explanation</div><div class="mt-1 min-h-6">{{ $text('complexity_notes') }}</div></div>
 

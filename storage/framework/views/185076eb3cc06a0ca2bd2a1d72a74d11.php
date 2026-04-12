@@ -1,4 +1,4 @@
-@php
+<?php
     $data = $dealFormData ?? [];
     $dealInfo = $deal ?? [];
     $detailInfo = $detail ?? [];
@@ -93,7 +93,7 @@
         'client_information_form' => 'Client Information Form',
         'service_task_activation_routing_tracker' => 'Service Task Activation & Routing Tracker (Start)',
     ];
-@endphp
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -281,7 +281,7 @@
 </head>
 <body>
     <div class="toolbar">
-        <a href="{{ route('deals.show', $dealInfo['id'] ?? 0) }}" class="toolbar-button secondary">Back</a>
+        <a href="<?php echo e(route('deals.show', $dealInfo['id'] ?? 0)); ?>" class="toolbar-button secondary">Back</a>
         <button type="button" onclick="window.print()" class="toolbar-button">Print / Save as PDF</button>
     </div>
 
@@ -290,57 +290,57 @@
             <div class="sheet-frame">
                 <div class="head">
                     <div class="brand">
-                        @if (is_file($logoFilePath))
-                            <img src="{{ $logoUrl }}" alt="John Kelly and Company">
-                        @endif
+                        <?php if(is_file($logoFilePath)): ?>
+                            <img src="<?php echo e($logoUrl); ?>" alt="John Kelly and Company">
+                        <?php endif; ?>
                     </div>
                     <div>
                         <div class="title">Consulting &amp; Deal Form</div>
                         <div class="meta">
-                            <span>Deal No. {{ $dealInfo['deal_code'] ?? ('DEAL-'.$dealInfo['id']) }}</span>
-                            <span>Date {{ optional($generatedAt ?? null)->format('m/d/Y') ?? now()->format('m/d/Y') }}</span>
+                            <span>Deal No. <?php echo e($dealInfo['deal_code'] ?? ('DEAL-'.$dealInfo['id'])); ?></span>
+                            <span>Date <?php echo e(optional($generatedAt ?? null)->format('m/d/Y') ?? now()->format('m/d/Y')); ?></span>
                         </div>
                     </div>
                 </div>
 
                 <div class="grid">
-                    <div class="cell col-8"><span class="label">Deal Name</span><span class="value">{{ $dealInfo['deal_name'] ?? '-' }}</span></div>
-                    <div class="cell col-5"><span class="label">Stage</span><span class="value">{{ $dealInfo['stage'] ?? $text('stage') }}</span></div>
-                    <div class="cell col-6"><span class="label">Engagement Type</span><span class="value">{{ $text('engagement_type') }}</span></div>
-                    <div class="cell col-5"><span class="label">Total Value</span><span class="value">{{ $money($dealInfo['value'] ?? ($data['total_estimated_engagement_value'] ?? null)) }}</span></div>
+                    <div class="cell col-8"><span class="label">Deal Name</span><span class="value"><?php echo e($dealInfo['deal_name'] ?? '-'); ?></span></div>
+                    <div class="cell col-5"><span class="label">Stage</span><span class="value"><?php echo e($dealInfo['stage'] ?? $text('stage')); ?></span></div>
+                    <div class="cell col-6"><span class="label">Engagement Type</span><span class="value"><?php echo e($text('engagement_type')); ?></span></div>
+                    <div class="cell col-5"><span class="label">Total Value</span><span class="value"><?php echo e($money($dealInfo['value'] ?? ($data['total_estimated_engagement_value'] ?? null))); ?></span></div>
                 </div>
 
                 <div class="section-title">Contact Information</div>
                 <div class="grid">
-                    <div class="cell col-3"><span class="label">Salutation</span><span class="value">{{ $text('salutation') }}</span></div>
-                    <div class="cell col-5"><span class="label">First Name</span><span class="value">{{ $text('first_name') }}</span></div>
-                    <div class="cell col-3"><span class="label">Middle Initial</span><span class="value">{{ $text('middle_initial') }}</span></div>
-                    <div class="cell col-5"><span class="label">Last Name</span><span class="value">{{ $text('last_name') }}</span></div>
-                    <div class="cell col-4"><span class="label">Name Extension</span><span class="value">{{ $text('name_extension') }}</span></div>
-                    <div class="cell col-4"><span class="label">Sex</span><span class="value">{{ $text('sex') }}</span></div>
+                    <div class="cell col-3"><span class="label">Salutation</span><span class="value"><?php echo e($text('salutation')); ?></span></div>
+                    <div class="cell col-5"><span class="label">First Name</span><span class="value"><?php echo e($text('first_name')); ?></span></div>
+                    <div class="cell col-3"><span class="label">Middle Initial</span><span class="value"><?php echo e($text('middle_initial')); ?></span></div>
+                    <div class="cell col-5"><span class="label">Last Name</span><span class="value"><?php echo e($text('last_name')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Name Extension</span><span class="value"><?php echo e($text('name_extension')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Sex</span><span class="value"><?php echo e($text('sex')); ?></span></div>
                 </div>
                 <div class="grid">
-                    <div class="cell col-5"><span class="label">Date of Birth</span><span class="value">{{ $formatDate($data['date_of_birth'] ?? null) }}</span></div>
-                    <div class="cell col-7"><span class="label">Email Address</span><span class="value">{{ $detailInfo['email_address'] ?? $text('email') }}</span></div>
-                    <div class="cell col-5"><span class="label">Mobile Number</span><span class="value">{{ $detailInfo['contact_number'] ?? $text('mobile') }}</span></div>
-                    <div class="cell col-7"><span class="label">Position / Designation</span><span class="value">{{ $detailInfo['contact_person_position'] ?? $text('position') }}</span></div>
+                    <div class="cell col-5"><span class="label">Date of Birth</span><span class="value"><?php echo e($formatDate($data['date_of_birth'] ?? null)); ?></span></div>
+                    <div class="cell col-7"><span class="label">Email Address</span><span class="value"><?php echo e($detailInfo['email_address'] ?? $text('email')); ?></span></div>
+                    <div class="cell col-5"><span class="label">Mobile Number</span><span class="value"><?php echo e($detailInfo['contact_number'] ?? $text('mobile')); ?></span></div>
+                    <div class="cell col-7"><span class="label">Position / Designation</span><span class="value"><?php echo e($detailInfo['contact_person_position'] ?? $text('position')); ?></span></div>
                 </div>
                 <div class="grid">
-                    <div class="cell col-12"><span class="label">Address</span><span class="value">{{ $text('address') }}</span></div>
-                    <div class="cell col-5"><span class="label">Company</span><span class="value">{{ $dealInfo['company_name'] ?? $text('company_name') }}</span></div>
-                    <div class="cell col-7"><span class="label">Company Address</span><span class="value">{{ $text('company_address') }}</span></div>
+                    <div class="cell col-12"><span class="label">Address</span><span class="value"><?php echo e($text('address')); ?></span></div>
+                    <div class="cell col-5"><span class="label">Company</span><span class="value"><?php echo e($dealInfo['company_name'] ?? $text('company_name')); ?></span></div>
+                    <div class="cell col-7"><span class="label">Company Address</span><span class="value"><?php echo e($text('company_address')); ?></span></div>
                 </div>
 
             <div class="section-title">Service Identification</div>
             <div class="grid">
-                <div class="cell col-12"><span class="label">Service Area</span><span class="value">{{ $serviceArea }}</span></div>
-                <div class="cell col-12"><span class="label">Services</span><span class="value">{{ $services }}</span></div>
+                <div class="cell col-12"><span class="label">Service Area</span><span class="value"><?php echo e($serviceArea); ?></span></div>
+                <div class="cell col-12"><span class="label">Services</span><span class="value"><?php echo e($services); ?></span></div>
             </div>
 
             <div class="section-title">Products</div>
             <div class="grid">
-                <div class="cell col-12"><span class="label">Products / Deliverables</span><span class="value">{{ $products }}</span></div>
-                <div class="cell col-12"><span class="label">Scope of Work</span><span class="value">{{ $text('scope_of_work') }}</span></div>
+                <div class="cell col-12"><span class="label">Products / Deliverables</span><span class="value"><?php echo e($products); ?></span></div>
+                <div class="cell col-12"><span class="label">Scope of Work</span><span class="value"><?php echo e($text('scope_of_work')); ?></span></div>
             </div>
 
             <div class="section-title">Client Requirements</div>
@@ -351,67 +351,67 @@
                     <th style="width:18%;">Pending</th>
                     <th style="width:18%;">Required Action</th>
                 </tr>
-                @foreach ($requirementRows as $key => $label)
-                    @php $status = strtolower((string) ($statusMap[$key] ?? 'pending')); @endphp
-                    <tr class="{{ $status === 'provided' ? 'status-provided' : 'status-pending' }}">
-                        <td>{{ $label }}</td>
-                        <td>{{ $status === 'provided' ? 'Yes' : '-' }}</td>
-                        <td>{{ $status === 'pending' ? 'Yes' : '-' }}</td>
-                        <td>{{ $listText($requiredActions) }}</td>
+                <?php $__currentLoopData = $requirementRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php $status = strtolower((string) ($statusMap[$key] ?? 'pending')); ?>
+                    <tr class="<?php echo e($status === 'provided' ? 'status-provided' : 'status-pending'); ?>">
+                        <td><?php echo e($label); ?></td>
+                        <td><?php echo e($status === 'provided' ? 'Yes' : '-'); ?></td>
+                        <td><?php echo e($status === 'pending' ? 'Yes' : '-'); ?></td>
+                        <td><?php echo e($listText($requiredActions)); ?></td>
                     </tr>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </table>
 
             <div class="section-title">Timeline &amp; Assessment</div>
             <div class="grid">
-                <div class="cell col-6"><span class="label">Planned Start Date</span><span class="value">{{ $formatDate($data['planned_start_date'] ?? null) }}</span></div>
-                <div class="cell col-6"><span class="label">Estimated Duration</span><span class="value">{{ $text('estimated_duration') }}</span></div>
-                <div class="cell col-6"><span class="label">Estimated Completion Date</span><span class="value">{{ $formatDate($data['estimated_completion_date'] ?? null) }}</span></div>
-                <div class="cell col-6"><span class="label">Confirmed Delivery Date</span><span class="value">{{ $formatDate($data['confirmed_delivery_date'] ?? null) }}</span></div>
+                <div class="cell col-6"><span class="label">Planned Start Date</span><span class="value"><?php echo e($formatDate($data['planned_start_date'] ?? null)); ?></span></div>
+                <div class="cell col-6"><span class="label">Estimated Duration</span><span class="value"><?php echo e($text('estimated_duration')); ?></span></div>
+                <div class="cell col-6"><span class="label">Estimated Completion Date</span><span class="value"><?php echo e($formatDate($data['estimated_completion_date'] ?? null)); ?></span></div>
+                <div class="cell col-6"><span class="label">Confirmed Delivery Date</span><span class="value"><?php echo e($formatDate($data['confirmed_delivery_date'] ?? null)); ?></span></div>
             </div>
             <div class="grid">
-                <div class="cell col-8"><span class="label">Timeline Notes</span><span class="value">{{ $text('timeline_notes') }}</span></div>
-                <div class="cell col-6"><span class="label">Service Complexity</span><span class="value">{{ $text('service_complexity') }}</span></div>
-                <div class="cell col-10"><span class="label">Professional Support Required</span><span class="value">{{ $supportRequired }}</span></div>
+                <div class="cell col-8"><span class="label">Timeline Notes</span><span class="value"><?php echo e($text('timeline_notes')); ?></span></div>
+                <div class="cell col-6"><span class="label">Service Complexity</span><span class="value"><?php echo e($text('service_complexity')); ?></span></div>
+                <div class="cell col-10"><span class="label">Professional Support Required</span><span class="value"><?php echo e($supportRequired); ?></span></div>
             </div>
 
             <div class="section-title">Fees &amp; Payment</div>
             <div class="grid">
-                <div class="cell col-6"><span class="label">Professional Fee</span><span class="value">{{ $money($data['estimated_professional_fee'] ?? null) }}</span></div>
-                <div class="cell col-6"><span class="label">Government Fees</span><span class="value">{{ $money($data['estimated_government_fees'] ?? null) }}</span></div>
-                <div class="cell col-6"><span class="label">Service Support Fee</span><span class="value">{{ $money($data['estimated_service_support_fee'] ?? null) }}</span></div>
-                <div class="cell col-6"><span class="label">Payment Terms</span><span class="value">{{ $text('payment_terms') }}</span></div>
+                <div class="cell col-6"><span class="label">Professional Fee</span><span class="value"><?php echo e($money($data['estimated_professional_fee'] ?? null)); ?></span></div>
+                <div class="cell col-6"><span class="label">Government Fees</span><span class="value"><?php echo e($money($data['estimated_government_fees'] ?? null)); ?></span></div>
+                <div class="cell col-6"><span class="label">Service Support Fee</span><span class="value"><?php echo e($money($data['estimated_service_support_fee'] ?? null)); ?></span></div>
+                <div class="cell col-6"><span class="label">Payment Terms</span><span class="value"><?php echo e($text('payment_terms')); ?></span></div>
             </div>
 
                 <div class="section-title">Proposal &amp; Internal Assignment</div>
                 <div class="grid">
-                    <div class="cell col-8"><span class="label">Proposal Decision</span><span class="value">{{ $text('proposal_decision') }}</span></div>
-                    <div class="cell col-8"><span class="label">Decline Reason</span><span class="value">{{ $text('decline_reason') }}</span></div>
-                    <div class="cell col-8"><span class="label">Service Department / Unit</span><span class="value">{{ $text('service_department_unit') }}</span></div>
+                    <div class="cell col-8"><span class="label">Proposal Decision</span><span class="value"><?php echo e($text('proposal_decision')); ?></span></div>
+                    <div class="cell col-8"><span class="label">Decline Reason</span><span class="value"><?php echo e($text('decline_reason')); ?></span></div>
+                    <div class="cell col-8"><span class="label">Service Department / Unit</span><span class="value"><?php echo e($text('service_department_unit')); ?></span></div>
                 </div>
                 <div class="grid">
-                    <div class="cell col-12"><span class="label">Assigned Consultant</span><span class="value">{{ $text('assigned_consultant') }}</span></div>
-                    <div class="cell col-12"><span class="label">Assigned Associate</span><span class="value">{{ $text('assigned_associate') }}</span></div>
+                    <div class="cell col-12"><span class="label">Assigned Consultant</span><span class="value"><?php echo e($text('assigned_consultant')); ?></span></div>
+                    <div class="cell col-12"><span class="label">Assigned Associate</span><span class="value"><?php echo e($text('assigned_associate')); ?></span></div>
                 </div>
 
                 <div class="section-title">Notes &amp; Approval</div>
                 <div class="grid">
-                    <div class="cell col-12"><span class="label">Consultant Notes</span><span class="value">{{ $text('consultant_notes') }}</span></div>
-                    <div class="cell col-12"><span class="label">Associate Notes</span><span class="value">{{ $text('associate_notes') }}</span></div>
+                    <div class="cell col-12"><span class="label">Consultant Notes</span><span class="value"><?php echo e($text('consultant_notes')); ?></span></div>
+                    <div class="cell col-12"><span class="label">Associate Notes</span><span class="value"><?php echo e($text('associate_notes')); ?></span></div>
                 </div>
                 <div class="grid">
-                    <div class="cell col-6"><span class="label">Prepared By</span><span class="value">{{ $text('prepared_by') }}</span></div>
-                    <div class="cell col-6"><span class="label">Reviewed By</span><span class="value">{{ $text('reviewed_by') }}</span></div>
-                    <div class="cell col-6"><span class="label">Date</span><span class="value">{{ $formatDate($data['internal_date'] ?? null, $text('internal_date')) }}</span></div>
-                    <div class="cell col-6"><span class="label">Client Fullname &amp; Signature</span><span class="value">{{ $text('client_fullname_signature') }}</span></div>
+                    <div class="cell col-6"><span class="label">Prepared By</span><span class="value"><?php echo e($text('prepared_by')); ?></span></div>
+                    <div class="cell col-6"><span class="label">Reviewed By</span><span class="value"><?php echo e($text('reviewed_by')); ?></span></div>
+                    <div class="cell col-6"><span class="label">Date</span><span class="value"><?php echo e($formatDate($data['internal_date'] ?? null, $text('internal_date'))); ?></span></div>
+                    <div class="cell col-6"><span class="label">Client Fullname &amp; Signature</span><span class="value"><?php echo e($text('client_fullname_signature')); ?></span></div>
                 </div>
                 <div class="grid">
-                    <div class="cell col-4"><span class="label">Referred / Closed By</span><span class="value">{{ $text('referred_closed_by') }}</span></div>
-                    <div class="cell col-4"><span class="label">Sales &amp; Marketing</span><span class="value">{{ $text('internal_sales_marketing') }}</span></div>
-                    <div class="cell col-4"><span class="label">Lead Consultant</span><span class="value">{{ $text('lead_consultant') }}</span></div>
-                    <div class="cell col-4"><span class="label">Lead Associate</span><span class="value">{{ $text('lead_associate_assigned') }}</span></div>
-                    <div class="cell col-4"><span class="label">Finance</span><span class="value">{{ $text('internal_finance') }}</span></div>
-                    <div class="cell col-4"><span class="label">President</span><span class="value">{{ $text('internal_president') }}</span></div>
+                    <div class="cell col-4"><span class="label">Referred / Closed By</span><span class="value"><?php echo e($text('referred_closed_by')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Sales &amp; Marketing</span><span class="value"><?php echo e($text('internal_sales_marketing')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Lead Consultant</span><span class="value"><?php echo e($text('lead_consultant')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Lead Associate</span><span class="value"><?php echo e($text('lead_associate_assigned')); ?></span></div>
+                    <div class="cell col-4"><span class="label">Finance</span><span class="value"><?php echo e($text('internal_finance')); ?></span></div>
+                    <div class="cell col-4"><span class="label">President</span><span class="value"><?php echo e($text('internal_president')); ?></span></div>
                 </div>
 
                 <div class="footer-note">John Kelly &amp; Company</div>
@@ -427,3 +427,4 @@
     </script>
 </body>
 </html>
+<?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/pdf/deal.blade.php ENDPATH**/ ?>
