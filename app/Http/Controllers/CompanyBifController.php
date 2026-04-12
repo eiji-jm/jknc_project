@@ -143,9 +143,10 @@ class CompanyBifController extends Controller
         $isSubmit = $action !== 'draft';
         $status = $this->resolveSubmittedStatus($isSubmit);
         $isReviewer = $this->isKycReviewer($request);
+        $requiresChangeRequest = ! $isReviewer && (string) $bifRecord->status === 'approved';
         $userName = $request->user()?->name ?? 'System User';
 
-        if (! $isReviewer) {
+        if ($requiresChangeRequest) {
             $validatedRequestMeta = $request->validate([
                 'change_request_note' => ['nullable', 'string', 'max:2000'],
             ]);
@@ -323,6 +324,7 @@ class CompanyBifController extends Controller
         return view('company.bif.print', [
             ...$this->buildViewData($request, $company, $this->findBif($company, $bif)),
             'autoPrint' => $request->boolean('autoprint'),
+            'backUrl' => route('company.kyc', ['company' => $company, 'tab' => 'business-client-information']),
         ]);
     }
 
@@ -349,14 +351,20 @@ class CompanyBifController extends Controller
 
         $clientUrl = route('company.bif.client.show', ['token' => $token]);
 
-        Mail::raw(
-            "Please complete your Business Information Form for {$companyData['company_name']} using this secure link: {$clientUrl}. This link expires on {$expiresAt->format('F j, Y g:i A')}.",
-            function ($message) use ($recipientEmail, $companyData) {
-                $message
-                    ->to($recipientEmail)
-                    ->subject("Business Information Form for {$companyData['company_name']}");
-            }
-        );
+        $emailHtml = view('emails.company.bif-client-link', [
+            'company' => $company,
+            'companyData' => $companyData,
+            'clientName' => $companyData['company_name'] ?: 'Client',
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $companyData) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("Business Information Form for {$companyData['company_name']}");
+        });
 
         $userName = $request->user()?->name ?? 'System User';
 
@@ -395,6 +403,8 @@ class CompanyBifController extends Controller
             'officeTypeOptions' => self::OFFICE_TYPES,
             'documentFields' => $this->clientDocumentDefinitions(),
             'clientFormAction' => route('company.bif.client.submit', ['token' => $token]),
+            'clientPreviewUrl' => route('company.bif.client.preview', ['token' => $token]),
+            'clientDownloadUrl' => route('company.bif.client.download', ['token' => $token, 'autoprint' => 1]),
         ]);
     }
 
@@ -447,6 +457,50 @@ class CompanyBifController extends Controller
         return redirect()
             ->route('company.bif.client.show', ['token' => $token])
             ->with('bif_success', 'Your Business Information Form has been submitted successfully.');
+    }
+
+    public function previewClientBif(Request $request, string $token): View
+    {
+        $bif = $this->findBifByClientToken($token);
+
+        abort_if(
+            $bif->client_access_expires_at && $bif->client_access_expires_at->isPast(),
+            403,
+            'This Business Information Form link has expired.'
+        );
+
+        return view('company.bif.print', [
+            'company' => $bif->company,
+            'bif' => $bif,
+            'clientTypeOptions' => self::CLIENT_TYPES,
+            'organizationOptions' => self::ORGANIZATION_TYPES,
+            'nationalityOptions' => self::NATIONALITY_TYPES,
+            'officeTypeOptions' => self::OFFICE_TYPES,
+            'autoPrint' => false,
+            'backUrl' => route('company.bif.client.show', ['token' => $token]),
+        ]);
+    }
+
+    public function downloadClientBif(Request $request, string $token): View
+    {
+        $bif = $this->findBifByClientToken($token);
+
+        abort_if(
+            $bif->client_access_expires_at && $bif->client_access_expires_at->isPast(),
+            403,
+            'This Business Information Form link has expired.'
+        );
+
+        return view('company.bif.print', [
+            'company' => $bif->company,
+            'bif' => $bif,
+            'clientTypeOptions' => self::CLIENT_TYPES,
+            'organizationOptions' => self::ORGANIZATION_TYPES,
+            'nationalityOptions' => self::NATIONALITY_TYPES,
+            'officeTypeOptions' => self::OFFICE_TYPES,
+            'autoPrint' => $request->boolean('autoprint'),
+            'backUrl' => route('company.bif.client.show', ['token' => $token]),
+        ]);
     }
 
     private function buildViewData(Request $request, int $company, ?CompanyBif $bif): array

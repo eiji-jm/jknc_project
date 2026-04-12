@@ -20,6 +20,12 @@
                 </div>
             @endif
 
+            @if (session('bif_warning'))
+                <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                    {{ session('bif_warning') }}
+                </div>
+            @endif
+
             @if ($errors->has('kyc'))
                 <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                     {{ $errors->first('kyc') }}
@@ -58,9 +64,9 @@
                             @endif
                         </div>
 
-                        <div class="p-4">
+                        <div class="bg-[#eef4ff] p-4">
                             @if ($bif)
-                                <div class="overflow-hidden rounded-lg border border-gray-200 bg-[#f7f6f2] p-4">
+                                <div class="overflow-hidden rounded-lg border border-gray-200 bg-white p-4">
                                     @include('company.bif.partials.document', ['wrapperClass' => 'bif-doc'])
                                 </div>
                             @else
@@ -252,10 +258,10 @@
                                     @else
                                         <form method="POST" action="{{ route('company.kyc.submit', $company->id) }}">
                                             @csrf
-                                            <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white {{ ($bif && $requirementsComplete) ? 'hover:bg-blue-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $bif || ! $requirementsComplete)>Submit For Verification</button>
+                                            <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white {{ $bif ? 'hover:bg-blue-700' : 'cursor-not-allowed opacity-60' }}" @disabled(! $bif)>Submit For Verification</button>
                                         </form>
                                         @if ($bif && ! $requirementsComplete)
-                                            <p class="text-xs text-red-600">Upload all required documents before submitting for verification.</p>
+                                            <p class="text-xs text-amber-600">Recommendation: upload the remaining onboarding documents, but you may already submit this BIF for verification.</p>
                                         @endif
                                     @endif
                                 @endif
@@ -274,7 +280,7 @@
                     <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
                         <div class="border-b border-gray-100 px-4 py-3">
                             <h2 class="text-base font-semibold text-gray-900">Business Onboarding Requirements</h2>
-                            <p class="mt-1 text-xs text-gray-500">Upload and manage the required onboarding documents based on the client type.</p>
+                            <p class="mt-1 text-xs text-gray-500">Upload and manage the required onboarding documents based on the business organization.</p>
                         </div>
                         <div class="max-h-[520px] space-y-3 overflow-y-auto p-4">
                             @foreach ($kycRequirements as $group)
@@ -294,11 +300,20 @@
                                                         <p class="mt-1 text-xs text-gray-500">{{ $requirement['helper'] }}</p>
                                                     </div>
                                                     <div class="flex items-center gap-2 text-xs">
+                                                        @if ($requirement['template_url'] ?? null)
+                                                            <a href="{{ $requirement['template_url'] }}" class="rounded-md border border-blue-200 px-2 py-1 text-blue-600 hover:bg-blue-50">
+                                                                Preview Form
+                                                            </a>
+                                                            <a href="{{ $requirement['template_download_url'] }}" target="_blank" class="rounded-md bg-blue-600 px-2 py-1 text-white hover:bg-blue-700">
+                                                                Download Form
+                                                            </a>
+                                                        @endif
+
                                                         @if ($canManageRequirementDocs)
                                                             <form method="POST" action="{{ route('company.kyc.requirements.upload', ['company' => $company->id, 'requirement' => $requirement['key']]) }}" enctype="multipart/form-data" class="inline-flex">
                                                                 @csrf
                                                                 <label class="cursor-pointer rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">
-                                                                    {{ $requirement['uploaded'] ? 'Replace' : 'Upload' }}
+                                                                    {{ ($requirement['template_url'] ?? null) ? ($requirement['uploaded'] ? 'Replace Signed Copy' : 'Upload Signed Copy') : ($requirement['uploaded'] ? 'Replace' : 'Upload') }}
                                                                     <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="hidden" onchange="this.form.submit()">
                                                                 </label>
                                                             </form>
@@ -374,7 +389,7 @@
 
             <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
                 <p class="font-semibold uppercase tracking-wide text-gray-500">What the client can do</p>
-                <p class="mt-2">Complete business organization, address, ownership structure, signatories, UBOs, and upload supporting documents based on client type.</p>
+                <p class="mt-2">Complete business organization, address, ownership structure, signatories, UBOs, and upload supporting documents based on business organization.</p>
             </div>
         </div>
 

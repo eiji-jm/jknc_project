@@ -1,5 +1,9 @@
 @php
     $logoPath = asset('images/imaglogo.png');
+    $selectedOrganization = old('business_organization', $bif?->business_organization ?? '');
+    $showSoleRequirements = $selectedOrganization === 'sole_proprietorship';
+    $showJuridicalRequirements = in_array($selectedOrganization, ['partnership', 'corporation', 'cooperative', 'ngo', 'other'], true);
+    $showPlaceholderRequirements = ! $showSoleRequirements && ! $showJuridicalRequirements;
 @endphp
 
 <style>
@@ -13,7 +17,7 @@
     .bif-meta-checks, .bif-meta-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 10px; }
     .bif-line-input { min-width: 90px; border: 0; border-bottom: 1px solid #4b5563; background: transparent; padding: 1px 0 0; font-size: 10px; line-height: 1.1; outline: none; }
     .bif-row { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); }
-    .bif-cell { min-height: 42px; border-right: 1px solid #4b5563; border-bottom: 1px solid #4b5563; padding: 3px 4px; background: #fff; }
+    .bif-cell { min-height: 40px; border-right: 1px solid #4b5563; border-bottom: 1px solid #4b5563; padding: 3px 4px; background: #fff; }
     .bif-row > .bif-cell:last-child { border-right: 0; }
     .bif-label { display: block; font-size: 8px; line-height: 1.05; text-transform: uppercase; font-weight: 700; }
     .bif-input, .bif-textarea { width: 100%; border: 0; background: transparent; padding: 3px 0 0; font-size: 10px; line-height: 1.15; outline: none; }
@@ -24,7 +28,7 @@
     .bif-check input[type="radio"] { border-radius: 9999px; }
     .bif-check input:checked { border-color: #1d54e2; background: #1d54e2; box-shadow: inset 0 0 0 2px #1d54e2; }
     .bif-section-title { border-bottom: 1px solid #4b5563; padding: 3px 6px; background: #102d79; color: #ffffff; font-size: 9px; font-weight: 700; text-align: center; text-transform: uppercase; }
-    .bif-note { font-size: 7px; line-height: 1.2; text-align: justify; }
+    .bif-note { font-size: 8px; line-height: 1.3; text-align: justify; }
     .bif-sign-cell { display: flex; flex-direction: column; padding: 8px 8px 6px; }
     .bif-sign-fill { flex: 0 0 auto; }
     .bif-sign-line { border-top: 1px solid #4b5563; margin-top: 2px; margin-left: -8px; margin-right: -8px; padding-top: 14px; position: relative; width: calc(100% + 16px); font-size: 8px; line-height: 1.1; }
@@ -32,7 +36,7 @@
     .bif-position-line { border-bottom: 1px solid #4b5563; margin-top: 5px; margin-left: -8px; margin-right: -8px; width: calc(100% + 16px); padding: 3px 0 2px; font-size: 8px; text-align: center; }
     .bif-sign-name { padding-top: 1px; text-align: center; }
     .bif-static-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .bif-static-box { min-height: 190px; border-right: 1px solid #4b5563; padding: 4px 6px; font-size: 8px; line-height: 1.25; }
+    .bif-static-box { min-height: 104px; border-right: 1px solid #4b5563; padding: 4px 6px; font-size: 8px; line-height: 1.18; }
     .bif-static-box:last-child { border-right: 0; }
     .bif-static-box h4 { margin: 0 0 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; text-align: center; }
     .bif-static-box ol { margin: 0; padding-left: 14px; }
@@ -51,9 +55,7 @@
                 <div class="bif-meta-checks">
                     <span>BIF No.</span>
                     <input name="bif_no" type="text" value="{{ old('bif_no', $bif?->bif_no ?? '') }}" class="bif-line-input">
-                    @foreach ($clientTypeOptions as $value => $label)
-                        <label class="bif-check"><input type="radio" name="client_type" value="{{ $value }}" {{ old('client_type', $bif?->client_type ?? 'new_client') === $value ? 'checked' : '' }}><span>{{ $label }}</span></label>
-                    @endforeach
+                    <input name="client_type" type="hidden" value="{{ old('client_type', $bif?->client_type ?? 'new_client') }}">
                 </div>
                 <div class="bif-meta-line">
                     <span>DATE:</span>
@@ -69,7 +71,7 @@
             <label class="bif-label">Business Organization</label>
             <div class="bif-check-grid">
                 @foreach ($organizationOptions as $value => $label)
-                    <label class="bif-check"><input type="radio" name="business_organization" value="{{ $value }}" {{ old('business_organization', $bif?->business_organization ?? '') === $value ? 'checked' : '' }}><span>{{ $label }}</span></label>
+                    <label class="bif-check"><input type="radio" name="business_organization" value="{{ $value }}" data-business-organization-option {{ old('business_organization', $bif?->business_organization ?? '') === $value ? 'checked' : '' }}><span>{{ $label }}</span></label>
                 @endforeach
             </div>
             <input name="business_organization_other" type="text" value="{{ old('business_organization_other', $bif?->business_organization_other ?? '') }}" placeholder="Other organization" class="bif-input">
@@ -188,19 +190,22 @@
         <div class="bif-cell col-5"><label class="bif-label" for="authorized_contact_person_phone">Phone/Mobile No.</label><input id="authorized_contact_person_phone" name="authorized_contact_person_phone" type="text" value="{{ old('authorized_contact_person_phone', $bif?->authorized_contact_person_phone ?? '') }}" class="bif-input"></div>
     </div>
     <div class="bif-section-title">Acknowledgment</div>
-    <div class="border-b border-gray-600 px-2 py-2">
+    <div class="border-b border-gray-600 px-3 py-2">
         <p class="bif-note">By signing this Business Client Information Form, I/we certify that all information provided herein is true, correct, and complete to the best of my/our knowledge. I/we agree to comply with the policies, procedures, and service guidelines of JK&amp;C Inc. and authorize JK&amp;C Inc., its officers, employees, consultants, and representatives to collect, verify, record, process, store, and use the information provided for purposes of client registration, due diligence, compliance review, service engagement, documentation, billing, and regulatory requirements.</p>
         <p class="bif-note mt-1">In accordance with the Data Privacy Act of 2012, I/we consent to the collection, processing, storage, and lawful use of all personal and business information contained in this form and confirm that the undersigned is duly authorized to provide this information on behalf of the business entity.</p>
     </div>
     <div class="bif-row">
-        <div class="bif-cell bif-sign-cell col-12" style="min-height:82px;"><div class="bif-sign-fill"><input name="signature_printed_name" type="text" value="{{ old('signature_printed_name', $bif?->signature_printed_name ?? '') }}" class="bif-input bif-sign-name"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div><input name="signature_position" type="text" value="{{ old('signature_position', $bif?->signature_position ?? '') }}" placeholder="Position" class="bif-position-line bif-input"></div>
-        <div class="bif-cell bif-sign-cell col-12" style="min-height:82px;"><div class="bif-sign-fill"><input name="review_signature_printed_name" type="text" value="{{ old('review_signature_printed_name', $bif?->review_signature_printed_name ?? '') }}" class="bif-input bif-sign-name"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div><input name="review_signature_position" type="text" value="{{ old('review_signature_position', $bif?->review_signature_position ?? '') }}" placeholder="Position" class="bif-position-line bif-input"></div>
+        <div class="bif-cell bif-sign-cell col-12" style="min-height:74px;"><div class="bif-sign-fill"><input name="signature_printed_name" type="text" value="{{ old('signature_printed_name', $bif?->signature_printed_name ?? '') }}" class="bif-input bif-sign-name"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div><input name="signature_position" type="text" value="{{ old('signature_position', $bif?->signature_position ?? '') }}" placeholder="Position" class="bif-position-line bif-input"></div>
+        <div class="bif-cell bif-sign-cell col-12" style="min-height:74px;"><div class="bif-sign-fill"><input name="review_signature_printed_name" type="text" value="{{ old('review_signature_printed_name', $bif?->review_signature_printed_name ?? '') }}" class="bif-input bif-sign-name"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div><input name="review_signature_position" type="text" value="{{ old('review_signature_position', $bif?->review_signature_position ?? '') }}" placeholder="Position" class="bif-position-line bif-input"></div>
     </div>
     <div class="bif-section-title">Business Onboarding Requirements</div>
-    <div class="bif-static-cols border-b border-gray-600">
-        <div class="bif-static-box"><h4>Sole Proprietorship</h4><ol><li>DTI Certificate of Registration (if Sole Prop)</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Proof of Billing (Residential)</li><li>Proof of Billing (Business Address if different)</li><li>Special Power of Attorney (if representative)</li><li>Representative's 2 Valid IDs (if applicable)</li></ol></div>
-        <div class="bif-static-box"><h4>Partnership / Corporation / Cooperative / NGO / Other Juridical Entity</h4><ol><li>SEC / CDA Certificate of Registration</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Articles of Incorporation / Partnership</li><li>By-Laws</li><li>Latest General Information Sheet (GIS)</li><li>Appointment of Officers (for OPC, if applicable)</li><li>Secretary Certificate OR Board Resolution</li><li>Ultimate Beneficial Owner (UBO) Declaration</li><li>Proof of Billing (Company Address)</li><li>Proof of Billing (Authorized Representative, if applicable)</li></ol></div>
-    </div>
+        <div id="bif-sole-requirements" class="bif-static-cols border-b border-gray-600" style="grid-template-columns:minmax(0,1fr);{{ $showSoleRequirements ? '' : 'display:none;' }}">
+            <div class="bif-static-box"><h4>Sole Proprietorship</h4><ol><li>DTI Certificate of Registration (if Sole Prop)</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Proof of Billing (Residential)</li><li>Proof of Billing (Business Address if different)</li><li>Special Power of Attorney (if representative)</li><li>Representative's 2 Valid IDs (if applicable)</li></ol></div>
+        </div>
+        <div id="bif-juridical-requirements" class="bif-static-cols border-b border-gray-600" style="grid-template-columns:minmax(0,1fr);{{ $showJuridicalRequirements ? '' : 'display:none;' }}">
+            <div class="bif-static-box"><h4>Partnership / Corporation / Cooperative / NGO / Other Juridical Entity</h4><ol><li>SEC / CDA Certificate of Registration</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Articles of Incorporation / Partnership</li><li>By-Laws</li><li>Latest General Information Sheet (GIS)</li><li>Appointment of Officers (for OPC, if applicable)</li><li>Secretary Certificate OR Board Resolution</li><li>Ultimate Beneficial Owner (UBO) Declaration</li><li>Proof of Billing (Company Address)</li><li>Proof of Billing (Authorized Representative, if applicable)</li></ol></div>
+        </div>
+        <div id="bif-requirements-placeholder" class="border-b border-gray-600 px-2 py-2 text-[9px]" style="{{ $showPlaceholderRequirements ? '' : 'display:none;' }}">Select a business organization to display the applicable onboarding requirements.</div>
     <div class="bif-section-title">For JKNC Use Only</div>
     <div class="bif-row">
         <div class="bif-cell col-6"><label class="bif-label" for="sales_marketing_name">Sales &amp; Marketing</label><input id="sales_marketing_name" name="sales_marketing_name" type="text" value="{{ old('sales_marketing_name', $bif?->sales_marketing_name ?? '') }}" class="bif-input"></div>
@@ -209,9 +214,37 @@
         <div class="bif-cell col-6"><label class="bif-label" for="finance_date_signature">Date &amp; Signature</label><input id="finance_date_signature" name="finance_date_signature" type="text" value="{{ old('finance_date_signature', $bif?->finance_date_signature ?? '') }}" class="bif-input"></div>
     </div>
     <div class="bif-row">
-        <div class="bif-cell bif-sign-cell col-6" style="min-height:78px;"><div class="bif-sign-fill"><label class="bif-label" for="referred_by">Referred By / Date</label><input id="referred_by" name="referred_by" type="text" value="{{ old('referred_by', $bif?->referred_by ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-cell bif-sign-cell col-6" style="min-height:78px;"><div class="bif-sign-fill"><label class="bif-label" for="consultant_lead">Consultant Lead</label><input id="consultant_lead" name="consultant_lead" type="text" value="{{ old('consultant_lead', $bif?->consultant_lead ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-cell bif-sign-cell col-6" style="min-height:78px;"><div class="bif-sign-fill"><label class="bif-label" for="lead_associate">Lead Associate</label><input id="lead_associate" name="lead_associate" type="text" value="{{ old('lead_associate', $bif?->lead_associate ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-cell bif-sign-cell col-6" style="min-height:78px;"><div class="bif-sign-fill"><label class="bif-label" for="president_use_only_name">President</label><input id="president_use_only_name" name="president_use_only_name" type="text" value="{{ old('president_use_only_name', $bif?->president_use_only_name ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-cell bif-sign-cell col-6" style="min-height:66px;"><div class="bif-sign-fill"><label class="bif-label" for="referred_by">Referred By / Date</label><input id="referred_by" name="referred_by" type="text" value="{{ old('referred_by', $bif?->referred_by ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-cell bif-sign-cell col-6" style="min-height:66px;"><div class="bif-sign-fill"><label class="bif-label" for="consultant_lead">Consultant Lead</label><input id="consultant_lead" name="consultant_lead" type="text" value="{{ old('consultant_lead', $bif?->consultant_lead ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-cell bif-sign-cell col-6" style="min-height:66px;"><div class="bif-sign-fill"><label class="bif-label" for="lead_associate">Lead Associate</label><input id="lead_associate" name="lead_associate" type="text" value="{{ old('lead_associate', $bif?->lead_associate ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-cell bif-sign-cell col-6" style="min-height:66px;"><div class="bif-sign-fill"><label class="bif-label" for="president_use_only_name">President</label><input id="president_use_only_name" name="president_use_only_name" type="text" value="{{ old('president_use_only_name', $bif?->president_use_only_name ?? '') }}" class="bif-input"></div><div class="bif-sign-line"><span>Signature over Printed Name</span></div></div>
     </div>
 </div>
+
+<script>
+    (() => {
+        const soleRequirements = document.getElementById('bif-sole-requirements');
+        const juridicalRequirements = document.getElementById('bif-juridical-requirements');
+        const placeholder = document.getElementById('bif-requirements-placeholder');
+        const organizationOptions = Array.from(document.querySelectorAll('input[name="business_organization"][data-business-organization-option]'));
+
+        if (!soleRequirements || !juridicalRequirements || !placeholder || organizationOptions.length === 0) {
+            return;
+        }
+
+        const juridicalOrganizations = ['partnership', 'corporation', 'cooperative', 'ngo', 'other'];
+
+        const syncRequirements = () => {
+            const selected = organizationOptions.find((option) => option.checked)?.value ?? '';
+            const showSole = selected === 'sole_proprietorship';
+            const showJuridical = juridicalOrganizations.includes(selected);
+
+            soleRequirements.style.display = showSole ? '' : 'none';
+            juridicalRequirements.style.display = showJuridical ? '' : 'none';
+            placeholder.style.display = showSole || showJuridical ? 'none' : '';
+        };
+
+        organizationOptions.forEach((option) => option.addEventListener('change', syncRequirements));
+        syncRequirements();
+    })();
+</script>

@@ -30,38 +30,46 @@
             'position' => $bif->ubo_position,
         ]]);
     }
+
+    $showSoleRequirements = $bif->business_organization === 'sole_proprietorship';
+    $showJuridicalRequirements = in_array($bif->business_organization, ['partnership', 'corporation', 'cooperative', 'ngo', 'other'], true);
 @endphp
 
 <style>
-    .bif-doc { border: 1px solid #4b5563; background: #fff; font-family: "Times New Roman", Georgia, serif; color: #111827; }
+    .bif-doc { border: 1.2px solid #334155; background: #fff; font-family: "Times New Roman", Georgia, serif; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .bif-doc *, .bif-doc *::before, .bif-doc *::after { box-sizing: border-box; }
-    .bif-doc-head { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; align-items: start; border-bottom: 1px solid #4b5563; padding: 12px 10px 8px; }
+    .bif-doc-head { display: grid; grid-template-columns: 164px minmax(0, 1fr); gap: 10px; align-items: start; border-bottom: 1.1px solid #334155; padding: 8px 9px 6px; }
     .bif-doc-brand img { max-width: 140px; height: auto; object-fit: contain; }
-    .bif-doc-title { font-family: Arial, sans-serif; font-size: 15px; font-weight: 700; text-transform: uppercase; text-align: right; line-height: 1.1; }
-    .bif-doc-head-main { display: flex; flex-direction: column; gap: 8px; }
-    .bif-doc-head-meta { display: grid; grid-template-columns: minmax(0,1fr) 180px; gap: 12px; align-items: end; }
-    .bif-doc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 10px; }
+    .bif-doc-title { font-family: Arial, sans-serif; font-size: 14px; font-weight: 700; text-transform: uppercase; text-align: right; line-height: 1.05; }
+    .bif-doc-head-main { display: flex; flex-direction: column; gap: 5px; }
+    .bif-doc-head-meta { display: grid; grid-template-columns: minmax(0,1fr) 208px; gap: 10px; align-items: start; }
+    .bif-doc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 9px; }
+    .bif-doc-head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
     .bif-doc-row { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); }
-    .bif-doc-cell { min-height: 42px; border-right: 1px solid #4b5563; border-bottom: 1px solid #4b5563; padding: 3px 4px; background: #fff; }
+    .bif-doc-cell { min-height: 29px; border-right: 1.05px solid #334155; border-bottom: 1.05px solid #334155; padding: 2px 4px; background: #fff; }
     .bif-doc-row > .bif-doc-cell:last-child { border-right: 0; }
-    .bif-doc-label { display: block; font-size: 8px; line-height: 1.05; text-transform: uppercase; font-weight: 700; }
-    .bif-doc-value { display: block; padding-top: 3px; font-size: 10px; line-height: 1.15; }
-    .bif-doc-inline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 10px; padding-top: 4px; font-size: 9px; line-height: 1.1; }
-    .bif-doc-mark { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; border: 1px solid #4b5563; border-radius: 2px; background: #fff; margin-right: 4px; }
+    .bif-doc-label { display: block; font-size: 8px; line-height: 1.05; text-transform: uppercase; font-weight: 700; color: #111827; }
+    .bif-doc-value { display: block; padding-top: 1px; font-size: 9px; line-height: 1.05; color: #0f172a; }
+    .bif-doc-inline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px 8px; padding-top: 2px; font-size: 8px; line-height: 1.05; }
+    .bif-doc-inline-compact { display: flex; flex-wrap: wrap; gap: 3px 10px; padding-top: 2px; font-size: 8px; line-height: 1.05; }
+    .bif-doc-mark { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; border: 1px solid #334155; border-radius: 2px; background: #fff; margin-right: 4px; }
     .bif-doc-mark.active { border-color: #1d54e2; background: #1d54e2; box-shadow: inset 0 0 0 2px #1d54e2; }
-    .bif-doc-section { border-bottom: 1px solid #4b5563; padding: 3px 6px; background: #102d79; color: #ffffff; font-size: 9px; font-weight: 700; text-align: center; text-transform: uppercase; }
-    .bif-doc-note { font-size: 7px; line-height: 1.2; text-align: justify; }
-    .bif-doc-sign-cell { display: flex; flex-direction: column; padding: 8px 8px 6px; }
-    .bif-doc-sign-fill { flex: 0 0 auto; }
-    .bif-doc-sign { border-top: 1px solid #4b5563; margin-top: 2px; margin-left: -8px; margin-right: -8px; padding-top: 14px; position: relative; width: calc(100% + 16px); font-size: 8px; line-height: 1.1; }
-    .bif-doc-sign > span { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: max-content; text-align: center; white-space: nowrap; }
-    .bif-doc-position { border-bottom: 1px solid #4b5563; margin-top: 5px; margin-left: -8px; margin-right: -8px; width: calc(100% + 16px); padding: 3px 0 2px; font-size: 8px; text-align: center; }
-    .bif-doc-sign-name { padding-top: 1px; text-align: center; }
+    .bif-doc-section { border-bottom: 1.05px solid #334155; padding: 3px 6px; background: #102d79; color: #ffffff; font-size: 9px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.02em; }
+    .bif-doc-note { font-size: 8px; line-height: 1.28; text-align: justify; color: #1f2937; }
+    .bif-doc-sign-cell { display: flex; flex-direction: column; padding: 5px 8px 4px; }
+    .bif-doc-sign-fill { flex: 0 0 auto; min-height: 16px; }
+    .bif-doc-sign { border-top: 1px solid #334155; margin-top: 2px; margin-left: -8px; margin-right: -8px; padding-top: 11px; position: relative; width: calc(100% + 16px); font-size: 8px; line-height: 1.1; }
+    .bif-doc-sign > span { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); width: max-content; text-align: center; white-space: nowrap; }
+    .bif-doc-position { border-bottom: 1px solid #334155; margin-top: 4px; margin-left: -8px; margin-right: -8px; width: calc(100% + 16px); padding: 2px 0 1px; font-size: 8px; text-align: center; }
+    .bif-doc-sign-name { padding-top: 0; text-align: center; }
     .bif-doc-static-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .bif-doc-static-box { min-height: 190px; border-right: 1px solid #4b5563; padding: 4px 6px; font-size: 8px; line-height: 1.25; }
+    .bif-doc-static-box { min-height: 66px; padding: 4px 6px; font-size: 8px; line-height: 1.3; }
     .bif-doc-static-box:last-child { border-right: 0; }
     .bif-doc-static-box h4 { margin: 0 0 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; text-align: center; }
     .bif-doc-static-box ol { margin: 0; padding-left: 14px; }
+    .bif-doc-numbered-list { display: grid; gap: 1px; }
+    .bif-doc-numbered-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: start; }
+    .bif-doc-number { font-weight: 700; }
     .doc-col-3 { grid-column: span 3 / span 3; } .doc-col-4 { grid-column: span 4 / span 4; } .doc-col-5 { grid-column: span 5 / span 5; }
     .doc-col-6 { grid-column: span 6 / span 6; } .doc-col-7 { grid-column: span 7 / span 7; } .doc-col-8 { grid-column: span 8 / span 8; }
     .doc-col-10 { grid-column: span 10 / span 10; } .doc-col-11 { grid-column: span 11 / span 11; } .doc-col-12 { grid-column: span 12 / span 12; }
@@ -74,13 +82,11 @@
         <div class="bif-doc-head-main">
             <div class="bif-doc-title">Business Information<br>Form</div>
             <div class="bif-doc-head-meta">
-                <div class="bif-doc-line">
-                    <span>BIF No. {{ $bif->bif_no ?: '__________' }}</span>
-                    @foreach ($clientTypeOptions as $value => $label)
-                        <span><span class="bif-doc-mark {{ $bif->client_type === $value ? 'active' : '' }}"></span>{{ $label }}</span>
-                    @endforeach
+                <div></div>
+                <div class="bif-doc-head-side">
+                    <div class="bif-doc-line" style="justify-content:flex-end;"><span>DATE:</span><span>{{ $bif->bif_date ? $bif->bif_date->format('m/d/Y') : '' }}</span></div>
+                    <div class="bif-doc-line" style="justify-content:flex-end;"><span>BIF No.</span><span>{{ $bif->bif_no ?: '' }}</span></div>
                 </div>
-                <div class="bif-doc-line"><span>DATE:</span><span>{{ $bif->bif_date ? $bif->bif_date->format('m/d/Y') : '__________' }}</span></div>
             </div>
         </div>
     </div>
@@ -209,19 +215,50 @@
         <div class="bif-doc-cell doc-col-5"><span class="bif-doc-label">Phone/Mobile No.</span><span class="bif-doc-value">{{ $bif->authorized_contact_person_phone ?: '-' }}</span></div>
     </div>
     <div class="bif-doc-section">Acknowledgment</div>
-    <div class="border-b border-gray-600 px-2 py-2">
+    <div class="border-b border-gray-600 px-3 py-2">
         <p class="bif-doc-note">By signing this Business Client Information Form, I/we certify that all information provided herein is true, correct, and complete to the best of my/our knowledge. I/we agree to comply with the policies, procedures, and service guidelines of JK&amp;C Inc. and authorize JK&amp;C Inc., its officers, employees, consultants, and representatives to collect, verify, record, process, store, and use the information provided for purposes of client registration, due diligence, compliance review, service engagement, documentation, billing, and regulatory requirements.</p>
         <p class="bif-doc-note mt-1">In accordance with the Data Privacy Act of 2012, I/we consent to the collection, processing, storage, and lawful use of all personal and business information contained in this form and confirm that the undersigned is duly authorized to provide this information on behalf of the business entity.</p>
     </div>
     <div class="bif-doc-row">
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-12" style="min-height:82px;"><div class="bif-doc-sign-fill"><span class="bif-doc-value bif-doc-sign-name">{{ $bif->signature_printed_name ?: ' ' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div><div class="bif-doc-position">{{ $bif->signature_position ?: 'Position' }}</div></div>
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-12" style="min-height:82px;"><div class="bif-doc-sign-fill"><span class="bif-doc-value bif-doc-sign-name">{{ $bif->review_signature_printed_name ?: ' ' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div><div class="bif-doc-position">{{ $bif->review_signature_position ?: 'Position' }}</div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-12" style="min-height:74px;"><div class="bif-doc-sign-fill"><span class="bif-doc-value bif-doc-sign-name">{{ $bif->signature_printed_name ?: ' ' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div><div class="bif-doc-position">{{ $bif->signature_position ?: 'Position' }}</div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-12" style="min-height:74px;"><div class="bif-doc-sign-fill"><span class="bif-doc-value bif-doc-sign-name">{{ $bif->review_signature_printed_name ?: ' ' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div><div class="bif-doc-position">{{ $bif->review_signature_position ?: 'Position' }}</div></div>
     </div>
     <div class="bif-doc-section">Business Onboarding Requirements</div>
-    <div class="bif-doc-static-cols border-b border-gray-600">
-        <div class="bif-doc-static-box"><h4>Sole Proprietorship</h4><ol><li>DTI Certificate of Registration (if Sole Prop)</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Proof of Billing (Residential)</li><li>Proof of Billing (Business Address if different)</li><li>Special Power of Attorney (if representative)</li><li>Representative's 2 Valid IDs (if applicable)</li></ol></div>
-        <div class="bif-doc-static-box"><h4>Partnership / Corporation / Cooperative / NGO / Other Juridical Entity</h4><ol><li>SEC / CDA Certificate of Registration</li><li>BIR Certificate of Registration (COR)</li><li>Business Permit / Mayor's Permit</li><li>Articles of Incorporation / Partnership</li><li>By-Laws</li><li>Latest General Information Sheet (GIS)</li><li>Appointment of Officers (for OPC, if applicable)</li><li>Secretary Certificate OR Board Resolution</li><li>Ultimate Beneficial Owner (UBO) Declaration</li><li>Proof of Billing (Company Address)</li><li>Proof of Billing (Authorized Representative, if applicable)</li></ol></div>
-    </div>
+    @if ($showSoleRequirements)
+        <div class="border-b border-gray-600">
+            <div class="bif-doc-static-box">
+                <div class="bif-doc-numbered-list">
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">1 |</span><span>DTI Certificate of Registration (if Sole Prop)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">2 |</span><span>BIR Certificate of Registration (COR)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">3 |</span><span>Business Permit / Mayor's Permit</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">4 |</span><span>Proof of Billing (Residential)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">5 |</span><span>Proof of Billing (Business Address if different)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">6 |</span><span>Special Power of Attorney (if representative)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">7 |</span><span>Representative's 2 Valid IDs (if applicable)</span></div>
+                </div>
+            </div>
+        </div>
+    @elseif ($showJuridicalRequirements)
+        <div class="border-b border-gray-600">
+            <div class="bif-doc-static-box">
+                <div class="bif-doc-numbered-list">
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">1 |</span><span>SEC / CDA Certificate of Registration</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">2 |</span><span>BIR Certificate of Registration (COR)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">3 |</span><span>Business Permit / Mayor's Permit</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">4 |</span><span>Articles of Incorporation / Partnership</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">5 |</span><span>By-Laws</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">6 |</span><span>Latest General Information Sheet (GIS)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">7 |</span><span>Appointment of Officers (for OPC, if applicable)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">8 |</span><span>Secretary Certificate OR Board Resolution</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">9 |</span><span>Ultimate Beneficial Owner (UBO) Declaration</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">10 |</span><span>Proof of Billing (Company Address)</span></div>
+                    <div class="bif-doc-numbered-item"><span class="bif-doc-number">11 |</span><span>Proof of Billing (Authorized Representative, if applicable)</span></div>
+                </div>
+            </div>
+        </div>
+    @else
+        <div class="border-b border-gray-600 px-3 py-2 text-[9px]">Select a business organization to display the applicable onboarding requirements.</div>
+    @endif
     <div class="bif-doc-section">For JKNC Use Only</div>
     <div class="bif-doc-row">
         <div class="bif-doc-cell doc-col-6"><span class="bif-doc-label">Sales &amp; Marketing</span><span class="bif-doc-value">{{ $bif->sales_marketing_name ?: '-' }}</span></div>
@@ -230,9 +267,9 @@
         <div class="bif-doc-cell doc-col-6"><span class="bif-doc-label">Date &amp; Signature</span><span class="bif-doc-value">{{ $bif->finance_date_signature ?: '-' }}</span></div>
     </div>
     <div class="bif-doc-row">
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:78px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Referred By / Date</span><span class="bif-doc-value">{{ $bif->referred_by ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:78px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Consultant Lead</span><span class="bif-doc-value">{{ $bif->consultant_lead ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:78px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Lead Associate</span><span class="bif-doc-value">{{ $bif->lead_associate ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
-        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:78px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">President</span><span class="bif-doc-value">{{ $bif->president_use_only_name ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:66px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Referred By / Date</span><span class="bif-doc-value">{{ $bif->referred_by ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:66px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Consultant Lead</span><span class="bif-doc-value">{{ $bif->consultant_lead ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:66px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">Lead Associate</span><span class="bif-doc-value">{{ $bif->lead_associate ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
+        <div class="bif-doc-cell bif-doc-sign-cell doc-col-6" style="min-height:66px;"><div class="bif-doc-sign-fill"><span class="bif-doc-label">President</span><span class="bif-doc-value">{{ $bif->president_use_only_name ?: '-' }}</span></div><div class="bif-doc-sign"><span>Signature over Printed Name</span></div></div>
     </div>
 </div>

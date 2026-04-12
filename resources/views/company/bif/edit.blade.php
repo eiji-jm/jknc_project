@@ -3,7 +3,19 @@
 @section('content')
 @php
     $canReviewKyc = in_array((string) (auth()->user()->role ?? ''), ['Admin', 'SuperAdmin'], true);
+    $requiresAdminApprovalRequest = ! $canReviewKyc && (string) ($bif->status ?? '') === 'approved';
 @endphp
+<style>
+    .bif-edit-canvas {
+        overflow-x: auto;
+    }
+
+    @media screen and (min-width: 1024px) {
+        .bif-edit-canvas .bif-sheet {
+            zoom: 1.14;
+        }
+    }
+</style>
 <div class="mt-4 w-full px-4 pb-8 sm:px-6 lg:px-8">
     <div class="overflow-hidden rounded-md border border-gray-100 bg-white">
         @include('company.partials.company-header', ['company' => $company])
@@ -42,8 +54,10 @@
                     @method('PUT')
                     <div class="bg-gray-50 p-4 sm:p-6">
                         <div class="mx-auto max-w-[1120px]">
-                            @include('company.bif.partials.form-fields', ['bif' => $bif])
-                            @unless ($canReviewKyc)
+                            <div class="bif-edit-canvas">
+                                @include('company.bif.partials.form-fields', ['bif' => $bif])
+                            </div>
+                            @if ($requiresAdminApprovalRequest)
                                 <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4">
                                     <label for="change_request_note" class="mb-2 block text-sm font-semibold text-amber-900">Change Request Note</label>
                                     <textarea id="change_request_note" name="change_request_note" rows="3" class="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100" placeholder="Explain what was changed and why this needs admin approval.">{{ old('change_request_note', $bif->change_request_note ?? '') }}</textarea>
@@ -52,7 +66,7 @@
                                         <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
                                     @enderror
                                 </div>
-                            @endunless
+                            @endif
                         </div>
                     </div>
 
@@ -67,9 +81,16 @@
                             <button type="submit" name="action" value="submit" class="h-10 min-w-[140px] rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
                                 Return to Approval
                             </button>
-                        @else
+                        @elseif ($requiresAdminApprovalRequest)
                             <button type="submit" name="action" value="submit" class="h-10 min-w-[220px] rounded-full bg-amber-600 px-4 text-sm font-medium text-white hover:bg-amber-700">
                                 Request Admin Approval
+                            </button>
+                        @else
+                            <button type="submit" name="action" value="draft" class="h-10 min-w-[120px] rounded-full border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Save Draft
+                            </button>
+                            <button type="submit" name="action" value="submit" class="h-10 min-w-[140px] rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700">
+                                Save Changes
                             </button>
                         @endif
                     </div>

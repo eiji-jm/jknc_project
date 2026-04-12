@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Company;
 use App\Models\CompanyBif;
 use App\Support\CompanyHistoryLogger;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -120,6 +122,114 @@ class CompanyKycController extends Controller
         ]);
     }
 
+    public function previewRequirementTemplate(Request $request, int $company, string $requirement): View|RedirectResponse
+    {
+        $companyData = $this->findCompany($request, $company);
+        $bif = $this->latestCompanyBif($company);
+
+        if (! $bif) {
+            return redirect()
+                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
+                ->withErrors(['kyc' => 'Create or save the Business Information Form first before preparing this template.']);
+        }
+
+        if ($requirement === 'sole_spa') {
+            return view('company.requirements.spa-editor', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $this->spaEditorData($request, $companyData, $bif),
+                'downloadUrl' => route('company.kyc.requirements.template.download', ['company' => $company, 'requirement' => $requirement]),
+                'backUrl' => route('company.kyc', ['company' => $company, 'tab' => 'business-client-information']),
+            ]);
+        }
+
+        if ($requirement === 'juridical_secretary_certificate') {
+            return view('company.requirements.secretary-certificate-editor', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $this->secretaryCertificateEditorData($request, $companyData, $bif),
+                'downloadUrl' => route('company.kyc.requirements.template.download', ['company' => $company, 'requirement' => $requirement]),
+                'backUrl' => route('company.kyc', ['company' => $company, 'tab' => 'business-client-information']),
+            ]);
+        }
+
+        if ($requirement === 'juridical_ubo_declaration') {
+            return view('company.requirements.ubo-declaration-editor', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $this->uboDeclarationEditorData($request, $companyData, $bif),
+                'downloadUrl' => route('company.kyc.requirements.template.download', ['company' => $company, 'requirement' => $requirement]),
+                'backUrl' => route('company.kyc', ['company' => $company, 'tab' => 'business-client-information']),
+            ]);
+        }
+
+        abort(404);
+    }
+
+    public function downloadRequirementTemplatePdf(Request $request, int $company, string $requirement)
+    {
+        $companyData = $this->findCompany($request, $company);
+        $bif = $this->latestCompanyBif($company);
+        abort_unless($bif, 404);
+
+        if ($requirement === 'sole_spa') {
+            $doc = $this->spaEditorData($request, $companyData, $bif);
+
+            if ($request->boolean('autoprint')) {
+                return view('company.requirements.spa-pdf', [
+                    'company' => (object) $companyData,
+                    'bif' => $bif,
+                    'doc' => $doc,
+                    'autoPrint' => true,
+                ]);
+            }
+
+            $pdf = Pdf::loadView('company.requirements.spa-pdf', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $doc,
+                'autoPrint' => false,
+            ])->setPaper('A4', 'portrait');
+
+            return $pdf->download('special-power-of-attorney.pdf');
+        }
+
+        if ($requirement === 'juridical_secretary_certificate') {
+            $doc = $this->secretaryCertificateEditorData($request, $companyData, $bif);
+            $pdf = Pdf::loadView('company.requirements.secretary-certificate-pdf', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $doc,
+            ])->setPaper('A4', 'portrait');
+
+            return $pdf->download('secretarys-certificate.pdf');
+        }
+
+        if ($requirement === 'juridical_ubo_declaration') {
+            $doc = $this->uboDeclarationEditorData($request, $companyData, $bif);
+
+            if ($request->boolean('autoprint')) {
+                return view('company.requirements.ubo-declaration-pdf', [
+                    'company' => (object) $companyData,
+                    'bif' => $bif,
+                    'doc' => $doc,
+                    'autoPrint' => true,
+                ]);
+            }
+
+            $pdf = Pdf::loadView('company.requirements.ubo-declaration-pdf', [
+                'company' => (object) $companyData,
+                'bif' => $bif,
+                'doc' => $doc,
+                'autoPrint' => false,
+            ])->setPaper('A4', 'portrait');
+
+            return $pdf->download('ubo-declaration.pdf');
+        }
+
+        abort(404);
+    }
+
     public function submitKycForVerification(Request $request, int $company): RedirectResponse
     {
         abort_unless(! in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true), 403);
@@ -139,12 +249,6 @@ class CompanyKycController extends Controller
 
         $requirements = $this->kycRequirements($company, $bif);
         $missingLabels = $this->missingRequirementLabels($requirements);
-
-        if ($missingLabels !== []) {
-            return redirect()
-                ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
-                ->withErrors(['kyc' => 'Complete all required onboarding documents before submitting for verification. Missing: '.implode(', ', $missingLabels)]);
-        }
 
         $bif->update([
             'status' => 'pending_approval',
@@ -169,9 +273,15 @@ class CompanyKycController extends Controller
             'user_initials' => $this->initials($userName),
         ]);
 
-        return redirect()
+        $redirect = redirect()
             ->route('company.kyc', ['company' => $company, 'tab' => 'business-client-information'])
             ->with('bif_success', 'Company KYC submitted for verification.');
+
+        if ($missingLabels !== []) {
+            $redirect->with('bif_warning', 'Recommendation: upload the remaining onboarding documents as soon as possible. Missing: '.implode(', ', $missingLabels));
+        }
+
+        return $redirect;
     }
 
     public function approveKyc(Request $request, int $company): RedirectResponse
@@ -407,12 +517,30 @@ class CompanyKycController extends Controller
                                 'file_name' => $documentMeta['file_name'],
                                 'mime_type' => $documentMeta['mime_type'],
                                 'uploaded_at' => $documentMeta['uploaded_at'],
+                                'template_url' => in_array($requirement['key'], ['sole_spa', 'juridical_secretary_certificate', 'juridical_ubo_declaration'], true)
+                                    ? route('company.kyc.requirements.template', ['company' => $company, 'requirement' => $requirement['key']])
+                                    : null,
+                                'template_download_url' => in_array($requirement['key'], ['sole_spa', 'juridical_secretary_certificate', 'juridical_ubo_declaration'], true)
+                                    ? route('company.kyc.requirements.template.download', ['company' => $company, 'requirement' => $requirement['key']])
+                                    : null,
                                 'file_url' => $uploaded
                                     ? route('company.kyc.requirements.view', ['company' => $company, 'requirement' => $requirement['key']])
                                     : null,
-                                'helper' => $uploaded
-                                    ? ($documentMeta['file_name'] ?: 'File uploaded')
-                                    : 'No file uploaded yet',
+                                'helper' => $requirement['key'] === 'sole_spa'
+                                    ? ($uploaded
+                                        ? (($documentMeta['file_name'] ?: 'Signed SPA uploaded').' - Preview, edit, and export the SPA as PDF anytime.')
+                                        : 'Preview and edit the SPA with autofilled details, then download it as PDF and upload the signed copy here.')
+                                    : ($requirement['key'] === 'juridical_secretary_certificate'
+                                        ? ($uploaded
+                                            ? (($documentMeta['file_name'] ?: 'Signed Secretary Certificate uploaded').' - Preview, edit, and export the certificate as PDF anytime.')
+                                            : 'Preview and edit the Secretary Certificate with autofilled details, then download it as PDF and upload the signed copy here.')
+                                    : ($requirement['key'] === 'juridical_ubo_declaration'
+                                        ? ($uploaded
+                                            ? (($documentMeta['file_name'] ?: 'Signed UBO Declaration uploaded').' - Preview, edit, and export the declaration as PDF anytime.')
+                                            : 'Preview and edit the UBO Declaration with autofilled company and beneficial owner details, then download it as PDF and upload the signed copy here.')
+                                    : ($uploaded
+                                        ? ($documentMeta['file_name'] ?: 'File uploaded')
+                                        : 'No file uploaded yet'))),
                             ];
                         })
                         ->all(),
@@ -622,4 +750,231 @@ class CompanyKycController extends Controller
             ['id' => 3, 'company_name' => 'Company 3', 'company_type' => 'Corporation', 'email' => 'company3@example.com', 'phone' => '09777345678', 'website' => 'https://bigin.example', 'description' => 'Sample company record', 'address' => 'Pasig City', 'owner_name' => 'Owner 3', 'created_at' => '2026-03-03 10:00:00'],
         ];
     }
+
+    private function spaEditorData(Request $request, array $companyData, CompanyBif $bif): array
+    {
+        $signatories = collect($bif->authorized_signatories ?? [])->values();
+        $principalName = trim((string) ($bif->president_name ?: $bif->authorized_signatory_name ?: data_get($signatories->first(), 'full_name', '')));
+        $principalAddress = trim((string) ($bif->business_address ?: data_get($signatories->first(), 'address', ($companyData['address'] ?? ''))));
+        $attorneyName = trim((string) ($bif->authorized_contact_person_name ?: data_get($signatories->get(1), 'full_name', '')));
+        $attorneyAddress = trim((string) ($principalAddress !== '' ? $principalAddress : ($companyData['address'] ?? '')));
+        $signedAt = $bif->bif_date instanceof CarbonInterface ? $bif->bif_date : now();
+
+        return [
+            'principal_name' => (string) $request->query('principal_name', $principalName),
+            'principal_nationality' => (string) $request->query('principal_nationality', $this->spaNationalityLabel((string) ($bif->nationality_status ?? ''))),
+            'principal_civil_status' => (string) $request->query('principal_civil_status', ''),
+            'principal_address' => (string) $request->query('principal_address', $principalAddress),
+            'attorney_name' => (string) $request->query('attorney_name', $attorneyName),
+            'attorney_nationality' => (string) $request->query('attorney_nationality', $this->spaNationalityLabel((string) ($bif->nationality_status ?? ''))),
+            'attorney_address' => (string) $request->query('attorney_address', $attorneyAddress),
+            'signed_place' => (string) $request->query('signed_place', $principalAddress),
+            'signed_day' => (string) $request->query('signed_day', $signedAt->format('d')),
+            'signed_month' => (string) $request->query('signed_month', $signedAt->format('F')),
+            'signed_year' => (string) $request->query('signed_year', $signedAt->format('Y')),
+            'principal_id_no' => (string) $request->query('principal_id_no', ''),
+            'attorney_id_no' => (string) $request->query('attorney_id_no', ''),
+        ];
+    }
+
+    private function secretaryCertificateEditorData(Request $request, array $companyData, CompanyBif $bif): array
+    {
+        $signatories = collect($bif->authorized_signatories ?? [])
+            ->map(function ($row) {
+                return [
+                    'name' => (string) ($row['full_name'] ?? ''),
+                    'position' => (string) ($row['position'] ?? ''),
+                ];
+            })
+            ->pad(3, ['name' => '', 'position' => ''])
+            ->take(3)
+            ->values();
+
+        $signedAt = $bif->bif_date instanceof CarbonInterface ? $bif->bif_date : now();
+        $defaultAffiant = trim((string) ($bif->authorized_contact_person_name ?: $bif->president_name ?: ''));
+        $defaultAddress = trim((string) ($bif->business_address ?: ($companyData['address'] ?? '')));
+
+        $representatives = [];
+        foreach (range(0, 2) as $index) {
+            $row = $signatories[$index] ?? ['name' => '', 'position' => ''];
+            $representatives[] = [
+                'name' => (string) $request->query("representatives.$index.name", $row['name']),
+                'position' => (string) $request->query("representatives.$index.position", $row['position']),
+            ];
+        }
+
+        return [
+            'affiant_name' => (string) $request->query('affiant_name', $defaultAffiant),
+            'affiant_age' => (string) $request->query('affiant_age', ''),
+            'affiant_address' => (string) $request->query('affiant_address', $defaultAddress),
+            'corporation_name' => (string) $request->query('corporation_name', ($bif->business_name ?: ($companyData['company_name'] ?? ''))),
+            'sec_registration_no' => (string) $request->query('sec_registration_no', ''),
+            'principal_office_address' => (string) $request->query('principal_office_address', $defaultAddress),
+            'board_resolution_no' => (string) $request->query('board_resolution_no', ''),
+            'board_meeting_date' => (string) $request->query('board_meeting_date', $signedAt->format('F d, Y')),
+            'representatives' => $representatives,
+            'witness_city' => (string) $request->query('witness_city', 'Cebu City'),
+            'witness_day' => (string) $request->query('witness_day', ''),
+            'witness_month' => (string) $request->query('witness_month', ''),
+            'witness_year' => (string) $request->query('witness_year', $signedAt->format('Y')),
+            'corporate_secretary_name' => (string) $request->query('corporate_secretary_name', $defaultAffiant),
+            'corporate_secretary_tin' => (string) $request->query('corporate_secretary_tin', (string) ($bif->tin_no ?? '')),
+            'subscribed_day' => (string) $request->query('subscribed_day', ''),
+            'subscribed_month' => (string) $request->query('subscribed_month', ''),
+            'subscribed_year' => (string) $request->query('subscribed_year', $signedAt->format('Y')),
+            'affiant_tin' => (string) $request->query('affiant_tin', (string) ($bif->tin_no ?? '')),
+            'notary_public' => (string) $request->query('notary_public', ''),
+            'doc_no' => (string) $request->query('doc_no', ''),
+            'page_no' => (string) $request->query('page_no', ''),
+            'book_no' => (string) $request->query('book_no', ''),
+            'series_year' => (string) $request->query('series_year', $signedAt->format('Y')),
+        ];
+    }
+
+    private function uboDeclarationEditorData(Request $request, array $companyData, CompanyBif $bif): array
+    {
+        $signedAt = $bif->bif_date instanceof CarbonInterface ? $bif->bif_date : now();
+        $companyName = trim((string) ($bif->business_name ?: ($companyData['company_name'] ?? '')));
+        $companyAddress = trim((string) ($bif->business_address ?: ($companyData['address'] ?? '')));
+        $companyTin = trim((string) ($bif->tin_no ?? ''));
+        $declarantName = trim((string) ($bif->authorized_contact_person_name ?: $bif->president_name ?: $bif->authorized_signatory_name ?: ''));
+        $declarantPosition = trim((string) ($bif->authorized_contact_person_position ?: $bif->ubo_position ?: 'Authorized Representative'));
+        $declarantNationality = $this->spaNationalityLabel((string) ($bif->nationality_status ?? ''));
+
+        $ubos = collect($bif->ubos ?? [])
+            ->filter(fn ($row) => is_array($row))
+            ->values();
+
+        if ($ubos->isEmpty() && ($bif->ubo_name || $bif->ubo_address || $bif->ubo_position || $bif->ubo_tin)) {
+            $ubos = collect([[
+                'full_name' => $bif->ubo_name,
+                'address' => $bif->ubo_address,
+                'nationality' => $bif->ubo_nationality,
+                'date_of_birth' => optional($bif->ubo_date_of_birth)?->format('Y-m-d'),
+                'tin' => $bif->ubo_tin,
+                'position' => $bif->ubo_position,
+            ]]);
+        }
+
+        $ubos = $ubos
+            ->map(function (array $row, int $index) use ($request) {
+                return [
+                    'full_name' => (string) $request->query("ubos.$index.full_name", (string) ($row['full_name'] ?? '')),
+                    'address' => (string) $request->query("ubos.$index.address", (string) ($row['address'] ?? '')),
+                    'nationality' => (string) $request->query("ubos.$index.nationality", (string) ($row['nationality'] ?? '')),
+                    'date_of_birth' => (string) $request->query("ubos.$index.date_of_birth", (string) ($row['date_of_birth'] ?? '')),
+                    'tin' => (string) $request->query("ubos.$index.tin", (string) ($row['tin'] ?? '')),
+                    'position' => (string) $request->query("ubos.$index.position", (string) ($row['position'] ?? '')),
+                ];
+            })
+            ->filter(function (array $row) {
+                return collect($row)->contains(fn ($value) => trim((string) $value) !== '');
+            })
+            ->values();
+
+        if ($ubos->isEmpty()) {
+            $ubos = collect([[
+                'full_name' => (string) $request->query('ubos.0.full_name', ''),
+                'address' => (string) $request->query('ubos.0.address', ''),
+                'nationality' => (string) $request->query('ubos.0.nationality', ''),
+                'date_of_birth' => (string) $request->query('ubos.0.date_of_birth', ''),
+                'tin' => (string) $request->query('ubos.0.tin', ''),
+                'position' => (string) $request->query('ubos.0.position', ''),
+            ]]);
+        }
+
+        return [
+            'company_name' => (string) $request->query('company_name', $companyName),
+            'company_address' => (string) $request->query('company_address', $companyAddress),
+            'company_tin' => (string) $request->query('company_tin', $companyTin),
+            'declarant_name' => (string) $request->query('declarant_name', $declarantName),
+            'declarant_position' => (string) $request->query('declarant_position', $declarantPosition),
+            'declarant_nationality' => (string) $request->query('declarant_nationality', $declarantNationality),
+            'declaration_day' => (string) $request->query('declaration_day', $signedAt->format('d')),
+            'declaration_month' => (string) $request->query('declaration_month', $signedAt->format('F')),
+            'declaration_year' => (string) $request->query('declaration_year', $signedAt->format('Y')),
+            'ubos' => $ubos->all(),
+            'notary_city' => (string) $request->query('notary_city', 'Cebu City'),
+            'notary_day' => (string) $request->query('notary_day', ''),
+            'notary_month' => (string) $request->query('notary_month', ''),
+            'notary_year' => (string) $request->query('notary_year', $signedAt->format('Y')),
+            'notary_public' => (string) $request->query('notary_public', ''),
+            'doc_no' => (string) $request->query('doc_no', ''),
+            'page_no' => (string) $request->query('page_no', ''),
+            'book_no' => (string) $request->query('book_no', ''),
+            'series_year' => (string) $request->query('series_year', $signedAt->format('Y')),
+        ];
+    }
+
+    private function spaTemplateData(array $companyData, CompanyBif $bif): array
+    {
+        $businessName = trim((string) ($bif->business_name ?: ($companyData['company_name'] ?? '')));
+        $principalName = $this->spaPrincipalName($companyData, $bif);
+        $principalAddress = $this->spaPrincipalAddress($companyData, $bif);
+        $attorneyName = trim((string) ($bif->authorized_contact_person_name ?: $bif->authorized_signatory_name ?: ''));
+        $attorneyAddress = trim((string) ($principalAddress !== '' ? $principalAddress : ($companyData['address'] ?? '')));
+        $signedAt = $bif->bif_date instanceof CarbonInterface ? $bif->bif_date : now();
+
+        return [
+            'business_name' => $businessName,
+            'principal_name' => $principalName !== '' ? $principalName : '____________________________',
+            'principal_address' => $principalAddress !== '' ? $principalAddress : '____________________________',
+            'attorney_name' => $attorneyName !== '' ? $attorneyName : '____________________________',
+            'attorney_address' => $attorneyAddress !== '' ? $attorneyAddress : '____________________________',
+            'attorney_position' => trim((string) ($bif->authorized_contact_person_position ?? '')),
+            'nationality_label' => $this->spaNationalityLabel((string) ($bif->nationality_status ?? '')),
+            'signed_place' => $this->spaSignedPlace($principalAddress, $companyData),
+            'signed_day' => $signedAt->format('d'),
+            'signed_month' => $signedAt->format('F'),
+            'signed_year' => $signedAt->format('Y'),
+            'acknowledgement_year_short' => $signedAt->format('y'),
+        ];
+    }
+
+    private function spaPrincipalName(array $companyData, CompanyBif $bif): string
+    {
+        $signatories = collect($bif->authorized_signatories ?? []);
+        $firstSignatory = $signatories->first(fn ($row) => filled($row['full_name'] ?? null));
+
+        return trim((string) (
+            $bif->president_name
+            ?: $bif->authorized_signatory_name
+            ?: ($firstSignatory['full_name'] ?? null)
+            ?: $companyData['owner_name']
+            ?: ''
+        ));
+    }
+
+    private function spaPrincipalAddress(array $companyData, CompanyBif $bif): string
+    {
+        $signatories = collect($bif->authorized_signatories ?? []);
+        $firstSignatory = $signatories->first(fn ($row) => filled($row['address'] ?? null));
+
+        return trim((string) (
+            $bif->business_address
+            ?: ($firstSignatory['address'] ?? null)
+            ?: ($companyData['address'] ?? '')
+        ));
+    }
+
+    private function spaSignedPlace(string $principalAddress, array $companyData): string
+    {
+        $value = trim($principalAddress !== '' ? $principalAddress : (string) ($companyData['address'] ?? ''));
+
+        if ($value === '') {
+            return '____________________________';
+        }
+
+        return $value;
+    }
+
+    private function spaNationalityLabel(string $value): string
+    {
+        return match ($value) {
+            'filipino' => 'Filipino',
+            'foreign' => 'Foreign',
+            default => 'Filipino',
+        };
+    }
 }
+

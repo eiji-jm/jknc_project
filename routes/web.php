@@ -57,6 +57,8 @@ Route::get('/', function () {
 
 Route::get('/bif/respond/{token}', [CompanyBifController::class, 'clientForm'])->name('company.bif.client.show');
 Route::post('/bif/respond/{token}', [CompanyBifController::class, 'submitClientForm'])->name('company.bif.client.submit');
+Route::get('/bif/respond/{token}/preview', [CompanyBifController::class, 'previewClientBif'])->name('company.bif.client.preview');
+Route::get('/bif/respond/{token}/download', [CompanyBifController::class, 'downloadClientBif'])->name('company.bif.client.download');
 Route::get('/cif/respond/{token}', [ContactsController::class, 'clientCifForm'])->name('contacts.cif.client.show');
 Route::post('/cif/respond/{token}', [ContactsController::class, 'submitClientCifForm'])->name('contacts.cif.client.submit');
 Route::get('/cif/respond/{token}/preview', [ContactsController::class, 'previewClientCif'])->name('contacts.cif.client.preview');
@@ -206,6 +208,8 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
     Route::post('/company/{company}/kyc/approve', [CompanyKycController::class, 'approveKyc'])->name('company.kyc.approve');
     Route::post('/company/{company}/kyc/reject', [CompanyKycController::class, 'rejectKyc'])->name('company.kyc.reject');
     Route::get('/company/{company}/kyc/requirements/{requirement}/view', [CompanyKycController::class, 'viewRequirementDocument'])->name('company.kyc.requirements.view');
+    Route::get('/company/{company}/kyc/requirements/{requirement}/template', [CompanyKycController::class, 'previewRequirementTemplate'])->name('company.kyc.requirements.template');
+    Route::get('/company/{company}/kyc/requirements/{requirement}/template/download', [CompanyKycController::class, 'downloadRequirementTemplatePdf'])->name('company.kyc.requirements.template.download');
     Route::post('/company/{company}/kyc/requirements/{requirement}/upload', [CompanyKycController::class, 'uploadRequirementDocument'])->name('company.kyc.requirements.upload');
     Route::delete('/company/{company}/kyc/requirements/{requirement}', [CompanyKycController::class, 'removeRequirementDocument'])->name('company.kyc.requirements.remove');
     Route::get('/company/{company}/history', [CompanyController::class, 'history'])->name('company.history');
