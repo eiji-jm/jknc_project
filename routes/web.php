@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
+use App\Http\Controllers\CatalogChangeRequestController;
 use App\Http\Controllers\CompanyActivityController;
 use App\Http\Controllers\CompanyConsultationNoteController;
 use App\Http\Controllers\CompanyController;
@@ -127,6 +128,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/corporate-approvals/{module}/{id}/reject', [CorporateApprovalController::class, 'reject'])->name('corporate.approvals.reject');
     Route::post('/admin/corporate-approvals/{module}/{id}/revise', [CorporateApprovalController::class, 'revise'])->name('corporate.approvals.revise');
     Route::post('/admin/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])->name('corporate.approvals.archive');
+    Route::post('/admin/catalog-change-requests/{catalogChangeRequest}/approve', [CatalogChangeRequestController::class, 'approve'])->name('catalog-change-requests.approve');
+    Route::post('/admin/catalog-change-requests/{catalogChangeRequest}/reject', [CatalogChangeRequestController::class, 'reject'])->name('catalog-change-requests.reject');
 
     Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
     Route::get('/townhall/department', [TownHallController::class, 'department'])->name('townhall.department');
@@ -180,12 +183,17 @@ Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])-
 Route::patch('/deals/{id}/stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update');
 Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
 Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
-Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
-Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
-Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
+    Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
+    Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
+
+    Route::view('/project', 'project.index')->name('project.index');
+    Route::view('/regular', 'regular.index')->name('regular.index');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+    Route::match(['put', 'patch'], '/products/{id}', [ProductController::class, 'update'])->name('products.update');
+    Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
     Route::post('/products/change-owner', [ProductController::class, 'changeOwner'])->name('products.change-owner');
     Route::post('/products/custom-fields', [ProductController::class, 'storeCustomField'])->name('products.custom-fields.store');
     Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
@@ -193,6 +201,8 @@ Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
     Route::get('/services', [CompanyServiceController::class, 'globalIndex'])->name('services.index');
     Route::post('/services', [CompanyServiceController::class, 'storeGlobal'])->name('services.store');
     Route::post('/services/custom-fields', [CompanyServiceController::class, 'storeCustomField'])->name('services.custom-fields.store');
+    Route::post('/services/{service}/approve', [CompanyServiceController::class, 'approveGlobal'])->name('services.approve');
+    Route::post('/services/{service}/reject', [CompanyServiceController::class, 'rejectGlobal'])->name('services.reject');
     Route::get('/services/{service}', [CompanyServiceController::class, 'showGlobal'])->name('services.show');
     Route::match(['put', 'patch'], '/services/{service}', [CompanyServiceController::class, 'updateGlobal'])->name('services.update');
     Route::delete('/services/{service}', [CompanyServiceController::class, 'destroyGlobal'])->name('services.destroy');

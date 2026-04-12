@@ -30,6 +30,7 @@ class Service extends Model
         'max_cap',
         'price_fee',
         'cost_of_service',
+        'tax_type',
         'assigned_unit',
         'status',
         'created_by',

@@ -3,84 +3,180 @@
 @section('content')
 @php
     $activePillClasses = [
-        'Active' => 'border border-green-200 bg-green-100 text-green-700',
-        'Inactive' => 'border border-gray-300 bg-gray-100 text-gray-600',
-        'Draft' => 'border border-amber-200 bg-amber-100 text-amber-700',
-        'Archived' => 'border border-gray-300 bg-gray-100 text-gray-500',
+        'Pending Approval' => 'border-amber-200 bg-amber-50 text-amber-700',
+        'Active' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+        'Inactive' => 'border-slate-200 bg-slate-50 text-slate-700',
+        'Rejected' => 'border-rose-200 bg-rose-50 text-rose-700',
+        'Archived' => 'border-rose-200 bg-rose-50 text-rose-700',
     ];
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
-    <div class="mb-5">
-        <h1 class="text-3xl font-semibold text-gray-900">Products</h1>
-        <p class="mt-1 text-sm text-gray-500">Manage product records, pricing, ownership, and configuration.</p>
-    </div>
-
-    @if (session('success'))
-        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <form method="GET" action="{{ route('products.index') }}" class="mb-4 flex flex-wrap items-center gap-3">
-        <div class="relative w-full max-w-md">
-            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
-            <input
-                type="text"
-                name="search"
-                value="{{ $search }}"
-                placeholder="Search Products..."
-                class="h-10 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+    <div class="mx-auto max-w-[1600px]">
+        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-gray-900">{{ $isAdminReviewer ? 'Products Review' : 'Products' }}</h1>
+                <p class="mt-1 text-sm text-gray-500">
+                    {{ $isAdminReviewer
+                        ? 'Review submitted products and keep the approved catalog aligned with the services and deals workflow.'
+                        : 'Standardized product catalog with service-linked offerings, pricing, ownership, and approval controls.' }}
+                </p>
+            </div>
+            <button
+                type="button"
+                id="openCreateProductModal"
+                class="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
-        </div>
-
-        <div class="relative">
-            <i class="fas fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500"></i>
-            <select
-                name="active"
-                class="h-10 min-w-[120px] rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                onchange="this.form.submit()"
-            >
-                <option value="All" {{ $activeFilter === 'All' ? 'selected' : '' }}>All</option>
-                <option value="Active" {{ $activeFilter === 'Active' ? 'selected' : '' }}>Active</option>
-                <option value="Inactive" {{ $activeFilter === 'Inactive' ? 'selected' : '' }}>Inactive</option>
-                <option value="Draft" {{ $activeFilter === 'Draft' ? 'selected' : '' }}>Draft</option>
-                <option value="Archived" {{ $activeFilter === 'Archived' ? 'selected' : '' }}>Archived</option>
-            </select>
-        </div>
-
-        <input type="hidden" name="per_page" value="{{ $perPage }}">
-
-        <button
-            type="button"
-            id="openCreateProductModal"
-            class="ml-auto h-10 min-w-[120px] rounded-lg bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
-        >
-            <i class="fas fa-plus mr-1"></i> Product
-        </button>
-    </form>
-
-    <div id="productSelectionBar" class="mb-3 hidden items-center rounded-lg border border-blue-100 bg-blue-100 px-4 py-2">
-        <div class="flex items-center gap-3 text-sm">
-            <span id="selectedProductText" class="font-medium text-gray-800">0 Products selected</span>
-            <button id="openChangeOwnerModal" type="button" class="h-8 rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-user-pen mr-1"></i> Change Owner
+                <i class="fas fa-plus mr-2 text-xs"></i> Add Product
             </button>
         </div>
-        <div class="ml-auto flex items-center gap-4 text-sm">
-            <button id="clearProductSelection" type="button" class="text-gray-700 underline underline-offset-2 hover:text-gray-900">Clear</button>
-            <button id="closeProductSelection" type="button" class="text-gray-700 hover:text-gray-900">
-                <i class="fas fa-xmark"></i>
-            </button>
-        </div>
-    </div>
 
-    <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+        @if (session('success'))
+            <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        <div class="mb-6 grid gap-3 xl:grid-cols-3">
+            <div class="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $isAdminReviewer ? 'Pending Review' : 'Active Products' }}</p>
+                <p class="mt-2 text-2xl font-bold text-gray-900">{{ $isAdminReviewer ? $summary['pending'] : $summary['active'] }}</p>
+            </div>
+            <div class="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $isAdminReviewer ? 'Active Products' : 'Pending Approval' }}</p>
+                <p class="mt-2 text-2xl font-bold text-gray-900">{{ $isAdminReviewer ? $summary['active'] : $summary['pending'] }}</p>
+            </div>
+            <div class="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Rejected Products</p>
+                <p class="mt-2 text-2xl font-bold text-gray-900">{{ $summary['rejected'] }}</p>
+            </div>
+        </div>
+
+        @if ($isAdminReviewer && $pendingChangeRequests->isNotEmpty())
+            <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Pending Product Change Requests</h2>
+                        <p class="text-sm text-gray-600">Requested edits and removals stay queued here until an admin approves them.</p>
+                    </div>
+                    <div class="text-sm font-medium text-amber-800">
+                        {{ $pendingChangeRequests->count() }} pending {{ \Illuminate\Support\Str::plural('request', $pendingChangeRequests->count()) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-6 space-y-4">
+                @foreach ($pendingChangeRequests as $changeRequest)
+                    <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="text-lg font-semibold text-gray-900">{{ $changeRequest->record_name ?: 'Product' }}</h3>
+                                    <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                        Pending {{ ucfirst($changeRequest->action) }}
+                                    </span>
+                                </div>
+                                <p class="mt-1 text-sm text-gray-500">
+                                    Product ID {{ $changeRequest->record_public_id ?: '-' }} • Requested by {{ $changeRequest->submitter?->name ?: 'Unknown user' }}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2 xl:justify-end">
+                                <form method="POST" action="{{ route('catalog-change-requests.approve', $changeRequest) }}">
+                                    @csrf
+                                    <button type="submit" class="inline-flex h-10 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 hover:bg-emerald-100">Approve</button>
+                                </form>
+                                <form method="POST" action="{{ route('catalog-change-requests.reject', $changeRequest) }}">
+                                    @csrf
+                                    <button type="submit" class="inline-flex h-10 items-center rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-700 hover:bg-rose-100">Reject</button>
+                                </form>
+                            </div>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        @endif
+
+        <form method="GET" action="{{ route('products.index') }}" class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="grid gap-3 xl:grid-cols-[minmax(260px,1.6fr)_repeat(4,minmax(170px,1fr))_minmax(190px,1fr)_auto]">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
+                    <input
+                        type="text"
+                        name="search"
+                        value="{{ $filters['search'] ?? $search }}"
+                        placeholder="Search products..."
+                        class="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                </div>
+                <select
+                    name="status"
+                    class="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                    <option value="all" @selected(($filters['status'] ?? 'all') === 'all')>Status: All</option>
+                    @foreach ($statusOptions as $option)
+                        <option value="{{ $option }}" @selected(($filters['status'] ?? 'all') === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="category" class="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all" @selected(($filters['category'] ?? 'all') === 'all')>Category: All</option>
+                    @foreach ($categoryOptions as $option)
+                        <option value="{{ $option }}" @selected(($filters['category'] ?? 'all') === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="product_type" class="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all" @selected(($filters['product_type'] ?? 'all') === 'all')>Product Type: All</option>
+                    @foreach ($productTypeOptions as $option)
+                        <option value="{{ $option }}" @selected(($filters['product_type'] ?? 'all') === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="inventory_type" class="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all" @selected(($filters['inventory_type'] ?? 'all') === 'all')>Inventory: All</option>
+                    @foreach ($inventoryTypeOptions as $option)
+                        <option value="{{ $option }}" @selected(($filters['inventory_type'] ?? 'all') === $option)>{{ $option }}</option>
+                    @endforeach
+                </select>
+                <select name="owner_id" class="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="all" @selected(($filters['owner_id'] ?? 'all') === 'all')>Owner: All</option>
+                    @foreach ($owners as $owner)
+                        <option value="{{ $owner['id'] }}" @selected((string) ($filters['owner_id'] ?? 'all') === (string) $owner['id'])>{{ $owner['name'] }}</option>
+                    @endforeach
+                </select>
+
+                <div class="flex items-center gap-3">
+                    <input type="hidden" name="per_page" value="{{ $perPage }}">
+                    <button class="h-11 rounded-xl border border-gray-200 bg-gray-900 px-5 text-sm font-medium text-white hover:bg-gray-800">Apply</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div class="border-b border-gray-100 px-5 py-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <form method="GET" action="{{ route('products.index') }}" class="flex flex-col gap-2 sm:ml-6 sm:flex-row sm:items-center">
+                        <label for="productAreaQuickFilter" class="text-sm font-medium text-gray-600">Service Area</label>
+                        <select id="productAreaQuickFilter" name="service_area" onchange="this.form.submit()" class="h-10 min-w-[320px] rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            <option value="all" @selected(($filters['service_area'] ?? 'all') === 'all')>All Service Areas</option>
+                            @foreach ($productAreaFilterOptions as $option)
+                                <option value="{{ $option }}" @selected(($filters['service_area'] ?? 'all') === $option)>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="search" value="{{ $filters['search'] ?? $search }}">
+                        <input type="hidden" name="status" value="{{ $filters['status'] ?? 'all' }}">
+                        <input type="hidden" name="category" value="{{ $filters['category'] ?? 'all' }}">
+                        <input type="hidden" name="product_type" value="{{ $filters['product_type'] ?? 'all' }}">
+                        <input type="hidden" name="inventory_type" value="{{ $filters['inventory_type'] ?? 'all' }}">
+                        <input type="hidden" name="owner_id" value="{{ $filters['owner_id'] ?? 'all' }}">
+                        <input type="hidden" name="per_page" value="{{ $filters['per_page'] ?? $perPage }}">
+                    </form>
+                </div>
+                <button id="openCreateFieldDropdown" type="button" class="self-start text-sm font-medium text-blue-600 hover:text-blue-700 lg:self-auto">+ Create Field</button>
+            </div>
+        </div>
         <div class="overflow-x-auto overflow-y-visible">
             <table class="min-w-full text-sm">
                 <thead class="bg-gray-50 text-xs text-gray-700">
                     <tr>
-                        <th class="w-10 px-3 py-3 text-left"><input id="selectAllProducts" type="checkbox" class="h-4 w-4 rounded border-gray-300"></th>
                         <th data-column-key="product_name" data-column-type="base" class="group px-3 py-3 text-left font-medium">
                             <div class="inline-flex items-center gap-1">
                                 <span>Product Name</span>
@@ -147,17 +243,15 @@
                                 </div>
                             </th>
                         @endforeach
-                        <th class="px-3 py-3 text-right normal-case">
-                            <button id="openCreateFieldDropdown" type="button" class="text-sm text-blue-600 hover:text-blue-700">+ Create Field</button>
-                        </th>
+                        <th class="w-[180px] px-3 py-3 text-left font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                         @forelse ($products as $index => $product)
+                            @php
+                                $pendingRequest = $pendingRequestMap->get($product->id);
+                            @endphp
                             <tr class="product-row text-gray-700" data-row-index="{{ $index }}" data-product-url="{{ route('products.show', $product->product_id) }}">
-                                <td class="px-3 py-3">
-                                    <input type="checkbox" value="{{ $product->product_id }}" class="product-row-checkbox h-4 w-4 rounded border-gray-300">
-                                </td>
                             <td data-column-key="product_name" class="px-3 py-3 font-medium text-gray-900">
                                 <a href="{{ route('products.show', $product->product_id) }}" class="hover:text-blue-700">
                                     {{ $product->product_name }}
@@ -168,11 +262,16 @@
                             <td data-column-key="category" class="px-3 py-3 text-gray-600">{{ $product->category }}</td>
                             <td data-column-key="price" class="px-3 py-3 text-gray-600">P{{ number_format((float) $product->price, 2) }}</td>
                             <td data-column-key="status" class="px-3 py-3">
-                                <select class="h-6 rounded-full px-2 text-xs outline-none {{ $activePillClasses[$product->status] ?? $activePillClasses['Inactive'] }}">
-                                    @foreach (['Active', 'Inactive', 'Draft', 'Archived'] as $statusOption)
-                                        <option value="{{ $statusOption }}" {{ $product->status === $statusOption ? 'selected' : '' }}>{{ $statusOption }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="flex flex-col gap-1">
+                                    <span class="inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium {{ $activePillClasses[$product->status] ?? 'border-gray-200 bg-gray-50 text-gray-700' }}">
+                                        {{ $product->status }}
+                                    </span>
+                                    @if ($pendingRequest)
+                                        <span class="inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                            Pending {{ ucfirst($pendingRequest->action) }}
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td data-column-key="product_owner" class="product-owner-cell px-3 py-3 text-gray-600">{{ $product->owner_name ?: '-' }}</td>
                             @foreach ($customFields as $field)
@@ -184,16 +283,41 @@
                                         {{ $customValue === '1' ? 'Yes' : 'No' }}
                                     @elseif (($field->field_type ?? '') === 'currency' && $customValue !== '')
                                         P{{ number_format((float) $customValue, 2) }}
-                                    @else
-                                        {{ $customValue !== '' ? $customValue : '-' }}
-                                    @endif
+                                @else
+                                    {{ $customValue !== '' ? $customValue : '-' }}
+                                @endif
                                 </td>
                             @endforeach
-                            <td class="px-3 py-3"></td>
+                            <td class="px-3 py-3">
+                                <div class="flex items-center justify-start gap-2 whitespace-nowrap">
+                                    @if ($pendingRequest)
+                                        <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                                            Pending {{ ucfirst($pendingRequest->action) }}
+                                        </span>
+                                        @if ($isAdminReviewer)
+                                            <form method="POST" action="{{ route('catalog-change-requests.approve', $pendingRequest) }}">
+                                                @csrf
+                                                <button type="submit" class="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Approve</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('catalog-change-requests.reject', $pendingRequest) }}">
+                                                @csrf
+                                                <button type="submit" class="rounded-full border border-rose-200 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50">Reject</button>
+                                            </form>
+                                        @endif
+                                    @else
+                                        <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-product-edit='@json($product)'>Edit</button>
+                                        <form method="POST" action="{{ route('products.destroy', $product->product_id) }}" onsubmit="return confirm('Submit a delete request for this product?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50">Delete</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ 6 + count($customFields) }}" class="px-3 py-10 text-center text-sm text-gray-500">No products found.</td>
+                            <td colspan="{{ 8 + count($customFields) }}" class="px-3 py-10 text-center text-sm text-gray-500">No products found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -211,11 +335,17 @@
                         <option value="{{ $size }}" {{ (int) $perPage === $size ? 'selected' : '' }}>{{ $size }}</option>
                     @endforeach
                 </select>
-                <input type="hidden" name="search" value="{{ $search }}">
-                <input type="hidden" name="active" value="{{ $activeFilter }}">
+                <input type="hidden" name="search" value="{{ $filters['search'] ?? $search }}">
+                <input type="hidden" name="status" value="{{ $filters['status'] ?? 'all' }}">
+                <input type="hidden" name="category" value="{{ $filters['category'] ?? 'all' }}">
+                <input type="hidden" name="product_type" value="{{ $filters['product_type'] ?? 'all' }}">
+                <input type="hidden" name="inventory_type" value="{{ $filters['inventory_type'] ?? 'all' }}">
+                <input type="hidden" name="owner_id" value="{{ $filters['owner_id'] ?? 'all' }}">
+                <input type="hidden" name="service_area" value="{{ $filters['service_area'] ?? 'all' }}">
             </form>
             <span>{{ $from }} to {{ $to }} | {{ $currentPage }} to {{ $totalPages }}</span>
         </div>
+    </div>
     </div>
 </div>
 
@@ -226,12 +356,12 @@
     'productTypeOptions' => $productTypeOptions,
     'productAreaOptions' => $productAreaOptions,
     'pricingTypeOptions' => $pricingTypeOptions,
-    'taxTypeOptions' => $taxTypeOptions,
     'inventoryTypeOptions' => $inventoryTypeOptions,
     'statusOptions' => $statusOptions,
     'unitOptions' => $unitOptions,
     'serviceOptions' => $serviceOptions,
     'customFields' => $customFields,
+    'requirementTemplateDefaults' => $requirementTemplateDefaults,
     'drawerMeta' => $drawerMeta,
 ])
 @include('products.partials.create-field-dropdown', ['fieldTypes' => $fieldTypes])
@@ -243,7 +373,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const serviceOptionsData = @json($serviceOptions);
     const createProductModal = document.getElementById('createProductModal');
+    const createProductForm = document.getElementById('createProductForm');
+    const createProductFormMethod = document.getElementById('createProductFormMethod');
+    const createProductModalTitle = document.getElementById('createProductModalTitle');
+    const createProductFormSubmit = document.getElementById('createProductFormSubmit');
     const openCreateModalButton = document.getElementById('openCreateProductModal');
     const closeCreateModalButton = document.getElementById('closeCreateProductModal');
     const cancelCreateModalButton = document.getElementById('cancelCreateProductModal');
@@ -254,36 +389,34 @@ document.addEventListener('DOMContentLoaded', function () {
     const productOwnerSelectedLabel = document.getElementById('productOwnerSelectedLabel');
     const productCreatedAtLiveValue = document.getElementById('productCreatedAtLiveValue');
     const productCreatedAtMetaValue = document.getElementById('productCreatedAtMetaValue');
+    const productNameInput = document.getElementById('product_name');
     const inventoryTypeInput = document.getElementById('inventory_type');
+    const productTypeInput = document.getElementById('product_type');
+    const categoryInput = document.getElementById('category');
+    const productTypeOtherWrap = document.getElementById('productTypeOtherWrap');
+    const categoryOtherWrap = document.getElementById('categoryOtherWrap');
+    const inventoryTypeOtherWrap = document.getElementById('inventoryTypeOtherWrap');
+    const skuInput = document.getElementById('sku');
     const stockQtyWrap = document.getElementById('stockQtyWrap');
     const productAreaOtherWrap = document.getElementById('productAreaOtherWrap');
     const productAreaCheckboxes = Array.from(document.querySelectorAll('.product-area-checkbox'));
-    const linkedServiceInput = document.getElementById('linked_service_id');
+    const linkedServicesList = document.getElementById('linkedServicesList');
+    const linkedServicesEmptyState = document.getElementById('linkedServicesEmptyState');
+    const linkedServiceOptionTemplate = document.getElementById('linkedServiceOptionTemplate');
+    const selectedLinkedServiceIdsElement = document.getElementById('selectedLinkedServiceIds');
     const productOwnerOptions = Array.from(document.querySelectorAll('.product-owner-option'));
-    const selectionBar = document.getElementById('productSelectionBar');
-    const selectedProductText = document.getElementById('selectedProductText');
-    const clearSelection = document.getElementById('clearProductSelection');
-    const closeSelection = document.getElementById('closeProductSelection');
-    const selectAllProducts = document.getElementById('selectAllProducts');
-    const openChangeOwnerModalButton = document.getElementById('openChangeOwnerModal');
-    const rowCheckboxes = Array.from(document.querySelectorAll('.product-row-checkbox'));
+    const productDescriptionInput = document.getElementById('product_description');
+    const productInclusionsInput = document.getElementById('product_inclusions');
+    const pricingTypeInput = document.getElementById('pricing_type');
+    const priceInput = document.getElementById('price');
+    const costInput = document.getElementById('cost');
+    const isDiscountableInput = document.querySelector('input[name="is_discountable"]');
+    const taxTypeInput = document.getElementById('tax_type');
+    const unitInput = document.getElementById('unit');
     const tableRows = Array.from(document.querySelectorAll('.product-row'));
-    const statusSelects = Array.from(document.querySelectorAll('.product-row select'));
+    const productEditButtons = Array.from(document.querySelectorAll('[data-product-edit]'));
+    const productRequirementsInputs = Array.from(document.querySelectorAll('.product-requirements-input'));
 
-    const changeOwnerModal = document.getElementById('changeOwnerModal');
-    const changeOwnerPanel = document.getElementById('changeOwnerPanel');
-    const changeOwnerModalOverlay = document.getElementById('changeOwnerModalOverlay');
-    const cancelChangeOwnerModal = document.getElementById('cancelChangeOwnerModal');
-    const closeChangeOwnerModalX = document.getElementById('closeChangeOwnerModalX');
-    const changeOwnerForm = document.getElementById('changeOwnerForm');
-    const selectedProductsFields = document.getElementById('selectedProductsFields');
-    const changeOwnerModalCount = document.getElementById('changeOwnerModalCount');
-    const selectedOwnerId = document.getElementById('selectedOwnerId');
-    const ownerSearchInput = document.getElementById('changeOwnerSearchInput');
-    const ownerDropdownMenu = document.getElementById('ownerDropdownMenu');
-    const toggleOwnerDropdown = document.getElementById('toggleOwnerDropdown');
-    const ownerOptions = Array.from(document.querySelectorAll('.owner-option'));
-    const saveChangeOwnerBtn = document.getElementById('saveChangeOwnerBtn');
     const openCreateFieldDropdown = document.getElementById('openCreateFieldDropdown');
     const createFieldDropdownMenu = document.getElementById('createFieldDropdownMenu');
     const fieldTypeButtons = Array.from(document.querySelectorAll('.create-field-type-option'));
@@ -315,6 +448,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const createProductPanel = document.getElementById('createProductPanel');
     const createProductModalOverlay = document.getElementById('createProductModalOverlay');
     let productCreatedAtIntervalId = null;
+    const createProductUrl = @json(route('products.store'));
+    const updateProductUrlTemplate = @json(route('products.update', '__PRODUCT__'));
+    const defaultOwnerIdValue = @json((string) $defaultOwnerId);
+    const defaultOwnerNameValue = @json($selectedOwnerName ?? 'Select Owner');
 
     const formatCreatedAt = (date) => new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -351,6 +488,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const syncInventoryFields = () => {
         const showStock = inventoryTypeInput?.value === 'Inventory';
         stockQtyWrap?.classList.toggle('hidden', !showStock);
+        inventoryTypeOtherWrap?.classList.toggle('hidden', inventoryTypeInput?.value !== 'Other');
+    };
+
+    const syncCustomSelectField = (selectInput, otherWrap) => {
+        otherWrap?.classList.toggle('hidden', selectInput?.value !== 'Other');
     };
 
     const syncProductAreaOther = () => {
@@ -377,11 +519,86 @@ document.addEventListener('DOMContentLoaded', function () {
             noneCheckbox.checked = true;
         }
 
-        if (linkedServiceInput?.value === '' && !anyNonNoneChecked && noneCheckbox) {
+        if (!anyNonNoneChecked && noneCheckbox) {
             noneCheckbox.checked = true;
         }
 
         syncProductAreaOther();
+        renderLinkedServiceOptions();
+    };
+
+    const selectedProductAreas = () => productAreaCheckboxes
+        .filter((checkbox) => checkbox.checked && checkbox.value !== 'None')
+        .map((checkbox) => checkbox.value);
+
+    const selectedLinkedServiceIds = () => {
+        const currentSelections = Array.from(document.querySelectorAll('input[name="linked_service_ids[]"]:checked'))
+            .map((input) => String(input.value));
+
+        if (currentSelections.length > 0) {
+            return currentSelections;
+        }
+
+        if (!selectedLinkedServiceIdsElement?.dataset?.selectedServiceIds) {
+            return [];
+        }
+
+        try {
+            return JSON.parse(selectedLinkedServiceIdsElement.dataset.selectedServiceIds);
+        } catch (error) {
+            return [];
+        }
+    };
+
+    const renderLinkedServiceOptions = () => {
+        if (!linkedServicesList || !linkedServiceOptionTemplate) {
+            return;
+        }
+
+        const activeAreas = selectedProductAreas();
+        const preselectedIds = new Set(selectedLinkedServiceIds().map(String));
+        const matchingServices = serviceOptionsData.filter((service) => {
+            const serviceAreas = Array.isArray(service.service_area) ? service.service_area : [];
+            return activeAreas.some((area) => serviceAreas.includes(area));
+        });
+
+        linkedServicesList.innerHTML = '';
+
+        if (matchingServices.length === 0) {
+            linkedServicesList.classList.add('hidden');
+            linkedServicesEmptyState?.classList.remove('hidden');
+            linkedServicesEmptyState.textContent = activeAreas.length === 0
+                ? 'Select a service area to show matching services.'
+                : 'No services found for the selected service area.';
+            return;
+        }
+
+        linkedServicesEmptyState?.classList.add('hidden');
+        linkedServicesList.classList.remove('hidden');
+
+        matchingServices.forEach((service) => {
+            const fragment = linkedServiceOptionTemplate.content.cloneNode(true);
+            const label = fragment.querySelector('.linked-service-option');
+            const input = fragment.querySelector('input[name="linked_service_ids[]"]');
+            const name = fragment.querySelector('.linked-service-name');
+            const meta = fragment.querySelector('.linked-service-meta');
+
+            if (input) {
+                input.value = String(service.id);
+                input.checked = preselectedIds.has(String(service.id));
+            }
+
+            if (name) {
+                name.textContent = service.service_name || service.name;
+            }
+
+            if (meta) {
+                const areaLabel = Array.isArray(service.service_area) ? service.service_area.join(', ') : '';
+                meta.textContent = [service.service_id, areaLabel].filter(Boolean).join(' | ');
+            }
+
+            linkedServicesList.appendChild(fragment);
+        });
     };
 
     const openCreateModal = () => {
@@ -398,9 +615,188 @@ document.addEventListener('DOMContentLoaded', function () {
             createProductPanel.classList.remove('translate-x-full');
         });
 
+        if (skuInput?.dataset?.defaultSku) {
+            skuInput.value = skuInput.dataset.defaultSku;
+        }
         startProductCreatedAtClock();
         syncInventoryFields();
         syncProductAreaOther();
+        renderLinkedServiceOptions();
+    };
+
+    const resetCreateProductForm = () => {
+        createProductForm?.reset();
+        if (createProductForm) {
+            createProductForm.action = createProductUrl;
+        }
+        if (createProductFormMethod) {
+            createProductFormMethod.value = 'POST';
+        }
+        if (createProductModalTitle) {
+            createProductModalTitle.textContent = 'Create Product';
+        }
+        if (createProductFormSubmit) {
+            createProductFormSubmit.textContent = 'Save';
+        }
+        if (skuInput?.dataset?.defaultSku) {
+            skuInput.value = skuInput.dataset.defaultSku;
+        }
+        productAreaCheckboxes.forEach((checkbox) => {
+            checkbox.checked = checkbox.value === 'None';
+        });
+        if (selectedLinkedServiceIdsElement) {
+            selectedLinkedServiceIdsElement.dataset.selectedServiceIds = '[]';
+        }
+        if (productOwnerIdInput) {
+            productOwnerIdInput.value = defaultOwnerIdValue;
+        }
+        if (productOwnerSelectedLabel) {
+            productOwnerSelectedLabel.textContent = `Owner: ${defaultOwnerNameValue}`;
+        }
+        document.querySelectorAll('input[name="tax_treatment"]').forEach((input) => {
+            input.checked = input.value === 'Tax Exclusive';
+        });
+        document.getElementById('product_requirement_category').value = '';
+        document.getElementById('product_requirements_legacy').value = '';
+        syncInventoryFields();
+        syncCustomSelectField(productTypeInput, productTypeOtherWrap);
+        syncCustomSelectField(categoryInput, categoryOtherWrap);
+        syncProductAreaSelection();
+        renderLinkedServiceOptions();
+        renderRequirementPreviews();
+    };
+
+    const fillProductForm = (product) => {
+        if (createProductForm) {
+            createProductForm.action = updateProductUrlTemplate.replace('__PRODUCT__', product.product_id);
+        }
+        if (createProductFormMethod) {
+            createProductFormMethod.value = 'PUT';
+        }
+        if (createProductModalTitle) {
+            createProductModalTitle.textContent = 'Edit Product';
+        }
+        if (createProductFormSubmit) {
+            createProductFormSubmit.textContent = 'Update';
+        }
+
+        productOwnerIdInput.value = product.owner_id ?? '';
+        productOwnerSelectedLabel.textContent = `Owner: ${product.owner_name || product.created_by || 'Select Owner'}`;
+        productCreatedAtLiveValue.textContent = product.created_at ? formatCreatedAt(new Date(product.created_at)) : productCreatedAtLiveValue.textContent;
+        if (productNameInput) {
+            productNameInput.value = product.product_name ?? '';
+        }
+        const productTypeOtherInput = document.getElementById('product_type_other');
+        const hasKnownProductType = Array.from(productTypeInput?.options ?? []).some((option) => option.value === (product.product_type ?? ''));
+        productTypeInput.value = hasKnownProductType ? (product.product_type ?? '') : 'Other';
+        if (productTypeOtherInput) {
+            productTypeOtherInput.value = hasKnownProductType ? '' : (product.product_type ?? '');
+        }
+        skuInput.value = product.sku ?? '';
+        productDescriptionInput.value = product.product_description ?? '';
+        productInclusionsInput.value = product.product_inclusions ?? '';
+        const requirementGroups = product.requirements?.groups ?? {};
+        document.getElementById('product_requirements_individual').value = Array.isArray(requirementGroups.individual) ? requirementGroups.individual.join('\n') : '';
+        document.getElementById('product_requirements_juridical').value = Array.isArray(requirementGroups.juridical) ? requirementGroups.juridical.join('\n') : '';
+        document.getElementById('product_requirements_other').value = Array.isArray(requirementGroups.other) ? requirementGroups.other.join('\n') : '';
+        document.getElementById('product_requirement_category').value = product.requirement_category ?? '';
+        document.getElementById('product_requirements_legacy').value = '';
+        const categoryOtherInput = document.getElementById('category_other');
+        const hasKnownCategory = Array.from(categoryInput?.options ?? []).some((option) => option.value === (product.category ?? ''));
+        categoryInput.value = hasKnownCategory ? (product.category ?? '') : 'Other';
+        if (categoryOtherInput) {
+            categoryOtherInput.value = hasKnownCategory ? '' : (product.category ?? '');
+        }
+        pricingTypeInput.value = product.pricing_type ?? '';
+        priceInput.value = product.price ?? '';
+        costInput.value = product.cost ?? '';
+        if (isDiscountableInput) {
+            isDiscountableInput.checked = Boolean(product.is_discountable);
+        }
+        taxTypeInput.value = product.tax_type ?? 'VAT';
+        document.querySelectorAll('input[name="tax_treatment"]').forEach((input) => {
+            input.checked = input.value === (product.tax_treatment ?? 'Tax Exclusive');
+        });
+        const inventoryTypeOtherInput = document.getElementById('inventory_type_other');
+        const hasKnownInventoryType = Array.from(inventoryTypeInput?.options ?? []).some((option) => option.value === (product.inventory_type ?? ''));
+        inventoryTypeInput.value = hasKnownInventoryType ? (product.inventory_type ?? '') : 'Other';
+        if (inventoryTypeOtherInput) {
+            inventoryTypeOtherInput.value = hasKnownInventoryType ? '' : (product.inventory_type ?? '');
+        }
+        document.getElementById('stock_qty').value = product.stock_qty ?? '';
+        unitInput.value = product.unit ?? '';
+
+        const selectedAreas = Array.isArray(product.product_area) ? product.product_area : [];
+        productAreaCheckboxes.forEach((checkbox) => {
+            checkbox.checked = selectedAreas.includes(checkbox.value);
+        });
+        if (!productAreaCheckboxes.some((checkbox) => checkbox.checked)) {
+            const noneCheckbox = productAreaCheckboxes.find((checkbox) => checkbox.value === 'None');
+            if (noneCheckbox) {
+                noneCheckbox.checked = true;
+            }
+        }
+        document.getElementById('product_area_other').value = product.product_area_other ?? '';
+        if (selectedLinkedServiceIdsElement) {
+            selectedLinkedServiceIdsElement.dataset.selectedServiceIds = JSON.stringify(product.linked_service_ids ?? []);
+        }
+
+        createProductForm?.querySelectorAll('[name^="custom_fields["]').forEach((input) => {
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else {
+                input.value = '';
+            }
+        });
+
+        const customFieldValues = product.custom_field_values ?? {};
+        Object.entries(customFieldValues).forEach(([key, value]) => {
+            const input = createProductForm?.querySelector(`[name="custom_fields[${key}]"]`);
+            if (!input) return;
+            if (input.type === 'checkbox') {
+                input.checked = value === '1' || value === 1 || value === true;
+            } else {
+                input.value = value ?? '';
+            }
+        });
+
+        syncInventoryFields();
+        syncCustomSelectField(productTypeInput, productTypeOtherWrap);
+        syncCustomSelectField(categoryInput, categoryOtherWrap);
+        syncProductAreaSelection();
+        renderLinkedServiceOptions();
+        renderRequirementPreviews();
+    };
+
+    const buildRequirementPreview = (value) => {
+        const items = String(value || '')
+            .split(/\r?\n/)
+            .map((item) => item.trim().replace(/^[^A-Za-z0-9]+/u, ''))
+            .filter((item) => item !== '');
+
+        if (items.length === 0) {
+            return '';
+        }
+
+        return `
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Bullet Preview</p>
+            <ul class="mt-2 space-y-1 text-sm text-gray-700">
+                ${items.map((item) => `<li class="flex items-start gap-2"><span class="mt-[2px] text-blue-600">&bull;</span><span>${item}</span></li>`).join('')}
+            </ul>
+        `;
+    };
+
+    const renderRequirementPreviews = () => {
+        productRequirementsInputs.forEach((input) => {
+            const preview = input.parentElement?.querySelector('.product-requirements-preview');
+            if (!preview) {
+                return;
+            }
+
+            const html = buildRequirementPreview(input.value);
+            preview.innerHTML = html;
+            preview.classList.toggle('hidden', html === '');
+        });
     };
 
     const closeProductOwnerDropdown = () => {
@@ -421,45 +817,6 @@ document.addEventListener('DOMContentLoaded', function () {
         window.setTimeout(() => {
             createProductModal.classList.add('hidden');
             createProductModal.setAttribute('aria-hidden', 'true');
-        }, 300);
-    };
-
-    const openChangeOwnerModal = () => {
-        const selected = rowCheckboxes.filter((checkbox) => checkbox.checked);
-        if (selected.length === 0) {
-            return;
-        }
-
-        selectedProductsFields.innerHTML = selected
-            .map((checkbox) => `<input type="hidden" name="selected_products[]" value="${checkbox.value}">`)
-            .join('');
-
-        changeOwnerModalCount.textContent = selected.length === 1
-            ? '1 Product Selected'
-            : `${selected.length} Products Selected`;
-
-        ownerSearchInput.value = '';
-        selectedOwnerId.value = '';
-        saveChangeOwnerBtn.disabled = true;
-        ownerOptions.forEach((option) => option.classList.remove('hidden', 'bg-blue-50'));
-        ownerDropdownMenu.classList.add('hidden');
-        changeOwnerModal.classList.remove('hidden');
-        changeOwnerModal.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('overflow-hidden');
-        requestAnimationFrame(() => {
-            changeOwnerModalOverlay?.classList.remove('opacity-0');
-            changeOwnerPanel?.classList.remove('translate-x-full');
-        });
-    };
-
-    const closeChangeOwnerModalFn = () => {
-        changeOwnerModalOverlay?.classList.add('opacity-0');
-        changeOwnerPanel?.classList.add('translate-x-full');
-        ownerDropdownMenu.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-        window.setTimeout(() => {
-            changeOwnerModal.classList.add('hidden');
-            changeOwnerModal.setAttribute('aria-hidden', 'true');
         }, 300);
     };
 
@@ -764,61 +1121,10 @@ document.addEventListener('DOMContentLoaded', function () {
         positionFieldActionsMenu(trigger);
     };
 
-    const clearAllSelection = () => {
-        rowCheckboxes.forEach((checkbox) => {
-            checkbox.checked = false;
-        });
-        if (selectAllProducts) {
-            selectAllProducts.checked = false;
-        }
-    };
-
-    const selectedCountLabel = (count) => {
-        if (count === 1) {
-            return '1 Product selected';
-        }
-        return `${count} Products selected`;
-    };
-
-    const refreshSelection = () => {
-        const selectedCount = rowCheckboxes.filter((checkbox) => checkbox.checked).length;
-        selectedProductText.textContent = selectedCountLabel(selectedCount);
-        selectionBar.classList.toggle('hidden', selectedCount === 0);
-        selectionBar.classList.toggle('flex', selectedCount > 0);
-
-        if (selectAllProducts) {
-            selectAllProducts.checked = rowCheckboxes.length > 0 && selectedCount === rowCheckboxes.length;
-        }
-
-        tableRows.forEach((row, index) => {
-            const isSelected = rowCheckboxes[index] && rowCheckboxes[index].checked;
-            row.classList.toggle('bg-blue-50', isSelected);
-        });
-    };
-
-    const refreshStatusPill = (select) => {
-        select.classList.remove(
-            'border-green-200',
-            'bg-green-100',
-            'text-green-700',
-            'border-amber-200',
-            'bg-amber-100',
-            'text-amber-700',
-            'border-gray-300',
-            'bg-gray-100',
-            'text-gray-600'
-        );
-
-        if (select.value === 'Active') {
-            select.classList.add('border-green-200', 'bg-green-100', 'text-green-700');
-        } else if (select.value === 'Draft') {
-            select.classList.add('border-amber-200', 'bg-amber-100', 'text-amber-700');
-        } else {
-            select.classList.add('border-gray-300', 'bg-gray-100', 'text-gray-600');
-        }
-    };
-
-    openCreateModalButton?.addEventListener('click', openCreateModal);
+    openCreateModalButton?.addEventListener('click', function () {
+        resetCreateProductForm();
+        openCreateModal();
+    });
     closeCreateModalButton?.addEventListener('click', closeCreateModal);
     cancelCreateModalButton?.addEventListener('click', closeCreateModal);
 
@@ -853,48 +1159,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     inventoryTypeInput?.addEventListener('change', syncInventoryFields);
+    productTypeInput?.addEventListener('change', () => syncCustomSelectField(productTypeInput, productTypeOtherWrap));
+    categoryInput?.addEventListener('change', () => syncCustomSelectField(categoryInput, categoryOtherWrap));
     productAreaCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', () => syncProductAreaSelection(checkbox)));
-    linkedServiceInput?.addEventListener('change', () => syncProductAreaSelection());
-
-    openChangeOwnerModalButton?.addEventListener('click', openChangeOwnerModal);
-    cancelChangeOwnerModal?.addEventListener('click', closeChangeOwnerModalFn);
-    closeChangeOwnerModalX?.addEventListener('click', closeChangeOwnerModalFn);
-
-    changeOwnerModalOverlay?.addEventListener('click', closeChangeOwnerModalFn);
-
-    toggleOwnerDropdown?.addEventListener('click', function () {
-        ownerDropdownMenu.classList.toggle('hidden');
-        if (!ownerDropdownMenu.classList.contains('hidden')) {
-            ownerSearchInput.focus();
-        }
-    });
-
-    ownerSearchInput?.addEventListener('focus', function () {
-        ownerDropdownMenu.classList.remove('hidden');
-    });
-
-    ownerSearchInput?.addEventListener('input', function () {
-        const keyword = ownerSearchInput.value.trim().toLowerCase();
-        selectedOwnerId.value = '';
-        saveChangeOwnerBtn.disabled = true;
-        ownerOptions.forEach((option) => {
-            const ownerName = (option.dataset.ownerName || '').toLowerCase();
-            const ownerEmail = (option.dataset.ownerEmail || '').toLowerCase();
-            const matches = keyword === '' || ownerName.includes(keyword) || ownerEmail.includes(keyword);
-            option.classList.toggle('hidden', !matches);
-            option.classList.remove('bg-blue-50');
-        });
-    });
-
-    ownerOptions.forEach((option) => {
-        option.addEventListener('click', function () {
-            selectedOwnerId.value = option.dataset.ownerId || '';
-            ownerSearchInput.value = option.dataset.ownerName || '';
-            ownerDropdownMenu.classList.add('hidden');
-            ownerOptions.forEach((item) => item.classList.remove('bg-blue-50'));
-            option.classList.add('bg-blue-50');
-            saveChangeOwnerBtn.disabled = selectedOwnerId.value === '';
-        });
+    productRequirementsInputs.forEach((input) => {
+        input.addEventListener('input', renderRequirementPreviews);
     });
 
     document.addEventListener('click', function (event) {
@@ -920,17 +1189,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if (ownerDropdownMenu && !ownerDropdownMenu.classList.contains('hidden')) {
-            const clickedSearch = ownerSearchInput ? ownerSearchInput.contains(event.target) : false;
-            const clickedToggle = toggleOwnerDropdown ? toggleOwnerDropdown.contains(event.target) : false;
-            if (!ownerDropdownMenu.contains(event.target) && !clickedSearch && !clickedToggle) {
-                ownerDropdownMenu.classList.add('hidden');
-            }
-        }
-    });
-
-    changeOwnerForm?.addEventListener('submit', function () {
-        saveChangeOwnerBtn.disabled = true;
     });
 
     openCreateFieldDropdown?.addEventListener('click', function () {
@@ -1085,10 +1343,6 @@ document.addEventListener('DOMContentLoaded', function () {
         ensurePicklistOptionRows();
     });
 
-    rowCheckboxes.forEach((checkbox) => {
-        checkbox.addEventListener('change', refreshSelection);
-    });
-
     tableRows.forEach((row) => {
         row.classList.add('cursor-pointer');
         row.addEventListener('click', function (event) {
@@ -1103,32 +1357,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    selectAllProducts?.addEventListener('change', function () {
-        rowCheckboxes.forEach((checkbox) => {
-            checkbox.checked = selectAllProducts.checked;
+    productEditButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+            const product = JSON.parse(button.dataset.productEdit || '{}');
+            resetCreateProductForm();
+            fillProductForm(product);
+            openCreateModal();
         });
-        refreshSelection();
-    });
-
-    clearSelection?.addEventListener('click', function () {
-        clearAllSelection();
-        refreshSelection();
-    });
-
-    closeSelection?.addEventListener('click', function () {
-        clearAllSelection();
-        refreshSelection();
-    });
-
-    statusSelects.forEach((select) => {
-        select.addEventListener('change', function () {
-            refreshStatusPill(select);
-        });
-        refreshStatusPill(select);
     });
 
     syncInventoryFields();
+    syncCustomSelectField(productTypeInput, productTypeOtherWrap);
+    syncCustomSelectField(categoryInput, categoryOtherWrap);
     syncProductAreaSelection();
+    renderLinkedServiceOptions();
+    renderRequirementPreviews();
 
     const initialFieldType = createFieldTypeInput ? createFieldTypeInput.value : 'picklist';
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
@@ -1136,10 +1379,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     @if ($errors->any() && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id')))
         openCreateModal();
-    @endif
-
-    @if ($errors->any() && is_array(old('selected_products')))
-        openChangeOwnerModal();
     @endif
 
     @if (old('field_type'))

@@ -8,6 +8,24 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('role_permissions')) {
+            Schema::table('role_permissions', function (Blueprint $table) {
+                if (! Schema::hasColumn('role_permissions', 'create_townhall')) {
+                    $table->boolean('create_townhall')->default(false)->after('approve_townhall');
+                }
+
+                if (! Schema::hasColumn('role_permissions', 'create_corporate')) {
+                    $table->boolean('create_corporate')->default(false)->after('create_townhall');
+                }
+
+                if (! Schema::hasColumn('role_permissions', 'approve_corporate')) {
+                    $table->boolean('approve_corporate')->default(false)->after('create_corporate');
+                }
+            });
+
+            return;
+        }
+
         Schema::create('role_permissions', function (Blueprint $table) {
             $table->id();
 
@@ -34,6 +52,26 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('role_permissions');
+        if (! Schema::hasTable('role_permissions')) {
+            return;
+        }
+
+        if (Schema::hasColumn('role_permissions', 'approve_corporate')
+            || Schema::hasColumn('role_permissions', 'create_corporate')
+            || Schema::hasColumn('role_permissions', 'create_townhall')) {
+            Schema::table('role_permissions', function (Blueprint $table) {
+                if (Schema::hasColumn('role_permissions', 'approve_corporate')) {
+                    $table->dropColumn('approve_corporate');
+                }
+
+                if (Schema::hasColumn('role_permissions', 'create_corporate')) {
+                    $table->dropColumn('create_corporate');
+                }
+
+                if (Schema::hasColumn('role_permissions', 'create_townhall')) {
+                    $table->dropColumn('create_townhall');
+                }
+            });
+        }
     }
 };

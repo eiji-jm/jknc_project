@@ -6,6 +6,8 @@ use App\Models\Contact;
 use App\Models\Company;
 use App\Models\Deal;
 use App\Models\DealStage;
+use App\Models\Product;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +24,69 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DealController extends Controller
 {
+    private const FALLBACK_SERVICE_AREA_OPTIONS = [
+        'Corporate & Regulatory Advisory',
+        'Governance & Policy Advisory',
+        'People & Talent Solutions',
+        'Strategic Situations Advisory',
+        'Accounting & Compliance Advisory',
+        'Business Strategy & Process Advisory',
+        'Learning & Capability Development',
+        'Others',
+    ];
+
+    private const FALLBACK_SERVICE_GROUPS = [
+        'Corporate & Regulatory Advisory' => [
+            'Business Registration (SEC / DTI / BIR)',
+            'Business Permit Processing / Renewal',
+            'Regulatory Compliance',
+            'Loan Application Assistance',
+            'Foreign Business Entry Support',
+        ],
+        'Accounting & Compliance Advisory' => [
+            'Bookkeeping Services',
+            'Tax Filing & Compliance (BIR)',
+            'AFS Preparation',
+            'Audit Support / Coordination',
+            'Accounting Services',
+        ],
+        'Governance & Policy Advisory' => [
+            'Corporate Secretary Services',
+            'Corporate Officers Services',
+            'Policy Development (HR, Finance, Ops)',
+            'Board Resolutions & Minutes',
+            'Risk & Internal Control Setup',
+        ],
+        'Business Strategy & Process Advisory' => [
+            'Business Consulting / Strategy',
+            'Process Improvement / SOP Development',
+            'Organizational Structuring',
+            'Digital Transformation',
+            'Financial Planning & Analysis',
+        ],
+        'Strategic Situations Advisory' => [
+            'Corporate Deadlock Resolution',
+            'Crisis Assessment & Stabilization',
+            'Business Restructuring Strategy',
+            'Stakeholder Negotiation Support',
+            'High-Risk / Complex Case Advisory',
+        ],
+        'People & Talent Solutions' => [
+            'Recruitment & Hiring Support',
+            'HR Structuring & Organization Design',
+            'KPI & Performance Management Systems',
+            'HR Documentation & Contracts',
+            'Executive / Virtual Assistant Support',
+        ],
+        'Learning & Capability Development' => [
+            'Accounting & Compliance Training',
+            'Corporate Governance Workshops',
+            'Business & Strategy Training',
+            'Client Capability Development Programs',
+            'JKNC Academy Courses',
+        ],
+    ];
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -162,6 +227,7 @@ class DealController extends Controller
                             'company_bifs.id',
                             'company_bifs.company_id',
                             'company_bifs.status',
+                            'company_bifs.business_organization',
                             'company_bifs.authorized_contact_person_name',
                             'company_bifs.authorized_contact_person_position',
                             'company_bifs.authorized_contact_person_email',
@@ -232,6 +298,7 @@ class DealController extends Controller
                             'authorized_contact_sex' => $primaryContact?->sex,
                             'authorized_contact_date_of_birth' => optional($primaryContact?->date_of_birth)->format('Y-m-d'),
                             'authorized_contact_address' => $primaryContact?->contact_address,
+                            'business_organization' => $company->latestBif?->business_organization,
                             'client_requirement_status_map' => $this->buildClientRequirementStatusMap(
                                 strtolower((string) ($primaryContact?->cif_status ?? '')) === 'approved',
                                 strtolower((string) ($company->latestBif?->status ?? '')) === 'approved',
@@ -363,6 +430,9 @@ class DealController extends Controller
 
         $draft = session('deals.preview_payload', []);
 
+        $serviceCatalog = $this->dealServiceCatalog();
+        $productCatalog = $this->dealProductCatalog();
+
         return view('deals.index', [
             'stageColumns' => $groupedByStage,
             'totalDeals' => count($deals),
@@ -375,17 +445,282 @@ class DealController extends Controller
             'dealRecords' => $dealRecords,
             'dealDraft' => is_array($draft) ? $draft : [],
             'openDealModal' => (bool) request()->boolean('open_deal_modal'),
-            'productOptions' => [
-                'Compliance Audit Package',
-                'Enterprise Tax Filing Service',
-                'Cloud Storage Package (500GB)',
-                'Corporate Software License',
-                'Security Audit Toolkit',
-            ],
+            'serviceAreaOptions' => $serviceCatalog['serviceAreaOptions'],
+            'serviceGroups' => $serviceCatalog['serviceGroups'],
+            'servicePricing' => $serviceCatalog['servicePricing'],
+            'serviceRequirementCatalog' => $serviceCatalog['serviceRequirementCatalog'],
+            'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
+            'productPricing' => $productCatalog['productPricing'],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
             'owners' => $owners,
             'defaultOwnerId' => $defaultOwnerId,
         ]);
+    }
+
+    private function dealServiceCatalog(): array
+    {
+        $fallbackGroups = collect(self::FALLBACK_SERVICE_GROUPS)
+            ->map(fn (array $services): array => array_values(array_unique($services)))
+            ->all();
+        $fallbackPricing = collect($fallbackGroups)
+            ->flatten()
+            ->mapWithKeys(fn (string $service): array => [$service => 2500])
+            ->all();
+
+        try {
+            if (! Schema::hasTable('services')) {
+                return [
+                    'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                    'serviceGroups' => $fallbackGroups,
+                    'servicePricing' => $fallbackPricing,
+                    'serviceRequirementCatalog' => [],
+                ];
+            }
+
+            $query = Service::query()
+                ->select(['service_name', 'service_area', 'service_area_other', 'price_fee', 'rate_per_unit', 'status', 'requirements'])
+                ->whereNotNull('service_name')
+                ->where('service_name', '!=', '');
+
+            if (Schema::hasColumn('services', 'status')) {
+                $query->where('status', 'Active');
+            }
+
+            $services = $query->orderBy('service_name')->get();
+
+            $serviceGroups = [];
+            $servicePricing = [];
+            $serviceRequirementCatalog = [];
+
+            foreach ($services as $service) {
+                $serviceName = trim((string) $service->service_name);
+                if ($serviceName === '') {
+                    continue;
+                }
+
+                $areas = collect($service->service_area ?? [])
+                    ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+                    ->map(fn ($value): string => trim((string) $value))
+                    ->values();
+
+                if ($areas->contains('Others') && filled($service->service_area_other)) {
+                    $areas = $areas
+                        ->reject(fn ($value): bool => $value === 'Others')
+                        ->push(trim((string) $service->service_area_other))
+                        ->values();
+                }
+
+                if ($areas->isEmpty() && filled($service->service_area_other)) {
+                    $areas = collect([trim((string) $service->service_area_other)]);
+                }
+
+                foreach ($areas as $area) {
+                    $serviceGroups[$area] ??= [];
+                    $serviceGroups[$area][] = $serviceName;
+                }
+
+                $servicePricing[$serviceName] = (float) ($service->price_fee ?? $service->rate_per_unit ?? 0);
+                $serviceRequirementCatalog[$serviceName] = $this->normalizeServiceRequirementCatalogEntry($service->requirements);
+            }
+
+            $serviceGroups = collect($serviceGroups)
+                ->map(fn (array $group): array => collect($group)->filter()->unique()->sort()->values()->all())
+                ->filter(fn (array $group): bool => $group !== [])
+                ->sortKeys()
+                ->all();
+
+            $serviceAreaOptions = array_values(array_unique(array_merge(
+                array_keys($serviceGroups),
+                self::FALLBACK_SERVICE_AREA_OPTIONS
+            )));
+
+            if ($serviceGroups === []) {
+                return [
+                    'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                    'serviceGroups' => $fallbackGroups,
+                    'servicePricing' => $fallbackPricing,
+                    'serviceRequirementCatalog' => [],
+                ];
+            }
+
+            return [
+                'serviceAreaOptions' => $serviceAreaOptions,
+                'serviceGroups' => $serviceGroups,
+                'servicePricing' => $servicePricing + $fallbackPricing,
+                'serviceRequirementCatalog' => $serviceRequirementCatalog,
+            ];
+        } catch (Throwable) {
+            return [
+                'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                'serviceGroups' => $fallbackGroups,
+                'servicePricing' => $fallbackPricing,
+                'serviceRequirementCatalog' => [],
+            ];
+        }
+    }
+
+    private function dealProductCatalog(): array
+    {
+        $fallbackGroups = [
+            'Corporate & Regulatory Advisory' => [
+                'Printing',
+                'Photocopy',
+                'Drafting of Letters',
+                'Drafting of Notices',
+                'Drafting of Demand Letters',
+                'Drafting of Emails (Formal / Business)',
+            ],
+            'Accounting & Compliance Advisory' => [
+                'Archive Retrieval',
+                'Digital Archive Copy',
+                'Drafting of Responses to Letters / Notices',
+                'Drafting of Memorandum (Internal / External)',
+                'Drafting of Certifications',
+                'Drafting of Compliance Documents',
+            ],
+            'Governance & Policy Advisory' => [
+                'Document Delivery (Metro Cebu)',
+                'Document Delivery (Outside Metro Cebu/LBC)',
+                'Drafting of Affidavits (Non-Legal Advice)',
+                'Drafting of Agreements / Simple Contracts',
+                'Drafting of Board Resolutions',
+                'Drafting of Endorsement / Request Letters',
+            ],
+            'Business Strategy & Process Advisory' => [
+                'Notarization - Simple Documents',
+                'Notarization - Complex Documents',
+                "Drafting of Secretary's Certificates",
+                'Drafting of Policies & Procedures',
+                'Drafting of Reports / Formal Documents',
+            ],
+            'Strategic Situations Advisory' => [
+                'Printing',
+                'Photocopy',
+                'Drafting of Letters',
+                'Drafting of Notices',
+                'Drafting of Demand Letters',
+                'Drafting of Emails (Formal / Business)',
+            ],
+            'People & Talent Solutions' => [
+                'Archive Retrieval',
+                'Digital Archive Copy',
+                'Drafting of Responses to Letters / Notices',
+                'Drafting of Memorandum (Internal / External)',
+                'Drafting of Certifications',
+                'Drafting of Compliance Documents',
+            ],
+            'Learning & Capability Development' => [
+                'Document Delivery (Metro Cebu)',
+                'Document Delivery (Outside Metro Cebu/LBC)',
+                'Drafting of Affidavits (Non-Legal Advice)',
+                'Drafting of Agreements / Simple Contracts',
+                'Drafting of Board Resolutions',
+                'Drafting of Endorsement / Request Letters',
+            ],
+        ];
+
+        try {
+            if (! Schema::hasTable('products')) {
+                return [
+                    'productOptionsByServiceArea' => $fallbackGroups,
+                    'productPricing' => collect($fallbackGroups)->flatten()->mapWithKeys(fn ($name) => [$name => 350])->all(),
+                ];
+            }
+
+            $products = Product::query()
+                ->select(['product_name', 'product_area', 'price', 'status'])
+                ->whereNotNull('product_name')
+                ->where('product_name', '!=', '')
+                ->when(
+                    Schema::hasColumn('products', 'status'),
+                    fn ($query) => $query->whereIn('status', ['Pending Approval', 'Active'])
+                )
+                ->orderBy('product_name')
+                ->get();
+
+            $groups = [];
+            $pricing = [];
+
+            foreach ($products as $product) {
+                $productName = trim((string) $product->product_name);
+                if ($productName === '') {
+                    continue;
+                }
+
+                $areas = collect($product->product_area ?? [])
+                    ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+                    ->map(fn ($value): string => trim((string) $value))
+                    ->reject(fn (string $value): bool => $value === 'Others' || $value === 'None')
+                    ->values();
+
+                foreach ($areas as $area) {
+                    $groups[$area] ??= [];
+                    $groups[$area][] = $productName;
+                }
+
+                $pricing[$productName] = (float) ($product->price ?? 350);
+            }
+
+            $groups = collect($groups)
+                ->map(fn (array $items): array => collect($items)->filter()->unique()->sort()->values()->all())
+                ->filter(fn (array $items): bool => $items !== [])
+                ->sortKeys()
+                ->all();
+
+            if ($groups === []) {
+                return [
+                    'productOptionsByServiceArea' => $fallbackGroups,
+                    'productPricing' => collect($fallbackGroups)->flatten()->mapWithKeys(fn ($name) => [$name => 350])->all(),
+                ];
+            }
+
+            return [
+                'productOptionsByServiceArea' => $groups,
+                'productPricing' => $pricing + collect($fallbackGroups)->flatten()->mapWithKeys(fn ($name) => [$name => 350])->all(),
+            ];
+        } catch (Throwable) {
+            return [
+                'productOptionsByServiceArea' => $fallbackGroups,
+                'productPricing' => collect($fallbackGroups)->flatten()->mapWithKeys(fn ($name) => [$name => 350])->all(),
+            ];
+        }
+    }
+
+    private function normalizeServiceRequirementCatalogEntry(mixed $requirements): array
+    {
+        if (! is_array($requirements)) {
+            return [];
+        }
+
+        if (is_array($requirements['groups'] ?? null)) {
+            return collect($requirements['groups'])
+                ->map(fn ($items) => collect(is_array($items) ? $items : [])
+                    ->filter(fn ($item) => is_string($item) && trim($item) !== '')
+                    ->map(fn ($item) => trim((string) $item))
+                    ->values()
+                    ->all())
+                ->filter(fn ($items) => $items !== [])
+                ->all();
+        }
+
+        $legacyCategory = (string) ($requirements['category'] ?? '');
+        $legacyItems = collect(is_array($requirements['items'] ?? null) ? $requirements['items'] : [])
+            ->filter(fn ($item) => is_string($item) && trim($item) !== '')
+            ->map(fn ($item) => trim((string) $item))
+            ->values()
+            ->all();
+
+        if ($legacyItems === []) {
+            return [];
+        }
+
+        $legacyKey = match ($legacyCategory) {
+            'SOLE / NATURAL PERSON / INDIVIDUAL' => 'individual',
+            'JURIDICAL ENTITY (Corporation / OPC / Partnership / Cooperative)' => 'juridical',
+            default => 'other',
+        };
+
+        return [$legacyKey => $legacyItems];
     }
 
     public function storeStage(Request $request): JsonResponse
@@ -1504,13 +1839,16 @@ class DealController extends Controller
             $companyOptions = array_values(array_unique(array_merge($companyOptions, $companies->pluck('company_name')->filter()->values()->all())));
         }
 
+        $productCatalog = $this->dealProductCatalog();
+
         return [
             'stageOptions' => array_values(array_map(fn (array $stage): string => $stage['name'], $this->dealStages())),
             'companyOptions' => $companyOptions,
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
             'companyRecords' => $companyRecords,
-            'productOptions' => [],
+            'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
+            'productPricing' => $productCatalog['productPricing'],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
             'owners' => $owners,
             'defaultOwnerId' => $defaultOwnerId,

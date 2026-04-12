@@ -3,6 +3,7 @@
 @section('content')
 @php
     $statusClasses = [
+        'Pending Approval' => 'border-amber-200 bg-amber-50 text-amber-700',
         'Draft' => 'border-slate-200 bg-slate-50 text-slate-700',
         'Active' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
         'Inactive' => 'border-amber-200 bg-amber-50 text-amber-700',
@@ -188,9 +189,11 @@ document.addEventListener('DOMContentLoaded', function () {
         methodInput.value = 'POST';
         title.textContent = 'Assign Service';
         submit.textContent = 'Save';
-        document.getElementById('companyServiceFormStatus').value = 'Draft';
-        document.getElementById('companyServiceFormCreatedByLabel').value = '-';
-        document.getElementById('companyServiceFormUpdatedAtLabel').value = '-';
+        const statusField = document.getElementById('companyServiceFormStatus');
+        if (statusField) {
+            statusField.value = 'Pending Approval';
+            statusField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     };
 
     const fillForm = (service) => {
@@ -205,8 +208,25 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('companyServiceFormScheduleRule').value = service.schedule_rule ?? '';
         document.getElementById('companyServiceFormDeadline').value = formatDateTimeLocal(service.deadline ?? '');
         document.getElementById('companyServiceFormReminder').value = service.reminder_lead_time ?? '';
+        const requirementGroups = service.requirements?.groups ?? {};
         document.getElementById('companyServiceFormRequirementCategory').value = service.requirement_category ?? service.requirements?.category ?? '';
         document.getElementById('companyServiceFormRequirements').value = Array.isArray(service.requirements?.items) ? service.requirements.items.join('\n') : '';
+        document.getElementById('companyServiceFormRequirementsIndividual').value = Array.isArray(requirementGroups.individual) ? requirementGroups.individual.join('\n') : '';
+        document.getElementById('companyServiceFormRequirementsJuridical').value = Array.isArray(requirementGroups.juridical) ? requirementGroups.juridical.join('\n') : '';
+        document.getElementById('companyServiceFormRequirementsOther').value = Array.isArray(requirementGroups.other) ? requirementGroups.other.join('\n') : '';
+
+        if (service.requirements?.category && Array.isArray(service.requirements?.items)) {
+            if (service.requirements.category === 'SOLE / NATURAL PERSON / INDIVIDUAL') {
+                document.getElementById('companyServiceFormRequirementsIndividual').value = service.requirements.items.join('\n');
+            } else if (service.requirements.category === 'JURIDICAL ENTITY (Corporation / OPC / Partnership / Cooperative)') {
+                document.getElementById('companyServiceFormRequirementsJuridical').value = service.requirements.items.join('\n');
+            } else {
+                document.getElementById('companyServiceFormRequirementsOther').value = service.requirements.items.join('\n');
+            }
+        }
+        ['companyServiceFormRequirementsIndividual', 'companyServiceFormRequirementsJuridical', 'companyServiceFormRequirementsOther'].forEach((id) => {
+            document.getElementById(id)?.dispatchEvent(new Event('input', { bubbles: true }));
+        });
         setMultiSelect('companyServiceFormEngagement', service.engagement_structure ?? []);
         document.getElementById('companyServiceFormUnit').value = service.unit ?? '';
         document.getElementById('companyServiceFormRatePerUnit').value = service.rate_per_unit ?? '';
@@ -214,14 +234,17 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('companyServiceFormMaxCap').value = service.max_cap ?? '';
         document.getElementById('companyServiceFormPriceFee').value = service.price_fee ?? '';
         document.getElementById('companyServiceFormCost').value = service.cost_of_service ?? '';
+        const companyTaxType = service.tax_type ?? 'Tax Exclusive';
+        document.querySelectorAll('#companyServiceModal input[name="tax_type"]').forEach((input) => {
+            input.checked = input.value === companyTaxType;
+        });
         document.getElementById('companyServiceFormAssignedUnit').value = service.assigned_unit ?? '';
-        document.getElementById('companyServiceFormStatus').value = service.status ?? 'Draft';
-        document.getElementById('companyServiceFormReviewedBy').value = service.reviewed_by ?? '';
-        document.getElementById('companyServiceFormReviewedAt').value = formatDateTimeLocal(service.reviewed_at ?? '');
-        document.getElementById('companyServiceFormApprovedBy').value = service.approved_by ?? '';
-        document.getElementById('companyServiceFormApprovedAt').value = formatDateTimeLocal(service.approved_at ?? '');
-        document.getElementById('companyServiceFormCreatedByLabel').value = service.creator?.name ?? '-';
-        document.getElementById('companyServiceFormUpdatedAtLabel').value = service.updated_at ?? '-';
+        document.getElementById('companyServiceFormAssignedUnit').dispatchEvent(new Event('change', { bubbles: true }));
+        const statusField = document.getElementById('companyServiceFormStatus');
+        if (statusField) {
+            statusField.value = service.status ?? 'Pending Approval';
+            statusField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
         Object.entries(service.custom_field_values ?? {}).forEach(([key, value]) => {
             const input = form.querySelector(`[name="custom_fields[${key}]"]`);
             if (!input) return;

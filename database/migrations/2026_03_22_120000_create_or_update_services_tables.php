@@ -33,6 +33,7 @@ return new class extends Migration
                 $table->decimal('max_cap', 12, 2)->nullable();
                 $table->decimal('price_fee', 12, 2)->nullable();
                 $table->decimal('cost_of_service', 12, 2)->nullable();
+                $table->string('tax_type', 30)->default('Tax Exclusive');
                 $table->string('assigned_unit')->nullable();
                 $table->string('status', 30)->default('Draft');
                 $table->unsignedBigInteger('created_by')->nullable();
@@ -113,8 +114,11 @@ return new class extends Migration
                 if (! in_array('cost_of_service', $columns, true)) {
                     $table->decimal('cost_of_service', 12, 2)->nullable()->after('price_fee');
                 }
+                if (! in_array('tax_type', $columns, true)) {
+                    $table->string('tax_type', 30)->default('Tax Exclusive')->after('cost_of_service');
+                }
                 if (! in_array('assigned_unit', $columns, true)) {
-                    $table->string('assigned_unit')->nullable()->after('cost_of_service');
+                    $table->string('assigned_unit')->nullable()->after('tax_type');
                 }
                 if (! in_array('status', $columns, true)) {
                     $table->string('status', 30)->default('Draft')->after('assigned_unit');

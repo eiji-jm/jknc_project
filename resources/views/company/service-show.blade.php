@@ -34,7 +34,8 @@
                             <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</p>
                             @php($statusClasses = match($service->status) {
                                 'Active' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                                'Pending' => 'border-amber-200 bg-amber-50 text-amber-700',
+                                'Pending Approval' => 'border-amber-200 bg-amber-50 text-amber-700',
+                                'Draft' => 'border-slate-200 bg-slate-50 text-slate-700',
                                 'Completed' => 'border-blue-200 bg-blue-50 text-blue-700',
                                 'On Hold' => 'border-violet-200 bg-violet-50 text-violet-700',
                                 default => 'border-red-200 bg-red-50 text-red-700',
@@ -87,6 +88,36 @@
                         <p class="mt-3 text-sm leading-6 text-gray-700">{{ $service->service_description }}</p>
                         <h2 class="mt-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity / Output</h2>
                         <p class="mt-3 text-sm leading-6 text-gray-700">{{ $service->service_activity_output }}</p>
+                    </div>
+
+                    <div class="mt-4 rounded-md border border-gray-200 bg-white p-4">
+                        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">System Info</h2>
+                        <dl class="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <dt class="font-medium text-gray-500">Created By</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->creator?->name ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Reviewed By</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->reviewer?->name ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Approved By</dt>
+                                <dd class="mt-1 text-gray-900">{{ $service->approver?->name ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Updated At</dt>
+                                <dd class="mt-1 text-gray-900">{{ optional($service->updated_at)->format('M d, Y h:i A') ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Reviewed At</dt>
+                                <dd class="mt-1 text-gray-900">{{ optional($service->reviewed_at)->format('M d, Y h:i A') ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-medium text-gray-500">Approved At</dt>
+                                <dd class="mt-1 text-gray-900">{{ optional($service->approved_at)->format('M d, Y h:i A') ?: '-' }}</dd>
+                            </div>
+                        </dl>
                     </div>
                 </div>
             </div>

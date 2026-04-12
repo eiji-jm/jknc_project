@@ -59,8 +59,24 @@
                     <dd class="text-gray-800">{{ $product->status }}</dd>
                 </div>
                 <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Service Areas</dt>
+                    <dd class="text-gray-800">
+                        {{ collect($product->product_area ?? [])->filter()->implode(', ') ?: '-' }}
+                    </dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Linked Services</dt>
+                    <dd class="text-gray-800">
+                        {{ collect($product->linked_service_names ?? [])->filter()->implode(', ') ?: '-' }}
+                    </dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
                     <dt class="text-gray-500">Tax Type</dt>
                     <dd class="text-gray-800">{{ $product->tax_type }}</dd>
+                </div>
+                <div class="grid grid-cols-[120px_1fr] gap-2">
+                    <dt class="text-gray-500">Tax Treatment</dt>
+                    <dd class="text-gray-800">{{ $product->tax_treatment ?: '-' }}</dd>
                 </div>
             </dl>
 
@@ -80,6 +96,36 @@
                         <p>-</p>
                     @endforelse
                 </div>
+            </div>
+
+            <div class="mt-6">
+                <h3 class="mb-2 text-lg font-semibold text-gray-900">Requirements</h3>
+                @php
+                    $requirementGroups = collect($product->requirements['groups'] ?? []);
+                    $requirementLabels = [
+                        'individual' => 'Individual',
+                        'juridical' => 'Juridical',
+                        'other' => 'Other',
+                    ];
+                @endphp
+                @if ($requirementGroups->isNotEmpty())
+                    <div class="space-y-3 text-sm text-gray-600">
+                        @foreach ($requirementLabels as $groupKey => $groupLabel)
+                            @if (!empty($product->requirements['groups'][$groupKey]))
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $groupLabel }}</p>
+                                    <ul class="mt-1 space-y-1">
+                                        @foreach ($product->requirements['groups'][$groupKey] as $item)
+                                            <li>{{ $item }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-sm text-gray-600">-</p>
+                @endif
             </div>
 
             <div class="mt-6 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">

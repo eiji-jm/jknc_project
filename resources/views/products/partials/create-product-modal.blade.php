@@ -5,6 +5,10 @@
     $createdByDisplay = old('created_by', $drawerMeta['createdBy'] ?? 'Admin User');
     $createdAtDisplay = old('created_at_display', $drawerMeta['createdAtDisplay'] ?? now()->format('F j, Y g:i A'));
     $selectedProductAreas = old('product_area', ['None']);
+    $selectedLinkedServiceIds = collect(old('linked_service_ids', []))
+        ->map(fn ($value) => (string) $value)
+        ->values()
+        ->all();
 @endphp
 
 <div id="createProductModal" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
@@ -14,21 +18,22 @@
         <div id="createProductPanel" class="pointer-events-auto flex h-full w-full max-w-[720px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-[680px]">
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                 <div>
-                    <h2 class="text-2xl font-semibold text-gray-900">Create Product</h2>
+                    <h2 id="createProductModalTitle" class="text-2xl font-semibold text-gray-900">Create Product</h2>
                     <p class="mt-1 text-sm text-gray-500">Capture the complete product setup before linking it to deals and services.</p>
                 </div>
                 <button id="closeCreateProductModal" type="button" class="text-2xl text-gray-500 hover:text-gray-800">&times;</button>
             </div>
 
-            <form method="POST" action="{{ route('products.store') }}" class="flex min-h-0 flex-1 flex-col">
+            <form id="createProductForm" method="POST" action="{{ route('products.store') }}" class="flex min-h-0 flex-1 flex-col">
                 @csrf
+                <input id="createProductFormMethod" type="hidden" name="_method" value="POST">
                 <input id="product_owner_id" type="hidden" name="owner_id" value="{{ old('owner_id', $selectedOwnerId) }}">
 
                 <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6 sm:px-8">
-                    <div class="space-y-4 border-b border-gray-100 pb-5">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <div>
-                            <p class="text-sm font-medium text-gray-500">Product Intake</p>
-                            <p class="text-xs text-gray-400">Use the same structured format as the CRM master records.</p>
+                            <p class="text-sm font-semibold text-gray-700">Product Intake</p>
+                            <p class="mt-1 text-sm text-gray-500">Configure the catalog record before linking it to services and deals. After saving, it will be submitted for admin approval.</p>
                         </div>
 
                         <div class="grid gap-3 sm:grid-cols-2 sm:items-end">
@@ -86,9 +91,9 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <section class="rounded-2xl border border-gray-200 p-4">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Product Information</h3>
                         <p class="mb-4 text-xs text-gray-500">Capture the core product identity and classification.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -104,27 +109,22 @@
                                         <option value="{{ $option }}" @selected(old('product_type') === $option)>{{ $option }}</option>
                                     @endforeach
                                 </select>
+                                <div id="productTypeOtherWrap" class="mt-2 {{ old('product_type') === 'Other' ? '' : 'hidden' }}">
+                                    <input id="product_type_other" name="product_type_other" value="{{ old('product_type_other') }}" placeholder="Enter custom product type" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                </div>
                             </div>
                             <div class="sm:col-span-2">
                                 <label for="sku" class="mb-1 block text-sm font-medium text-gray-700">SKU / Code</label>
-                                <input id="sku" name="sku" value="{{ old('sku') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <input id="sku" name="sku" value="{{ $nextSku ?? old('sku') }}" data-default-sku="{{ $nextSku ?? old('sku') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                <p class="mt-1 text-xs text-gray-500">Auto-generated on create using the format `PRD-REG-001`.</p>
                             </div>
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-gray-200 p-4">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Service Linking</h3>
-                        <p class="mb-4 text-xs text-gray-500">Link the product to a service when available and classify the service area.</p>
+                        <p class="mb-4 text-xs text-gray-500">Select one or more service areas, then link this product to the matching services.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
-                            <div class="sm:col-span-2">
-                                <label for="linked_service_id" class="mb-1 block text-sm font-medium text-gray-700">Linked Service</label>
-                                <select id="linked_service_id" name="linked_service_id" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                    <option value="">None</option>
-                                    @foreach ($serviceOptions as $service)
-                                        <option value="{{ $service['id'] }}" @selected((string) old('linked_service_id') === (string) $service['id'])>{{ $service['name'] }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
                             <div class="sm:col-span-2">
                                 <label class="mb-2 block text-sm font-medium text-gray-700">Service Area <span class="text-red-500">*</span></label>
                                 <div class="grid gap-2 sm:grid-cols-2">
@@ -140,10 +140,28 @@
                                 <label for="product_area_other" class="mb-1 block text-sm font-medium text-gray-700">Other Product Area</label>
                                 <input id="product_area_other" name="product_area_other" value="{{ old('product_area_other') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                             </div>
+                            <div class="sm:col-span-2">
+                                <label class="mb-2 block text-sm font-medium text-gray-700">Linked Services</label>
+                                <div id="linkedServicesEmptyState" class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                                    Select a service area to show matching services.
+                                </div>
+                                <div id="linkedServicesList" class="hidden grid gap-2"></div>
+                                <template id="linkedServiceOptionTemplate">
+                                    <label class="linked-service-option flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-700">
+                                        <input type="checkbox" name="linked_service_ids[]" class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span>
+                                            <span class="linked-service-name block font-medium text-gray-800"></span>
+                                            <span class="linked-service-meta mt-0.5 block text-xs text-gray-500"></span>
+                                        </span>
+                                    </label>
+                                </template>
+                                <p class="mt-1 text-xs text-gray-500">You can link this product to multiple services under the selected service areas.</p>
+                                <div id="selectedLinkedServiceIds" data-selected-service-ids='@json($selectedLinkedServiceIds)'></div>
+                            </div>
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-gray-200 p-4">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Description</h3>
                         <p class="mb-4 text-xs text-gray-500">Provide the main description and inclusions for quoting and internal review.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -159,7 +177,37 @@
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-gray-200 p-4">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+                        <h3 class="text-base font-semibold text-gray-900">Requirements</h3>
+                        <p class="mb-4 text-xs text-gray-500">Set the default product requirements by client type, similar to Services.</p>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="product_requirements_individual" class="mb-1 block text-sm font-medium text-gray-700">Individual Requirements</label>
+                                <textarea id="product_requirements_individual" name="requirements_individual" rows="4" class="product-requirements-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Enter one requirement per line">{{ old('requirements_individual', $requirementTemplateDefaults['individual'] ?? '') }}</textarea>
+                                <p class="mt-1 text-xs text-gray-500">Default template: Valid ID, DTI Registration.</p>
+                                <div class="product-requirements-preview mt-2 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 hidden"></div>
+                            </div>
+                            <div>
+                                <label for="product_requirements_juridical" class="mb-1 block text-sm font-medium text-gray-700">Juridical Requirements</label>
+                                <textarea id="product_requirements_juridical" name="requirements_juridical" rows="4" class="product-requirements-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Enter one requirement per line">{{ old('requirements_juridical', $requirementTemplateDefaults['juridical'] ?? '') }}</textarea>
+                                <p class="mt-1 text-xs text-gray-500">Default template: SEC Registration, GIS, Articles of Incorporation.</p>
+                                <div class="product-requirements-preview mt-2 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 hidden"></div>
+                            </div>
+                            <div>
+                                <label for="product_requirements_other" class="mb-1 block text-sm font-medium text-gray-700">Other Requirements</label>
+                                <textarea id="product_requirements_other" name="requirements_other" rows="4" class="product-requirements-input w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Enter one requirement per line">{{ old('requirements_other', $requirementTemplateDefaults['other'] ?? '') }}</textarea>
+                                <p class="mt-1 text-xs text-gray-500">Default template: Special Permit.</p>
+                                <div class="product-requirements-preview mt-2 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-2 hidden"></div>
+                            </div>
+                            <input id="product_requirement_category" type="hidden" name="requirement_category" value="{{ old('requirement_category') }}">
+                            <input id="product_requirements_legacy" type="hidden" name="requirements" value="{{ old('requirements') }}">
+                            @error('requirement_category')
+                                <p class="text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </section>
+
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Accounting</h3>
                         <p class="mb-4 text-xs text-gray-500">Map the product to the proper accounting category.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -171,11 +219,14 @@
                                         <option value="{{ $category }}" @selected(old('category') === $category)>{{ $category }}</option>
                                     @endforeach
                                 </select>
+                                <div id="categoryOtherWrap" class="mt-2 {{ old('category') === 'Other' ? '' : 'hidden' }}">
+                                    <input id="category_other" name="category_other" value="{{ old('category_other') }}" placeholder="Enter custom category" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                </div>
                             </div>
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-gray-200 p-4">
+                    <section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
                         <h3 class="text-base font-semibold text-gray-900">Pricing</h3>
                         <p class="mb-4 text-xs text-gray-500">Define the pricing model, cost basis, and discount behavior.</p>
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -202,21 +253,31 @@
                                     <span>Discountable</span>
                                 </label>
                             </div>
-                        </div>
-                    </section>
-
-                    <section class="rounded-2xl border border-gray-200 p-4">
-                        <h3 class="text-base font-semibold text-gray-900">Tax</h3>
-                        <p class="mb-4 text-xs text-gray-500">Set the correct tax handling for the product.</p>
-                        <div class="grid gap-4 sm:grid-cols-2">
                             <div class="sm:col-span-2">
                                 <label for="tax_type" class="mb-1 block text-sm font-medium text-gray-700">Tax Type <span class="text-red-500">*</span></label>
                                 <select id="tax_type" name="tax_type" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                                     <option value="" disabled @selected(blank(old('tax_type'))) >Select tax type</option>
-                                    @foreach ($taxTypeOptions as $option)
-                                        <option value="{{ $option }}" @selected(old('tax_type') === $option)>{{ $option }}</option>
+                                    @foreach (['VAT', 'Non-VAT', 'Zero-rated', 'Exempt'] as $option)
+                                        <option value="{{ $option }}" @selected(old('tax_type', 'VAT') === $option)>{{ $option }}</option>
                                     @endforeach
                                 </select>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="mb-2 block text-sm font-medium text-gray-700">Tax Treatment <span class="text-red-500">*</span></label>
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    @foreach (['Tax Inclusive', 'Tax Exclusive'] as $option)
+                                        <label class="flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700">
+                                            <input
+                                                name="tax_treatment"
+                                                type="radio"
+                                                value="{{ $option }}"
+                                                class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                @checked(old('tax_treatment', 'Tax Exclusive') === $option)
+                                            >
+                                            <span>{{ $option }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -233,6 +294,9 @@
                                         <option value="{{ $option }}" @selected(old('inventory_type') === $option)>{{ $option }}</option>
                                     @endforeach
                                 </select>
+                                <div id="inventoryTypeOtherWrap" class="mt-2 {{ old('inventory_type') === 'Other' ? '' : 'hidden' }}">
+                                    <input id="inventory_type_other" name="inventory_type_other" value="{{ old('inventory_type_other') }}" placeholder="Enter custom inventory type" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                </div>
                             </div>
                             <div id="stockQtyWrap" class="{{ old('inventory_type') === 'Inventory' ? '' : 'hidden' }}">
                                 <label for="stock_qty" class="mb-1 block text-sm font-medium text-gray-700">Stock Quantity</label>
@@ -244,21 +308,6 @@
                                     <option value="">Select unit</option>
                                     @foreach ($unitOptions as $option)
                                         <option value="{{ $option }}" @selected(old('unit') === $option)>{{ $option }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="rounded-2xl border border-gray-200 p-4">
-                        <h3 class="text-base font-semibold text-gray-900">Status</h3>
-                        <p class="mb-4 text-xs text-gray-500">Control record availability in the CRM.</p>
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div class="sm:col-span-2">
-                                <label for="status" class="mb-1 block text-sm font-medium text-gray-700">Status <span class="text-red-500">*</span></label>
-                                <select id="status" name="status" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                    @foreach ($statusOptions as $option)
-                                        <option value="{{ $option }}" @selected(old('status', 'Active') === $option)>{{ $option }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -302,33 +351,6 @@
                         </section>
                     @endif
 
-                    <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
-                        <h3 class="text-base font-semibold text-gray-900">System Info</h3>
-                        <p class="mb-4 text-xs text-gray-500">Read-only metadata follows the same CRM panel behavior as Contacts.</p>
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Created By</p>
-                                <p class="text-sm text-gray-500">{{ $createdByDisplay }}</p>
-                            </div>
-                            <div>
-                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Created At</p>
-                                <p class="text-sm text-gray-500"><span id="productCreatedAtMetaValue">{{ $createdAtDisplay }}</span></p>
-                            </div>
-                            <div>
-                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Reviewed By / At</p>
-                                <p class="text-sm text-gray-500">Pending review</p>
-                            </div>
-                            <div>
-                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Approved By / At</p>
-                                <p class="text-sm text-gray-500">Pending approval</p>
-                            </div>
-                            <div class="sm:col-span-2">
-                                <p class="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Updated At</p>
-                                <p class="text-sm text-gray-500">Will update automatically after save.</p>
-                            </div>
-                        </div>
-                    </section>
-
                     @if ($errors->any())
                         <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                             {{ $errors->first() }}
@@ -340,7 +362,7 @@
                     <button id="cancelCreateProductModal" type="button" class="h-10 min-w-[100px] rounded-lg border border-gray-300 px-5 text-sm text-gray-700 hover:bg-gray-50">
                         Cancel
                     </button>
-                    <button type="submit" class="h-10 min-w-[100px] rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">
+                    <button id="createProductFormSubmit" type="submit" class="h-10 min-w-[100px] rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700">
                         Save
                     </button>
                 </div>

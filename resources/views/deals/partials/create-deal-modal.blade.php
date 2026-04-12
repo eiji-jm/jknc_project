@@ -4,137 +4,41 @@
     $formMethod = strtoupper($formMethod ?? 'POST');
     $submitLabel = $submitLabel ?? 'Save & View Deal';
     $draft = $dealDraft ?? [];
-    $serviceAreaOptions = [
-        'Corporate & Regulatory Advisory',
-        'Governance & Policy Advisory',
-        'People & Talent Solutions',
-        'Strategic Situations Advisory',
-        'Accounting & Compliance Advisory',
-        'Business Strategy & Process Advisory',
-        'Learning & Capability Development',
-        'Others',
-    ];
-    $serviceGroups = [
-        'Corporate & Regulatory Advisory' => [
-            'Business Registration (SEC / DTI / BIR)',
-            'Business Permit Processing / Renewal',
-            'Regulatory Compliance',
-            'Loan Application Assistance',
-            'Foreign Business Entry Support',
-        ],
-        'Accounting & Compliance Advisory' => [
-            'Bookkeeping Services',
-            'Tax Filing & Compliance (BIR)',
-            'AFS Preparation',
-            'Audit Support / Coordination',
-            'Accounting Services',
-        ],
-        'Governance & Policy Advisory' => [
-            'Corporate Secretary Services',
-            'Corporate Officers Services',
-            'Policy Development (HR, Finance, Ops)',
-            'Board Resolutions & Minutes',
-            'Risk & Internal Control Setup',
-        ],
-        'Business Strategy & Process Advisory' => [
-            'Business Consulting / Strategy',
-            'Process Improvement / SOP Development',
-            'Organizational Structuring',
-            'Digital Transformation',
-            'Financial Planning & Analysis',
-        ],
-        'Strategic Situations Advisory' => [
-            'Corporate Deadlock Resolution',
-            'Crisis Assessment & Stabilization',
-            'Business Restructuring Strategy',
-            'Stakeholder Negotiation Support',
-            'High-Risk / Complex Case Advisory',
-        ],
-        'People & Talent Solutions' => [
-            'Recruitment & Hiring Support',
-            'HR Structuring & Organization Design',
-            'KPI & Performance Management Systems',
-            'HR Documentation & Contracts',
-            'Executive / Virtual Assistant Support',
-        ],
-        'Learning & Capability Development' => [
-            'Accounting & Compliance Training',
-            'Corporate Governance Workshops',
-            'Business & Strategy Training',
-            'Client Capability Development Programs',
-            'JKNC Academy Courses',
-        ],
-    ];
-    $productOptionsByServiceArea = [
-        'Corporate & Regulatory Advisory' => [
-            'Printing',
-            'Photocopy',
-            'Drafting of Letters',
-            'Drafting of Notices',
-            'Drafting of Demand Letters',
-            'Drafting of Emails (Formal / Business)',
-        ],
-        'Accounting & Compliance Advisory' => [
-            'Archive Retrieval',
-            'Digital Archive Copy',
-            'Drafting of Responses to Letters / Notices',
-            'Drafting of Memorandum (Internal / External)',
-            'Drafting of Certifications',
-            'Drafting of Compliance Documents',
-        ],
-        'Governance & Policy Advisory' => [
-            'Document Delivery (Metro Cebu)',
-            'Document Delivery (Outside Metro Cebu/LBC)',
-            'Drafting of Affidavits (Non-Legal Advice)',
-            'Drafting of Agreements / Simple Contracts',
-            'Drafting of Board Resolutions',
-            'Drafting of Endorsement / Request Letters',
-        ],
-        'Business Strategy & Process Advisory' => [
-            'Notarization - Simple Documents',
-            'Notarization - Complex Documents',
-            "Drafting of Secretary's Certificates",
-            'Drafting of Policies & Procedures',
-            'Drafting of Reports / Formal Documents',
-        ],
-        'Strategic Situations Advisory' => [
-            'Printing',
-            'Photocopy',
-            'Drafting of Letters',
-            'Drafting of Notices',
-            'Drafting of Demand Letters',
-            'Drafting of Emails (Formal / Business)',
-        ],
-        'People & Talent Solutions' => [
-            'Archive Retrieval',
-            'Digital Archive Copy',
-            'Drafting of Responses to Letters / Notices',
-            'Drafting of Memorandum (Internal / External)',
-            'Drafting of Certifications',
-            'Drafting of Compliance Documents',
-        ],
-        'Learning & Capability Development' => [
-            'Document Delivery (Metro Cebu)',
-            'Document Delivery (Outside Metro Cebu/LBC)',
-            'Drafting of Affidavits (Non-Legal Advice)',
-            'Drafting of Agreements / Simple Contracts',
-            'Drafting of Board Resolutions',
-            'Drafting of Endorsement / Request Letters',
-        ],
-    ];
+    $serviceAreaOptions = collect($serviceAreaOptions ?? [])
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->unique()
+        ->values()
+        ->all();
+    $serviceGroups = collect($serviceGroups ?? [])
+        ->map(fn ($values): array => collect($values)
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->unique()
+            ->values()
+            ->all())
+        ->filter(fn ($values): bool => $values !== [])
+        ->all();
+    $productOptionsByServiceArea = collect($productOptionsByServiceArea ?? [])
+        ->map(fn ($values): array => collect($values)
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->unique()
+            ->values()
+            ->all())
+        ->filter(fn ($values): bool => $values !== [])
+        ->all();
     $productOptions = collect($productOptionsByServiceArea)
         ->flatten()
         ->push('Others')
         ->unique()
         ->values()
         ->all();
-    $servicePricing = collect($serviceGroups)
-        ->flatten()
-        ->mapWithKeys(fn ($service) => [$service => 2500])
+    $servicePricing = collect($servicePricing ?? [])
+        ->mapWithKeys(fn ($amount, $service): array => [trim((string) $service) => (float) $amount])
         ->all();
-    $productPricing = collect($productOptions)
-        ->reject(fn ($product) => $product === 'Others')
-        ->mapWithKeys(fn ($product) => [$product => 350])
+    $productPricing = collect($productPricing ?? [])
+        ->mapWithKeys(fn ($amount, $product): array => [trim((string) $product) => (float) $amount])
         ->all();
     $requirementRows = [
         'client_contact_form' => 'Client Contact Form',
@@ -1027,6 +931,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const contactRecords = @json($contactRecords);
     const companyRecords = @json($companyRecords ?? []);
     const servicePricing = @json($servicePricing);
+    const serviceRequirementCatalog = @json($serviceRequirementCatalog ?? []);
     const productPricing = @json($productPricing);
     const productOptionsByServiceArea = @json($productOptionsByServiceArea);
     const customServicePrice = 2500;
@@ -1051,6 +956,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const closeOwnerMenu = () => ownerMenu?.classList.add('hidden');
 
     const selectedCustomerType = () => document.querySelector('input[name="customer_type"]:checked')?.value || '';
+    let selectedBusinessRecord = null;
+    let selectedContactRecord = null;
 
     const openModal = () => {
         if (!modal || !panel) {
@@ -1680,6 +1587,100 @@ document.addEventListener('DOMContentLoaded', function () {
         syncClientRequirementRowState(row);
     };
 
+    const selectedServiceRequirementGroup = () => {
+        if (selectedCustomerType() === 'business') {
+            const organization = String(selectedBusinessRecord?.business_organization || '').trim().toLowerCase();
+            return organization === 'sole_proprietorship' ? 'individual' : 'juridical';
+        }
+
+        return 'individual';
+    };
+
+    const createDerivedRequirementRow = (label) => {
+        const row = document.createElement('tr');
+        row.setAttribute('data-client-custom-row', '');
+        row.setAttribute('data-service-derived-row', '');
+        row.dataset.clientCustomLabel = label;
+
+        const uid = `client_requirements_service_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        const requirementCell = document.createElement('td');
+        requirementCell.className = 'border border-gray-200 px-3 py-2 text-gray-700';
+        requirementCell.textContent = `Other: ${label}`;
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'client_requirements_custom[]';
+        hidden.setAttribute('data-client-custom-hidden', '');
+        requirementCell.appendChild(hidden);
+
+        const providedCell = document.createElement('td');
+        providedCell.className = 'border border-gray-200 px-3 py-2 text-center';
+        const providedRadio = document.createElement('input');
+        providedRadio.type = 'radio';
+        providedRadio.name = uid;
+        providedRadio.value = 'provided';
+        providedRadio.className = 'h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500';
+        providedRadio.setAttribute('data-client-custom-status', 'provided');
+        providedCell.appendChild(providedRadio);
+
+        const pendingCell = document.createElement('td');
+        pendingCell.className = 'border border-gray-200 px-3 py-2 text-center';
+        const pendingRadio = document.createElement('input');
+        pendingRadio.type = 'radio';
+        pendingRadio.name = uid;
+        pendingRadio.value = 'pending';
+        pendingRadio.checked = true;
+        pendingRadio.className = 'h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500';
+        pendingRadio.setAttribute('data-client-custom-status', 'pending');
+        pendingCell.appendChild(pendingRadio);
+
+        row.appendChild(requirementCell);
+        row.appendChild(providedCell);
+        row.appendChild(pendingCell);
+
+        return row;
+    };
+
+    const syncServiceRequirementRows = () => {
+        const tableBody = document.querySelector('#clientRequirementsTable tbody');
+        if (!tableBody) {
+            return;
+        }
+
+        Array.from(tableBody.querySelectorAll('[data-service-derived-row]')).forEach((row) => row.remove());
+
+        const selectedServices = Array.from(document.querySelectorAll('input[name="service_options[]"]:checked'))
+            .map((input) => String(input.value || '').trim())
+            .filter((value) => value !== '');
+        const requirementGroup = selectedServiceRequirementGroup();
+        const labels = [];
+
+        selectedServices.forEach((serviceName) => {
+            const serviceRequirements = serviceRequirementCatalog?.[serviceName] || {};
+            const requirements = Array.isArray(serviceRequirements?.[requirementGroup]) ? serviceRequirements[requirementGroup] : [];
+            requirements.forEach((requirement) => {
+                const cleanRequirement = String(requirement || '').trim();
+                if (cleanRequirement !== '') {
+                    labels.push(`${serviceName}: ${cleanRequirement}`);
+                }
+            });
+        });
+
+        Array.from(new Set(labels)).forEach((label) => {
+            const row = createDerivedRequirementRow(label);
+            tableBody.appendChild(row);
+            attachClientRequirementRowHandlers(row);
+        });
+
+        const othersPending = document.querySelector('input[data-client-requirement-status="others:pending"]');
+        if (labels.length > 0 && othersPending instanceof HTMLInputElement) {
+            othersPending.checked = true;
+        }
+
+        syncAllClientRequirementRows();
+    };
+
     const initClientRequirementsOthers = () => {
         const othersRadios = Array.from(document.querySelectorAll('input[data-client-others-radio]'));
         const container = document.getElementById('client_requirements_container');
@@ -1804,6 +1805,8 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const applyBusinessRecord = (record) => {
+        selectedBusinessRecord = record;
+        selectedContactRecord = null;
         const linkedContact = contactRecords.find((item) => Number(item.id) === Number(record.primary_contact_id))
             || contactRecords.find((item) => (item.company_name || '') === (record.company_name || ''));
         contactIdInput.value = linkedContact ? String(linkedContact.id) : '';
@@ -1831,11 +1834,14 @@ document.addEventListener('DOMContentLoaded', function () {
             ...(linkedContact?.client_requirement_status_map || {}),
             ...(record.client_requirement_status_map || {}),
         });
+        syncServiceRequirementRows();
         setDependentDisabled(false);
         contactResults.classList.add('hidden');
     };
 
     const applyContactRecord = (record) => {
+        selectedContactRecord = record;
+        selectedBusinessRecord = null;
         contactIdInput.value = String(record.id);
         contactSearch.value = record.label || '';
         setFieldValue('deal_first_name', record.first_name || '');
@@ -1850,6 +1856,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         applyClientRequirementStatusMap(record.client_requirement_status_map || {});
+        syncServiceRequirementRows();
         setDependentDisabled(false);
         contactResults.classList.add('hidden');
     };
@@ -1883,6 +1890,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         contactResults?.classList.add('hidden');
         contactIdInput.value = '';
+        selectedBusinessRecord = null;
+        selectedContactRecord = null;
+        syncServiceRequirementRows();
         setDependentDisabled(customerType === '');
     };
 
@@ -2068,6 +2078,9 @@ document.addEventListener('DOMContentLoaded', function () {
             syncProductOptions();
         });
     });
+    Array.from(document.querySelectorAll('input[name="service_options[]"]')).forEach((input) => {
+        input.addEventListener('change', syncServiceRequirementRows);
+    });
     const serviceAreaOthersCheckbox = document.querySelector('input[name="service_area_options[]"][value="Others"]');
     initOthersSelectableOptions({
         triggerElements: [serviceAreaOthersCheckbox].filter(Boolean),
@@ -2122,6 +2135,7 @@ document.addEventListener('DOMContentLoaded', function () {
         optionDataAttribute: 'data-complexity-custom-option',
     });
     initClientRequirementsOthers();
+    syncServiceRequirementRows();
     syncProductOptions();
     initOthersTagInput({
         triggerElements: Array.from(document.querySelectorAll('input[name="payment_terms"]')),
@@ -2160,6 +2174,7 @@ document.addEventListener('DOMContentLoaded', function () {
     syncCustomerSearchUi();
     syncServiceGroups();
     syncProductOptions();
+    syncServiceRequirementRows();
     syncAllClientRequirementRows();
     if (contactIdInput?.value) {
         setDependentDisabled(false);
