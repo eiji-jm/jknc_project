@@ -232,24 +232,25 @@
     {{-- ===================== MRF MODAL (SPLIT PANEL) ===================== --}}
     <div
         x-show="showModal"
-        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
         style="display:none;"
+        @click.self="showModal = false"
     >
         <div
             x-show="showModal"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 scale-95"
-            x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-150"
-            x-transition:leave-start="opacity-100 scale-100"
-            x-transition:leave-end="opacity-0 scale-95"
-            class="bg-gray-100 rounded-2xl shadow-2xl w-[98vw] h-[95vh] flex flex-col overflow-hidden"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-gray-100 shadow-2xl w-[95vw] h-full flex flex-col overflow-hidden"
         >
             {{-- Top bar --}}
             <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
@@ -454,11 +455,27 @@
 
                 {{-- LEFT: LIVE MRF DOCUMENT PREVIEW --}}
                 <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
-                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0">
+                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+                        <div class="flex items-center gap-2">
+                            <select x-model="paperSize" class="text-xs border border-gray-300 rounded px-2 py-1 text-gray-700 bg-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                                <option value="a4">A4 Size</option>
+                                <option value="letter">Letter Size</option>
+                                <option value="legal">Legal Size</option>
+                            </select>
+                            <button type="button" @click="downloadPDF('mrf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                Download PDF
+                            </button>
+                        </div>
                     </div>
                     <div class="flex-1 overflow-y-auto p-5">
-                        <div class="border border-gray-400 text-xs text-gray-800 font-sans max-w-2xl mx-auto shadow-sm">
+                        <div id="mrf-doc-create" class="border border-gray-400 text-xs text-gray-800 font-sans w-[794px] shrink-0 leading-[1.2] mx-auto shadow-sm bg-white p-4">
+
+                            {{-- Form Header with Logo --}}
+                            <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-400">
+                                <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                            </div>
 
                             {{-- Title --}}
                             <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-b border-gray-400">
@@ -655,14 +672,31 @@
         >
             <div class="flex items-center justify-between px-6 py-4 border-b">
                 <h2 class="text-base font-bold text-gray-800 tracking-wide uppercase">Manpower Request Form</h2>
-                <button @click="showViewModal = false" class="text-gray-400 hover:text-gray-600 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 pr-4 border-r border-gray-200">
+                        <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Format:</span>
+                        <select x-model="paperSize" class="text-sm border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 bg-white focus:outline-none focus:border-blue-500 hover:border-gray-400 transition cursor-pointer">
+                            <option value="a4">A4</option>
+                            <option value="letter">Letter</option>
+                            <option value="legal">Legal</option>
+                        </select>
+                    </div>
+                    <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-medium shadow-sm border border-gray-300 transition flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download PDF
+                    </button>
+                    <button @click="showViewModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
             </div>
             <div class="px-6 py-5 text-sm text-gray-800" x-show="viewData">
                 <template x-if="viewData">
-                <div class="border border-gray-300">
-                    <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase">Manpower Request Form</div>
+                <div id="mrf-doc-view" class="border border-gray-300 bg-white p-4 mx-auto w-[794px] shrink-0">
+                    <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-300">
+                        <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                    </div>
+                    <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-gray-300">Manpower Request Form</div>
                     <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
                         <div class="p-3"><span class="text-xs text-gray-500">Requesting Department:</span><p class="font-medium mt-1" x-text="viewData.department"></p></div>
                         <div class="p-3">
@@ -726,11 +760,13 @@
 </div>
 
 @push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 function recruitmentPage() {
     return {
         activeTab: 'MRF',
         search: '',
+        paperSize: 'letter',
         showModal: false,
         showViewModal: false,
         viewData: null,
@@ -809,6 +845,21 @@ function recruitmentPage() {
             if (confirm('Delete this MRF record?')) {
                 this.data['MRF'].splice(index, 1);
             }
+        },
+
+        downloadPDF(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const opt = {
+                margin:       0.3,
+                filename:     'Manpower_Request_Form.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: this.paperSize, orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
         },
 
         statusClass(status) {
