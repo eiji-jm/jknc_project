@@ -591,15 +591,15 @@
                                 Approvals
                             </div>
                             <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
-                                <div class="p-2">
-                                    <span class="text-gray-500">Requested by:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.requestedBy || ''"></p>
-                                    <p class="text-center text-gray-400 italic mt-4 text-[9px]">Signature Over Printed Name</p>
+                                <div class="p-2 flex flex-col items-center">
+                                    <span class="text-gray-500 self-start text-[10px] uppercase">Requested by:</span>
+                                    <p class="font-bold text-gray-800 mt-4 text-xs" x-text="form.requestedBy || ''"></p>
+                                    <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
                                 </div>
-                                <div class="p-2">
-                                    <span class="text-gray-500">Approved by:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.approvedBy || ''"></p>
-                                    <p class="text-center text-gray-400 italic mt-4 text-[9px]">Signature Over Printed Name</p>
+                                <div class="p-2 flex flex-col items-center">
+                                    <span class="text-gray-500 self-start text-[10px] uppercase">Approved by:</span>
+                                    <p class="font-bold text-gray-800 mt-4 text-xs" x-text="form.approvedBy || ''"></p>
+                                    <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
                                 </div>
                             </div>
 
@@ -629,18 +629,22 @@
                                     <p class="font-semibold min-h-[1rem]" x-text="form.hiredPersonnel || ''"></p>
                                     <p class="mt-2 text-gray-500">Date Hired:</p>
                                     <p class="font-semibold min-h-[1rem]" x-text="form.dateHired || ''"></p>
-                                    <p class="mt-2 text-gray-500">Processed by:</p>
-                                    <p class="font-semibold min-h-[1rem]" x-text="form.processedBy || ''"></p>
-                                    <p class="text-center text-gray-400 italic mt-2 text-[9px]">Signature Over Printed Name</p>
+                                    <p class="text-gray-500 mt-2 text-[10px] uppercase">Processed by:</p>
+                                    <div class="flex flex-col items-center mt-2">
+                                        <p class="font-bold text-gray-800 text-xs" x-text="form.processedBy || ''"></p>
+                                        <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                    </div>
                                 </div>
                                 <div class="p-2">
-                                    <span class="text-gray-500">Charged to (Department):</span>
+                                    <span class="text-gray-500 text-[10px] uppercase">Charged to (Department):</span>
                                     <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.chargedTo || ''"></p>
-                                    <p class="mt-2 text-gray-500">Breakdown Details:</p>
+                                    <p class="mt-2 text-gray-500 text-[10px] uppercase">Breakdown Details:</p>
                                     <p class="font-semibold min-h-[1rem]" x-text="form.breakdownDetails || ''"></p>
-                                    <p class="mt-6 text-gray-500">Checked / Approved by:</p>
-                                    <p class="font-semibold min-h-[1rem]" x-text="form.checkedBy || ''"></p>
-                                    <p class="text-center text-gray-400 italic mt-2 text-[9px]">Signature Over Printed Name</p>
+                                    <p class="mt-4 text-gray-500 text-[10px] uppercase">Checked / Approved by:</p>
+                                    <div class="flex flex-col items-center mt-2">
+                                        <p class="font-bold text-gray-800 text-xs" x-text="form.checkedBy || ''"></p>
+                                        <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -656,41 +660,44 @@
 
     <div
         x-show="showViewModal"
-        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter="transition ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex bg-white"
         style="display:none;"
         @click.self="showViewModal = false"
     >
         <div
             x-show="showViewModal"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 scale-95"
-            x-transition:enter-end="opacity-100 scale-100"
-            class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto mx-4"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-white w-full h-full flex flex-col overflow-hidden shadow-2xl"
         >
-            <div class="flex items-center justify-between px-6 py-4 border-b">
-                <h2 class="text-base font-bold text-gray-800 tracking-wide uppercase">Manpower Request Form</h2>
+            <div class="flex items-center justify-between px-8 py-5 border-b bg-gray-50 flex-shrink-0">
+                <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
                 <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2 pr-4 border-r border-gray-200">
-                        <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider">Format:</span>
-                        <select x-model="paperSize" class="text-sm border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 bg-white focus:outline-none focus:border-blue-500 hover:border-gray-400 transition cursor-pointer">
-                            <option value="a4">A4</option>
-                            <option value="letter">Letter</option>
-                            <option value="legal">Legal</option>
+                    <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
+                        <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format:</span>
+                        <select x-model="paperSize" class="text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-gray-400 transition cursor-pointer font-medium">
+                            <option value="a4">A4 Size</option>
+                            <option value="letter">Letter Size</option>
+                            <option value="legal">Legal Size</option>
                         </select>
                     </div>
-                    <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-medium shadow-sm border border-gray-300 transition flex items-center gap-2">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Download PDF
+                    <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 active:translate-y-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export to PDF
                     </button>
-                    <button @click="showViewModal = false" class="text-gray-400 hover:text-gray-600 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    <button @click="showViewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
-            <div class="px-6 py-5 text-sm text-gray-800" x-show="viewData">
+            <div class="flex-1 overflow-y-auto bg-gray-100 py-10 px-6" x-show="viewData">
                 <template x-if="viewData">
                 <div id="mrf-doc-view" class="border border-gray-300 bg-white p-4 mx-auto w-[794px] shrink-0">
                     <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-300">
@@ -728,8 +735,16 @@
                     </div>
                     <div class="bg-blue-700 text-white text-center text-xs font-bold py-1.5 tracking-widest uppercase">Approvals</div>
                     <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
-                        <div class="p-3"><span class="text-xs text-gray-500">Requested by:</span><p class="font-medium mt-1" x-text="viewData.requestedBy || '—'"></p><p class="text-[10px] text-gray-400 mt-2 text-center italic">Signature Over Printed Name</p></div>
-                        <div class="p-3"><span class="text-xs text-gray-500">Approved by:</span><p class="font-medium mt-1" x-text="viewData.approvedBy || '—'"></p><p class="text-[10px] text-gray-400 mt-2 text-center italic">Signature Over Printed Name</p></div>
+                        <div class="p-3 flex flex-col items-center">
+                            <span class="text-xs text-gray-500 self-start uppercase">Requested by:</span>
+                            <p class="font-bold text-gray-800 mt-6 text-sm" x-text="viewData.requestedBy"></p>
+                            <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                        </div>
+                        <div class="p-3 flex flex-col items-center">
+                            <span class="text-xs text-gray-500 self-start uppercase">Approved by:</span>
+                            <p class="font-bold text-gray-800 mt-6 text-sm" x-text="viewData.approvedBy"></p>
+                            <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                        </div>
                     </div>
                     <div class="bg-gray-100 text-center text-xs font-bold py-1.5 tracking-widest uppercase text-gray-700">For HRS Use Only</div>
                     <div class="border-b border-gray-300 p-3"><span class="text-xs text-gray-500">Additional Remarks:</span><p class="mt-1" x-text="viewData.remarks || '—'"></p></div>
@@ -738,22 +753,121 @@
                             <span class="text-xs text-gray-500">Request Status:</span><p class="font-medium mt-1" x-text="viewData.requestStatus || '—'"></p>
                             <span class="text-xs text-gray-500 block mt-2">Name of Hired Personnel:</span><p class="font-medium mt-1" x-text="viewData.hiredPersonnel || '—'"></p>
                             <span class="text-xs text-gray-500 block mt-2">Date Hired:</span><p class="font-medium mt-1" x-text="viewData.dateHired || '—'"></p>
-                            <span class="text-xs text-gray-500 block mt-2">Processed by:</span><p class="font-medium mt-1" x-text="viewData.processedBy || '—'"></p>
-                            <p class="text-[10px] text-gray-400 mt-1 text-center italic">Signature Over Printed Name</p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Processed by:</span>
+                            <div class="flex flex-col items-center mt-4">
+                                <p class="font-bold text-gray-800 text-sm" x-text="viewData.processedBy"></p>
+                                <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                            </div>
                         </div>
                         <div class="p-3">
-                            <span class="text-xs text-gray-500">Charged to (Department):</span><p class="font-medium mt-1" x-text="viewData.chargedTo || '—'"></p>
-                            <span class="text-xs text-gray-500 block mt-2">Breakdown Details:</span><p class="font-medium mt-1" x-text="viewData.breakdownDetails || '—'"></p>
-                            <span class="text-xs text-gray-500 block mt-2">Checked / Approved by:</span><p class="font-medium mt-1" x-text="viewData.checkedBy || '—'"></p>
-                            <p class="text-[10px] text-gray-400 mt-1 text-center italic">Signature Over Printed Name</p>
+                            <span class="text-xs text-gray-500 block uppercase">Charged to (Department):</span><p class="font-medium mt-1" x-text="viewData.chargedTo || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Breakdown Details:</span><p class="font-medium mt-1" x-text="viewData.breakdownDetails || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Checked / Approved by:</span>
+                            <div class="flex flex-col items-center mt-4">
+                                <p class="font-bold text-gray-800 text-sm" x-text="viewData.checkedBy"></p>
+                                <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                            </div>
                         </div>
                     </div>
                 </div>
                 </template>
             </div>
-            <div class="flex justify-end px-6 pb-5">
-                <button @click="showViewModal = false" class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">Close</button>
+            <div class="flex justify-end px-10 py-6 border-t bg-white shrink-0">
+                <button @click="showViewModal = false" class="px-10 py-3 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all transform hover:scale-[1.02] active:scale-100">Close Form</button>
             </div>
+        </div>
+    </div>
+
+    {{-- ===================== JPF MODAL ===================== --}}
+    <div
+        x-show="showJpfModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showJpfModal = false"
+    >
+        <div
+            x-show="showJpfModal"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-white shadow-2xl w-[95vw] md:w-[60vw] h-full flex flex-col overflow-hidden"
+        >
+            <div class="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
+                <h2 class="text-base font-bold text-gray-800 uppercase tracking-widest">Create Job Posting (JPF)</h2>
+                <button type="button" @click="showJpfModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <form @submit.prevent="submitJPF()" class="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Position / Title</label>
+                        <select x-model="jpfForm.position" required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 bg-white font-medium transition-all">
+                            <option value="" disabled>Select Position...</option>
+                            <template x-for="pos in uniqueMrfPositions" :key="pos">
+                                <option :value="pos" x-text="pos"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Employment Type</label>
+                        <select x-model="jpfForm.employmentType" required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 bg-white font-medium transition-all">
+                            <option value="Full-time">Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Internship">Internship</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Work Location</label>
+                        <input type="text" x-model="jpfForm.location" required placeholder="e.g. Remote, On-site, Head Office"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Salary Range</label>
+                        <input type="text" x-model="jpfForm.salaryRange" placeholder="e.g., $80,000 - $100,000"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Detailed Job Description</label>
+                    <textarea x-model="jpfForm.jobDescription" required rows="6" placeholder="Describe the role and responsibilities..."
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 resize-none bg-gray-50"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Candidate Requirements</label>
+                    <textarea x-model="jpfForm.requirements" required rows="6" placeholder="List skills, education, and experience..."
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 resize-none bg-gray-50"></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-4 pt-6 mt-4 border-t border-gray-100">
+                    <button type="button" @click="showJpfModal = false"
+                        class="px-8 py-3 text-sm font-bold text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all">
+                        Discard
+                    </button>
+                    <button type="submit"
+                        class="px-8 py-3 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                        Create Job Posting
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -769,8 +883,10 @@ function recruitmentPage() {
         paperSize: 'letter',
         showModal: false,
         showViewModal: false,
+        showJpfModal: false,
         viewData: null,
         mrfCounter: 1,
+        jpfCounter: 1,
 
         tabs: [
             { key: 'MRF',        label: 'MRF' },
@@ -803,26 +919,42 @@ function recruitmentPage() {
             processedBy: '', checkedBy: '',
         },
 
+        jpfForm: {
+            position: '', employmentType: 'Full-time', location: '',
+            salaryRange: '', jobDescription: '', requirements: ''
+        },
+
         openModal() {
-            // Reset form
-            this.form = {
-                department: '', dateRequested: '', dateRequired: '',
-                position: '', employmentType: '',
-                duties: '', natureOfRequest: '', ageRange: '',
-                civilStatus: 'No Preference', gender: 'No Preference',
-                headcount: '', education: '', qualifications: '',
-                requestedBy: '', approvedBy: '',
-                remarks: '', requestStatus: '',
-                chargedTo: '', breakdownDetails: '',
-                hiredPersonnel: '', dateHired: '',
-                processedBy: '', checkedBy: '',
-            };
-            this.showModal = true;
+            if (this.activeTab === 'MRF') {
+                // Reset form
+                this.form = {
+                    department: '', dateRequested: '', dateRequired: '',
+                    position: '', employmentType: '',
+                    duties: '', natureOfRequest: '', ageRange: '',
+                    civilStatus: 'No Preference', gender: 'No Preference',
+                    headcount: '', education: '', qualifications: '',
+                    requestedBy: '', approvedBy: '',
+                    remarks: '', requestStatus: '',
+                    chargedTo: '', breakdownDetails: '',
+                    hiredPersonnel: '', dateHired: '',
+                    processedBy: '', checkedBy: '',
+                };
+                this.showModal = true;
+            } else if (this.activeTab === 'JPF') {
+                this.jpfForm = {
+                    position: '', employmentType: 'Full-time', location: '',
+                    salaryRange: '', jobDescription: '', requirements: ''
+                };
+                this.showJpfModal = true;
+            } else {
+                alert('Add New functionality for ' + this.activeTab + ' is not yet implemented.');
+            }
         },
 
         submitMRF() {
-            const pad = (n) => String(n).padStart(4, '0');
-            const id = 'MRF-' + pad(this.mrfCounter++);
+            const year = new Date().getFullYear();
+            const pad = (n) => String(n).padStart(3, '0');
+            const id = `MRF-${year}-${pad(this.mrfCounter++)}`;
             this.data['MRF'].push({
                 id,
                 position:   this.form.position,
@@ -834,6 +966,31 @@ function recruitmentPage() {
                 ...this.form,
             });
             this.showModal = false;
+        },
+
+        submitJPF() {
+            const year = new Date().getFullYear();
+            const pad = (n) => String(n).padStart(3, '0');
+            const jobId = `JPF-${year}-${pad(this.jpfCounter++)}`;
+            
+            const today = new Date();
+            const posted = today.toISOString().split('T')[0];
+
+            this.data['JPF'].push({
+                jobId,
+                position: this.jpfForm.position,
+                type: this.jpfForm.employmentType,
+                location: this.jpfForm.location,
+                status: 'Open',
+                posted: posted,
+                ...this.jpfForm
+            });
+            this.showJpfModal = false;
+        },
+
+        get uniqueMrfPositions() {
+            const positions = this.data['MRF'].map(mrf => mrf.position).filter(p => p && p.trim() !== '');
+            return [...new Set(positions)];
         },
 
         viewMRF(row) {
