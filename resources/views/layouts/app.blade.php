@@ -121,7 +121,7 @@
         </a>
 
         <a href="{{ route('human-capital.dashboard') }}"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition {{ $isHumanCapitalSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+            class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-center transition {{ $isHumanCapitalSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
             <i class="fas fa-user-tie text-base"></i>
             <span>Human Capital</span>
         </a>
@@ -160,10 +160,6 @@
 
                 @if($isHumanCapitalSection)
 
-                    <a href="{{ route('human-capital.dashboard') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Dashboard
-                    </a>
 
                     <a href="{{ route('human-capital.organizational') }}"
                        class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/organizational') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">

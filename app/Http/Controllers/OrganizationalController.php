@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Division;
 use App\Models\Office;
 use App\Models\OrganizationalAddress;
+use App\Models\Position;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,89 +16,35 @@ class OrganizationalController extends Controller
 {
     public function index()
     {
-        $addresses = OrganizationalAddress::latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'business_address' => $item->business_address,
-            ];
-        });
+        $addresses = OrganizationalAddress::latest()->get()->map(fn ($item) => $this->transformAddress($item));
 
-        $offices = Office::latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'office_name' => $item->office_name,
-                'office_address' => $item->office_address,
-                'office_head' => $item->office_head,
-            ];
-        });
+        $branches = Branch::with('address')->latest()->get()->map(fn ($item) => $this->transformBranch($item));
 
-        $branches = Branch::with('office')->latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'office_id' => $item->office_id,
-                'office_name' => $item->office?->office_name,
-                'branch_name' => $item->branch_name,
-                'branch_address' => $item->branch_address,
-                'branch_head' => $item->branch_head,
-            ];
-        });
+        $offices = Office::with(['branch.address', 'address'])->latest()->get()->map(fn ($item) => $this->transformOffice($item));
 
-        $departments = Department::with(['office', 'branch'])->latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'office_id' => $item->office_id,
-                'branch_id' => $item->branch_id,
-                'office_name' => $item->office?->office_name,
-                'branch_name' => $item->branch?->branch_name,
-                'department_name' => $item->department_name,
-                'department_address' => $item->department_address,
-                'department_head' => $item->department_head,
-            ];
-        });
+        $departments = Department::with(['office.branch.address', 'address'])->latest()->get()->map(fn ($item) => $this->transformDepartment($item));
 
-        $divisions = Division::with(['office', 'branch', 'department'])->latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'office_id' => $item->office_id,
-                'branch_id' => $item->branch_id,
-                'department_id' => $item->department_id,
-                'office_name' => $item->office?->office_name,
-                'branch_name' => $item->branch?->branch_name,
-                'department_name' => $item->department?->department_name,
-                'division_name' => $item->division_name,
-                'division_address' => $item->division_address,
-                'division_head' => $item->division_head,
-            ];
-        });
+        $divisions = Division::with(['department.office.branch.address', 'address'])->latest()->get()->map(fn ($item) => $this->transformDivision($item));
 
-        $units = Unit::with(['office', 'branch', 'department', 'division'])->latest()->get()->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'office_id' => $item->office_id,
-                'branch_id' => $item->branch_id,
-                'department_id' => $item->department_id,
-                'division_id' => $item->division_id,
-                'office_name' => $item->office?->office_name,
-                'branch_name' => $item->branch?->branch_name,
-                'department_name' => $item->department?->department_name,
-                'division_name' => $item->division?->division_name,
-                'unit_name' => $item->unit_name,
-                'unit_address' => $item->unit_address,
-                'unit_head' => $item->unit_head,
-            ];
-        });
+        $units = Unit::with(['division.department.office.branch.address', 'address'])->latest()->get()->map(fn ($item) => $this->transformUnit($item));
+
+        $positions = Position::with(['unit.division.department.office.branch.address', 'address'])->latest()->get()->map(fn ($item) => $this->transformPosition($item));
 
         return view('human-capital.organizational', [
-            'addresses' => $addresses,
-            'offices' => $offices,
-            'branches' => $branches,
-            'departments' => $departments,
-            'divisions' => $divisions,
-            'units' => $units,
-            'officeOptions' => Office::orderBy('office_name')->get(['id', 'office_name']),
-            'branchOptions' => Branch::orderBy('branch_name')->get(['id', 'branch_name']),
-            'departmentOptions' => Department::orderBy('department_name')->get(['id', 'department_name']),
-            'divisionOptions' => Division::orderBy('division_name')->get(['id', 'division_name']),
+            'addresses' => $addresses->values(),
+            'branches' => $branches->values(),
+            'offices' => $offices->values(),
+            'departments' => $departments->values(),
+            'divisions' => $divisions->values(),
+            'units' => $units->values(),
+            'positions' => $positions->values(),
+
+            'addressOptions' => OrganizationalAddress::orderBy('full_address')->get(['id', 'full_address']),
+            'branchOptions' => Branch::orderBy('branch_name')->get(['id', 'branch_name', 'address_id']),
+            'officeOptions' => Office::orderBy('office_name')->get(['id', 'office_name', 'branch_id', 'address_id']),
+            'departmentOptions' => Department::orderBy('department_name')->get(['id', 'department_name', 'office_id', 'address_id']),
+            'divisionOptions' => Division::orderBy('division_name')->get(['id', 'division_name', 'department_id', 'address_id']),
+            'unitOptions' => Unit::orderBy('unit_name')->get(['id', 'unit_name', 'division_id', 'address_id']),
         ]);
     }
 
@@ -105,7 +52,7 @@ class OrganizationalController extends Controller
     {
         $type = $request->input('type');
 
-        if (!in_array($type, ['address', 'office', 'branch', 'department', 'division', 'unit'])) {
+        if (!in_array($type, ['address', 'branch', 'office', 'department', 'division', 'unit', 'position'])) {
             return response()->json([
                 'message' => 'Invalid type.',
             ], 422);
@@ -114,147 +61,279 @@ class OrganizationalController extends Controller
         switch ($type) {
             case 'address':
                 $validated = $request->validate([
-                    'business_address' => ['required', 'string'],
+                    'country' => ['required', 'string', 'max:255'],
+                    'region_code' => ['required', 'string', 'max:20'],
+                    'region_name' => ['required', 'string', 'max:255'],
+                    'province_code' => ['nullable', 'string', 'max:20'],
+                    'province_name' => ['nullable', 'string', 'max:255'],
+                    'province_type' => ['nullable', 'string', 'max:50'],
+                    'city_code' => ['required', 'string', 'max:20'],
+                    'city_name' => ['required', 'string', 'max:255'],
+                    'barangay_code' => ['required', 'string', 'max:20'],
+                    'barangay_name' => ['required', 'string', 'max:255'],
+                    'street_address' => ['required', 'string'],
+                    'subdivision_building' => ['nullable', 'string', 'max:255'],
+                    'unit_no' => ['nullable', 'string', 'max:255'],
+                    'postal_code' => ['nullable', 'string', 'max:20'],
                 ]);
+
+                $validated['full_address'] = $this->buildFullAddress($validated);
 
                 $record = OrganizationalAddress::create($validated);
 
                 return response()->json([
-                    'message' => 'Business address saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'business_address' => $record->business_address,
-                    ],
+                    'message' => 'Address saved successfully.',
+                    'record' => $this->transformAddress($record),
+                ]);
+
+            case 'branch':
+                $validated = $request->validate([
+                    'branch_name' => ['required', 'string', 'max:255'],
+                    'address_id' => ['required', Rule::exists('organizational_addresses', 'id')],
+                    'branch_head' => ['required', 'string', 'max:255'],
+                ]);
+
+                $record = Branch::create([
+                    'branch_name' => $validated['branch_name'],
+                    'address_id' => $validated['address_id'],
+                    'branch_head' => $validated['branch_head'],
+                ])->load('address');
+
+                return response()->json([
+                    'message' => 'Branch saved successfully.',
+                    'record' => $this->transformBranch($record),
                 ]);
 
             case 'office':
                 $validated = $request->validate([
                     'office_name' => ['required', 'string', 'max:255'],
-                    'office_address' => ['required', 'string'],
+                    'branch_id' => ['required', Rule::exists('branches', 'id')],
                     'office_head' => ['required', 'string', 'max:255'],
                 ]);
 
-                $record = Office::create($validated);
+                $branch = Branch::findOrFail($validated['branch_id']);
+
+                $record = Office::create([
+                    'office_name' => $validated['office_name'],
+                    'branch_id' => $branch->id,
+                    'address_id' => $branch->address_id,
+                    'office_head' => $validated['office_head'],
+                ])->load(['branch.address', 'address']);
 
                 return response()->json([
                     'message' => 'Office saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'office_name' => $record->office_name,
-                        'office_address' => $record->office_address,
-                        'office_head' => $record->office_head,
-                    ],
-                ]);
-
-            case 'branch':
-                $validated = $request->validate([
-                    'office_id' => ['required', Rule::exists('offices', 'id')],
-                    'branch_name' => ['required', 'string', 'max:255'],
-                    'branch_address' => ['required', 'string'],
-                    'branch_head' => ['required', 'string', 'max:255'],
-                ]);
-
-                $record = Branch::create($validated)->load('office');
-
-                return response()->json([
-                    'message' => 'Branch saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'office_id' => $record->office_id,
-                        'office_name' => $record->office?->office_name,
-                        'branch_name' => $record->branch_name,
-                        'branch_address' => $record->branch_address,
-                        'branch_head' => $record->branch_head,
-                    ],
+                    'record' => $this->transformOffice($record),
                 ]);
 
             case 'department':
                 $validated = $request->validate([
-                    'office_id' => ['required', Rule::exists('offices', 'id')],
-                    'branch_id' => ['required', Rule::exists('branches', 'id')],
                     'department_name' => ['required', 'string', 'max:255'],
-                    'department_address' => ['required', 'string'],
+                    'office_id' => ['required', Rule::exists('offices', 'id')],
                     'department_head' => ['required', 'string', 'max:255'],
                 ]);
 
-                $record = Department::create($validated)->load(['office', 'branch']);
+                $office = Office::findOrFail($validated['office_id']);
+
+                $record = Department::create([
+                    'department_name' => $validated['department_name'],
+                    'office_id' => $office->id,
+                    'address_id' => $office->address_id,
+                    'department_head' => $validated['department_head'],
+                ])->load(['office.branch.address', 'address']);
 
                 return response()->json([
                     'message' => 'Department saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'office_id' => $record->office_id,
-                        'branch_id' => $record->branch_id,
-                        'office_name' => $record->office?->office_name,
-                        'branch_name' => $record->branch?->branch_name,
-                        'department_name' => $record->department_name,
-                        'department_address' => $record->department_address,
-                        'department_head' => $record->department_head,
-                    ],
+                    'record' => $this->transformDepartment($record),
                 ]);
 
             case 'division':
                 $validated = $request->validate([
-                    'office_id' => ['required', Rule::exists('offices', 'id')],
-                    'branch_id' => ['required', Rule::exists('branches', 'id')],
-                    'department_id' => ['required', Rule::exists('departments', 'id')],
                     'division_name' => ['required', 'string', 'max:255'],
-                    'division_address' => ['required', 'string'],
+                    'department_id' => ['required', Rule::exists('departments', 'id')],
                     'division_head' => ['required', 'string', 'max:255'],
                 ]);
 
-                $record = Division::create($validated)->load(['office', 'branch', 'department']);
+                $department = Department::findOrFail($validated['department_id']);
+
+                $record = Division::create([
+                    'division_name' => $validated['division_name'],
+                    'department_id' => $department->id,
+                    'address_id' => $department->address_id,
+                    'division_head' => $validated['division_head'],
+                ])->load(['department.office.branch.address', 'address']);
 
                 return response()->json([
                     'message' => 'Division saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'office_id' => $record->office_id,
-                        'branch_id' => $record->branch_id,
-                        'department_id' => $record->department_id,
-                        'office_name' => $record->office?->office_name,
-                        'branch_name' => $record->branch?->branch_name,
-                        'department_name' => $record->department?->department_name,
-                        'division_name' => $record->division_name,
-                        'division_address' => $record->division_address,
-                        'division_head' => $record->division_head,
-                    ],
+                    'record' => $this->transformDivision($record),
                 ]);
 
             case 'unit':
                 $validated = $request->validate([
-                    'office_id' => ['required', Rule::exists('offices', 'id')],
-                    'branch_id' => ['required', Rule::exists('branches', 'id')],
-                    'department_id' => ['required', Rule::exists('departments', 'id')],
-                    'division_id' => ['required', Rule::exists('divisions', 'id')],
                     'unit_name' => ['required', 'string', 'max:255'],
-                    'unit_address' => ['required', 'string'],
+                    'division_id' => ['required', Rule::exists('divisions', 'id')],
                     'unit_head' => ['required', 'string', 'max:255'],
                 ]);
 
-                $record = Unit::create($validated)->load(['office', 'branch', 'department', 'division']);
+                $division = Division::findOrFail($validated['division_id']);
+
+                $record = Unit::create([
+                    'unit_name' => $validated['unit_name'],
+                    'division_id' => $division->id,
+                    'address_id' => $division->address_id,
+                    'unit_head' => $validated['unit_head'],
+                ])->load(['division.department.office.branch.address', 'address']);
 
                 return response()->json([
                     'message' => 'Unit saved successfully.',
-                    'record' => [
-                        'id' => $record->id,
-                        'office_id' => $record->office_id,
-                        'branch_id' => $record->branch_id,
-                        'department_id' => $record->department_id,
-                        'division_id' => $record->division_id,
-                        'office_name' => $record->office?->office_name,
-                        'branch_name' => $record->branch?->branch_name,
-                        'department_name' => $record->department?->department_name,
-                        'division_name' => $record->division?->division_name,
-                        'unit_name' => $record->unit_name,
-                        'unit_address' => $record->unit_address,
-                        'unit_head' => $record->unit_head,
-                    ],
+                    'record' => $this->transformUnit($record),
+                ]);
+
+            case 'position':
+                $validated = $request->validate([
+                    'position_name' => ['required', 'string', 'max:255'],
+                    'unit_id' => ['required', Rule::exists('units', 'id')],
+                ]);
+
+                $unit = Unit::findOrFail($validated['unit_id']);
+
+                $record = Position::create([
+                    'position_name' => $validated['position_name'],
+                    'unit_id' => $unit->id,
+                    'address_id' => $unit->address_id,
+                ])->load(['unit.division.department.office.branch.address', 'address']);
+
+                return response()->json([
+                    'message' => 'Position saved successfully.',
+                    'record' => $this->transformPosition($record),
                 ]);
         }
 
         return response()->json([
             'message' => 'Unable to save record.',
         ], 422);
+    }
+
+    private function buildFullAddress(array $data): string
+    {
+        $parts = array_filter([
+            $data['unit_no'] ?? null,
+            $data['subdivision_building'] ?? null,
+            $data['street_address'] ?? null,
+            $data['barangay_name'] ?? null,
+            $data['city_name'] ?? null,
+            $data['province_name'] ?? null,
+            $data['region_name'] ?? null,
+            $data['postal_code'] ?? null,
+            $data['country'] ?? null,
+        ]);
+
+        return implode(', ', $parts);
+    }
+
+    private function transformAddress(OrganizationalAddress $item): array
+    {
+        return [
+            'id' => $item->id,
+            'country' => $item->country,
+            'region_code' => $item->region_code,
+            'region_name' => $item->region_name,
+            'province_code' => $item->province_code,
+            'province_name' => $item->province_name,
+            'province_type' => $item->province_type,
+            'city_code' => $item->city_code,
+            'city_name' => $item->city_name,
+            'barangay_code' => $item->barangay_code,
+            'barangay_name' => $item->barangay_name,
+            'street_address' => $item->street_address,
+            'subdivision_building' => $item->subdivision_building,
+            'unit_no' => $item->unit_no,
+            'postal_code' => $item->postal_code,
+            'full_address' => $item->full_address,
+        ];
+    }
+
+    private function transformBranch(Branch $item): array
+    {
+        return [
+            'id' => $item->id,
+            'branch_name' => $item->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+            'branch_head' => $item->branch_head,
+        ];
+    }
+
+    private function transformOffice(Office $item): array
+    {
+        return [
+            'id' => $item->id,
+            'office_name' => $item->office_name,
+            'branch_id' => $item->branch_id,
+            'branch_name' => $item->branch?->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+            'office_head' => $item->office_head,
+        ];
+    }
+
+    private function transformDepartment(Department $item): array
+    {
+        return [
+            'id' => $item->id,
+            'department_name' => $item->department_name,
+            'office_id' => $item->office_id,
+            'office_name' => $item->office?->office_name,
+            'branch_name' => $item->office?->branch?->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+            'department_head' => $item->department_head,
+        ];
+    }
+
+    private function transformDivision(Division $item): array
+    {
+        return [
+            'id' => $item->id,
+            'division_name' => $item->division_name,
+            'department_id' => $item->department_id,
+            'department_name' => $item->department?->department_name,
+            'office_name' => $item->department?->office?->office_name,
+            'branch_name' => $item->department?->office?->branch?->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+            'division_head' => $item->division_head,
+        ];
+    }
+
+    private function transformUnit(Unit $item): array
+    {
+        return [
+            'id' => $item->id,
+            'unit_name' => $item->unit_name,
+            'division_id' => $item->division_id,
+            'division_name' => $item->division?->division_name,
+            'department_name' => $item->division?->department?->department_name,
+            'office_name' => $item->division?->department?->office?->office_name,
+            'branch_name' => $item->division?->department?->office?->branch?->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+            'unit_head' => $item->unit_head,
+        ];
+    }
+
+    private function transformPosition(Position $item): array
+    {
+        return [
+            'id' => $item->id,
+            'position_name' => $item->position_name,
+            'unit_id' => $item->unit_id,
+            'unit_name' => $item->unit?->unit_name,
+            'division_name' => $item->unit?->division?->division_name,
+            'department_name' => $item->unit?->division?->department?->department_name,
+            'office_name' => $item->unit?->division?->department?->office?->office_name,
+            'branch_name' => $item->unit?->division?->department?->office?->branch?->branch_name,
+            'address_id' => $item->address_id,
+            'address' => $item->address?->full_address,
+        ];
     }
 }

@@ -7,26 +7,24 @@ use Illuminate\Database\Eloquent\Model;
 class Division extends Model
 {
     protected $fillable = [
-        'office_id',
-        'branch_id',
-        'department_id',
         'division_name',
-        'division_address',
+        'department_id',
+        'address_id',
         'division_head',
     ];
 
-    public function office()
-    {
-        return $this->belongsTo(Office::class);
-    }
-
-    public function branch()
-    {
-        return $this->belongsTo(Branch::class);
-    }
-
     public function department()
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function address()
+    {
+        return $this->belongsTo(OrganizationalAddress::class, 'address_id');
+    }
+
+    public function units()
+    {
+        return $this->hasMany(Unit::class, 'division_id');
     }
 }

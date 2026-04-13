@@ -10,9 +10,8 @@ return new class extends Migration
     {
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             $table->string('branch_name');
-            $table->text('branch_address');
+            $table->foreignId('address_id')->constrained('organizational_addresses')->cascadeOnDelete();
             $table->string('branch_head');
             $table->timestamps();
         });

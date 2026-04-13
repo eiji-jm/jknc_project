@@ -10,6 +10,9 @@ use App\Http\Controllers\BankingController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\OrganizationalController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\PhilippineLocationController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -81,15 +84,28 @@ Route::middleware('auth')->group(function () {
     | HUMAN CAPITAL
     |--------------------------------------------------------------------------
     */
-
     Route::prefix('human-capital')->name('human-capital.')->group(function () {
         Route::view('/', 'human-capital')->name('dashboard');
 
         Route::get('/organizational', [OrganizationalController::class, 'index'])->name('organizational');
         Route::post('/organizational', [OrganizationalController::class, 'store'])->name('organizational.store');
 
-        Route::view('/payroll', 'human-capital.payroll')->name('payroll');
-        Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
+        Route::prefix('/organizational/locations')->name('organizational.locations.')->group(function () {
+            Route::get('/regions', [PhilippineLocationController::class, 'regions'])->name('regions');
+            Route::get('/provinces-or-districts/{regionCode}', [PhilippineLocationController::class, 'provincesOrDistricts'])->name('provinces-or-districts');
+            Route::get('/cities-municipalities/{type}/{code}', [PhilippineLocationController::class, 'citiesMunicipalities'])->name('cities-municipalities');
+            Route::get('/barangays/{cityCode}', [PhilippineLocationController::class, 'barangays'])->name('barangays');
+        });
+
+        Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll');
+        Route::post('/payroll', [PayrollController::class, 'store'])->name('payroll.store');
+        Route::put('/payroll/{payroll}', [PayrollController::class, 'update'])->name('payroll.update');
+        Route::delete('/payroll/{payroll}', [PayrollController::class, 'destroy'])->name('payroll.destroy');
+
+        Route::get('/employee-profile', [EmployeeController::class, 'index'])->name('employee-profile');
+        Route::post('/employee-profile', [EmployeeController::class, 'store'])->name('employee-profile.store');
+        Route::put('/employee-profile/{employee}', [EmployeeController::class, 'update'])->name('employee-profile.update');
+
         Route::view('/recruitment', 'human-capital.recruitment')->name('recruitment');
         Route::view('/attendance', 'human-capital.attendance')->name('attendance');
         Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');

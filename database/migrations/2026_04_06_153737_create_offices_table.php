@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('offices', function (Blueprint $table) {
             $table->id();
             $table->string('office_name');
-            $table->text('office_address');
+            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->foreignId('address_id')->constrained('organizational_addresses')->cascadeOnDelete();
             $table->string('office_head');
             $table->timestamps();
         });

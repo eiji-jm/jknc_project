@@ -8,18 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('units', function (Blueprint $table) {
+        Schema::create('positions', function (Blueprint $table) {
             $table->id();
-            $table->string('unit_name');
-            $table->foreignId('division_id')->constrained('divisions')->cascadeOnDelete();
+            $table->string('position_name');
+            $table->foreignId('unit_id')->constrained('units')->cascadeOnDelete();
             $table->foreignId('address_id')->constrained('organizational_addresses')->cascadeOnDelete();
-            $table->string('unit_head');
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('units');
+        Schema::dropIfExists('positions');
     }
 };
