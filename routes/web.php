@@ -25,12 +25,14 @@ use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\CorporateApprovalController;
 use App\Http\Controllers\CorporateFormationController;
 use App\Http\Controllers\DealController;
+use App\Http\Controllers\DealProposalController;
 use App\Http\Controllers\DirectorOfficerController;
 use App\Http\Controllers\GisController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
@@ -183,11 +185,18 @@ Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])-
 Route::patch('/deals/{id}/stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update');
 Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
 Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
+    Route::get('/deals/{deal}/proposal', [DealProposalController::class, 'show'])->name('deals.proposal.show');
+    Route::post('/deals/{deal}/proposal/preview', [DealProposalController::class, 'preview'])->name('deals.proposal.preview');
+    Route::match(['put', 'patch'], '/deals/{deal}/proposal', [DealProposalController::class, 'update'])->name('deals.proposal.update');
     Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
     Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
     Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
 
-    Route::view('/project', 'project.index')->name('project.index');
+    Route::get('/project', [ProjectController::class, 'index'])->name('project.index');
+    Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
+    Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
+    Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
+    Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
     Route::view('/regular', 'regular.index')->name('regular.index');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');

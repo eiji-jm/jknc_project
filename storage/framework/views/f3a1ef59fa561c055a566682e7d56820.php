@@ -575,37 +575,6 @@
                     </div>
                 </div>
             </aside>
-        <?php elseif($canSeeCrmModules && (request()->routeIs('project*') || request()->routeIs('regular*'))): ?>
-            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
-                <div class="px-4 py-3 border-b border-gray-100">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        <?php echo e(request()->routeIs('project*') ? 'Project' : 'Regular'); ?>
-
-                    </p>
-                </div>
-
-                <div class="flex-1 overflow-y-auto p-3">
-                    <div class="space-y-1 text-sm">
-                        <?php if(request()->routeIs('project*')): ?>
-                            <a href="<?php echo e(route('project.index')); ?>"
-                               class="block px-3 py-2 rounded-lg transition <?php echo e(request()->routeIs('project.index') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700'); ?>">
-                                Dashboard
-                            </a>
-                            <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-5 text-gray-600">
-                                One-time or fixed-scope engagements. Expected flow: Work Order, SOW, NTP, Execution, Reporting, Delivery, Completion.
-                            </div>
-                        <?php else: ?>
-                            <a href="<?php echo e(route('regular.index')); ?>"
-                               class="block px-3 py-2 rounded-lg transition <?php echo e(request()->routeIs('regular.index') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700'); ?>">
-                                Dashboard
-                            </a>
-                            <div class="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-5 text-gray-600">
-                                Recurring or retainer engagements. Expected flow: RSAT, NTP, Execution, Reporting, Delivery, Continuation.
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </aside>
         <?php endif; ?>
 
         <!-- MAIN CONTENT -->

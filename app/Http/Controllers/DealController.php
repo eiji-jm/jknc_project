@@ -9,12 +9,14 @@ use App\Models\DealStage;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\ProjectProvisioner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -24,6 +26,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DealController extends Controller
 {
+    public function __construct(private readonly ProjectProvisioner $projectProvisioner)
+    {
+    }
+
     private const FALLBACK_SERVICE_AREA_OPTIONS = [
         'Corporate & Regulatory Advisory',
         'Governance & Policy Advisory',
@@ -1065,19 +1071,23 @@ class DealController extends Controller
 
         $deal = Deal::query()->findOrFail($id);
 
-        $deal->forceFill([
-            'qualification_result' => 'qualified',
-            'deal_status' => 'approved',
-            'stage' => $this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')),
-            'stage_id' => Schema::hasColumn('deals', 'stage_id')
-                ? $this->resolveStageIdByName($this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')))
-                : $deal->stage_id,
-            'approved_at' => now(),
-            'approved_by_name' => $request->user()?->name ?? 'System User',
-            'rejected_at' => null,
-            'rejected_by_name' => null,
-            'rejection_reason' => null,
-        ])->save();
+        DB::transaction(function () use ($deal, $request): void {
+            $deal->forceFill([
+                'qualification_result' => 'qualified',
+                'deal_status' => 'approved',
+                'stage' => $this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')),
+                'stage_id' => Schema::hasColumn('deals', 'stage_id')
+                    ? $this->resolveStageIdByName($this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')))
+                    : $deal->stage_id,
+                'approved_at' => now(),
+                'approved_by_name' => $request->user()?->name ?? 'System User',
+                'rejected_at' => null,
+                'rejected_by_name' => null,
+                'rejection_reason' => null,
+            ])->save();
+
+            $this->projectProvisioner->createFromApprovedDeal($deal);
+        });
 
         return redirect()
             ->route('deals.show', $deal->id)
@@ -1117,7 +1127,7 @@ class DealController extends Controller
     public function show(int $id): View
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'project'])->find($id);
             if ($storedDeal) {
                 $stages = $this->dealStages();
                 $currentStage = null;
@@ -1160,6 +1170,7 @@ class DealController extends Controller
                     'id' => $storedDeal->id,
                     'deal_code' => $storedDeal->deal_code,
                     'deal_name' => $storedDeal->deal_name,
+                    'project_id' => $storedDeal->project?->id,
                     'contact_name' => trim(collect([$storedDeal->first_name, $storedDeal->last_name])->filter()->implode(' ')),
                     'company_name' => $storedDeal->company_name ?: (optional($storedDeal->contact)->company_name ?: '-'),
                     'amount' => (int) round((float) ($storedDeal->total_estimated_engagement_value ?? 0)),
@@ -1214,6 +1225,11 @@ class DealController extends Controller
                             $storedDeal->assigned_consultant,
                             $storedDeal->assigned_associate,
                         ])),
+                    ],
+                    'project' => [
+                        'id' => $storedDeal->project?->id,
+                        'code' => $storedDeal->project?->project_code,
+                        'status' => $storedDeal->project?->status,
                     ],
                     'progress' => [
                         'stages' => $stages,

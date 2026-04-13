@@ -116,4 +116,9 @@ class Contact extends Model
     {
         return $this->belongsToMany(Company::class)->withTimestamps();
     }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
 }

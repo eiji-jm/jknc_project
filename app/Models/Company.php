@@ -51,4 +51,9 @@ class Company extends Model
     {
         return $this->belongsToMany(Contact::class)->withTimestamps();
     }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
 }

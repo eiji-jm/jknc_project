@@ -29,9 +29,9 @@
                         </div>
 
                         <div class="flex items-center gap-2">
-                            <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">All: 4</span>
-                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">In Progress: 3</span>
-                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Completed: 1</span>
+                            <span class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">All: {{ $projects->count() }}</span>
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">Active: {{ $projects->where('status', '!=', 'Completed')->count() }}</span>
+                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Completed: {{ $projects->where('status', 'Completed')->count() }}</span>
                         </div>
                     </div>
                 </div>
@@ -54,7 +54,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white text-gray-700">
-                                    @foreach ($projects as $project)
+                                    @forelse ($projects as $project)
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-3 py-3">
                                                 <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600">
@@ -77,14 +77,18 @@
                                             </td>
                                             <td class="px-3 py-3">
                                                 <div class="flex items-center justify-end gap-2">
-                                                    <button class="h-8 rounded-full bg-blue-600 px-3 text-xs font-medium text-white hover:bg-blue-700">View</button>
+                                                    <a href="{{ route('project.show', $project['id']) }}" class="inline-flex h-8 items-center rounded-full bg-blue-600 px-3 text-xs font-medium text-white hover:bg-blue-700">View</a>
                                                     <button class="h-8 w-8 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
                                                         <i class="fas fa-ellipsis-v text-xs"></i>
                                                     </button>
                                                 </div>
                                             </td>
                                         </tr>
-                                    @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="7" class="px-3 py-10 text-center text-sm text-gray-500">No projects linked to this company yet.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
@@ -92,7 +96,7 @@
                 </div>
 
                 <div class="border-t border-gray-100 px-4 py-3 flex flex-wrap items-center justify-end gap-3 text-sm text-gray-500">
-                    <span>1-4 of 4 results</span>
+                    <span>{{ $projects->count() ? '1-'.$projects->count().' of '.$projects->count().' results' : '0 results' }}</span>
                     <button class="h-8 rounded border border-gray-200 px-3 hover:bg-gray-50">Previous</button>
                     <button class="h-8 rounded border border-gray-200 px-3 hover:bg-gray-50">Next</button>
                     <select class="h-8 rounded border border-gray-200 bg-white px-2 text-sm text-gray-700">

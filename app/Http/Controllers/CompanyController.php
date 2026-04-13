@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanyActivity;
 use App\Models\CompanyBif;
 use App\Models\CompanyConsultationNote;
+use App\Models\Project;
 use App\Models\CompanyHistoryEntry;
 use App\Models\Contact;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -733,40 +734,31 @@ class CompanyController extends Controller
     {
         $companyData = $this->findCompanyOrAbort($request, $company);
 
-        $projects = [
-            [
-                'name' => 'Website Redesign',
-                'status' => 'In Progress',
-                'start_date' => 'Feb 01, 2024',
-                'end_date' => 'Jun 30, 2024',
-                'owner' => 'James Tan',
-                'owner_initials' => 'JT',
-            ],
-            [
-                'name' => 'Cloud Migration',
-                'status' => 'In Progress',
-                'start_date' => 'Mar 15, 2024',
-                'end_date' => 'Dec 31, 2024',
-                'owner' => 'Maria Santos',
-                'owner_initials' => 'MS',
-            ],
-            [
-                'name' => 'Network Security Enhancement',
-                'status' => 'Completed',
-                'start_date' => 'Jan 10, 2023',
-                'end_date' => 'Sep 01, 2023',
-                'owner' => 'Sarah Williams',
-                'owner_initials' => 'SW',
-            ],
-            [
-                'name' => 'CRM Integration',
-                'status' => 'In Progress',
-                'start_date' => 'Jun 01, 2023',
-                'end_date' => 'May 31, 2024',
-                'owner' => 'John Admin',
-                'owner_initials' => 'JA',
-            ],
-        ];
+        $projects = collect();
+
+        if (Schema::hasTable('projects')) {
+            $projects = Project::query()
+                ->where('company_id', $company)
+                ->latest()
+                ->get()
+                ->map(function (Project $project): array {
+                    $owner = $project->assigned_project_manager ?: $project->assigned_consultant ?: 'Unassigned';
+
+                    return [
+                        'id' => $project->id,
+                        'name' => $project->name,
+                        'status' => $project->status,
+                        'start_date' => optional($project->planned_start_date)->format('M d, Y') ?: '-',
+                        'end_date' => optional($project->target_completion_date)->format('M d, Y') ?: '-',
+                        'owner' => $owner,
+                        'owner_initials' => collect(explode(' ', $owner))
+                            ->filter()
+                            ->take(2)
+                            ->map(fn (string $part): string => strtoupper(substr($part, 0, 1)))
+                            ->implode('') ?: 'NA',
+                    ];
+                });
+        }
 
         return view('company.projects', [
             'company' => (object) $companyData,

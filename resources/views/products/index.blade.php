@@ -9,6 +9,25 @@
         'Rejected' => 'border-rose-200 bg-rose-50 text-rose-700',
         'Archived' => 'border-rose-200 bg-rose-50 text-rose-700',
     ];
+    $productEditPayloads = $products->mapWithKeys(fn ($product) => [
+        (string) $product->product_id => $product,
+    ]);
+    $shouldReopenCreateModal = $errors->any()
+        && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id'));
+    $oldFieldType = old('field_type');
+    $oldFieldTypeMeta = $oldFieldType ? collect($fieldTypes)->firstWhere('value', $oldFieldType) : null;
+    $oldFieldTypeLabel = $oldFieldTypeMeta['label'] ?? 'Picklist';
+    $productIndexScriptData = [
+        'serviceOptions' => $serviceOptions,
+        'productEditPayloads' => $productEditPayloads,
+        'shouldReopenCreateModal' => $shouldReopenCreateModal,
+        'oldFieldTypeValue' => $oldFieldType,
+        'oldFieldTypeLabelValue' => $oldFieldTypeLabel,
+        'createProductUrl' => route('products.store'),
+        'updateProductUrlTemplate' => route('products.update', '__PRODUCT__'),
+        'defaultOwnerIdValue' => (string) $defaultOwnerId,
+        'defaultOwnerNameValue' => $selectedOwnerName ?? 'Select Owner',
+    ];
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
@@ -305,7 +324,7 @@
                                             </form>
                                         @endif
                                     @else
-                                        <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-product-edit='@json($product)'>Edit</button>
+                                        <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-product-id="{{ $product->product_id }}">Edit</button>
                                         <form method="POST" action="{{ route('products.destroy', $product->product_id) }}" onsubmit="return confirm('Submit a delete request for this product?');">
                                             @csrf
                                             @method('DELETE')
@@ -371,9 +390,20 @@
     'owners' => $owners,
 ])
 
+<script type="application/json" id="productIndexScriptData">@json($productIndexScriptData)</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const serviceOptionsData = @json($serviceOptions);
+    const productIndexScriptDataElement = document.getElementById('productIndexScriptData');
+    const productIndexScriptData = productIndexScriptDataElement
+        ? JSON.parse(productIndexScriptDataElement.textContent || '{}')
+        : {};
+
+    const serviceOptionsData = productIndexScriptData.serviceOptions || [];
+    const productEditPayloads = productIndexScriptData.productEditPayloads || {};
+    const shouldReopenCreateModal = Boolean(productIndexScriptData.shouldReopenCreateModal);
+    const oldFieldTypeValue = productIndexScriptData.oldFieldTypeValue || '';
+    const oldFieldTypeLabelValue = productIndexScriptData.oldFieldTypeLabelValue || 'Picklist';
     const createProductModal = document.getElementById('createProductModal');
     const createProductForm = document.getElementById('createProductForm');
     const createProductFormMethod = document.getElementById('createProductFormMethod');
@@ -414,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const taxTypeInput = document.getElementById('tax_type');
     const unitInput = document.getElementById('unit');
     const tableRows = Array.from(document.querySelectorAll('.product-row'));
-    const productEditButtons = Array.from(document.querySelectorAll('[data-product-edit]'));
+    const productEditButtons = Array.from(document.querySelectorAll('[data-product-id]'));
     const productRequirementsInputs = Array.from(document.querySelectorAll('.product-requirements-input'));
 
     const openCreateFieldDropdown = document.getElementById('openCreateFieldDropdown');
@@ -448,10 +478,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const createProductPanel = document.getElementById('createProductPanel');
     const createProductModalOverlay = document.getElementById('createProductModalOverlay');
     let productCreatedAtIntervalId = null;
-    const createProductUrl = @json(route('products.store'));
-    const updateProductUrlTemplate = @json(route('products.update', '__PRODUCT__'));
-    const defaultOwnerIdValue = @json((string) $defaultOwnerId);
-    const defaultOwnerNameValue = @json($selectedOwnerName ?? 'Select Owner');
+    const createProductUrl = productIndexScriptData.createProductUrl || '';
+    const updateProductUrlTemplate = productIndexScriptData.updateProductUrlTemplate || '';
+    const defaultOwnerIdValue = productIndexScriptData.defaultOwnerIdValue || '';
+    const defaultOwnerNameValue = productIndexScriptData.defaultOwnerNameValue || 'Select Owner';
 
     const formatCreatedAt = (date) => new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -1359,7 +1389,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     productEditButtons.forEach((button) => {
         button.addEventListener('click', function () {
-            const product = JSON.parse(button.dataset.productEdit || '{}');
+            const productId = button.dataset.productId || '';
+            const product = productEditPayloads[productId] || {};
             resetCreateProductForm();
             fillProductForm(product);
             openCreateModal();
@@ -1377,13 +1408,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
 
-    @if ($errors->any() && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id')))
+    if (shouldReopenCreateModal) {
         openCreateModal();
-    @endif
+    }
 
-    @if (old('field_type'))
-        openCreateFieldModalFn('{{ old('field_type') }}', '{{ $fieldTypes->firstWhere('value', old('field_type'))['label'] ?? 'Picklist' }}');
-    @endif
+    if (oldFieldTypeValue) {
+        openCreateFieldModalFn(oldFieldTypeValue, oldFieldTypeLabelValue || 'Picklist');
+    }
 });
 </script>
 @endsection

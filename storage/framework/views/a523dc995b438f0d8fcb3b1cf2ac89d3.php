@@ -99,6 +99,36 @@
                 </div>
             </div>
 
+            <div class="mt-6">
+                <h3 class="mb-2 text-lg font-semibold text-gray-900">Requirements</h3>
+                <?php
+                    $requirementGroups = collect($product->requirements['groups'] ?? []);
+                    $requirementLabels = [
+                        'individual' => 'Individual',
+                        'juridical' => 'Juridical',
+                        'other' => 'Other',
+                    ];
+                ?>
+                <?php if($requirementGroups->isNotEmpty()): ?>
+                    <div class="space-y-3 text-sm text-gray-600">
+                        <?php $__currentLoopData = $requirementLabels; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $groupKey => $groupLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <?php if(!empty($product->requirements['groups'][$groupKey])): ?>
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500"><?php echo e($groupLabel); ?></p>
+                                    <ul class="mt-1 space-y-1">
+                                        <?php $__currentLoopData = $product->requirements['groups'][$groupKey]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <li><?php echo e($item); ?></li>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </div>
+                <?php else: ?>
+                    <p class="text-sm text-gray-600">-</p>
+                <?php endif; ?>
+            </div>
+
             <div class="mt-6 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                 <?php echo e($lastModifiedLabel); ?>
 

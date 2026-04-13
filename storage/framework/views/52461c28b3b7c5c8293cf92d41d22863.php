@@ -7,6 +7,25 @@
         'Rejected' => 'border-rose-200 bg-rose-50 text-rose-700',
         'Archived' => 'border-rose-200 bg-rose-50 text-rose-700',
     ];
+    $productEditPayloads = $products->mapWithKeys(fn ($product) => [
+        (string) $product->product_id => $product,
+    ]);
+    $shouldReopenCreateModal = $errors->any()
+        && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id'));
+    $oldFieldType = old('field_type');
+    $oldFieldTypeMeta = $oldFieldType ? collect($fieldTypes)->firstWhere('value', $oldFieldType) : null;
+    $oldFieldTypeLabel = $oldFieldTypeMeta['label'] ?? 'Picklist';
+    $productIndexScriptData = [
+        'serviceOptions' => $serviceOptions,
+        'productEditPayloads' => $productEditPayloads,
+        'shouldReopenCreateModal' => $shouldReopenCreateModal,
+        'oldFieldTypeValue' => $oldFieldType,
+        'oldFieldTypeLabelValue' => $oldFieldTypeLabel,
+        'createProductUrl' => route('products.store'),
+        'updateProductUrlTemplate' => route('products.update', '__PRODUCT__'),
+        'defaultOwnerIdValue' => (string) $defaultOwnerId,
+        'defaultOwnerNameValue' => $selectedOwnerName ?? 'Select Owner',
+    ];
 ?>
 
 <div class="px-6 py-6 lg:px-8">
@@ -315,7 +334,7 @@
                                             </form>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-product-edit='<?php echo json_encode($product, 15, 512) ?>'>Edit</button>
+                                        <button type="button" class="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50" data-product-id="<?php echo e($product->product_id); ?>">Edit</button>
                                         <form method="POST" action="<?php echo e(route('products.destroy', $product->product_id)); ?>" onsubmit="return confirm('Submit a delete request for this product?');">
                                             <?php echo csrf_field(); ?>
                                             <?php echo method_field('DELETE'); ?>
@@ -381,9 +400,20 @@
     'owners' => $owners,
 ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
+<script type="application/json" id="productIndexScriptData"><?php echo json_encode($productIndexScriptData, 15, 512) ?></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const serviceOptionsData = <?php echo json_encode($serviceOptions, 15, 512) ?>;
+    const productIndexScriptDataElement = document.getElementById('productIndexScriptData');
+    const productIndexScriptData = productIndexScriptDataElement
+        ? JSON.parse(productIndexScriptDataElement.textContent || '{}')
+        : {};
+
+    const serviceOptionsData = productIndexScriptData.serviceOptions || [];
+    const productEditPayloads = productIndexScriptData.productEditPayloads || {};
+    const shouldReopenCreateModal = Boolean(productIndexScriptData.shouldReopenCreateModal);
+    const oldFieldTypeValue = productIndexScriptData.oldFieldTypeValue || '';
+    const oldFieldTypeLabelValue = productIndexScriptData.oldFieldTypeLabelValue || 'Picklist';
     const createProductModal = document.getElementById('createProductModal');
     const createProductForm = document.getElementById('createProductForm');
     const createProductFormMethod = document.getElementById('createProductFormMethod');
@@ -424,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const taxTypeInput = document.getElementById('tax_type');
     const unitInput = document.getElementById('unit');
     const tableRows = Array.from(document.querySelectorAll('.product-row'));
-    const productEditButtons = Array.from(document.querySelectorAll('[data-product-edit]'));
+    const productEditButtons = Array.from(document.querySelectorAll('[data-product-id]'));
     const productRequirementsInputs = Array.from(document.querySelectorAll('.product-requirements-input'));
 
     const openCreateFieldDropdown = document.getElementById('openCreateFieldDropdown');
@@ -458,10 +488,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const createProductPanel = document.getElementById('createProductPanel');
     const createProductModalOverlay = document.getElementById('createProductModalOverlay');
     let productCreatedAtIntervalId = null;
-    const createProductUrl = <?php echo json_encode(route('products.store'), 15, 512) ?>;
-    const updateProductUrlTemplate = <?php echo json_encode(route('products.update', '__PRODUCT__'), 512) ?>;
-    const defaultOwnerIdValue = <?php echo json_encode((string) $defaultOwnerId, 15, 512) ?>;
-    const defaultOwnerNameValue = <?php echo json_encode($selectedOwnerName ?? 'Select Owner', 15, 512) ?>;
+    const createProductUrl = productIndexScriptData.createProductUrl || '';
+    const updateProductUrlTemplate = productIndexScriptData.updateProductUrlTemplate || '';
+    const defaultOwnerIdValue = productIndexScriptData.defaultOwnerIdValue || '';
+    const defaultOwnerNameValue = productIndexScriptData.defaultOwnerNameValue || 'Select Owner';
 
     const formatCreatedAt = (date) => new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -1369,7 +1399,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     productEditButtons.forEach((button) => {
         button.addEventListener('click', function () {
-            const product = JSON.parse(button.dataset.productEdit || '{}');
+            const productId = button.dataset.productId || '';
+            const product = productEditPayloads[productId] || {};
             resetCreateProductForm();
             fillProductForm(product);
             openCreateModal();
@@ -1387,13 +1418,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const initialTypeButton = fieldTypeButtons.find((button) => (button.dataset.fieldType || '') === initialFieldType);
     applyCreateFieldTypeUI(initialFieldType, initialTypeButton?.dataset.fieldLabel || 'Picklist');
 
-    <?php if($errors->any() && (old('product_name') !== null || old('sku') !== null || old('owner_id') !== null || $errors->has('owner_id'))): ?>
+    if (shouldReopenCreateModal) {
         openCreateModal();
-    <?php endif; ?>
+    }
 
-    <?php if(old('field_type')): ?>
-        openCreateFieldModalFn('<?php echo e(old('field_type')); ?>', '<?php echo e($fieldTypes->firstWhere('value', old('field_type'))['label'] ?? 'Picklist'); ?>');
-    <?php endif; ?>
+    if (oldFieldTypeValue) {
+        openCreateFieldModalFn(oldFieldTypeValue, oldFieldTypeLabelValue || 'Picklist');
+    }
 });
 </script>
 <?php $__env->stopSection(); ?>

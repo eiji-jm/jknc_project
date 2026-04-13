@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
 class Deal extends Model
@@ -139,5 +140,15 @@ class Deal extends Model
     public function stage(): BelongsTo
     {
         return $this->belongsTo(DealStage::class, 'stage_id');
+    }
+
+    public function project(): HasOne
+    {
+        return $this->hasOne(Project::class);
+    }
+
+    public function proposal(): HasOne
+    {
+        return $this->hasOne(DealProposal::class);
     }
 }
