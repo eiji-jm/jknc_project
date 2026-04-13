@@ -17,6 +17,7 @@ class TransmittalItem extends Model
         'qty',
         'description',
         'remarks',
+        'attachment_path',
     ];
 
     public function transmittal()

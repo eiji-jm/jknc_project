@@ -37,12 +37,8 @@
         previewReceivedAt: '',
 
         previewItems: [
-            { no: 1, particular: '', unique_id: '', qty: '', description: '', remarks: '' },
+            { no: 1, particular: '', unique_id: '', qty: '', description: '', remarks: '', file: null },
         ],
-
-        selectedRecord: null,
-        previewVisible: false,
-        previewModalOpen: false,
 
         closeAddSectionAlpine() {
             this.showSlideOver = false;
@@ -166,7 +162,7 @@
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Actions</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Workflow Status</th>
                             <th class="px-3 py-3 border-r border-gray-200 font-semibold">Approval Status</th>
-                            <th class="px-3 py-3 font-semibold">Template</th>
+                            <th class="px-3 py-3 font-semibold">Action</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="bg-white">
@@ -175,257 +171,6 @@
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- FULL SCREEN PREVIEW MODAL -->
-        <div x-show="previewModalOpen" x-cloak class="fixed inset-0 z-[70]">
-            <div class="absolute inset-0 bg-black/50" @click="previewModalOpen = false"></div>
-
-            <div class="absolute inset-0 flex items-center justify-center p-6">
-                <div
-                    x-show="previewModalOpen"
-                    x-transition:enter="transform transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 scale-95"
-                    x-transition:enter-end="opacity-100 scale-100"
-                    x-transition:leave="transform transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 scale-100"
-                    x-transition:leave-end="opacity-0 scale-95"
-                    class="relative w-full max-w-[1500px] h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200"
-                >
-                    <div class="h-full grid grid-cols-1 xl:grid-cols-[1fr_340px]">
-                        <!-- LEFT -->
-                        <div class="flex flex-col min-w-0 bg-[#f3f4f6]">
-                            <div class="px-5 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
-                                <div class="min-w-0">
-                                    <h2 class="text-lg font-semibold text-gray-900">Transmittal Preview</h2>
-                                    <p class="text-sm text-gray-500 truncate" x-text="selectedRecord?.transmittal_no || ''"></p>
-                                </div>
-
-                                <div class="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        id="download-preview-pdf-main"
-                                        class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
-                                    >
-                                        <i class="fas fa-file-pdf"></i>
-                                        Download PDF
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        @click="previewModalOpen = false"
-                                        class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 overflow-auto p-6">
-                                <div class="mx-auto w-fit">
-                                    <div id="transmittal-preview-pdf-main" class="transmittal-doc-page bg-white border border-gray-300 shadow-lg">
-                                        <div class="tm-title">
-                                            <div class="tm-title-main">Transmittal Form</div>
-                                        </div>
-
-                                        <div class="tm-top-block">
-                                            <div class="tm-top-row tm-top-row-first">
-                                                <div class="tm-label">Ref No</div>
-                                                <div class="tm-line" x-text="selectedRecord?.transmittal_no || previewRef"></div>
-
-                                                <div class="tm-label tm-date-label">Date</div>
-                                                <div class="tm-line tm-date" x-text="previewDate"></div>
-                                            </div>
-
-                                            <div class="tm-top-row">
-                                                <div class="tm-label">Mode</div>
-                                                <div class="tm-line" x-text="transmittalMode"></div>
-                                            </div>
-
-                                            <div class="tm-top-row">
-                                                <div class="tm-label">From</div>
-                                                <div class="tm-line tm-address" x-text="computedFrom() || ' '"></div>
-                                            </div>
-
-                                            <div class="tm-top-row">
-                                                <div class="tm-label">To</div>
-                                                <div class="tm-line tm-address" x-text="computedTo() || ' '"></div>
-                                            </div>
-
-                                            <div class="tm-top-row">
-                                                <div class="tm-label">Address</div>
-                                                <div class="tm-line tm-address" x-text="previewAddress || ' '"></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="tm-meta-grid">
-                                            <div>
-                                                <span class="tm-meta-label">Delivery Type:</span>
-                                                <span x-text="deliverySummary()"></span>
-                                            </div>
-                                            <div>
-                                                <span class="tm-meta-label">Actions:</span>
-                                                <span x-text="selectedActions()"></span>
-                                            </div>
-                                            <div>
-                                                <span class="tm-meta-label">Recipient Email:</span>
-                                                <span x-text="recipientEmail || '—'"></span>
-                                            </div>
-                                            <div>
-                                                <span class="tm-meta-label">Electronic Method:</span>
-                                                <span x-text="electronicMethod || '—'"></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="tm-section-title">List of Items</div>
-
-                                        <table class="tm-table">
-                                            <thead>
-                                                <tr>
-                                                    <th class="tm-col-no">No</th>
-                                                    <th class="tm-col-particular">Particular</th>
-                                                    <th class="tm-col-uid">Unique ID</th>
-                                                    <th class="tm-col-qty">Qty.</th>
-                                                    <th class="tm-col-description">Description</th>
-                                                    <th class="tm-col-remarks">Remarks</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template x-for="(item, index) in previewItems" :key="index">
-                                                    <tr>
-                                                        <td x-text="item.no"></td>
-                                                        <td x-text="item.particular || ''"></td>
-                                                        <td x-text="item.unique_id || ''"></td>
-                                                        <td x-text="item.qty || ''"></td>
-                                                        <td x-text="item.description || ''"></td>
-                                                        <td x-text="item.remarks || ''"></td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-
-                                        <div class="tm-footer-code">
-                                            <div>JKNC-TF-GS-V.1-2025</div>
-                                            <div>Page ___ of ___</div>
-                                        </div>
-
-                                        <div class="tm-signatures">
-                                            <div class="tm-sign-col">
-                                                <div class="tm-sign-label">Prepared by:</div>
-                                                <div class="tm-sign-line" x-text="previewPreparedBy || ' '"></div>
-
-                                                <div class="tm-sign-label tm-sign-gap">Approved by:</div>
-                                                <div class="tm-sign-line" x-text="previewApprovedBy || ' '"></div>
-                                                <div class="tm-sign-sub" x-text="previewApprovedPosition || ''"></div>
-
-                                                <div class="tm-sign-gap-sm"></div>
-                                                <div class="tm-sign-line" x-text="previewCustodian || ' '"></div>
-                                                <div class="tm-sign-sub">Document Custodian</div>
-                                            </div>
-
-                                            <div class="tm-sign-col">
-                                                <div class="tm-sign-label">Delivered by:</div>
-                                                <div class="tm-sign-line" x-text="previewDeliveredBy || ' '"></div>
-
-                                                <div class="tm-sign-label tm-sign-gap">Received by:</div>
-                                                <div class="tm-sign-line" x-text="previewReceivedBy || ' '"></div>
-
-                                                <div class="tm-sign-label tm-sign-gap">Date and Time:</div>
-                                                <div class="tm-sign-line" x-text="previewReceivedAt || ' '"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- RIGHT -->
-                        <div class="border-l border-gray-200 bg-white overflow-y-auto">
-                            <div class="p-5 border-b border-gray-200">
-                                <h3 class="text-base font-semibold text-gray-900">Transmittal Information</h3>
-                            </div>
-
-                            <div class="p-5 space-y-4 text-sm">
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Ref No</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.transmittal_no || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Date</span>
-                                    <span class="font-medium text-gray-900" x-text="selectedRecord?.date || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Mode</span>
-                                    <span class="font-medium text-gray-900" x-text="selectedRecord?.mode || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">From</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.from_value || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">To</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.to_value || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Address</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.address || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Delivery Type</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.delivery_type || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Actions</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.actions || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Recipient Email</span>
-                                    <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.recipient_email || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Workflow</span>
-                                    <span class="font-medium text-gray-900" x-text="selectedRecord?.workflow_status || 'N/A'"></span>
-                                </div>
-                                <div class="grid grid-cols-[110px_1fr] gap-3">
-                                    <span class="text-gray-500">Approval</span>
-                                    <span class="font-medium text-gray-900" x-text="selectedRecord?.approval_status || 'N/A'"></span>
-                                </div>
-                            </div>
-
-                            <div class="px-5 pb-5">
-                                <div class="rounded-xl border border-gray-200 p-4">
-                                    <h4 class="text-sm font-semibold text-gray-900 mb-3">Receipt Information</h4>
-
-                                    <div class="space-y-3 text-sm">
-                                        <div class="grid grid-cols-[110px_1fr] gap-3">
-                                            <span class="text-gray-500">Receipt No</span>
-                                            <span class="font-medium text-gray-900 break-words" x-text="selectedRecord?.receipt_no || 'Not yet generated'"></span>
-                                        </div>
-
-                                        <a x-show="selectedRecord?.receipt_url"
-                                           :href="selectedRecord?.receipt_url"
-                                           target="_blank"
-                                           class="inline-flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition">
-                                            View Receipt
-                                        </a>
-
-                                        <a x-show="selectedRecord?.receipt_url"
-                                           :href="selectedRecord?.receipt_url"
-                                           target="_blank"
-                                           class="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
-                                            Print Receipt
-                                        </a>
-
-                                        <div x-show="!selectedRecord?.receipt_url" class="text-sm text-gray-500">
-                                            Receipt will appear here once the transmittal is approved.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -521,6 +266,7 @@
                                         <th class="tm-col-qty">Qty.</th>
                                         <th class="tm-col-description">Description</th>
                                         <th class="tm-col-remarks">Remarks</th>
+                                        <th class="tm-col-file">Attachment</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -532,6 +278,7 @@
                                             <td x-text="item.qty || ''"></td>
                                             <td x-text="item.description || ''"></td>
                                             <td x-text="item.remarks || ''"></td>
+                                            <td x-text="item.file ? item.file.name : '—'"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -738,6 +485,16 @@
                                                 <label class="block text-[11px] font-semibold text-gray-500 mb-1">Remarks</label>
                                                 <input type="text" x-model="item.remarks" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                                             </div>
+
+                                            <div class="col-span-2">
+                                                <label class="block text-[11px] font-semibold text-gray-500 mb-1">Upload File</label>
+                                                <input
+                                                    type="file"
+                                                    @change="item.file = $event.target.files[0]"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                                                >
+                                                <p class="mt-1 text-[11px] text-gray-400" x-text="item.file ? item.file.name : 'No file selected'"></p>
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -905,11 +662,12 @@
     }
 
     .tm-col-no { width: 36px; }
-    .tm-col-particular { width: 110px; }
-    .tm-col-uid { width: 105px; }
+    .tm-col-particular { width: 100px; }
+    .tm-col-uid { width: 90px; }
     .tm-col-qty { width: 40px; }
     .tm-col-description { width: auto; }
-    .tm-col-remarks { width: 95px; }
+    .tm-col-remarks { width: 85px; }
+    .tm-col-file { width: 100px; }
 
     .tm-footer-code {
         display: flex;
@@ -957,6 +715,15 @@
         line-height: 1.2;
     }
 
+    .record-row-clickable {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .record-row-clickable:hover {
+        background: #f9fafb;
+    }
+
     @media (max-width: 1280px) {
         .transmittal-doc-page {
             transform: scale(0.88);
@@ -989,7 +756,7 @@ function updateStatusMessage() {
         messageBox.textContent = 'These records are already submitted and waiting for admin approval.';
     } else if (currentWorkflowFilter === 'accepted') {
         messageBox.className = 'mt-3 mb-4 border border-green-200 bg-green-50 text-green-700 text-[14px] px-4 py-3 rounded-md';
-        messageBox.textContent = 'These records were already accepted.';
+        messageBox.textContent = 'Click the accepted record row to open full preview page.';
     } else if (currentWorkflowFilter === 'reverted') {
         messageBox.className = 'mt-3 mb-4 border border-red-200 bg-red-50 text-red-700 text-[14px] px-4 py-3 rounded-md';
         messageBox.textContent = 'These records were reverted and can be corrected then resubmitted.';
@@ -1041,70 +808,19 @@ function addTransmittalRow() {
         unique_id: '',
         qty: '',
         description: '',
-        remarks: ''
+        remarks: '',
+        file: null
     });
 }
 
-function fillPreviewFromRow(row, openModal = true) {
-    const alpineData = getAlpineData();
-    if (!alpineData || !row) return;
-
-    alpineData.previewRef = row.transmittal_no || 'AUTO-INCREMENT';
-    alpineData.previewDate = row.date || '';
-    alpineData.transmittalMode = row.mode || 'SEND';
-
-    alpineData.partyName = row.party_name || '';
-    alpineData.officeName = row.office_name || '';
-    alpineData.previewAddress = row.address || '';
-
-    if (row.delivery_type?.startsWith('By Person')) {
-        alpineData.deliveryType = 'By Person';
-    } else if (row.delivery_type?.startsWith('Registered Mail')) {
-        alpineData.deliveryType = 'Registered Mail';
-    } else if (row.delivery_type?.startsWith('Electronic')) {
-        alpineData.deliveryType = 'Electronic';
-    } else {
-        alpineData.deliveryType = '';
-    }
-
-    alpineData.byPersonWho = row.by_person_who || '';
-    alpineData.registeredMailProvider = row.registered_mail_provider || '';
-    alpineData.electronicMethod = row.electronic_method || '';
-    alpineData.recipientEmail = row.recipient_email || '';
-
-    alpineData.actionDelivery = !!row.action_delivery;
-    alpineData.actionPickUp = !!row.action_pick_up;
-    alpineData.actionDropOff = !!row.action_drop_off;
-    alpineData.actionEmail = !!row.action_email;
-
-    alpineData.previewPreparedBy = row.prepared_by_name || '';
-    alpineData.previewApprovedBy = row.approved_by_name || '';
-    alpineData.previewApprovedPosition = row.approved_position || '';
-    alpineData.previewCustodian = row.document_custodian || '';
-    alpineData.previewDeliveredBy = row.delivered_by || '';
-    alpineData.previewReceivedBy = row.received_by || '';
-    alpineData.previewReceivedAt = row.received_at || '';
-
-    alpineData.previewItems = (row.items && row.items.length)
-        ? row.items.map((item, idx) => ({
-            no: item.no ?? (idx + 1),
-            particular: item.particular ?? '',
-            unique_id: item.unique_id ?? '',
-            qty: item.qty ?? '',
-            description: item.description ?? '',
-            remarks: item.remarks ?? '',
-        }))
-        : [{ no: 1, particular: '', unique_id: '', qty: '', description: '', remarks: '' }];
-
-    alpineData.selectedRecord = row;
-    alpineData.previewVisible = false;
-    alpineData.previewModalOpen = openModal;
-}
-
-function previewTransmittal(index) {
-    const row = transmittalRows[index];
-    if (!row) return;
-    fillPreviewFromRow(row, true);
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 async function fetchTransmittals() {
@@ -1132,41 +848,30 @@ async function renderTable() {
 
     if (!transmittalRows.length) {
         tableBody.innerHTML = `<tr><td colspan="10" class="px-3 py-8 text-center text-gray-500">No transmittal records found.</td></tr>`;
-        const alpineData = getAlpineData();
-        if (alpineData) {
-            alpineData.previewVisible = false;
-            alpineData.previewModalOpen = false;
-            alpineData.selectedRecord = null;
-        }
         return;
     }
 
-    transmittalRows.forEach((item, index) => {
+    transmittalRows.forEach((item) => {
+        const previewUrl = item.preview_url ?? '';
+        const isClickable = !item.can_submit && previewUrl ? ' record-row-clickable' : '';
+        const rowClick = !item.can_submit && previewUrl ? `onclick="window.location.href='${previewUrl}'"` : '';
+
         tableBody.innerHTML += `
-            <tr class="border-t border-gray-200 hover:bg-gray-50">
-                <td class="px-3 py-3 border-r border-gray-200">${item.transmittal_no ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.date ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.mode ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.from_value ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.to_value ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.delivery_type ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.actions ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.workflow_status ?? ''}</td>
-                <td class="px-3 py-3 border-r border-gray-200">${item.approval_status ?? ''}</td>
-                <td class="px-3 py-3">
-                    <div class="flex flex-col gap-1">
-                        <button type="button" onclick="previewTransmittal(${index})" class="text-gray-700 hover:underline text-left">
-                            View
-                        </button>
-
-                        ${item.can_submit
-                            ? `<button type="button" onclick="submitTransmittal(${item.id})" class="text-blue-600 hover:underline text-left">Submit</button>`
-                            : ''}
-
-                        ${item.receipt_url
-                            ? `<a href="${item.receipt_url}" target="_blank" class="text-green-600 hover:underline text-left">Receipt</a>`
-                            : ''}
-                    </div>
+            <tr class="border-t border-gray-200${isClickable}" ${rowClick}>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.transmittal_no ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.date ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.mode ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.from_value ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.to_value ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.delivery_type ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.actions ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.workflow_status ?? '')}</td>
+                <td class="px-3 py-3 border-r border-gray-200">${escapeHtml(item.approval_status ?? '')}</td>
+                <td class="px-3 py-3" onclick="event.stopPropagation()">
+                    ${item.can_submit
+                        ? `<button type="button" onclick="submitTransmittal(${item.id})" class="text-blue-600 hover:underline text-left">Submit</button>`
+                        : `${previewUrl ? `<a href="${previewUrl}" class="text-gray-700 hover:underline text-left">Open</a>` : `<span class="text-gray-400">—</span>`}`
+                    }
                 </td>
             </tr>
         `;
@@ -1177,44 +882,58 @@ async function saveTransmittal() {
     const alpineData = getAlpineData();
     if (!alpineData) return;
 
-    const payload = {
-        transmittal_date: alpineData.previewDate,
-        mode: alpineData.transmittalMode,
-        party_name: alpineData.partyName,
-        office_name: alpineData.officeName,
-        address: alpineData.previewAddress,
+    const formData = new FormData();
 
-        delivery_type: alpineData.deliveryType,
-        by_person_who: alpineData.byPersonWho,
-        registered_mail_provider: alpineData.registeredMailProvider,
-        electronic_method: alpineData.electronicMethod,
-        recipient_email: alpineData.recipientEmail,
+    formData.append('transmittal_date', alpineData.previewDate);
+    formData.append('mode', alpineData.transmittalMode);
+    formData.append('party_name', alpineData.partyName ?? '');
+    formData.append('office_name', alpineData.officeName ?? '');
+    formData.append('address', alpineData.previewAddress ?? '');
 
-        action_delivery: alpineData.actionDelivery,
-        action_pick_up: alpineData.actionPickUp,
-        action_drop_off: alpineData.actionDropOff,
-        action_email: alpineData.actionEmail,
+    formData.append('delivery_type', alpineData.deliveryType ?? '');
+    formData.append('by_person_who', alpineData.byPersonWho ?? '');
+    formData.append('registered_mail_provider', alpineData.registeredMailProvider ?? '');
+    formData.append('electronic_method', alpineData.electronicMethod ?? '');
+    formData.append('recipient_email', alpineData.recipientEmail ?? '');
 
-        prepared_by_name: alpineData.previewPreparedBy,
-        approved_by_name: alpineData.previewApprovedBy,
-        approved_position: alpineData.previewApprovedPosition,
-        document_custodian: alpineData.previewCustodian,
-        delivered_by: alpineData.previewDeliveredBy,
-        received_by: alpineData.previewReceivedBy,
-        received_at: alpineData.previewReceivedAt ? alpineData.previewReceivedAt.replace('T', ' ') : null,
+    formData.append('action_delivery', alpineData.actionDelivery ? 1 : 0);
+    formData.append('action_pick_up', alpineData.actionPickUp ? 1 : 0);
+    formData.append('action_drop_off', alpineData.actionDropOff ? 1 : 0);
+    formData.append('action_email', alpineData.actionEmail ? 1 : 0);
 
-        items: alpineData.previewItems
-    };
+    formData.append('prepared_by_name', alpineData.previewPreparedBy ?? '');
+    formData.append('approved_by_name', alpineData.previewApprovedBy ?? '');
+    formData.append('approved_position', alpineData.previewApprovedPosition ?? '');
+    formData.append('document_custodian', alpineData.previewCustodian ?? '');
+    formData.append('delivered_by', alpineData.previewDeliveredBy ?? '');
+    formData.append('received_by', alpineData.previewReceivedBy ?? '');
+    formData.append('received_at', alpineData.previewReceivedAt ? alpineData.previewReceivedAt.replace('T', ' ') : '');
+
+    const itemsWithoutFile = alpineData.previewItems.map((item, index) => ({
+        no: index + 1,
+        particular: item.particular ?? '',
+        unique_id: item.unique_id ?? '',
+        qty: item.qty ?? '',
+        description: item.description ?? '',
+        remarks: item.remarks ?? ''
+    }));
+
+    formData.append('items', JSON.stringify(itemsWithoutFile));
+
+    alpineData.previewItems.forEach((item, index) => {
+        if (item.file) {
+            formData.append(`item_files[${index}]`, item.file);
+        }
+    });
 
     try {
         const res = await fetch('/transmittal', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: formData
         });
 
         const data = await res.json();
@@ -1287,22 +1006,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    document.addEventListener('click', function (e) {
-        if (e.target && e.target.id === 'download-preview-pdf-main') {
-            const element = document.getElementById('transmittal-preview-pdf-main');
-            if (!element) return;
-
-            html2pdf().set({
-                margin: [0, 0, 0, 0],
-                filename: 'transmittal-form.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
-            }).from(element).save();
-        }
-    });
-
     document.addEventListener('keydown', (e) => {
         const alpineData = getAlpineData();
         if (!alpineData) return;
@@ -1310,8 +1013,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Escape') {
             if (alpineData.showSlideOver) {
                 closeAddSection();
-            } else if (alpineData.previewModalOpen) {
-                alpineData.previewModalOpen = false;
             }
         }
     });

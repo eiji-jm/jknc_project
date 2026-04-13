@@ -391,4 +391,11 @@ Route::post('/corporate-approvals/{module}/{id}/reject', [CorporateApprovalContr
 Route::post('/corporate-approvals/{module}/{id}/revise', [CorporateApprovalController::class, 'revise'])->name('corporate.approvals.revise');
 Route::post('/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])->name('corporate.approvals.archive');
 Route::get('/transmittal-receipts/{id}', [TransmittalReceiptController::class, 'show'])->name('transmittal.receipts.show');
+Route::get('/transmittal/{transmittal}/preview', [TransmittalController::class, 'preview'])
+    ->name('transmittal.preview');
+
+Route::get('/transmittal/{transmittal}/preview-pdf', [TransmittalController::class, 'previewPdf'])
+    ->name('transmittal.preview.pdf');
+Route::get('/transmittal/{transmittal}/receipt-pdf', [TransmittalController::class, 'receiptPdf'])
+    ->name('transmittal.receipt.pdf');
 });

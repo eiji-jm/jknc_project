@@ -6,6 +6,7 @@ use App\Models\Transmittal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TransmittalController extends Controller
 {
@@ -70,10 +71,12 @@ class TransmittalController extends Controller
                             'qty' => $row->qty,
                             'description' => $row->description,
                             'remarks' => $row->remarks,
+                            'attachment_path' => $row->attachment_path,
+                            'attachment_url' => $row->attachment_path ? asset('storage/' . $row->attachment_path) : null,
                         ];
                     })->values(),
                     'can_submit' => in_array($item->workflow_status, ['Uploaded', 'Reverted'], true),
-
+                    'preview_url' => route('transmittal.preview', $item->id),
                     'receipt_id' => optional($item->receipt)->id,
                     'receipt_no' => optional($item->receipt)->receipt_no,
                     'receipt_url' => $item->receipt ? route('transmittal.receipts.show', $item->receipt->id) : null,
@@ -98,10 +101,10 @@ class TransmittalController extends Controller
             'electronic_method' => ['nullable', 'string', 'max:255'],
             'recipient_email' => ['nullable', 'email', 'max:255'],
 
-            'action_delivery' => ['nullable', 'boolean'],
-            'action_pick_up' => ['nullable', 'boolean'],
-            'action_drop_off' => ['nullable', 'boolean'],
-            'action_email' => ['nullable', 'boolean'],
+            'action_delivery' => ['nullable'],
+            'action_pick_up' => ['nullable'],
+            'action_drop_off' => ['nullable'],
+            'action_email' => ['nullable'],
 
             'prepared_by_name' => ['nullable', 'string', 'max:255'],
             'approved_by_name' => ['nullable', 'string', 'max:255'],
@@ -111,19 +114,21 @@ class TransmittalController extends Controller
             'received_by' => ['nullable', 'string', 'max:255'],
             'received_at' => ['nullable', 'date'],
 
-            'items' => ['nullable', 'array'],
-            'items.*.no' => ['nullable', 'integer'],
-            'items.*.particular' => ['nullable', 'string'],
-            'items.*.unique_id' => ['nullable', 'string'],
-            'items.*.qty' => ['nullable', 'integer'],
-            'items.*.description' => ['nullable', 'string'],
-            'items.*.remarks' => ['nullable', 'string'],
+            'items' => ['nullable'],
+            'item_files.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx', 'max:10240'],
         ]);
 
         if (empty($validated['party_name']) || empty($validated['office_name'])) {
             return response()->json([
                 'message' => 'Party name and office name are required.'
             ], 422);
+        }
+
+        $items = $request->input('items', []);
+
+        if (is_string($items)) {
+            $decodedItems = json_decode($items, true);
+            $items = is_array($decodedItems) ? $decodedItems : [];
         }
 
         DB::beginTransaction();
@@ -141,10 +146,10 @@ class TransmittalController extends Controller
                 'electronic_method' => $validated['electronic_method'] ?? null,
                 'recipient_email' => $validated['recipient_email'] ?? null,
 
-                'action_delivery' => $validated['action_delivery'] ?? false,
-                'action_pick_up' => $validated['action_pick_up'] ?? false,
-                'action_drop_off' => $validated['action_drop_off'] ?? false,
-                'action_email' => $validated['action_email'] ?? false,
+                'action_delivery' => $request->boolean('action_delivery'),
+                'action_pick_up' => $request->boolean('action_pick_up'),
+                'action_drop_off' => $request->boolean('action_drop_off'),
+                'action_email' => $request->boolean('action_email'),
 
                 'prepared_by_name' => $validated['prepared_by_name'] ?? null,
                 'approved_by_name' => $validated['approved_by_name'] ?? null,
@@ -163,16 +168,24 @@ class TransmittalController extends Controller
                 'transmittal_no' => 'TRN-' . str_pad((string) $transmittal->id, 5, '0', STR_PAD_LEFT),
             ]);
 
-            foreach (($validated['items'] ?? []) as $index => $item) {
+            foreach (($items ?? []) as $index => $item) {
                 $hasContent =
                     !empty($item['particular']) ||
                     !empty($item['unique_id']) ||
                     !empty($item['qty']) ||
                     !empty($item['description']) ||
-                    !empty($item['remarks']);
+                    !empty($item['remarks']) ||
+                    $request->hasFile("item_files.$index");
 
                 if (!$hasContent) {
                     continue;
+                }
+
+                $attachmentPath = null;
+
+                if ($request->hasFile("item_files.$index")) {
+                    $attachmentPath = $request->file("item_files.$index")
+                        ->store('transmittal/item-attachments', 'public');
                 }
 
                 $transmittal->items()->create([
@@ -182,6 +195,7 @@ class TransmittalController extends Controller
                     'qty' => $item['qty'] ?? null,
                     'description' => $item['description'] ?? null,
                     'remarks' => $item['remarks'] ?? null,
+                    'attachment_path' => $attachmentPath,
                 ]);
             }
 
@@ -220,5 +234,43 @@ class TransmittalController extends Controller
         return response()->json([
             'message' => 'Transmittal submitted for approval successfully.'
         ]);
+    }
+
+    public function preview($id)
+    {
+        $transmittal = Transmittal::with(['items', 'receipt'])->findOrFail($id);
+
+        $transmittalPdfUrl = route('transmittal.preview.pdf', $transmittal->id);
+        $receiptPdfUrl = $transmittal->receipt
+            ? route('transmittal.receipt.pdf', $transmittal->id)
+            : null;
+
+        return view('transmittal.preview', compact('transmittal', 'transmittalPdfUrl', 'receiptPdfUrl'));
+    }
+
+    public function previewPdf($id)
+    {
+        $transmittal = Transmittal::with(['items', 'receipt'])->findOrFail($id);
+
+        $pdf = Pdf::loadView('transmittal.preview-pdf', compact('transmittal'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->stream('transmittal-' . $transmittal->transmittal_no . '.pdf');
+    }
+
+    public function receiptPdf($id)
+    {
+        $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
+
+        if (!$transmittal->receipt) {
+            abort(404, 'Receipt not found.');
+        }
+
+        $customPaper = [0, 0, 300, 200];
+
+        $pdf = Pdf::loadView('transmittal.receipt-pdf', compact('transmittal'))
+            ->setPaper($customPaper);
+
+        return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     }
 }
