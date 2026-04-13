@@ -13,7 +13,25 @@
         ['label' => 'Service Task Activation & Routing Tracker (Start)', 'status' => 'pending'],
         ['label' => 'Others', 'status' => 'pending'],
     ]));
-    $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['requirement' => '', 'purpose' => '', 'assigned_to' => '', 'timeline' => '']]));
+    $startKyc = (array) ($start?->kyc_requirements ?? []);
+    $startKycOrganization = (string) ($startKyc['organization_type'] ?? 'unknown');
+    $startKycSole = collect($startKyc['sole'] ?? []);
+    $startKycJuridical = collect($startKyc['juridical'] ?? []);
+    $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '']]));
+    $startApprovalSteps = collect($start?->approval_steps ?? [])->whenEmpty(fn () => collect([
+        ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Deal Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Client Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/Consultant/Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Proposal/Contract', 'responsible_person' => 'Sales & Marketing/Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Final Quote', 'responsible_person' => 'Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Invoice-Downpayment/Advance', 'responsible_person' => 'Finance', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Clearance', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ['requirement' => 'Turn Over', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+    ]));
+    $startClearance = (array) ($start?->clearance ?? []);
     $routing = collect($start?->routing ?? [])->whenEmpty(fn () => collect([
         ['role' => 'Admin', 'status' => 'pending'],
         ['role' => 'Lead Consultant', 'status' => 'pending'],
@@ -100,6 +118,9 @@
                 @foreach ($tabs as $key => $label)
                     <a href="{{ route('project.show', ['project' => $project->id, 'tab' => $key]) }}" class="project-tab-link {{ $tab === $key ? 'active' : '' }}">{{ $label }}</a>
                 @endforeach
+                @if ($tab === 'start')
+                    <a href="{{ route('project.start.download', $project) }}" class="project-doc-primary">Download START PDF</a>
+                @endif
             </div>
         </div>
         @if (session('success'))
@@ -117,13 +138,13 @@
             </div>
         </div>
         <div class="space-y-4">
-            @include('project.partials.tab-'.$tab, compact('project', 'start', 'sow', 'report', 'contactName', 'startChecklist', 'startReqs', 'routing', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
+            @include('project.partials.tab-'.$tab, compact('project', 'start', 'sow', 'report', 'contactName', 'startChecklist', 'startKycOrganization', 'startKycSole', 'startKycJuridical', 'startReqs', 'startApprovalSteps', 'startClearance', 'routing', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
         </div>
     </div>
 </div>
 
 <template id="scope-row-template"><tr><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="main_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="sub_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="responsible"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="duration"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="start_date"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="end_date"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="status"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="remarks"></td></tr></template>
-<template id="start-requirement-row-template"><tr><td class="px-3 py-2"><input name="engagement_requirement[]" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></td><td class="px-3 py-2"><input name="engagement_purpose[]" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></td><td class="px-3 py-2"><input name="engagement_assigned_to[]" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></td><td class="px-3 py-2"><input name="engagement_timeline[]" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"></td></tr></template>
+<template id="start-requirement-row-template"><tr><td class="border border-slate-900 px-2 py-1 text-center"></td><td class="border border-slate-900 px-1"><input name="engagement_requirement[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_notes[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_purpose[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_provided_by[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_submitted_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_assigned_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_timeline[]" class="w-full border-0 px-1 py-1 text-[11px]"></td></tr></template>
 <template id="start-routing-row-template"><div class="grid gap-3 md:grid-cols-2"><input name="routing_role[]" class="h-10 rounded-lg border border-gray-300 px-3 text-sm"><select name="routing_status[]" class="h-10 rounded-lg border border-gray-300 px-3 text-sm"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div></template>
 <script>
 document.querySelectorAll('[data-add-row]').forEach((b)=>b.addEventListener('click',()=>{const t=document.getElementById(b.dataset.addRow);const id=b.dataset.addRow==='start-routing'?'start-routing-row-template':'start-requirement-row-template';t.insertAdjacentHTML('beforeend',document.getElementById(id).innerHTML);}));

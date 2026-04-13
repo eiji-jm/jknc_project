@@ -194,6 +194,7 @@ Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update
 
     Route::get('/project', [ProjectController::class, 'index'])->name('project.index');
     Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
+    Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
     Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');

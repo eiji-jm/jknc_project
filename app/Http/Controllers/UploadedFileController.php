@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class UploadedFileController extends Controller
 {
-    public function show(Request $request, string $path): BinaryFileResponse
+    public function show(Request $request, string $path): Response
     {
         $resolvedPath = $this->resolvePath($path);
 

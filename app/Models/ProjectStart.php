@@ -11,12 +11,16 @@ class ProjectStart extends Model
     protected $fillable = [
         'project_id',
         'start_code',
+        'form_date',
         'date_started',
         'date_completed',
         'status',
         'checklist',
+        'kyc_requirements',
         'engagement_requirements',
+        'approval_steps',
         'routing',
+        'clearance',
         'rejection_reason',
         'approved_at',
         'approved_by_name',
@@ -25,11 +29,15 @@ class ProjectStart extends Model
     ];
 
     protected $casts = [
+        'form_date' => 'date',
         'date_started' => 'date',
         'date_completed' => 'date',
         'checklist' => 'array',
+        'kyc_requirements' => 'array',
         'engagement_requirements' => 'array',
+        'approval_steps' => 'array',
         'routing' => 'array',
+        'clearance' => 'array',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];

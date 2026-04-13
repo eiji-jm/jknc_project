@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\Project;
 use App\Models\ProjectSow;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
+use Illuminate\Support\Arr;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +16,8 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
+    use GeneratesPdfPreview;
+
     public function index(Request $request): View
     {
         $projects = collect();
@@ -41,18 +45,8 @@ class ProjectController extends Controller
 
     public function show(Request $request, Project $project): View
     {
-        $project->load([
-            'deal:id,deal_code,engagement_type',
-            'contact:id,first_name,last_name,email,phone,company_name',
-            'company:id,company_name',
-            'starts' => fn ($query) => $query->latest(),
-            'sows' => fn ($query) => $query->latest(),
-            'sowReports' => fn ($query) => $query->latest(),
-        ]);
-
-        $start = $project->starts->first();
-        $sow = $project->sows->first();
-        $report = $project->sowReports->first();
+        $payload = $this->buildProjectDocumentPayload($project);
+        extract($payload);
         $tab = in_array((string) $request->query('tab', 'start'), ['start', 'sow', 'report'], true)
             ? (string) $request->query('tab', 'start')
             : 'start';
@@ -60,9 +54,51 @@ class ProjectController extends Controller
         return view('project.show', compact('project', 'start', 'sow', 'report', 'tab'));
     }
 
+    public function downloadStartPdf(Project $project)
+    {
+        $payload = $this->buildProjectDocumentPayload($project);
+        extract($payload);
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+        $startKyc = (array) ($start?->kyc_requirements ?? []);
+        $startKycOrganization = (string) ($startKyc['organization_type'] ?? 'unknown');
+        $startKycSole = collect($startKyc['sole'] ?? []);
+        $startKycJuridical = collect($startKyc['juridical'] ?? []);
+        $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '']]));
+        $startApprovalSteps = collect($start?->approval_steps ?? [])->whenEmpty(fn () => collect([
+            ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Deal Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Client Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/Consultant/Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Proposal/Contract', 'responsible_person' => 'Sales & Marketing/Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Final Quote', 'responsible_person' => 'Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+        ]));
+        $startClearance = (array) ($start?->clearance ?? []);
+
+        $targetPath = 'generated-previews/project/start/' . ($project->project_code ?: $project->id) . '-start-form.pdf';
+        $pdfPath = $this->generatePdfPreview('project.pdf.start', compact(
+            'project',
+            'start',
+            'contactName',
+            'startKycOrganization',
+            'startKycSole',
+            'startKycJuridical',
+            'startReqs',
+            'startApprovalSteps',
+            'startClearance'
+        ), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate START PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
     public function updateStart(Request $request, Project $project): RedirectResponse
     {
         $validated = $request->validate([
+            'form_date' => ['nullable', 'date'],
             'date_started' => ['nullable', 'date'],
             'date_completed' => ['nullable', 'date'],
             'status' => ['required', 'string', 'max:50'],
@@ -70,14 +106,48 @@ class ProjectController extends Controller
             'checklist_label.*' => ['nullable', 'string', 'max:255'],
             'checklist_status' => ['nullable', 'array'],
             'checklist_status.*' => ['nullable', 'in:provided,pending'],
+            'kyc_sole_label' => ['nullable', 'array'],
+            'kyc_sole_label.*' => ['nullable', 'string', 'max:255'],
+            'kyc_sole_status' => ['nullable', 'array'],
+            'kyc_sole_status.*' => ['nullable', 'in:provided,pending'],
+            'kyc_juridical_label' => ['nullable', 'array'],
+            'kyc_juridical_label.*' => ['nullable', 'string', 'max:255'],
+            'kyc_juridical_status' => ['nullable', 'array'],
+            'kyc_juridical_status.*' => ['nullable', 'in:provided,pending'],
             'engagement_requirement' => ['nullable', 'array'],
             'engagement_requirement.*' => ['nullable', 'string', 'max:255'],
+            'engagement_notes' => ['nullable', 'array'],
+            'engagement_notes.*' => ['nullable', 'string', 'max:255'],
             'engagement_purpose' => ['nullable', 'array'],
             'engagement_purpose.*' => ['nullable', 'string', 'max:255'],
+            'engagement_provided_by' => ['nullable', 'array'],
+            'engagement_provided_by.*' => ['nullable', 'string', 'max:255'],
+            'engagement_submitted_to' => ['nullable', 'array'],
+            'engagement_submitted_to.*' => ['nullable', 'string', 'max:255'],
             'engagement_assigned_to' => ['nullable', 'array'],
             'engagement_assigned_to.*' => ['nullable', 'string', 'max:255'],
             'engagement_timeline' => ['nullable', 'array'],
             'engagement_timeline.*' => ['nullable', 'string', 'max:255'],
+            'approval_requirement' => ['nullable', 'array'],
+            'approval_requirement.*' => ['nullable', 'string', 'max:255'],
+            'approval_responsible_person' => ['nullable', 'array'],
+            'approval_responsible_person.*' => ['nullable', 'string', 'max:255'],
+            'approval_name_and_signature' => ['nullable', 'array'],
+            'approval_name_and_signature.*' => ['nullable', 'string', 'max:255'],
+            'approval_date_time_done' => ['nullable', 'array'],
+            'approval_date_time_done.*' => ['nullable', 'string', 'max:255'],
+            'clearance_assigned_team_lead' => ['nullable', 'string', 'max:255'],
+            'clearance_assigned_team_lead_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_consultant_confirmed' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_consultant_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_associate_assigned' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_associate_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_sales_marketing' => ['nullable', 'string', 'max:255'],
+            'clearance_sales_marketing_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_record_custodian_name' => ['nullable', 'string', 'max:255'],
+            'clearance_record_custodian_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_date_recorded' => ['nullable', 'date'],
+            'clearance_date_signed' => ['nullable', 'date'],
             'routing_role' => ['nullable', 'array'],
             'routing_role.*' => ['nullable', 'string', 'max:255'],
             'routing_status' => ['nullable', 'array'],
@@ -86,13 +156,21 @@ class ProjectController extends Controller
         ]);
 
         $start = $project->starts()->latest()->first() ?: new ProjectStart(['project_id' => $project->id]);
+        $resolvedFormDate = $validated['form_date']
+            ?? optional($start->form_date)->toDateString()
+            ?? optional($start->created_at)->toDateString()
+            ?? now()->toDateString();
         $start->fill([
+            'form_date' => $resolvedFormDate,
             'date_started' => $validated['date_started'] ?? null,
             'date_completed' => $validated['date_completed'] ?? null,
             'status' => $validated['status'],
             'checklist' => $this->buildChecklistPayload($request),
+            'kyc_requirements' => $this->buildKycRequirementsPayload($request, $start->kyc_requirements ?? []),
             'engagement_requirements' => $this->buildRequirementRows($request, 'engagement'),
+            'approval_steps' => $this->buildApprovalRows($request),
             'routing' => $this->buildRoutingRows($request),
+            'clearance' => $this->buildClearancePayload($validated),
             'rejection_reason' => $validated['rejection_reason'] ?? null,
         ]);
         $start->project_id = $project->id;
@@ -231,23 +309,56 @@ class ProjectController extends Controller
     private function buildRequirementRows(Request $request, string $prefix): array
     {
         $requirements = (array) $request->input("{$prefix}_requirement", []);
+        $notes = (array) $request->input("{$prefix}_notes", []);
         $purposes = (array) $request->input("{$prefix}_purpose", []);
+        $providedBy = (array) $request->input("{$prefix}_provided_by", []);
+        $submittedTo = (array) $request->input("{$prefix}_submitted_to", []);
         $assigned = (array) $request->input("{$prefix}_assigned_to", []);
         $timelines = (array) $request->input("{$prefix}_timeline", []);
 
-        return collect($requirements)->map(function ($value, $index) use ($purposes, $assigned, $timelines) {
+        return collect($requirements)->map(function ($value, $index) use ($notes, $purposes, $providedBy, $submittedTo, $assigned, $timelines) {
             $requirement = trim((string) $value);
             if ($requirement === '') {
                 return null;
             }
 
             return [
+                'number' => $index + 1,
                 'requirement' => $requirement,
+                'notes' => trim((string) ($notes[$index] ?? '')),
                 'purpose' => trim((string) ($purposes[$index] ?? '')),
+                'provided_by' => trim((string) ($providedBy[$index] ?? '')),
+                'submitted_to' => trim((string) ($submittedTo[$index] ?? '')),
                 'assigned_to' => trim((string) ($assigned[$index] ?? '')),
                 'timeline' => trim((string) ($timelines[$index] ?? '')),
             ];
         })->filter()->values()->all();
+    }
+
+    private function buildKycRequirementsPayload(Request $request, array $existing = []): array
+    {
+        $buildGroup = function (string $prefix) use ($request): array {
+            $labels = (array) $request->input("kyc_{$prefix}_label", []);
+            $statuses = (array) $request->input("kyc_{$prefix}_status", []);
+
+            return collect($labels)->map(function ($label, $index) use ($statuses) {
+                $clean = trim((string) $label);
+                if ($clean === '') {
+                    return null;
+                }
+
+                return [
+                    'label' => $clean,
+                    'status' => in_array($statuses[$index] ?? 'pending', ['provided', 'pending'], true) ? (string) $statuses[$index] : 'pending',
+                ];
+            })->filter()->values()->all();
+        };
+
+        return [
+            'organization_type' => (string) ($existing['organization_type'] ?? 'unknown'),
+            'sole' => $buildGroup('sole'),
+            'juridical' => $buildGroup('juridical'),
+        ];
     }
 
     private function buildRoutingRows(Request $request): array
@@ -268,6 +379,46 @@ class ProjectController extends Controller
                 'status' => in_array($status, ['pending', 'approved', 'rejected'], true) ? $status : 'pending',
             ];
         })->filter()->values()->all();
+    }
+
+    private function buildApprovalRows(Request $request): array
+    {
+        $requirements = (array) $request->input('approval_requirement', []);
+        $responsibles = (array) $request->input('approval_responsible_person', []);
+        $signatures = (array) $request->input('approval_name_and_signature', []);
+        $dates = (array) $request->input('approval_date_time_done', []);
+
+        return collect($requirements)->map(function ($value, $index) use ($responsibles, $signatures, $dates) {
+            $requirement = trim((string) $value);
+            if ($requirement === '') {
+                return null;
+            }
+
+            return [
+                'requirement' => $requirement,
+                'responsible_person' => trim((string) ($responsibles[$index] ?? '')),
+                'name_and_signature' => trim((string) ($signatures[$index] ?? '')),
+                'date_time_done' => trim((string) ($dates[$index] ?? '')),
+            ];
+        })->filter()->values()->all();
+    }
+
+    private function buildClearancePayload(array $validated): array
+    {
+        return [
+            'assigned_team_lead' => $validated['clearance_assigned_team_lead'] ?? null,
+            'assigned_team_lead_signature' => $validated['clearance_assigned_team_lead_signature'] ?? null,
+            'lead_consultant_confirmed' => $validated['clearance_lead_consultant_confirmed'] ?? null,
+            'lead_consultant_signature' => $validated['clearance_lead_consultant_signature'] ?? null,
+            'lead_associate_assigned' => $validated['clearance_lead_associate_assigned'] ?? null,
+            'lead_associate_signature' => $validated['clearance_lead_associate_signature'] ?? null,
+            'sales_marketing' => $validated['clearance_sales_marketing'] ?? null,
+            'sales_marketing_signature' => $validated['clearance_sales_marketing_signature'] ?? null,
+            'record_custodian_name' => $validated['clearance_record_custodian_name'] ?? null,
+            'record_custodian_signature' => $validated['clearance_record_custodian_signature'] ?? null,
+            'date_recorded' => $validated['clearance_date_recorded'] ?? null,
+            'date_signed' => $validated['clearance_date_signed'] ?? null,
+        ];
     }
 
     private function buildScopeRows(Request $request, string $prefix): array
@@ -298,6 +449,237 @@ class ProjectController extends Controller
                 'remarks' => trim((string) ($remarks[$index] ?? '')),
             ];
         })->filter()->values()->all();
+    }
+
+    private function buildProjectDocumentPayload(Project $project): array
+    {
+        $project->load([
+            'deal:id,deal_code,engagement_type',
+            'contact:id,first_name,last_name,email,phone,company_name',
+            'company.primaryContact:id,first_name,middle_name,last_name,email,phone,company_name,cif_status,organization_type,business_type_organization,ownership_flag,foreign_business_nature',
+            'company.latestBif',
+            'starts' => fn ($query) => $query->latest(),
+            'sows' => fn ($query) => $query->latest(),
+            'sowReports' => fn ($query) => $query->latest(),
+        ]);
+
+        $start = $project->starts->first();
+        if ($start) {
+            $start->kyc_requirements = $this->defaultStartKycRequirementsForProject($project);
+        }
+
+        return [
+            'project' => $project,
+            'start' => $start,
+            'sow' => $project->sows->first(),
+            'report' => $project->sowReports->first(),
+        ];
+    }
+
+    private function defaultStartKycRequirementsForProject(Project $project): array
+    {
+        $company = $project->company;
+        $organization = $this->resolveStartOrganizationType($project);
+        $kycContext = $this->buildStartKycContext($project);
+        $contactApproved = $kycContext['contact_approved'];
+        $bifApproved = strtolower((string) ($company?->latestBif?->status ?? '')) === 'approved';
+        $contactDocs = $kycContext['contact_documents'];
+        $bifDocs = (array) ($company?->latestBif?->client_requirement_documents ?? []);
+        $showForeignRows = $kycContext['show_foreign_rows'];
+
+        $hasBif = fn (string $key): bool => $bifApproved && filled(data_get($bifDocs, $key.'.path'));
+        $status = fn (bool $complete): string => $complete ? 'provided' : 'pending';
+
+        $sole = [
+            ['label' => 'Client Contact Form', 'status' => $status((bool) $project->contact_id)],
+            ['label' => 'Client Information Form', 'status' => $status($contactApproved)],
+            ['label' => '2 Valid Government IDs', 'status' => $status($contactDocs['two_valid_ids'])],
+            ['label' => 'TIN ID', 'status' => $status($contactDocs['tin_proof'])],
+            ['label' => 'DTI Certificate of Registration (if Sole Prop)', 'status' => $status($hasBif('sole_dti_certificate_document'))],
+            ['label' => 'BIR Certificate of Registration (COR)', 'status' => $status($hasBif('sole_bir_cor_document'))],
+            ['label' => 'Business Permit / Mayor\'s Permit', 'status' => $status($hasBif('sole_business_permit_document'))],
+            ['label' => 'Proof of Billing (Residential)', 'status' => $status($hasBif('sole_proof_of_billing_residential_document'))],
+            ['label' => 'Proof of Billing (Business Address if different)', 'status' => $status($hasBif('sole_proof_of_billing_business_document'))],
+            ['label' => 'Special Power of Attorney (if representative)', 'status' => $status($hasBif('sole_spa_document'))],
+            ['label' => 'Representative\'s 2 Valid IDs (if applicable)', 'status' => $status($hasBif('sole_representative_ids_document'))],
+        ];
+        if ($showForeignRows) {
+            $sole[] = ['label' => 'If Foreigner: Passport (Bio Page)', 'status' => $status($contactDocs['passport_proof'])];
+            $sole[] = ['label' => 'If Foreigner: Valid Visa / ACR I-Card', 'status' => $status($contactDocs['visa_or_acr'])];
+        }
+
+        $juridical = [
+            ['label' => 'Client Contact Form', 'status' => $status((bool) $project->contact_id)],
+            ['label' => 'Business Information Form', 'status' => $status($bifApproved)],
+            ['label' => '2 Valid Government IDs (Authorized Signatory)', 'status' => $status($contactDocs['two_valid_ids'])],
+            ['label' => 'TIN ID (Authorized Signatory)', 'status' => $status($contactDocs['tin_proof'])],
+            ['label' => 'SEC / CDA Certificate of Registration', 'status' => $status($hasBif('juridical_sec_cda_certificate_document'))],
+            ['label' => 'BIR Certificate of Registration (COR)', 'status' => $status($hasBif('juridical_bir_cor_document'))],
+            ['label' => 'Business Permit / Mayor\'s Permit', 'status' => $status($hasBif('juridical_business_permit_document'))],
+            ['label' => 'Articles of Incorporation / Partnership', 'status' => $status($hasBif('juridical_articles_document'))],
+            ['label' => 'By-Laws', 'status' => $status($hasBif('juridical_bylaws_document'))],
+            ['label' => 'Latest General Information Sheet (GIS)', 'status' => $status($hasBif('juridical_gis_document'))],
+            ['label' => 'Appointment of Officers (for OPC, if applicable)', 'status' => $status($hasBif('juridical_appointment_of_officers_document'))],
+            ['label' => 'Secretary Certificate OR Board Resolution', 'status' => $status($hasBif('juridical_secretary_certificate_document'))],
+            ['label' => 'Ultimate Beneficial Owner (UBO) Declaration', 'status' => $status($hasBif('juridical_ubo_declaration_document'))],
+            ['label' => 'Proof of Billing (Company Address)', 'status' => $status($hasBif('juridical_company_billing_document'))],
+            ['label' => 'Proof of Billing (Authorized Representative, if applicable)', 'status' => $status($hasBif('juridical_representative_billing_document'))],
+        ];
+        if ($showForeignRows) {
+            $juridical[] = ['label' => 'If Foreign Signatory/Director: Passport (Bio Page)', 'status' => $status($contactDocs['passport_proof'])];
+            $juridical[] = ['label' => 'If Foreign Signatory/Director: Valid Visa / ACR I-Card', 'status' => $status($contactDocs['visa_or_acr'])];
+        }
+
+        return [
+            'organization_type' => $organization,
+            'sole' => $organization === 'sole_proprietorship' ? $sole : [],
+            'juridical' => $this->isJuridicalOrganization($organization) ? $juridical : [],
+        ];
+    }
+
+    private function resolveStartOrganizationType(Project $project): string
+    {
+        $company = $project->company;
+        $contact = $project->contact;
+        $organization = strtolower(trim((string) ($company?->latestBif?->business_organization
+            ?: $company?->primaryContact?->business_type_organization
+            ?: $company?->primaryContact?->organization_type
+            ?: $contact?->business_type_organization
+            ?: $contact?->organization_type
+            ?: '')));
+
+        if ($organization === '' && $company) {
+            return 'corporation';
+        }
+
+        return $organization === '' ? 'unknown' : $organization;
+    }
+
+    private function isJuridicalOrganization(string $organization): bool
+    {
+        return in_array($organization, ['partnership', 'corporation', 'cooperative', 'ngo', 'other', 'opc'], true);
+    }
+
+    private function buildStartKycContext(Project $project): array
+    {
+        $company = $project->company;
+        $organization = $this->resolveStartOrganizationType($project);
+        $contacts = collect();
+
+        if ($project->contact) {
+            $contacts->push($project->contact);
+        }
+
+        if ($company?->primaryContact && (! $project->contact || $company->primaryContact->id !== $project->contact->id)) {
+            $contacts->push($company->primaryContact);
+        }
+
+        $contactDocuments = [
+            'two_valid_ids' => false,
+            'tin_proof' => false,
+            'passport_proof' => false,
+            'visa_or_acr' => false,
+        ];
+        $contactApproved = false;
+        $showForeignRows = false;
+
+        foreach ($contacts as $contact) {
+            $contactApproved = $contactApproved || strtolower((string) ($contact?->cif_status ?? '')) === 'approved';
+            $contactDocumentsForRecord = $this->projectContactRequirementState((int) $contact->id);
+
+            foreach (array_keys($contactDocuments) as $key) {
+                $contactDocuments[$key] = $contactDocuments[$key] || $contactDocumentsForRecord[$key];
+            }
+
+            $showForeignRows = $showForeignRows || $this->contactHasForeignDetails((int) $contact->id, $contact);
+        }
+
+        if ($this->isJuridicalOrganization($organization)) {
+            $showForeignRows = $showForeignRows
+                || strtolower((string) ($company?->latestBif?->nationality_status ?? '')) === 'foreign'
+                || $this->valueImpliesForeign((string) ($company?->latestBif?->authorized_signatory_nationality ?? ''));
+        }
+
+        return [
+            'contact_documents' => $contactDocuments,
+            'contact_approved' => $contactApproved,
+            'show_foreign_rows' => $showForeignRows,
+        ];
+    }
+
+    private function projectContactRequirementState(int $contactId): array
+    {
+        $documents = [];
+        if ($contactId > 0) {
+            $kycPath = 'contact-kyc-data/'.$contactId.'-requirements.json';
+            if (Storage::disk('local')->exists($kycPath)) {
+                $documents = json_decode((string) Storage::disk('local')->get($kycPath), true) ?: [];
+            }
+
+            $cifPath = 'contact-cif-data/'.$contactId.'-documents.json';
+            if (Storage::disk('local')->exists($cifPath)) {
+                $cifDocuments = json_decode((string) Storage::disk('local')->get($cifPath), true) ?: [];
+                if (empty($documents['two_valid_ids']) && isset($cifDocuments['valid_id'])) {
+                    $documents['two_valid_ids'] = [$cifDocuments['valid_id']];
+                }
+                if (empty($documents['tin_proof']) && isset($cifDocuments['tin_document'])) {
+                    $documents['tin_proof'] = [$cifDocuments['tin_document']];
+                }
+            }
+        }
+
+        $countDocuments = function (string $key) use ($documents): int {
+            return count(array_values(array_filter(
+                $this->normalizeProjectDocuments($documents[$key] ?? []),
+                fn (array $item): bool => filled($item['file_name'] ?? $item['path'] ?? $item['file_path'] ?? null)
+            )));
+        };
+
+        return [
+            'two_valid_ids' => $countDocuments('two_valid_ids') > 0,
+            'tin_proof' => $countDocuments('tin_proof') > 0,
+            'passport_proof' => $countDocuments('passport_proof') > 0,
+            'visa_or_acr' => $countDocuments('visa_proof') > 0 || $countDocuments('acr_card_proof') > 0,
+        ];
+    }
+
+    private function normalizeProjectDocuments(mixed $documents): array
+    {
+        if (! is_array($documents)) {
+            return [];
+        }
+
+        if (array_is_list($documents)) {
+            return array_values(array_filter($documents, 'is_array'));
+        }
+
+        return filled($documents['file_name'] ?? $documents['path'] ?? $documents['file_path'] ?? null)
+            ? [$documents]
+            : [];
+    }
+
+    private function contactHasForeignDetails(int $contactId, mixed $contact = null): bool
+    {
+        $contact = is_object($contact) ? $contact : null;
+        $cifData = [];
+
+        if ($contactId > 0) {
+            $cifPath = 'contact-cif-data/'.$contactId.'-data.json';
+            if (Storage::disk('local')->exists($cifPath)) {
+                $cifData = json_decode((string) Storage::disk('local')->get($cifPath), true) ?: [];
+            }
+        }
+
+        return in_array(strtolower((string) ($cifData['citizenship_type'] ?? '')), ['foreigner', 'dual_citizen'], true)
+            || strtolower((string) ($contact?->ownership_flag ?? '')) === 'foreign-owned business'
+            || filled($contact?->foreign_business_nature);
+    }
+
+    private function valueImpliesForeign(string $value): bool
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized !== '' && ! in_array($normalized, ['filipino', 'philippines', 'philippine', 'ph'], true);
     }
 
     private function buildInternalApprovalPayload(array $validated): array

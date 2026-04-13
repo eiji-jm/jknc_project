@@ -47,7 +47,7 @@ unset($__defined_vars, $__key, $__value); ?>
     </div>
 </div>
 
-<?php if (! $__env->hasRenderedOnce('49e08084-bebf-4674-882e-d1c83ac85469')): $__env->markAsRenderedOnce('49e08084-bebf-4674-882e-d1c83ac85469'); ?>
+<?php if (! $__env->hasRenderedOnce('6ecf3dda-c312-44e8-a695-4a4a0b8c5649')): $__env->markAsRenderedOnce('6ecf3dda-c312-44e8-a695-4a4a0b8c5649'); ?>
     <style>
         .jknc-drawer-overlay {
             opacity: 0;
