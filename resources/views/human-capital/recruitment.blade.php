@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col" x-data="recruitmentPage()">
+<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col" x-data="recruitmentPage({{ $mrfData->toJson() }}, {{ $jpfData->toJson() }})">
 
     {{-- TABS --}}
     <div class="flex items-center border-b border-gray-200 mb-4 gap-1">
@@ -27,9 +27,33 @@
             <input type="text" x-model="search" :placeholder="'Search ' + activeTab + '...'"
                 class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white">
         </div>
-        <button type="button" class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition">
-            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-            Filter
+        <div class="relative" @click.away="showFilter = false">
+            <button type="button" @click="showFilter = !showFilter" 
+                class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition"
+                :class="filterStatus !== 'All' ? 'border-blue-500 bg-blue-50' : ''">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                Filter <span x-show="filterStatus !== 'All'" class="ml-1 text-blue-600 font-bold" x-text="'('+filterStatus+')'"></span>
+            </button>
+            
+            <div x-show="showFilter" x-transition class="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-30 p-2">
+                <p class="px-2 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider">Filter by Status</p>
+                <div class="space-y-1">
+                    <template x-for="st in ['All', 'Pending', 'Open', 'Filled', 'Hold', 'Cancelled', 'Disapproved']">
+                        <button @click="filterStatus = st; showFilter = false" 
+                            class="w-full text-left px-3 py-2 rounded-lg text-sm transition font-medium"
+                            :class="filterStatus === st ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'"
+                            x-text="st"></button>
+                    </template>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100">
+                    <button @click="filterStatus = 'All'; showFilter = false" class="w-full text-center text-xs text-gray-400 hover:text-gray-600 font-medium">Clear all filters</button>
+                </div>
+            </div>
+        </div>
+        <button type="button" @click="downloadCSV()"
+            class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition">
+            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/></svg>
+            Download CSV
         </button>
         <button type="button" @click="openModal()"
             class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
@@ -64,16 +88,16 @@
                             </div>
                         </td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.id"></td>
+                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.request_id"></td>
                             <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.department"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.headcount"></td>
                             <td class="px-4 py-3">
-                                <span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span>
+                                <span x-text="row.request_status" :class="statusClass(row.request_status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span>
                             </td>
-                            <td class="px-4 py-3 text-gray-500" x-text="row.date"></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.date_requested"></td>
                             <td class="px-4 py-3">
                                 <button @click="viewMRF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
                                 <button @click="deleteMRF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
@@ -93,20 +117,25 @@
                         <th class="px-4 py-3 text-left font-semibold">Location</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
                         <th class="px-4 py-3 text-left font-semibold">Posted</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-if="filteredRows.length === 0">
                         <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
-                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.jobId"></td>
+                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.job_id"></td>
                             <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
-                            <td class="px-4 py-3 text-gray-600" x-text="row.type"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.employment_type"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.location"></td>
                             <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
-                            <td class="px-4 py-3 text-gray-500" x-text="row.posted"></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.posted_date"></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewJPF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="deleteJPF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
                         </tr>
                     </template>
                 </tbody>
@@ -128,7 +157,7 @@
                     <template x-if="filteredRows.length === 0">
                         <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
                             <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
@@ -157,7 +186,7 @@
                     <template x-if="filteredRows.length === 0">
                         <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
                             <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
@@ -186,7 +215,7 @@
                     <template x-if="filteredRows.length === 0">
                         <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
                             <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
@@ -214,7 +243,7 @@
                     <template x-if="filteredRows.length === 0">
                         <tr><td colspan="5" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
                     </template>
-                    <template x-for="(row, i) in filteredRows" :key="i">
+                    <template x-for="(row, i) in paginatedRows" :key="i">
                         <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
                             <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
@@ -226,6 +255,39 @@
                 </tbody>
             </table>
 
+        </div>
+
+        {{-- PAGINATION FOOTER --}}
+        <div class="px-4 py-2 border-t border-gray-100 bg-blue-50/30 flex items-center justify-end text-[13px] font-semibold text-blue-600 gap-4">
+            <div class="flex items-center gap-2">
+                <span>Records per page</span>
+                <div class="relative">
+                    <select x-model="perPage" @change="currentPage = 1"
+                        class="bg-transparent border-none focus:ring-0 cursor-pointer pr-5 appearance-none">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <svg class="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+            </div>
+            
+            <div class="h-4 w-px bg-blue-200"></div>
+
+            <div class="flex items-center gap-4">
+                <span x-text="`${startRange} - ${endRange} of ${filteredRows.length}`"></span>
+                <div class="flex items-center gap-1">
+                    <button @click="prevPage()" :disabled="currentPage === 1" 
+                        class="p-1 hover:bg-blue-100 rounded transition disabled:opacity-30 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg>
+                    </button>
+                    <button @click="nextPage()" :disabled="currentPage === totalPages"
+                        class="p-1 hover:bg-blue-100 rounded transition disabled:opacity-30 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -750,7 +812,7 @@
                     <div class="border-b border-gray-300 p-3"><span class="text-xs text-gray-500">Additional Remarks:</span><p class="mt-1" x-text="viewData.remarks || '—'"></p></div>
                     <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
                         <div class="p-3">
-                            <span class="text-xs text-gray-500">Request Status:</span><p class="font-medium mt-1" x-text="viewData.requestStatus || '—'"></p>
+                            <span class="text-xs text-gray-500">Request Status:</span><p class="font-medium mt-1 text-gray-800" x-text="viewData.requestStatus || '—'"></p>
                             <span class="text-xs text-gray-500 block mt-2">Name of Hired Personnel:</span><p class="font-medium mt-1" x-text="viewData.hiredPersonnel || '—'"></p>
                             <span class="text-xs text-gray-500 block mt-2">Date Hired:</span><p class="font-medium mt-1" x-text="viewData.dateHired || '—'"></p>
                             <span class="text-xs text-gray-500 block mt-3 uppercase">Processed by:</span>
@@ -871,22 +933,93 @@
         </div>
     </div>
 
+    {{-- ===================== JPF VIEW MODAL (FULL PAGE) ===================== --}}
+    <div
+        x-show="showJpfViewModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        class="fixed inset-0 z-50 flex bg-white"
+        style="display:none;"
+    >
+        <div class="flex flex-col w-full h-full overflow-hidden">
+            {{-- Toolbar --}}
+            <div class="h-16 px-8 border-b border-gray-100 flex items-center justify-between bg-white shadow-sm shrink-0">
+                <div class="flex items-center gap-4">
+                    <button @click="showJpfViewModal = false" class="p-2 hover:bg-gray-100 rounded-full transition text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800" x-text="viewJpfData.job_id"></h2>
+                        <p class="text-xs text-gray-500 uppercase tracking-widest font-semibold" x-text="viewJpfData.position"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="window.print()" class="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print Details
+                    </button>
+                    <button @click="showJpfViewModal = false" class="px-6 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-md shadow-blue-100 uppercase tracking-wide">Close</button>
+                </div>
+            </div>
+
+            <div class="flex-grow overflow-auto bg-gray-50/50 p-8">
+                <div class="max-w-4xl mx-auto space-y-6 pb-12">
+                    {{-- Quick Summary Card --}}
+                    <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 flex items-center justify-between">
+                        <div class="flex items-center gap-6 divide-x divide-gray-100">
+                            <div><p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight mb-0.5">Employment Type</p><p class="font-bold text-gray-800" x-text="viewJpfData.employment_type"></p></div>
+                            <div class="pl-6"><p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight mb-0.5">Location</p><p class="font-bold text-gray-800" x-text="viewJpfData.location"></p></div>
+                            <div class="pl-6"><p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight mb-0.5">Salary Range</p><p class="font-bold text-gray-800" x-text="viewJpfData.salary_range || 'Not Specified'"></p></div>
+                            <div class="pl-6"><p class="text-[10px] text-gray-400 uppercase font-bold tracking-tight mb-0.5">Date Posted</p><p class="font-bold text-gray-800" x-text="viewJpfData.posted_date"></p></div>
+                        </div>
+                        <span :class="statusClass(viewJpfData.status)" class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-sm" x-text="viewJpfData.status"></span>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-6">
+                        {{-- Job Description --}}
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+                            <h3 class="text-base font-bold text-blue-800 mb-4 flex items-center gap-2">
+                                <span class="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+                                Job Description
+                            </h3>
+                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm" x-text="viewJpfData.job_description"></div>
+                        </div>
+
+                        {{-- Requirements --}}
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+                            <h3 class="text-base font-bold text-indigo-800 mb-4 flex items-center gap-2">
+                                <span class="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                                Job Requirements
+                            </h3>
+                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm" x-text="viewJpfData.requirements"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-function recruitmentPage() {
+function recruitmentPage(initialMRF = [], initialJPF = []) {
     return {
         activeTab: 'MRF',
         search: '',
         paperSize: 'letter',
+        perPage: 50,
+        currentPage: 1,
+        showFilter: false,
+        filterStatus: 'All',
         showModal: false,
         showViewModal: false,
         showJpfModal: false,
+        showJpfViewModal: false,
         viewData: null,
-        mrfCounter: 1,
-        jpfCounter: 1,
+        viewJpfData: {},
 
         tabs: [
             { key: 'MRF',        label: 'MRF' },
@@ -898,8 +1031,16 @@ function recruitmentPage() {
         ],
 
         data: {
-            'MRF':        [],
-            'JPF':        [],
+            'MRF': initialMRF.map(item => ({
+                ...item,
+                req_id_display: item.request_id, 
+                date_display: item.date_requested
+            })),
+            'JPF': initialJPF.map(item => ({
+                ...item,
+                job_id_display: item.job_id,
+                posted_display: item.posted_date
+            })),
             'CAF':        [],
             'Assessment': [],
             'Interview':  [],
@@ -952,40 +1093,106 @@ function recruitmentPage() {
         },
 
         submitMRF() {
-            const year = new Date().getFullYear();
-            const pad = (n) => String(n).padStart(3, '0');
-            const id = `MRF-${year}-${pad(this.mrfCounter++)}`;
-            this.data['MRF'].push({
-                id,
-                position:   this.form.position,
-                department: this.form.department,
-                headcount:  this.form.headcount,
-                status:     'Pending',
-                date:       this.form.dateRequested,
-                // full form snapshot for view
+            axios.post('{{ route("human-capital.recruitment.store_mrf") }}', {
                 ...this.form,
+                request_status: this.form.requestStatus || 'Pending'
+            })
+            .then(res => {
+                const item = res.data.data;
+                this.data['MRF'].unshift({
+                    ...item,
+                    id: item.request_id,
+                    date: item.date_requested
+                });
+                this.showModal = false;
+            })
+            .catch(err => {
+                alert('Error saving MRF: ' + (err.response?.data?.message || err.message));
             });
-            this.showModal = false;
         },
 
         submitJPF() {
-            const year = new Date().getFullYear();
-            const pad = (n) => String(n).padStart(3, '0');
-            const jobId = `JPF-${year}-${pad(this.jpfCounter++)}`;
-            
-            const today = new Date();
-            const posted = today.toISOString().split('T')[0];
-
-            this.data['JPF'].push({
-                jobId,
-                position: this.jpfForm.position,
-                type: this.jpfForm.employmentType,
-                location: this.jpfForm.location,
-                status: 'Open',
-                posted: posted,
-                ...this.jpfForm
+            axios.post('{{ route("human-capital.recruitment.store_jpf") }}', {
+                ...this.jpfForm,
+                posted_date: new Date().toISOString().split('T')[0]
+            })
+            .then(res => {
+                const item = res.data.data;
+                this.data['JPF'].unshift({
+                    ...item,
+                    jobId: item.job_id,
+                    type: item.employment_type,
+                    posted: item.posted_date
+                });
+                this.showJpfModal = false;
+            })
+            .catch(err => {
+                alert('Error saving JPF: ' + (err.response?.data?.message || err.message));
             });
-            this.showJpfModal = false;
+        },
+
+        viewJPF(row) {
+            this.viewJpfData = { ...row };
+            this.showJpfViewModal = true;
+        },
+
+        downloadCSV() {
+            const rows = this.filteredRows;
+            if (rows.length === 0) {
+                alert('No data available to download.');
+                return;
+            }
+
+            // Get headers from the first object
+            const headers = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object');
+            
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => headers.map(h => {
+                    let val = row[h] === null || row[h] === undefined ? '' : String(row[h]);
+                    // Escape commas and quotes
+                    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+                        val = `"${val.replace(/"/g, '""')}"`;
+                    }
+                    return val;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${this.activeTab}_list_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        },
+
+        prevPage() {
+            if (this.currentPage > 1) this.currentPage--;
+        },
+
+        nextPage() {
+            if (this.currentPage < this.totalPages) this.currentPage++;
+        },
+
+        get paginatedRows() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filteredRows.slice(start, start + parseInt(this.perPage));
+        },
+
+        get totalPages() {
+            return Math.ceil(this.filteredRows.length / this.perPage) || 1;
+        },
+
+        get startRange() {
+            if (this.filteredRows.length === 0) return 0;
+            return (this.currentPage - 1) * this.perPage + 1;
+        },
+
+        get endRange() {
+            return Math.min(this.currentPage * this.perPage, this.filteredRows.length);
         },
 
         get uniqueMrfPositions() {
@@ -1000,7 +1207,27 @@ function recruitmentPage() {
 
         deleteMRF(index) {
             if (confirm('Delete this MRF record?')) {
-                this.data['MRF'].splice(index, 1);
+                const item = this.data['MRF'][index];
+                axios.delete('/human-capital/recruitment/mrf/' + item.id)
+                .then(() => {
+                    this.data['MRF'].splice(index, 1);
+                })
+                .catch(err => {
+                    alert('Error deleting MRF: ' + (err.response?.data?.message || err.message));
+                });
+            }
+        },
+
+        deleteJPF(index) {
+            if (confirm('Delete this Job Posting?')) {
+                const item = this.data['JPF'][index];
+                axios.delete('/human-capital/recruitment/jpf/' + item.id)
+                .then(() => {
+                    this.data['JPF'].splice(index, 1);
+                })
+                .catch(err => {
+                    alert('Error deleting JPF: ' + (err.response?.data?.message || err.message));
+                });
             }
         },
 
@@ -1042,7 +1269,14 @@ function recruitmentPage() {
         },
 
         get filteredRows() {
-            const rows = this.data[this.activeTab] ?? [];
+            let rows = this.data[this.activeTab] ?? [];
+            
+            // Apply Status Filter
+            if (this.filterStatus !== 'All') {
+                rows = rows.filter(r => r.status === this.filterStatus);
+            }
+
+            // Apply Search Filter
             if (!this.search.trim()) return rows;
             const q = this.search.toLowerCase();
             return rows.filter(r =>

@@ -10,6 +10,7 @@ use App\Http\Controllers\BankingController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\OrganizationalController;
+use App\Http\Controllers\RecruitmentController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -90,7 +91,11 @@ Route::middleware('auth')->group(function () {
 
         Route::view('/payroll', 'human-capital.payroll')->name('payroll');
         Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
-        Route::view('/recruitment', 'human-capital.recruitment')->name('recruitment');
+        Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment');
+        Route::post('/recruitment/mrf', [RecruitmentController::class, 'storeMRF'])->name('recruitment.store_mrf');
+        Route::post('/recruitment/jpf', [RecruitmentController::class, 'storeJPF'])->name('recruitment.store_jpf');
+        Route::delete('/recruitment/mrf/{id}', [RecruitmentController::class, 'deleteMRF'])->name('recruitment.delete_mrf');
+        Route::delete('/recruitment/jpf/{id}', [RecruitmentController::class, 'deleteJPF'])->name('recruitment.delete_jpf');
         Route::view('/onboarding', 'human-capital.onboarding')->name('onboarding');
         Route::view('/deployment', 'human-capital.deployment')->name('deployment');
         Route::view('/attendance', 'human-capital.attendance')->name('attendance');
