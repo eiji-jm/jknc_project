@@ -97,7 +97,7 @@
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 9px;
+            font-size: 8.5px;
             margin-bottom: 10px;
         }
 
@@ -108,6 +108,7 @@
             vertical-align: top;
             text-align: left;
             word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .tm-table th {
@@ -115,12 +116,13 @@
             background: #fff;
         }
 
-        .col-no { width: 6%; }
-        .col-particular { width: 18%; }
-        .col-uid { width: 14%; }
-        .col-qty { width: 7%; }
-        .col-description { width: 35%; }
-        .col-remarks { width: 20%; }
+        .col-no { width: 5%; }
+        .col-particular { width: 15%; }
+        .col-uid { width: 13%; }
+        .col-qty { width: 6%; }
+        .col-description { width: 25%; }
+        .col-remarks { width: 16%; }
+        .col-attachment { width: 20%; }
 
         .tm-footer-code {
             width: 100%;
@@ -171,6 +173,10 @@
             margin-top: 2px;
             line-height: 1.1;
         }
+
+        .attachment-name {
+            word-break: break-word;
+        }
     </style>
 </head>
 <body>
@@ -187,7 +193,9 @@
                 </div>
                 <div class="tm-top-row-first-right">
                     <span class="tm-label">Date</span>
-                    <span class="tm-line">{{ \Carbon\Carbon::parse($transmittal->transmittal_date)->format('Y-m-d') }}</span>
+                    <span class="tm-line">
+                        {{ $transmittal->transmittal_date ? \Carbon\Carbon::parse($transmittal->transmittal_date)->format('Y-m-d') : '' }}
+                    </span>
                 </div>
             </div>
 
@@ -221,11 +229,11 @@
                 <div class="tm-meta-half">
                     <span class="tm-meta-label">Delivery Type:</span>
                     @if(($transmittal->delivery_type ?? '') === 'By Person')
-                        {{ $transmittal->by_person_who ? 'By Person - '.$transmittal->by_person_who : 'By Person' }}
+                        {{ $transmittal->by_person_who ? 'By Person - ' . $transmittal->by_person_who : 'By Person' }}
                     @elseif(($transmittal->delivery_type ?? '') === 'Registered Mail')
-                        {{ $transmittal->registered_mail_provider ? 'Registered Mail - '.$transmittal->registered_mail_provider : 'Registered Mail' }}
+                        {{ $transmittal->registered_mail_provider ? 'Registered Mail - ' . $transmittal->registered_mail_provider : 'Registered Mail' }}
                     @elseif(($transmittal->delivery_type ?? '') === 'Electronic')
-                        {{ $transmittal->electronic_method ? 'Electronic - '.$transmittal->electronic_method : 'Electronic' }}
+                        {{ $transmittal->electronic_method ? 'Electronic - ' . $transmittal->electronic_method : 'Electronic' }}
                     @else
                         —
                     @endif
@@ -264,6 +272,7 @@
                     <th class="col-qty">Qty.</th>
                     <th class="col-description">Description</th>
                     <th class="col-remarks">Remarks</th>
+                    <th class="col-attachment">Attachment</th>
                 </tr>
             </thead>
             <tbody>
@@ -279,11 +288,14 @@
                         <td>{{ $item->qty ?? '' }}</td>
                         <td>{{ $item->description ?? '' }}</td>
                         <td>{{ $item->remarks ?? '' }}</td>
+                        <td class="attachment-name">
+                            {{ !empty($item->attachment_path) ? basename($item->attachment_path) : '—' }}
+                        </td>
                     </tr>
                 @empty
                     <tr>
                         <td>1</td>
-                        <td colspan="5"></td>
+                        <td colspan="6"></td>
                     </tr>
                 @endforelse
             </tbody>

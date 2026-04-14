@@ -1,7 +1,36 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full h-full px-6 py-5" x-data="{ activeTab: 'transmittal' }">
+@php
+    $attachmentItems = $transmittal->items->filter(fn($item) => !empty($item->attachment_path))->values();
+
+    $firstAttachment = $attachmentItems->first();
+
+    $firstAttachmentUrl = $firstAttachment ? asset('storage/' . $firstAttachment->attachment_path) : null;
+    $firstAttachmentName = $firstAttachment ? basename($firstAttachment->attachment_path) : null;
+    $firstAttachmentExt = $firstAttachment ? strtolower(pathinfo($firstAttachment->attachment_path, PATHINFO_EXTENSION)) : null;
+@endphp
+
+<div
+    class="w-full h-full px-6 py-5"
+    x-data="{
+        activeTab: 'transmittal',
+        selectedAttachmentUrl: @js($firstAttachmentUrl),
+        selectedAttachmentName: @js($firstAttachmentName),
+        selectedAttachmentExt: @js($firstAttachmentExt),
+        setAttachment(url, name, ext) {
+            this.selectedAttachmentUrl = url;
+            this.selectedAttachmentName = name;
+            this.selectedAttachmentExt = ext;
+        },
+        isImage(ext) {
+            return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes((ext || '').toLowerCase());
+        },
+        isPdf(ext) {
+            return (ext || '').toLowerCase() === 'pdf';
+        }
+    }"
+>
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
@@ -20,8 +49,8 @@
         <div class="p-5 bg-[#f8fafc]">
             <div class="grid grid-cols-1 2xl:grid-cols-[1fr_420px] gap-5">
                 <div class="space-y-5">
-
                     <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                        <!-- Tabs -->
                         <div class="px-4 pt-3 border-b border-gray-200 bg-white">
                             <div class="flex items-end gap-6">
                                 <button
@@ -56,6 +85,7 @@
                             </div>
                         </div>
 
+                        <!-- Header -->
                         <div class="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
                             <div x-show="activeTab === 'transmittal'">
                                 <h3 class="text-sm font-semibold text-gray-900">Transmittal Form Preview</h3>
@@ -68,8 +98,8 @@
                             </div>
 
                             <div x-show="activeTab === 'attachments'" x-cloak>
-                                <h3 class="text-sm font-semibold text-gray-900">Item Attachments</h3>
-                                <p class="text-xs text-gray-500">Uploaded files from transmittal items</p>
+                                <h3 class="text-sm font-semibold text-gray-900">Attachment Preview</h3>
+                                <p class="text-xs text-gray-500">Uploaded file preview</p>
                             </div>
 
                             <div class="flex items-center gap-2">
@@ -81,18 +111,26 @@
                                 </a>
 
                                 @if(!empty($receiptPdfUrl))
-                                    <a x-show="activeTab === 'receipt'"
-                                       x-cloak
+                                    <a x-show="activeTab === 'receipt'" x-cloak
                                        href="{{ $receiptPdfUrl }}"
                                        target="_blank"
                                        class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
                                         Open
                                     </a>
                                 @endif
+
+                                <a x-show="activeTab === 'attachments' && selectedAttachmentUrl" x-cloak
+                                   :href="selectedAttachmentUrl"
+                                   target="_blank"
+                                   class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                                    Open
+                                </a>
                             </div>
                         </div>
 
+                        <!-- Body -->
                         <div class="p-4 bg-[#f3f4f6]">
+                            <!-- Transmittal -->
                             <div x-show="activeTab === 'transmittal'">
                                 <div class="pdf-preview-frame">
                                     <iframe
@@ -103,6 +141,7 @@
                                 </div>
                             </div>
 
+                            <!-- Receipt -->
                             <div x-show="activeTab === 'receipt'" x-cloak>
                                 @if(!empty($receiptPdfUrl))
                                     <div class="pdf-preview-frame">
@@ -119,36 +158,76 @@
                                 @endif
                             </div>
 
+                            <!-- Attachments -->
                             <div x-show="activeTab === 'attachments'" x-cloak>
-                                @php
-                                    $attachmentItems = $transmittal->items->filter(fn($item) => !empty($item->attachment_path));
-                                @endphp
-
                                 @if($attachmentItems->count())
-                                    <div class="space-y-3">
-                                        @foreach($attachmentItems as $item)
-                                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 flex items-center justify-between gap-4">
-                                                <div class="min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900">
-                                                        {{ $item->particular ?: 'Item ' . $item->no }}
+                                    <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+                                        <!-- Left list -->
+                                        <div class="space-y-3">
+                                            @foreach($attachmentItems as $item)
+                                                @php
+                                                    $fileUrl = asset('storage/' . $item->attachment_path);
+                                                    $fileName = basename($item->attachment_path);
+                                                    $fileExt = strtolower(pathinfo($item->attachment_path, PATHINFO_EXTENSION));
+                                                @endphp
+
+                                                <button
+                                                    type="button"
+                                                    @click="setAttachment('{{ $fileUrl }}', '{{ addslashes($fileName) }}', '{{ $fileExt }}')"
+                                                    class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-left hover:border-blue-400 hover:bg-blue-50 transition"
+                                                >
+                                                    <p class="text-sm font-semibold text-gray-900">
+                                                        {{ $item->particular ?: 'Item ' . $item->item_no }}
                                                     </p>
-                                                    <p class="text-xs text-gray-500">
-                                                        {{ basename($item->attachment_path) }}
+
+                                                    <p class="mt-1 text-xs text-gray-500 break-all">
+                                                        {{ $fileName }}
                                                     </p>
+
                                                     @if(!empty($item->remarks))
-                                                        <p class="text-xs text-gray-400 mt-1">
+                                                        <p class="mt-1 text-xs text-gray-400">
                                                             Remarks: {{ $item->remarks }}
                                                         </p>
                                                     @endif
-                                                </div>
 
-                                                <a href="{{ asset('storage/' . $item->attachment_path) }}"
-                                                   target="_blank"
-                                                   class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shrink-0">
-                                                    Open
-                                                </a>
+                                                    <div class="mt-2">
+                                                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600">
+                                                            {{ strtoupper($fileExt) }}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            @endforeach
+                                        </div>
+
+                                        <!-- Right preview -->
+                                        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white min-h-[760px]">
+                                            <div class="px-4 py-3 border-b border-gray-200 bg-white">
+                                                <h4 class="text-sm font-semibold text-gray-900" x-text="selectedAttachmentName || 'Attachment Preview'"></h4>
                                             </div>
-                                        @endforeach
+
+                                            <template x-if="selectedAttachmentUrl && isPdf(selectedAttachmentExt)">
+                                                <iframe
+                                                    :src="selectedAttachmentUrl"
+                                                    class="w-full h-[700px] bg-white"
+                                                    frameborder="0">
+                                                </iframe>
+                                            </template>
+
+                                            <template x-if="selectedAttachmentUrl && isImage(selectedAttachmentExt)">
+                                                <div class="h-[700px] flex items-center justify-center p-4 bg-[#f3f4f6]">
+                                                    <img :src="selectedAttachmentUrl" class="max-w-full max-h-full object-contain rounded-lg border border-gray-200 bg-white">
+                                                </div>
+                                            </template>
+
+                                            <template x-if="selectedAttachmentUrl && !isPdf(selectedAttachmentExt) && !isImage(selectedAttachmentExt)">
+                                                <div class="h-[700px] flex items-center justify-center p-6 bg-[#f9fafb]">
+                                                    <div class="text-center">
+                                                        <p class="text-sm font-medium text-gray-800">This file type cannot be previewed directly.</p>
+                                                        <p class="mt-1 text-xs text-gray-500" x-text="selectedAttachmentName"></p>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </div>
                                 @else
                                     <div class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-16 text-center text-sm text-gray-500">
@@ -160,6 +239,7 @@
                     </div>
                 </div>
 
+                <!-- Right side -->
                 <div class="space-y-4">
                     <div class="border border-gray-200 rounded-xl bg-white p-5">
                         <h3 class="text-[16px] font-semibold text-gray-900 mb-4">Transmittal Information</h3>
@@ -233,19 +313,16 @@
                         <div class="space-y-3 text-sm">
                             <div class="grid grid-cols-[110px_1fr] gap-3">
                                 <span class="text-gray-500">With Files</span>
-                                <span class="font-medium text-gray-900">
-                                    {{ $transmittal->items->whereNotNull('attachment_path')->count() }}
-                                </span>
+                                <span class="font-medium text-gray-900">{{ $attachmentItems->count() }}</span>
                             </div>
                             <div class="grid grid-cols-[110px_1fr] gap-3">
                                 <span class="text-gray-500">Total Items</span>
-                                <span class="font-medium text-gray-900">
-                                    {{ $transmittal->items->count() }}
-                                </span>
+                                <span class="font-medium text-gray-900">{{ $transmittal->items->count() }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
+                <!-- End right side -->
             </div>
         </div>
     </div>

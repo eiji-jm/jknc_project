@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\User;
 use App\Models\SecCoi;
 use App\Models\SecAoi;
@@ -27,6 +28,7 @@ use App\Models\StockTransferCertificate;
 use App\Models\Transmittal;
 use App\Models\TransmittalReceipt;
 use App\Mail\CorporateStatusNotificationMail;
+use App\Mail\TransmittalDeliveryMail;
 
 class CorporateApprovalController extends Controller
 {
@@ -71,7 +73,7 @@ class CorporateApprovalController extends Controller
         };
     }
 
-        private function buildTransmittalDeliveryDetail($record): string
+    private function buildTransmittalDeliveryDetail($record): string
     {
         return match ($record->delivery_type) {
             'By Person' => $record->by_person_who ? 'By Person - ' . $record->by_person_who : 'By Person',
@@ -94,36 +96,64 @@ class CorporateApprovalController extends Controller
     }
 
     private function generateTransmittalReceipt($record): void
-{
-    if ($record->receipt) {
-        return;
+    {
+        if ($record->receipt) {
+            return;
+        }
+
+        $nextId = (TransmittalReceipt::max('id') ?? 0) + 1;
+        $receiptNo = 'TRR-' . str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+
+        TransmittalReceipt::create([
+            'transmittal_id' => $record->id,
+            'receipt_no' => $receiptNo,
+            'receipt_date' => now()->toDateString(),
+            'mode' => $record->mode,
+            'from_name' => $record->from_value,
+            'to_name' => $record->to_value,
+            'office_name' => $record->office_name,
+            'delivery_type' => $record->delivery_type,
+            'delivery_detail' => $this->buildTransmittalDeliveryDetail($record),
+            'recipient_email' => $record->recipient_email,
+            'actions_summary' => $this->buildTransmittalActionsSummary($record),
+            'prepared_by_name' => $record->prepared_by_name,
+            'approved_by_name' => $record->approved_by_name,
+            'approved_position' => $record->approved_position,
+            'document_custodian' => $record->document_custodian,
+            'delivered_by' => $record->delivered_by,
+            'received_by' => $record->received_by,
+            'received_at' => $record->received_at,
+            'generated_by' => Auth::id(),
+        ]);
     }
 
-    $nextId = TransmittalReceipt::max('id') + 1;
-    $receiptNo = 'TRR-' . str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    private function sendTransmittalDeliveryEmail($record): void
+    {
+        $record->loadMissing(['items', 'receipt']);
 
-    TransmittalReceipt::create([
-        'transmittal_id' => $record->id,
-        'receipt_no' => $receiptNo,
-        'receipt_date' => now()->toDateString(),
-        'mode' => $record->mode,
-        'from_name' => $record->from_value,
-        'to_name' => $record->to_value,
-        'office_name' => $record->office_name,
-        'delivery_type' => $record->delivery_type,
-        'delivery_detail' => $this->buildTransmittalDeliveryDetail($record),
-        'recipient_email' => $record->recipient_email,
-        'actions_summary' => $this->buildTransmittalActionsSummary($record),
-        'prepared_by_name' => $record->prepared_by_name,
-        'approved_by_name' => $record->approved_by_name,
-        'approved_position' => $record->approved_position,
-        'document_custodian' => $record->document_custodian,
-        'delivered_by' => $record->delivered_by,
-        'received_by' => $record->received_by,
-        'received_at' => $record->received_at,
-        'generated_by' => Auth::id(),
-    ]);
-}
+        if (
+            $record->delivery_type !== 'Electronic' ||
+            $record->electronic_method !== 'Email' ||
+            empty($record->recipient_email)
+        ) {
+            return;
+        }
+
+        try {
+            Mail::to($record->recipient_email)->send(new TransmittalDeliveryMail($record));
+
+            Log::info('Transmittal delivery email sent successfully.', [
+                'transmittal_id' => $record->id,
+                'recipient_email' => $record->recipient_email,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Transmittal delivery email failed.', [
+                'transmittal_id' => $record->id,
+                'recipient_email' => $record->recipient_email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 
     private function getCorporationName($record, string $module): string
     {
@@ -663,7 +693,7 @@ class CorporateApprovalController extends Controller
             'operations' => Operation::findOrFail($id),
             'correspondence' => Correspondence::findOrFail($id),
             'legal' => Legal::findOrFail($id),
-            'transmittal' => Transmittal::findOrFail($id),
+            'transmittal' => Transmittal::with(['items', 'receipt'])->findOrFail($id),
             default => abort(404),
         };
     }
@@ -687,7 +717,9 @@ class CorporateApprovalController extends Controller
         ]);
 
         if ($module === 'transmittal') {
-             $this->generateTransmittalReceipt($record);
+            $this->generateTransmittalReceipt($record);
+            $record->refresh()->load(['items', 'receipt']);
+            $this->sendTransmittalDeliveryEmail($record);
         }
 
         $this->sendStatusEmail($record, $module, 'Approved', null);
