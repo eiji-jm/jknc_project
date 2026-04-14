@@ -657,11 +657,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/legal/{id}/update', [LegalController::class, 'update'])->name('legal.update');
     Route::post('/legal/{id}/submit', [LegalController::class, 'submit'])->name('legal.submit');
 
-    Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
-    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
-    Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');
-    Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
-    Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
+    Route::prefix('corporate')->name('corporate.')->group(function () {
+        Route::get('/accounting', [AccountingController::class, 'page'])->name('accounting.index');
+        Route::get('/accounting/data', [AccountingController::class, 'index'])->name('accounting.data');
+        Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+        Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');
+        Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
+        Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
+    });
 
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');

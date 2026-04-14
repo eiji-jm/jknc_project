@@ -49,6 +49,11 @@ class AccountingController extends Controller
         ];
     }
 
+    public function page()
+    {
+        return view('corporate.accounting');
+    }
+
     public function index(Request $request)
     {
         $statementType = $request->get('statement_type');
@@ -71,7 +76,7 @@ class AccountingController extends Controller
         $data = $query->orderByDesc('date')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn ($row) => $this->transformRecord($row))
+            ->map(fn($row) => $this->transformRecord($row))
             ->values();
 
         return response()->json($data);
