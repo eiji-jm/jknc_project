@@ -8,7 +8,10 @@
             <a href="<?php echo e(route('stock-transfer-book')); ?>" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left"></i>
             </a>
-            <div class="text-lg font-semibold">Ledger</div>
+            <div>
+                <div class="text-lg font-semibold">Ledger</div>
+                <div class="text-xs text-gray-500">Shows shareholding records only. Payment entries do not increase shares here.</div>
+            </div>
             <div class="flex-1"></div>
             <a href="<?php echo e(route('stock-transfer-book.index')); ?>" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">Go to Index</a>
         </div>
@@ -84,7 +87,7 @@
 
                         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4" data-contact-empty>
                             <div class="text-sm text-gray-600">No contact selected.</div>
-                            <a href="<?php echo e(route('contacts')); ?>" class="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50">
+                            <a href="<?php echo e(route('contacts.index')); ?>" class="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50">
                                 Go to Contacts
                             </a>
                         </div>
@@ -155,7 +158,6 @@
 <?php $__env->stopSection(); ?>
 
 <script>
-    // Filter only actual ledger rows and keep the empty state predictable.
     (function () {
         const searchInput = document.getElementById('ledger-search');
         const tableBody = document.getElementById('ledger-table-body');

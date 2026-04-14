@@ -220,6 +220,13 @@
                     <i class="fas fa-box-open text-base"></i>
                     <span>Product</span>
                 </a>
+
+                <a href="{{ route('policies.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('policies*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-file-contract text-base"></i>
+                    <span>Policies</span>
+                </a>
             @endif
 
         </aside>
