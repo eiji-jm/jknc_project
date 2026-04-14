@@ -26,8 +26,7 @@ class StockTransferLedgerController extends Controller
 
     public function indexPage()
     {
-        $ledgers = Schema::hasTable('stock_transfer_ledgers')
-            ? StockTransferLedger::query()
+        $ledgers = StockTransferLedger::query()
             ->whereNull('journal_id')
             ->latest()
             ->get();
@@ -39,8 +38,7 @@ class StockTransferLedgerController extends Controller
 
     public function index()
     {
-        $ledgers = Schema::hasTable('stock_transfer_ledgers')
-            ? StockTransferLedger::query()
+        $ledgers = StockTransferLedger::query()
             ->whereNotNull('journal_id')
             ->with('journal')
             ->latest()

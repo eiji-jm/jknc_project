@@ -374,7 +374,7 @@ document.getElementById('documentInput').addEventListener('change', function (e)
 });
 
 async function fetchAccounting() {
-   const url = `/accounting/data?workflow_status=${encodeURIComponent(currentWorkflowFilter)}`;
+   const url = `/corporate/accounting/data?workflow_status=${encodeURIComponent(currentWorkflowFilter)}`;
     const res = await fetch(url, {
         headers: {
             'Accept': 'application/json'
@@ -531,29 +531,51 @@ async function addAccountingEntry() {
     formData.append('date', date);
     formData.append('document', file);
 
-    const res = await fetch('/accounting', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
-            'Accept': 'application/json'
-        },
-        body: formData
-    });
+    try {
+        const res = await fetch('/corporate/accounting', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
 
-    const data = await res.json();
+        let data = {};
+        const contentType = res.headers.get('content-type') || '';
 
-    if (!res.ok) {
-        alert(data.message || 'Error saving accounting entry.');
-        return;
+        if (contentType.includes('application/json')) {
+            data = await res.json();
+        } else {
+            const text = await res.text();
+            console.error('Non-JSON response:', text);
+            alert('Server returned an unexpected response. Check Laravel error page or browser console.');
+            return;
+        }
+
+        if (!res.ok) {
+            console.error(data);
+            if (data.errors) {
+                const firstError = Object.values(data.errors)[0]?.[0];
+                alert(firstError || data.message || 'Error saving accounting entry.');
+            } else {
+                alert(data.message || 'Error saving accounting entry.');
+            }
+            return;
+        }
+
+        closeAddSection();
+        currentWorkflowFilter = 'uploaded';
+        await renderTable();
+        alert(data.message || 'Accounting entry saved successfully.');
+    } catch (error) {
+        console.error('Save failed:', error);
+        alert('Something went wrong while saving. Open browser console for details.');
     }
-
-    closeAddSection();
-    currentWorkflowFilter = 'uploaded';
-    await renderTable();
 }
 
 async function submitAccounting(id) {
-    const res = await fetch(`/accounting/${id}/submit`, {
+    const res = await fetch(`/corporate/accounting/${id}/submit`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
