@@ -1,6 +1,4 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
@@ -537,7 +535,7 @@ async function addAccountingEntry() {
         const res = await fetch('/corporate/accounting', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
                 'Accept': 'application/json'
             },
             body: formData
@@ -580,7 +578,7 @@ async function submitAccounting(id) {
     const res = await fetch(`/corporate/accounting/${id}/submit`, {
         method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
             'Accept': 'application/json'
         }
     });
@@ -600,4 +598,6 @@ async function submitAccounting(id) {
 
 renderTable();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/corporate/accounting.blade.php ENDPATH**/ ?>

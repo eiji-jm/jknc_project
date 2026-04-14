@@ -1,12 +1,10 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
             <div class="flex items-center flex-1 min-w-0">
-                <h1 class="text-lg font-semibold text-gray-900">Accounting</h1>
+                <h1 class="text-lg font-semibold text-gray-900">Operations</h1>
             </div>
 
             <button onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0">
@@ -43,13 +41,15 @@
                 <table class="w-full text-sm table-fixed border-collapse">
                     <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
                         <tr>
-                            <th class="w-32 p-3 text-left">Date</th>
-                            <th class="w-36 p-3 text-left">Uploader</th>
-                            <th class="w-48 p-3 text-left">Client</th>
-                            <th class="w-44 p-3 text-left">Statement Type</th>
+                            <th class="w-36 p-3 text-left">Date Uploaded</th>
+                            <th class="w-36 p-3 text-left">Uploaded By</th>
+                            <th class="w-44 p-3 text-left">Client</th>
+                            <th class="w-36 p-3 text-left">TIN</th>
+                            <th class="w-40 p-3 text-left">Operation Type</th>
+                            <th class="w-40 p-3 text-left">Document Type</th>
                             <th class="w-36 p-3 text-left">Workflow Status</th>
                             <th class="w-36 p-3 text-left">Approval Status</th>
-                            <th class="w-40 p-3 text-left">Document</th>
+                            <th class="w-32 p-3 text-left">Document</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="bg-white"></tbody>
@@ -78,40 +78,18 @@
                     </div>
 
                     <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
-                        <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Accounting Information</h3>
+                        <h3 class="text-[18px] font-semibold text-gray-900 mb-6">Operations Information</h3>
                         <div class="space-y-5 text-[14px]">
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Date</span>
-                                <span id="infoDate" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Uploader</span>
-                                <span id="infoUser" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Client</span>
-                                <span id="infoClient" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Statement Type</span>
-                                <span id="infoStatementType" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Workflow</span>
-                                <span id="infoWorkflow" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Approval</span>
-                                <span id="infoApproval" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Review Note</span>
-                                <span id="infoReviewNote" class="text-right font-medium text-gray-900 break-words"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Document Name</span>
-                                <span id="infoDocumentName" class="text-right font-medium text-gray-900 break-all"></span>
-                            </div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Date Uploaded</span><span id="infoDateUploaded" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Uploaded By</span><span id="infoUser" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Client</span><span id="infoClient" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">TIN</span><span id="infoTin" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Operation Type</span><span id="infoOperationType" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Document Type</span><span id="infoDocumentType" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Workflow</span><span id="infoWorkflow" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Approval</span><span id="infoApproval" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Review Note</span><span id="infoReviewNote" class="text-right font-medium text-gray-900 break-words"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Document Name</span><span id="infoDocumentName" class="text-right font-medium text-gray-900 break-all"></span></div>
                         </div>
 
                         <div class="mt-6 flex flex-col gap-2" id="previewActions"></div>
@@ -124,10 +102,13 @@
             <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
 
             <div class="absolute inset-y-0 right-0 flex max-w-full">
-                <div id="addPanel" class="w-screen max-w-[100vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out">
+                <div
+                    id="addPanel"
+                    class="w-screen max-w-[100vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out"
+                >
                     <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
                         <div class="h-full bg-white border border-gray-200 rounded-xl overflow-hidden">
-                            <div id="emptyPreviewStateLive" class="h-full flex items-center justify-center text-gray-400 text-sm">
+                            <div id="emptyPreviewStateAdd" class="h-full flex items-center justify-center text-gray-400 text-sm">
                                 Upload a PDF or image to preview it here.
                             </div>
 
@@ -139,12 +120,10 @@
                         </div>
                     </div>
 
-                    <div class="w-full max-w-sm bg-white flex flex-col h-full">
+                    <div class="w-full max-w-[320px] bg-white flex flex-col h-full">
                         <div class="p-6 border-b flex items-center justify-between shrink-0">
-                            <h2 class="font-bold text-lg text-gray-900">Add Accounting Entry</h2>
-                            <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">
-                                Close
-                            </button>
+                            <h2 class="font-bold text-lg text-gray-900">Add Operations Entry</h2>
+                            <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
                         </div>
 
                         <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
@@ -159,20 +138,18 @@
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-1">Statement Type</label>
-                                <select id="statementTypeInput" class="w-full border rounded-md p-2">
-                                    <option value="">Select Statement Type</option>
-                                    <option value="PNL">PNL</option>
-                                    <option value="Balance Sheet">Balance Sheet</option>
-                                    <option value="Cash Flow">Cash Flow</option>
-                                    <option value="Income Statement">Income Statement</option>
-                                    <option value="AFS">AFS</option>
-                                </select>
+                                <label class="block text-sm font-medium mb-1">Operation Type</label>
+                                <input id="operationTypeInput" class="w-full border rounded-md p-2" placeholder="Operation Type">
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-1">Date</label>
-                                <input id="dateInput" type="date" class="w-full border rounded-md p-2">
+                                <label class="block text-sm font-medium mb-1">Document Type</label>
+                                <input id="documentTypeInput" class="w-full border rounded-md p-2" placeholder="Document Type">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Date Uploaded</label>
+                                <input id="dateUploadedInput" type="date" class="w-full border rounded-md p-2">
                             </div>
 
                             <div class="pt-2">
@@ -189,7 +166,7 @@
 
                         <div class="p-6 border-t flex gap-2 shrink-0">
                             <button onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
-                            <button onclick="addAccountingEntry()" class="flex-1 bg-blue-600 text-white rounded py-2">
+                            <button onclick="addOperationEntry()" class="flex-1 bg-blue-600 text-white rounded py-2">
                                 Save
                             </button>
                         </div>
@@ -203,7 +180,7 @@
 
 <script>
 let currentWorkflowFilter = 'uploaded';
-let accountingRows = [];
+let operationRows = [];
 let livePreviewObjectUrl = null;
 let currentPreviewRecord = null;
 
@@ -323,8 +300,9 @@ function closePreview() {
 function resetFormDefaults() {
     document.getElementById('clientInput').value = '';
     document.getElementById('tinInput').value = '';
-    document.getElementById('statementTypeInput').value = '';
-    document.getElementById('dateInput').value = '';
+    document.getElementById('operationTypeInput').value = '';
+    document.getElementById('documentTypeInput').value = '';
+    document.getElementById('dateUploadedInput').value = '';
     document.getElementById('documentInput').value = '';
     document.getElementById('selectedFileName').textContent = 'No file selected';
     clearLivePreview();
@@ -336,7 +314,7 @@ function clearLivePreview() {
         livePreviewObjectUrl = null;
     }
 
-    document.getElementById('emptyPreviewStateLive').classList.remove('hidden');
+    document.getElementById('emptyPreviewStateAdd').classList.remove('hidden');
     document.getElementById('livePdfPreview').classList.add('hidden');
     document.getElementById('livePdfPreview').src = '';
     document.getElementById('liveImagePreviewWrapper').classList.add('hidden');
@@ -346,42 +324,37 @@ function clearLivePreview() {
 
 function handleLivePreview(file) {
     clearLivePreview();
-
     if (!file) return;
 
     document.getElementById('selectedFileName').textContent = file.name;
     livePreviewObjectUrl = URL.createObjectURL(file);
 
     if (file.type === 'application/pdf') {
-        const pdfFrame = document.getElementById('livePdfPreview');
-        pdfFrame.src = livePreviewObjectUrl;
-        pdfFrame.classList.remove('hidden');
-        document.getElementById('emptyPreviewStateLive').classList.add('hidden');
+        document.getElementById('livePdfPreview').src = livePreviewObjectUrl;
+        document.getElementById('livePdfPreview').classList.remove('hidden');
+        document.getElementById('emptyPreviewStateAdd').classList.add('hidden');
         return;
     }
 
     if (file.type.startsWith('image/')) {
-        const image = document.getElementById('liveImagePreview');
-        const wrapper = document.getElementById('liveImagePreviewWrapper');
-        image.src = livePreviewObjectUrl;
-        wrapper.classList.remove('hidden');
-        wrapper.classList.add('flex');
-        document.getElementById('emptyPreviewStateLive').classList.add('hidden');
+        document.getElementById('liveImagePreview').src = livePreviewObjectUrl;
+        document.getElementById('liveImagePreviewWrapper').classList.remove('hidden');
+        document.getElementById('liveImagePreviewWrapper').classList.add('flex');
+        document.getElementById('emptyPreviewStateAdd').classList.add('hidden');
     }
 }
 
 document.getElementById('documentInput').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    handleLivePreview(file);
+    handleLivePreview(e.target.files[0]);
 });
 
-async function fetchAccounting() {
-   const url = `/corporate/accounting/data?workflow_status=${encodeURIComponent(currentWorkflowFilter)}`;
-    const res = await fetch(url, {
+async function fetchOperations() {
+    const res = await fetch(`/operations/data?workflow_status=${encodeURIComponent(currentWorkflowFilter)}`, {
         headers: {
             'Accept': 'application/json'
         }
     });
+
     return await res.json();
 }
 
@@ -397,25 +370,23 @@ function drawTableRows() {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
 
-    if (!accountingRows.length) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="p-10 text-center text-gray-400 italic">No data found</td>
-            </tr>
-        `;
+    if (!operationRows.length) {
+        tableBody.innerHTML = `<tr><td colspan="9" class="p-10 text-center text-gray-400 italic">No data found</td></tr>`;
         return;
     }
 
-    accountingRows.forEach(item => {
+    operationRows.forEach(item => {
         const isClickable = !!item.document_path;
 
         tableBody.innerHTML += `
             <tr class="border-t ${isClickable ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'}"
                 ${isClickable ? `onclick="openPreview(${item.id})"` : ''}>
-                <td class="p-3">${item.date ?? ''}</td>
+                <td class="p-3">${item.date_uploaded ?? ''}</td>
                 <td class="p-3">${item.user ?? ''}</td>
                 <td class="p-3">${item.client ?? ''}</td>
-                <td class="p-3">${item.statement_type ?? ''}</td>
+                <td class="p-3">${item.tin ?? ''}</td>
+                <td class="p-3">${item.operation_type ?? ''}</td>
+                <td class="p-3">${item.document_type ?? ''}</td>
                 <td class="p-3 ${workflowBadgeClass(item.workflow_status)} font-medium">${workflowLabel(item.workflow_status)}</td>
                 <td class="p-3 ${approvalBadgeClass(item.approval_status)} font-medium">${approvalLabel(item.approval_status)}</td>
                 <td class="p-3">
@@ -435,7 +406,7 @@ function renderPreviewActions(item) {
 
     if (item.can_submit) {
         actions.innerHTML += `
-            <button type="button" onclick="submitAccounting(${item.id})" class="w-full bg-blue-600 text-white rounded-md py-2 hover:bg-blue-700">
+            <button type="button" onclick="submitOperation(${item.id})" class="w-full bg-blue-600 text-white rounded-md py-2 hover:bg-blue-700">
                 Submit for Approval
             </button>
         `;
@@ -443,7 +414,7 @@ function renderPreviewActions(item) {
 }
 
 function openPreview(id) {
-    const item = accountingRows.find(row => row.id == id);
+    const item = operationRows.find(row => String(row.id) === String(id));
     if (!item) return;
 
     currentPreviewRecord = item;
@@ -475,10 +446,12 @@ function openPreview(id) {
         }
     }
 
-    document.getElementById('infoDate').textContent = item.date ?? '';
+    document.getElementById('infoDateUploaded').textContent = item.date_uploaded ?? '';
     document.getElementById('infoUser').textContent = item.user ?? '';
     document.getElementById('infoClient').textContent = item.client ?? '';
-    document.getElementById('infoStatementType').textContent = item.statement_type ?? '';
+    document.getElementById('infoTin').textContent = item.tin ?? '';
+    document.getElementById('infoOperationType').textContent = item.operation_type ?? '';
+    document.getElementById('infoDocumentType').textContent = item.document_type ?? '';
     document.getElementById('infoWorkflow').textContent = item.workflow_status ?? '';
     document.getElementById('infoApproval').textContent = item.approval_status ?? '';
     document.getElementById('infoReviewNote').textContent = item.review_note ?? '—';
@@ -489,14 +462,14 @@ function openPreview(id) {
 }
 
 async function renderTable() {
-    accountingRows = await fetchAccounting();
+    operationRows = await fetchOperations();
     drawTableRows();
     updateStatusMessage();
     setActiveTab();
     showOnlySection('tableSection');
 
     if (autoOpenRecordId) {
-        const target = accountingRows.find(row => String(row.id) === String(autoOpenRecordId));
+        const target = operationRows.find(row => String(row.id) === String(autoOpenRecordId));
         if (target) {
             openPreview(target.id);
         }
@@ -508,16 +481,16 @@ function applyWorkflowFilter(filterValue) {
     renderTable();
 }
 
-async function addAccountingEntry() {
+async function addOperationEntry() {
     const client = document.getElementById('clientInput').value.trim();
     const tin = document.getElementById('tinInput').value.trim();
-    const statementType = document.getElementById('statementTypeInput').value;
-    const date = document.getElementById('dateInput').value;
-    const fileInput = document.getElementById('documentInput');
-    const file = fileInput.files[0];
+    const operationType = document.getElementById('operationTypeInput').value.trim();
+    const documentType = document.getElementById('documentTypeInput').value.trim();
+    const dateUploaded = document.getElementById('dateUploadedInput').value;
+    const file = document.getElementById('documentInput').files[0];
 
-    if (!client || !statementType || !date) {
-        alert('Please fill in Client, Statement Type, and Date.');
+    if (!client || !operationType || !documentType || !dateUploaded) {
+        alert('Please fill in all required fields.');
         return;
     }
 
@@ -527,60 +500,39 @@ async function addAccountingEntry() {
     }
 
     const formData = new FormData();
-    formData.append('statement_type', statementType);
     formData.append('client', client);
     formData.append('tin', tin);
-    formData.append('date', date);
+    formData.append('operation_type', operationType);
+    formData.append('document_type', documentType);
+    formData.append('date_uploaded', dateUploaded);
     formData.append('document', file);
 
-    try {
-        const res = await fetch('/corporate/accounting', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: formData
-        });
-
-        let data = {};
-        const contentType = res.headers.get('content-type') || '';
-
-        if (contentType.includes('application/json')) {
-            data = await res.json();
-        } else {
-            const text = await res.text();
-            console.error('Non-JSON response:', text);
-            alert('Server returned an unexpected response. Check Laravel error page or browser console.');
-            return;
-        }
-
-        if (!res.ok) {
-            console.error(data);
-            if (data.errors) {
-                const firstError = Object.values(data.errors)[0]?.[0];
-                alert(firstError || data.message || 'Error saving accounting entry.');
-            } else {
-                alert(data.message || 'Error saving accounting entry.');
-            }
-            return;
-        }
-
-        closeAddSection();
-        currentWorkflowFilter = 'uploaded';
-        await renderTable();
-        alert(data.message || 'Accounting entry saved successfully.');
-    } catch (error) {
-        console.error('Save failed:', error);
-        alert('Something went wrong while saving. Open browser console for details.');
-    }
-}
-
-async function submitAccounting(id) {
-    const res = await fetch(`/corporate/accounting/${id}/submit`, {
+    const res = await fetch('/operations/store', {
         method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
+            'Accept': 'application/json'
+        },
+        body: formData
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        alert(data.message || 'Error saving operations entry.');
+        return;
+    }
+
+    closeAddSection();
+    currentWorkflowFilter = 'uploaded';
+    await renderTable();
+}
+
+async function submitOperation(id) {
+    const res = await fetch(`/operations/${id}/submit`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>',
             'Accept': 'application/json'
         }
     });
@@ -600,4 +552,5 @@ async function submitAccounting(id) {
 
 renderTable();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/corporate/operations.blade.php ENDPATH**/ ?>
