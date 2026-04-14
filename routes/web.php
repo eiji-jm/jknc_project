@@ -42,7 +42,6 @@ use App\Http\Controllers\StockTransferJournalController;
 use App\Http\Controllers\StockTransferLedgerController;
 use App\Http\Controllers\StockTransferLookupController;
 use App\Http\Controllers\TownHallController;
-use App\Http\Controllers\SchemaController;
 use App\Http\Controllers\UploadedFileController;
 use App\Http\Controllers\BirTaxController;
 use App\Http\Controllers\NatGovController;

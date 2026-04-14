@@ -15,6 +15,7 @@ use App\Models\Contact;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class StockTransferLedgerController extends Controller
 {
@@ -25,25 +26,79 @@ class StockTransferLedgerController extends Controller
 
     public function indexPage()
     {
-        $ledgers = StockTransferLedger::query()
+        $ledgers = Schema::hasTable('stock_transfer_ledgers')
+            ? StockTransferLedger::query()
             ->whereNull('journal_id')
             ->latest()
-            ->get();
-        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
+            ->get()
+            : collect();
+        $contacts = $this->loadContactDirectory();
 
         return view('corporate.stock-transfer-book.stb-index', compact('ledgers', 'contacts'));
     }
 
     public function index()
     {
-        $ledgers = StockTransferLedger::query()
+        $ledgers = Schema::hasTable('stock_transfer_ledgers')
+            ? StockTransferLedger::query()
             ->whereNotNull('journal_id')
             ->with('journal')
             ->latest()
-            ->get();
-        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
+            ->get()
+            : collect();
+        $contacts = $this->loadContactDirectory();
 
         return view('corporate.stock-transfer-book.ledger', compact('ledgers', 'contacts'));
+    }
+
+    private function loadContactDirectory(): Collection
+    {
+        if (!Schema::hasTable('contacts')) {
+            return collect();
+        }
+
+        $selects = ['id'];
+
+        foreach (
+            [
+                'first_name',
+                'middle_name',
+                'last_name',
+                'email',
+                'contact_address',
+                'tin',
+            ] as $column
+        ) {
+            if (Schema::hasColumn('contacts', $column)) {
+                $selects[] = $column;
+            }
+        }
+
+        $query = Contact::query()->select($selects);
+
+        if (Schema::hasColumn('contacts', 'last_name')) {
+            $query->orderBy('last_name');
+        }
+
+        if (Schema::hasColumn('contacts', 'first_name')) {
+            $query->orderBy('first_name');
+        }
+
+        return $query->get()->map(function (Contact $contact) {
+            $name = trim(collect([
+                $contact->first_name ?? null,
+                $contact->middle_name ?? null,
+                $contact->last_name ?? null,
+            ])->filter()->implode(' '));
+
+            return (object) [
+                'name' => $name,
+                'email' => $contact->email ?? null,
+                'nationality' => null,
+                'address' => $contact->contact_address ?? null,
+                'tax_id' => $contact->tin ?? null,
+            ];
+        })->filter(fn($contact) => !empty($contact->name))->values();
     }
 
     public function create()
@@ -235,7 +290,7 @@ class StockTransferLedgerController extends Controller
         }
 
         $query = Contact::query();
-        $this->applyNameTokens($query, $name, ['name']);
+        $this->applyNameTokens($query, $name, ['first_name', 'middle_name', 'last_name']);
 
         return $query->first();
     }
