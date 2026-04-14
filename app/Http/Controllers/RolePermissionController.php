@@ -109,19 +109,21 @@ class RolePermissionController extends Controller
 
         $updates = [];
 
-        foreach ([
-            'manage_users',
-            'access_admin_dashboard',
-            'approve_townhall',
-            'create_townhall',
-            'create_corporate',
-            'approve_corporate',
-            'access_townhall',
-            'access_corporate',
-            'access_activities',
-            'access_contacts',
-            'access_company',
-        ] as $column) {
+        foreach (
+            [
+                'manage_users',
+                'access_admin_dashboard',
+                'approve_townhall',
+                'create_townhall',
+                'create_corporate',
+                'approve_corporate',
+                'access_townhall',
+                'access_corporate',
+                'access_activities',
+                'access_contacts',
+                'access_company',
+            ] as $column
+        ) {
             if (Schema::hasColumn('role_permissions', $column)) {
                 $updates[$column] = $request->has($column);
             }

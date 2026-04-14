@@ -3,6 +3,10 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\TownHallController;
+use App\Http\Controllers\GisController;
+use App\Http\Controllers\CorporateFormationController;
+use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\BylawController;
 use App\Http\Controllers\CapitalStructureController;
 use App\Http\Controllers\CatalogChangeRequestController;
@@ -23,30 +27,41 @@ use App\Http\Controllers\CompanyProductController;
 use App\Http\Controllers\CompanyServiceController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\CorporateApprovalController;
-use App\Http\Controllers\CorporateFormationController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\DealProposalController;
 use App\Http\Controllers\DirectorOfficerController;
-use App\Http\Controllers\GisController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RolePermissionController;
-use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
+use App\Http\Controllers\UltimateBeneficialOwnerController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\BirTaxController;
+use App\Http\Controllers\NatGovController;
 use App\Http\Controllers\StockTransferCertificateController;
 use App\Http\Controllers\StockTransferInstallmentController;
 use App\Http\Controllers\StockTransferJournalController;
 use App\Http\Controllers\StockTransferLedgerController;
 use App\Http\Controllers\StockTransferLookupController;
-use App\Http\Controllers\TownHallController;
 use App\Http\Controllers\UploadedFileController;
-use App\Http\Controllers\BirTaxController;
-use App\Http\Controllers\NatGovController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PermitController;
+use App\Http\Controllers\CorrespondenceController;
+use App\Http\Controllers\AccountingController;
+use App\Http\Controllers\BankingController;
+use App\Http\Controllers\CorporateDocumentDefaultsController;
+use App\Http\Controllers\MinuteController;
+use App\Http\Controllers\NoticeController;
+use App\Http\Controllers\OperationController;
+use App\Http\Controllers\LegalController;
+use App\Http\Controllers\ResolutionController;
+use App\Http\Controllers\SecretaryCertificateController;
+use App\Http\Controllers\TransmittalController;
+use App\Http\Controllers\TransmittalReceiptController;
 
 Route::get('/', function () {
     if (Auth::check()) {
@@ -107,13 +122,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
 });
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     Route::get('/uploads/{path}', [UploadedFileController::class, 'show'])
         ->where('path', '.*')
         ->name('uploads.show');
-
-    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/admin/users', [AdminUserController::class, 'index'])->name('admin.users');
@@ -133,275 +147,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/catalog-change-requests/{catalogChangeRequest}/approve', [CatalogChangeRequestController::class, 'approve'])->name('catalog-change-requests.approve');
     Route::post('/admin/catalog-change-requests/{catalogChangeRequest}/reject', [CatalogChangeRequestController::class, 'reject'])->name('catalog-change-requests.reject');
 
-    Route::get('/townhall', [TownHallController::class, 'index'])->name('townhall');
-    Route::get('/townhall/department', [TownHallController::class, 'department'])->name('townhall.department');
-    Route::get('/townhall/attachments', [TownHallController::class, 'attachments'])->name('townhall.attachments');
-    Route::post('/townhall', [TownHallController::class, 'store'])->name('townhall.store');
-    Route::get('/townhall/{id}/edit', [TownHallController::class, 'edit'])->name('townhall.edit');
-    Route::put('/townhall/{id}', [TownHallController::class, 'update'])->name('townhall.update');
-    Route::get('/townhall/{id}', [TownHallController::class, 'show'])->name('townhall.show');
-    Route::get('/townhall/{id}/download-pdf', [TownHallController::class, 'downloadPdf'])->name('townhall.download.pdf');
-    Route::post('/townhall/{id}/approve', [TownHallController::class, 'approve'])->name('townhall.approve');
-    Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');
-    Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
-    Route::post('/townhall/{id}/acknowledge', [TownHallController::class, 'acknowledge'])->name('townhall.acknowledge');
+    Route::get('/corporate/gis/{id}/company-info', [GisController::class, 'companyInfoById'])->name('gis.company.info');
+    Route::put('/gis/company-info/{id}', [GisController::class, 'updateCompanyInfo'])->name('gis.company.update');
 
-    Route::get('/contacts', [ContactsController::class, 'index'])->name('contacts.index');
-    Route::post('/contacts', [ContactsController::class, 'store'])->name('contacts.store');
-    Route::delete('/contacts/bulk-delete', [ContactsController::class, 'bulkDelete'])->name('contacts.bulk-delete');
-    Route::match(['put', 'patch'], '/contacts/{contact}', [ContactsController::class, 'update'])->name('contacts.update');
-    Route::post('/contacts/assign-owner', [ContactsController::class, 'assignOwner'])->name('contacts.assign-owner');
-    Route::post('/contacts/custom-fields', [ContactsController::class, 'storeCustomField'])->name('contacts.custom-fields.store');
-    Route::post('/contacts/{contact}/cif', [ContactsController::class, 'saveCif'])->name('contacts.cif.save');
-    Route::post('/contacts/{contact}/cif/documents', [ContactsController::class, 'uploadCifDocument'])->name('contacts.cif.documents.upload');
-    Route::post('/contacts/{contact}/kyc/requirements/upload', [ContactsController::class, 'uploadKycRequirementDocument'])->name('contacts.kyc.requirements.upload');
-    Route::delete('/contacts/{contact}/kyc/requirements/{requirement}', [ContactsController::class, 'removeKycRequirementDocument'])->name('contacts.kyc.requirements.remove');
-    Route::post('/contacts/{contact}/kyc/submit', [ContactsController::class, 'submitKycForVerification'])->name('contacts.kyc.submit');
-    Route::post('/contacts/{contact}/kyc/approve', [ContactsController::class, 'approveKyc'])->name('contacts.kyc.approve');
-    Route::post('/contacts/{contact}/kyc/reject', [ContactsController::class, 'rejectKyc'])->name('contacts.kyc.reject');
-    Route::post('/contacts/{contact}/kyc/change-request', [ContactsController::class, 'requestKycChange'])->name('contacts.kyc.change-request');
-    Route::post('/contacts/{contact}/kyc/change-request/approve', [ContactsController::class, 'approveKycChange'])->name('contacts.kyc.change-request.approve');
-    Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sendCifClientForm'])->name('contacts.cif.send');
-    Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
-    Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
-    Route::get('/contacts/{contact}/cif/download', [ContactsController::class, 'downloadCif'])->name('contacts.cif.download');
-    Route::delete('/contacts/{contact}/companies/{company}', [ContactsController::class, 'unlinkCompany'])->name('contacts.companies.unlink');
-    Route::get('/contacts/{id}/kyc/specimen-signature', [ContactsController::class, 'specimenSignature'])->name('contacts.specimen-signature');
-    Route::post('/contacts/{id}/kyc/specimen-signature', [ContactsController::class, 'saveSpecimenSignature'])->name('contacts.specimen-signature.save');
-    Route::get('/contacts/{id}/kyc/specimen-signature/download', [ContactsController::class, 'downloadSpecimenSignature'])->name('contacts.specimen-signature.download');
-    Route::get('/contacts/{contact}', [ContactsController::class, 'show'])->name('contacts.show');
-
-    Route::get('/deals', [DealController::class, 'index'])->name('deals.index');
-    Route::post('/deals/preview', [DealController::class, 'preview'])->name('deals.preview');
-    Route::get('/deals/preview', [DealController::class, 'previewPage'])->name('deals.preview.show');
-    Route::post('/deals/draft', [DealController::class, 'saveDraft'])->name('deals.draft');
-    Route::post('/deals', [DealController::class, 'store'])->name('deals.store');
-    Route::post('/deals/{id}/approve', [DealController::class, 'approve'])->name('deals.approve');
-    Route::post('/deals/{id}/reject', [DealController::class, 'reject'])->name('deals.reject');
-    Route::post('/deals/stages', [DealController::class, 'storeStage'])->name('deals.stages.store');
-    Route::patch('/deals/stages/{stage}', [DealController::class, 'updateStage'])->name('deals.stages.update');
-    Route::patch('/deals/stages/{stage}/move', [DealController::class, 'moveStage'])->name('deals.stages.move');
-    Route::delete('/deals/stages/{stage}', [DealController::class, 'destroyStage'])->name('deals.stages.destroy');
-    Route::patch('/deals/{id}/stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update');
-    Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
-    Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
-    Route::get('/deals/{deal}/proposal', [DealProposalController::class, 'show'])->name('deals.proposal.show');
-    Route::post('/deals/{deal}/proposal/preview', [DealProposalController::class, 'preview'])->name('deals.proposal.preview');
-    Route::match(['put', 'patch'], '/deals/{deal}/proposal', [DealProposalController::class, 'update'])->name('deals.proposal.update');
-    Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
-    Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
-    Route::get('/deals/{id}', [DealController::class, 'show'])->name('deals.show');
-
-    Route::get('/project', [ProjectController::class, 'index'])->name('project.index');
-    Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
-    Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
-    Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
-    Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
-    Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
-    Route::view('/regular', 'regular.index')->name('regular.index');
-
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-    Route::post('/products', [ProductController::class, 'store'])->name('products.store');
-    Route::match(['put', 'patch'], '/products/{id}', [ProductController::class, 'update'])->name('products.update');
-    Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
-    Route::post('/products/change-owner', [ProductController::class, 'changeOwner'])->name('products.change-owner');
-    Route::post('/products/custom-fields', [ProductController::class, 'storeCustomField'])->name('products.custom-fields.store');
-    Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
-
-    Route::get('/services', [CompanyServiceController::class, 'globalIndex'])->name('services.index');
-    Route::post('/services', [CompanyServiceController::class, 'storeGlobal'])->name('services.store');
-    Route::post('/services/custom-fields', [CompanyServiceController::class, 'storeCustomField'])->name('services.custom-fields.store');
-    Route::post('/services/{service}/approve', [CompanyServiceController::class, 'approveGlobal'])->name('services.approve');
-    Route::post('/services/{service}/reject', [CompanyServiceController::class, 'rejectGlobal'])->name('services.reject');
-    Route::get('/services/{service}', [CompanyServiceController::class, 'showGlobal'])->name('services.show');
-    Route::match(['put', 'patch'], '/services/{service}', [CompanyServiceController::class, 'updateGlobal'])->name('services.update');
-    Route::delete('/services/{service}', [CompanyServiceController::class, 'destroyGlobal'])->name('services.destroy');
-
-    Route::get('/company', [CompanyController::class, 'index'])->name('company.index');
-    Route::post('/company', [CompanyController::class, 'store'])->name('company.store');
-    Route::post('/company/custom-fields', [CompanyController::class, 'storeCustomField'])->name('company.custom-fields.store');
-    Route::match(['put', 'patch'], '/company/{company}', [CompanyController::class, 'update'])->name('company.update');
-    Route::delete('/company/{company}', [CompanyController::class, 'destroy'])->name('company.destroy');
-    Route::get('/company/{company}', [CompanyController::class, 'show'])->name('company.show');
-    Route::get('/company/{company}/kyc', [CompanyKycController::class, 'index'])->name('company.kyc');
-    Route::post('/company/{company}/kyc/submit', [CompanyKycController::class, 'submitKycForVerification'])->name('company.kyc.submit');
-    Route::post('/company/{company}/kyc/approve', [CompanyKycController::class, 'approveKyc'])->name('company.kyc.approve');
-    Route::post('/company/{company}/kyc/reject', [CompanyKycController::class, 'rejectKyc'])->name('company.kyc.reject');
-    Route::get('/company/{company}/kyc/requirements/{requirement}/view', [CompanyKycController::class, 'viewRequirementDocument'])->name('company.kyc.requirements.view');
-    Route::get('/company/{company}/kyc/requirements/{requirement}/template', [CompanyKycController::class, 'previewRequirementTemplate'])->name('company.kyc.requirements.template');
-    Route::get('/company/{company}/kyc/requirements/{requirement}/template/download', [CompanyKycController::class, 'downloadRequirementTemplatePdf'])->name('company.kyc.requirements.template.download');
-    Route::post('/company/{company}/kyc/requirements/{requirement}/upload', [CompanyKycController::class, 'uploadRequirementDocument'])->name('company.kyc.requirements.upload');
-    Route::delete('/company/{company}/kyc/requirements/{requirement}', [CompanyKycController::class, 'removeRequirementDocument'])->name('company.kyc.requirements.remove');
-    Route::get('/company/{company}/history', [CompanyController::class, 'history'])->name('company.history');
-    Route::get('/company/{company}/consultation-notes', [CompanyController::class, 'consultationNotes'])->name('company.consultation-notes');
-    Route::post('/company/{company}/consultation-notes', [CompanyConsultationNoteController::class, 'store'])->name('company.consultation-notes.store');
-    Route::match(['put', 'patch'], '/company/{company}/consultation-notes/{note}', [CompanyConsultationNoteController::class, 'update'])->name('company.consultation-notes.update');
-    Route::delete('/company/{company}/consultation-notes/{note}', [CompanyConsultationNoteController::class, 'destroy'])->name('company.consultation-notes.destroy');
-    Route::get('/company/{company}/activities', [CompanyController::class, 'activities'])->name('company.activities');
-    Route::post('/company/{company}/activities', [CompanyActivityController::class, 'store'])->name('company.activities.store');
-    Route::match(['put', 'patch'], '/company/{company}/activities/{activity}', [CompanyActivityController::class, 'update'])->name('company.activities.update');
-    Route::patch('/company/{company}/activities/{activity}/complete', [CompanyActivityController::class, 'complete'])->name('company.activities.complete');
-    Route::delete('/company/{company}/activities/{activity}', [CompanyActivityController::class, 'destroy'])->name('company.activities.destroy');
-    Route::get('/company/{company}/deals', [CompanyDealController::class, 'index'])->name('company.deals');
-    Route::post('/company/{company}/deals', [CompanyDealController::class, 'store'])->name('company.deals.store');
-    Route::get('/company/{company}/deals/{deal}', [CompanyDealController::class, 'show'])->name('company.deals.show');
-    Route::match(['put', 'patch'], '/company/{company}/deals/{deal}', [CompanyDealController::class, 'update'])->name('company.deals.update');
-    Route::delete('/company/{company}/deals/{deal}', [CompanyDealController::class, 'destroy'])->name('company.deals.destroy');
-    Route::get('/company/{company}/contacts', [CompanyController::class, 'contacts'])->name('company.contacts');
-    Route::post('/company/{company}/contacts', [CompanyController::class, 'storeContact'])->name('company.contacts.store');
-    Route::post('/company/{company}/contacts/custom-fields', [CompanyController::class, 'storeContactCustomField'])->name('company.contacts.custom-fields.store');
-    Route::match(['put', 'patch'], '/company/{company}/contacts/{contact}', [CompanyController::class, 'updateContact'])->name('company.contacts.update');
-    Route::delete('/company/{company}/contacts/{contact}', [CompanyController::class, 'destroyContact'])->name('company.contacts.destroy');
-    Route::get('/company/{company}/projects', [CompanyController::class, 'projects'])->name('company.projects');
-    Route::get('/company/{company}/regular', [CompanyController::class, 'regular'])->name('company.regular');
-    Route::get('/company/{company}/products', [CompanyProductController::class, 'index'])->name('company.products');
-    Route::post('/company/{company}/products/link', [CompanyProductController::class, 'link'])->name('company.products.link');
-    Route::post('/company/{company}/products', [CompanyProductController::class, 'store'])->name('company.products.store');
-    Route::get('/company/{company}/products/{product}', [CompanyProductController::class, 'show'])->name('company.products.show');
-    Route::match(['put', 'patch'], '/company/{company}/products/{product}', [CompanyProductController::class, 'update'])->name('company.products.update');
-    Route::delete('/company/{company}/products/{product}', [CompanyProductController::class, 'unlink'])->name('company.products.unlink');
-    Route::get('/company/{company}/lgu', [CompanyLguController::class, 'index'])->name('company.lgu');
-    Route::post('/company/{company}/lgu', [CompanyLguController::class, 'store'])->name('company.lgu.store');
-    Route::match(['put', 'patch'], '/company/{company}/lgu/{record}', [CompanyLguController::class, 'update'])->name('company.lgu.update');
-    Route::delete('/company/{company}/lgu/{record}', [CompanyLguController::class, 'destroy'])->name('company.lgu.destroy');
-    Route::get('/company/{company}/accounting', [CompanyAccountingController::class, 'index'])->name('company.accounting');
-    Route::post('/company/{company}/accounting', [CompanyAccountingController::class, 'store'])->name('company.accounting.store');
-    Route::match(['put', 'patch'], '/company/{company}/accounting/{record}', [CompanyAccountingController::class, 'update'])->name('company.accounting.update');
-    Route::delete('/company/{company}/accounting/{record}', [CompanyAccountingController::class, 'destroy'])->name('company.accounting.destroy');
-    Route::get('/company/{company}/banking', [CompanyBankingController::class, 'index'])->name('company.banking');
-    Route::post('/company/{company}/banking', [CompanyBankingController::class, 'store'])->name('company.banking.store');
-    Route::match(['put', 'patch'], '/company/{company}/banking/{record}', [CompanyBankingController::class, 'update'])->name('company.banking.update');
-    Route::delete('/company/{company}/banking/{record}', [CompanyBankingController::class, 'destroy'])->name('company.banking.destroy');
-    Route::get('/company/{company}/operations', [CompanyOperationsController::class, 'index'])->name('company.operations');
-    Route::post('/company/{company}/operations', [CompanyOperationsController::class, 'store'])->name('company.operations.store');
-    Route::match(['put', 'patch'], '/company/{company}/operations/{record}', [CompanyOperationsController::class, 'update'])->name('company.operations.update');
-    Route::delete('/company/{company}/operations/{record}', [CompanyOperationsController::class, 'destroy'])->name('company.operations.destroy');
-    Route::get('/company/{company}/correspondence', [CompanyCorrespondenceController::class, 'index'])->name('company.correspondence');
-    Route::post('/company/{company}/correspondence', [CompanyCorrespondenceController::class, 'store'])->name('company.correspondence.store');
-    Route::match(['put', 'patch'], '/company/{company}/correspondence/{record}', [CompanyCorrespondenceController::class, 'update'])->name('company.correspondence.update');
-    Route::delete('/company/{company}/correspondence/{record}', [CompanyCorrespondenceController::class, 'destroy'])->name('company.correspondence.destroy');
-    Route::get('/company/{company}/bir-tax', [CompanyBirTaxController::class, 'index'])->name('company.bir-tax');
-    Route::post('/company/{company}/bir-tax', [CompanyBirTaxController::class, 'store'])->name('company.bir-tax.store');
-    Route::match(['put', 'patch'], '/company/{company}/bir-tax/{record}', [CompanyBirTaxController::class, 'update'])->name('company.bir-tax.update');
-    Route::delete('/company/{company}/bir-tax/{record}', [CompanyBirTaxController::class, 'destroy'])->name('company.bir-tax.destroy');
-    Route::get('/company/{company}/corporate-formation', [CompanyCorporateFormationController::class, 'index'])->name('company.corporate-formation');
-    Route::get('/company/{company}/corporate-formation/sec-coi', [CompanyCorporateFormationController::class, 'secCoi'])->name('company.corporate-formation.sec-coi');
-    Route::post('/company/{company}/corporate-formation/sec-coi', [CompanyCorporateFormationController::class, 'storeSecCoi'])->name('company.corporate-formation.sec-coi.store');
-    Route::match(['put', 'patch'], '/company/{company}/corporate-formation/sec-coi/{record}', [CompanyCorporateFormationController::class, 'updateSecCoi'])->name('company.corporate-formation.sec-coi.update');
-    Route::get('/company/{company}/corporate-formation/sec-aoi', [CompanyCorporateFormationController::class, 'secAoi'])->name('company.corporate-formation.sec-aoi');
-    Route::post('/company/{company}/corporate-formation/sec-aoi', [CompanyCorporateFormationController::class, 'storeSecAoi'])->name('company.corporate-formation.sec-aoi.store');
-    Route::match(['put', 'patch'], '/company/{company}/corporate-formation/sec-aoi/{record}', [CompanyCorporateFormationController::class, 'updateSecAoi'])->name('company.corporate-formation.sec-aoi.update');
-    Route::get('/company/{company}/corporate-formation/bylaws', [CompanyCorporateFormationController::class, 'bylaws'])->name('company.corporate-formation.bylaws');
-    Route::post('/company/{company}/corporate-formation/bylaws', [CompanyCorporateFormationController::class, 'storeBylaw'])->name('company.corporate-formation.bylaws.store');
-    Route::match(['put', 'patch'], '/company/{company}/corporate-formation/bylaws/{record}', [CompanyCorporateFormationController::class, 'updateBylaw'])->name('company.corporate-formation.bylaws.update');
-    Route::get('/company/{company}/corporate-formation/gis', [CompanyCorporateFormationController::class, 'gis'])->name('company.corporate-formation.gis');
-    Route::post('/company/{company}/corporate-formation/gis', [CompanyCorporateFormationController::class, 'storeGis'])->name('company.corporate-formation.gis.store');
-    Route::match(['put', 'patch'], '/company/{company}/corporate-formation/gis/{record}', [CompanyCorporateFormationController::class, 'updateGis'])->name('company.corporate-formation.gis.update');
-    Route::get('/company/{company}/kyc/bif/create', [CompanyBifController::class, 'create'])->name('company.bif.create');
-    Route::post('/company/{company}/kyc/bif', [CompanyBifController::class, 'store'])->name('company.bif.store');
-    Route::post('/company/{company}/kyc/bif/send', [CompanyBifController::class, 'sendClientForm'])->name('company.bif.send');
-    Route::get('/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'show'])->name('company.bif.show');
-    Route::get('/company/{company}/kyc/bif/{bif}/edit', [CompanyBifController::class, 'edit'])->name('company.bif.edit');
-    Route::match(['put', 'patch'], '/company/{company}/kyc/bif/{bif}', [CompanyBifController::class, 'update'])->name('company.bif.update');
-    Route::post('/company/{company}/kyc/bif/{bif}/change-request/approve', [CompanyBifController::class, 'approveChangeRequest'])->name('company.bif.change-request.approve');
-    Route::post('/company/{company}/kyc/bif/{bif}/change-request/reject', [CompanyBifController::class, 'rejectChangeRequest'])->name('company.bif.change-request.reject');
-    Route::get('/company/{company}/kyc/bif/{bif}/print', [CompanyBifController::class, 'print'])->name('company.bif.print');
-    Route::get('/company/{company}/services', [CompanyServiceController::class, 'companyIndex'])->name('company.services.index');
-    Route::post('/company/{company}/services', [CompanyServiceController::class, 'storeForCompany'])->name('company.services.store');
-    Route::get('/company/{company}/services/{service}', [CompanyServiceController::class, 'showForCompany'])->name('company.services.show');
-    Route::match(['put', 'patch'], '/company/{company}/services/{service}', [CompanyServiceController::class, 'updateForCompany'])->name('company.services.update');
-    Route::delete('/company/{company}/services/{service}', [CompanyServiceController::class, 'destroyForCompany'])->name('company.services.destroy');
-
-    Route::get('/corporate', [GisController::class, 'companyInfo'])->name('corporate');
-    Route::get('/corporate/company-general-information', [GisController::class, 'companyInfo'])->name('corporate.companyinfo');
-    Route::get('/corporate/gis', [GisController::class, 'index'])->name('corporate.gis');
-    Route::post('/corporate/gis/store', [GisController::class, 'store'])->name('gis.store');
-    Route::get('/corporate/gis/capital-structure', [GisController::class, 'capitalStructure'])->name('gis.capital');
-    Route::get('/corporate/gis/directors-officers', [GisController::class, 'directorsOfficers'])->name('gis.directors');
-    Route::get('/corporate/gis/stockholders', [GisController::class, 'stockholders'])->name('gis.stockholders');
-
-    Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])->name('corporate.formation');
-    Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])->name('corporate.formation.store');
-    Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])->name('corporate.formation.show');
-
-    Route::get('/corporate/sec-aoi', [SecAoiController::class, 'index'])->name('corporate.sec_aoi');
-    Route::post('/corporate/sec-aoi/store', [SecAoiController::class, 'store'])->name('corporate.sec_aoi.store');
-    Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class, 'show'])->name('corporate.sec_aoi.show');
-
-    Route::get('/corporate/bylaws', [BylawController::class, 'index'])->name('corporate.bylaws');
-    Route::post('/corporate/bylaws/store', [BylawController::class, 'store'])->name('corporate.bylaws.store');
-    Route::get('/corporate/bylaws/{id}', [BylawController::class, 'show'])->name('corporate.bylaws.show');
-    Route::view('/corporate/lgu', 'corporate.lgu')->name('corporate.lgu');
-    Route::view('/corporate/accounting', 'corporate.accounting')->name('corporate.accounting');
-    Route::view('/corporate/banking', 'corporate.banking')->name('corporate.banking');
-    Route::view('/corporate/legal', 'corporate.legal')->name('corporate.legal');
-    Route::view('/corporate/operations', 'corporate.operations')->name('corporate.operations');
-    Route::view('/corporate/correspondence', 'corporate.correspondence')->name('corporate.correspondence');
-    Route::view('/corporate/ubo', 'corporate.ubo-form')->name('corporate.ubo');
-    Route::redirect('/accounting', '/corporate/accounting')->name('accounting');
-    Route::redirect('/banking', '/corporate/banking')->name('banking');
-    Route::redirect('/legal', '/corporate/legal')->name('legal');
-    Route::redirect('/operations', '/corporate/operations')->name('operations');
-    Route::redirect('/correspondence', '/corporate/correspondence')->name('correspondence');
-    Route::redirect('/stock-transfer-book', '/stock-transfer-book/index')->name('stock-transfer-book');
-    Route::get('/stock-transfer-book/index', [StockTransferLedgerController::class, 'indexPage'])->name('stock-transfer-book.index');
-    Route::get('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'index'])->name('stock-transfer-book.ledger');
-    Route::post('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'store'])->name('stock-transfer-book.ledger.store');
-    Route::get('/stock-transfer-book/ledger/{stockTransferLedger}/edit', [StockTransferLedgerController::class, 'edit'])->name('stock-transfer-book.ledger.edit');
-    Route::get('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'show'])->name('stock-transfer-book.ledger.show');
-    Route::match(['put', 'patch'], '/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'update'])->name('stock-transfer-book.ledger.update');
-    Route::delete('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'destroy'])->name('stock-transfer-book.ledger.destroy');
-    Route::get('/stock-transfer-book/journal', [StockTransferJournalController::class, 'index'])->name('stock-transfer-book.journal');
-    Route::post('/stock-transfer-book/journal', [StockTransferJournalController::class, 'store'])->name('stock-transfer-book.journal.store');
-    Route::get('/stock-transfer-book/journal/{stockTransferJournal}/edit', [StockTransferJournalController::class, 'edit'])->name('stock-transfer-book.journal.edit');
-    Route::get('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'show'])->name('stock-transfer-book.journal.show');
-    Route::match(['put', 'patch'], '/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'update'])->name('stock-transfer-book.journal.update');
-    Route::delete('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'destroy'])->name('stock-transfer-book.journal.destroy');
-    Route::get('/stock-transfer-book/installment', [StockTransferInstallmentController::class, 'index'])->name('stock-transfer-book.installment');
-    Route::post('/stock-transfer-book/installment', [StockTransferInstallmentController::class, 'store'])->name('stock-transfer-book.installment.store');
-    Route::post('/stock-transfer-book/installment/{stockTransferInstallment}/payments', [StockTransferInstallmentController::class, 'recordPreviewPayment'])->name('stock-transfer-book.installment.payments.store');
-    Route::get('/stock-transfer-book/installment/{stockTransferInstallment}/edit', [StockTransferInstallmentController::class, 'edit'])->name('stock-transfer-book.installment.edit');
-    Route::get('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'show'])->name('stock-transfer-book.installment.show');
-    Route::match(['put', 'patch'], '/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'update'])->name('stock-transfer-book.installment.update');
-    Route::delete('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'destroy'])->name('stock-transfer-book.installment.destroy');
-    Route::post('/stock-transfer-book/installment/{stockTransferInstallment}/cancel', [StockTransferInstallmentController::class, 'cancelInstallment'])->name('stock-transfer-book.installment.cancel');
-    Route::get('/stock-transfer-book/certificates', [StockTransferCertificateController::class, 'index'])->name('stock-transfer-book.certificates');
-    Route::post('/stock-transfer-book/certificates', [StockTransferCertificateController::class, 'store'])->name('stock-transfer-book.certificates.store');
-    Route::post('/stock-transfer-book/certificates/requests', [StockTransferCertificateController::class, 'storeRequest'])->name('stock-transfer-book.certificates.requests.store');
-    Route::get('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}', [StockTransferCertificateController::class, 'showRequest'])->name('stock-transfer-book.certificates.requests.show');
-    Route::post('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}/approve', [StockTransferCertificateController::class, 'approveRequest'])->name('stock-transfer-book.certificates.requests.approve');
-    Route::post('/stock-transfer-book/certificates/{stockTransferCertificate}/issue', [StockTransferCertificateController::class, 'issue'])->name('stock-transfer-book.certificates.issue');
-    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}/template', [StockTransferCertificateController::class, 'templatePreview'])->name('stock-transfer-book.certificates.template');
-    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}/edit', [StockTransferCertificateController::class, 'edit'])->name('stock-transfer-book.certificates.edit');
-    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'show'])->name('stock-transfer-book.certificates.show');
-    Route::match(['put', 'patch'], '/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'update'])->name('stock-transfer-book.certificates.update');
-    Route::delete('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'destroy'])->name('stock-transfer-book.certificates.destroy');
-    Route::get('/stock-transfer-book/lookup', [StockTransferLookupController::class, 'lookup'])->name('stock-transfer-book.lookup');
-    Route::get('/stock-transfer-book/defaults', [StockTransferLookupController::class, 'defaults'])->name('stock-transfer-book.defaults');
-    Route::view('/notices', 'corporate.notices.index')->name('notices');
-    Route::view('/notices/preview', 'corporate.notices.preview')->name('notices.preview');
-    Route::view('/minutes', 'corporate.minutes.index')->name('minutes');
-    Route::view('/minutes/preview', 'corporate.minutes.preview')->name('minutes.preview');
-    Route::view('/resolutions', 'corporate.resolutions.index')->name('resolutions');
-    Route::view('/resolutions/preview', 'corporate.resolutions.preview')->name('resolutions.preview');
-    Route::view('/secretary-certificates', 'corporate.secretary-certificates.index')->name('secretary-certificates');
-    Route::view('/secretary-certificates/preview', 'corporate.secretary-certificates.preview')->name('secretary-certificates.preview');
-    Route::get('/bir-tax', [BirTaxController::class, 'index'])->name('bir-tax');
-    Route::post('/bir-tax', [BirTaxController::class, 'store'])->name('bir-tax.store');
-    Route::get('/bir-tax/{birTax}/edit', [BirTaxController::class, 'edit'])->name('bir-tax.edit');
-    Route::get('/bir-tax/{birTax}', [BirTaxController::class, 'show'])->name('bir-tax.preview');
-    Route::match(['put', 'patch'], '/bir-tax/{birTax}', [BirTaxController::class, 'update'])->name('bir-tax.update');
-    Route::delete('/bir-tax/{birTax}', [BirTaxController::class, 'destroy'])->name('bir-tax.destroy');
-    Route::post('/bir-tax/{birTax}/notes', [BirTaxController::class, 'storeAuthorityNote'])->name('bir-tax.notes.store');
-    Route::get('/natgov', [NatGovController::class, 'index'])->name('natgov');
-    Route::post('/natgov', [NatGovController::class, 'store'])->name('natgov.store');
-    Route::get('/natgov/{natgov}/edit', [NatGovController::class, 'edit'])->name('natgov.edit');
-    Route::get('/natgov/{natgov}', [NatGovController::class, 'show'])->name('natgov.preview');
-    Route::match(['put', 'patch'], '/natgov/{natgov}', [NatGovController::class, 'update'])->name('natgov.update');
-    Route::delete('/natgov/{natgov}', [NatGovController::class, 'destroy'])->name('natgov.destroy');
-    Route::post('/natgov/{natgov}/notes', [NatGovController::class, 'storeAuthorityNote'])->name('natgov.notes.store');
-
-    Route::get('/corporate/gis/{id}/show', [GisController::class, 'show'])->name('gis.show');
     Route::post('/gis/authorized/store', [CapitalStructureController::class, 'storeAuthorized'])->name('authorized.store');
     Route::post('/gis/subscribed/store', [CapitalStructureController::class, 'storeSubscribed'])->name('subscribed.store');
     Route::post('/gis/paidup/store', [CapitalStructureController::class, 'storePaidup'])->name('paidup.store');
@@ -411,8 +159,224 @@ Route::middleware('auth')->group(function () {
     Route::get('/policies', function () {
         return view('policies.policies');
     })->name('policies.index');
+
     Route::post('/policies', function () {
-        // temporary save logic placeholder
         return back()->with('success', 'Policy added successfully.');
     })->name('policies.store');
+
+    Route::post('/gis/ubo/store', [UltimateBeneficialOwnerController::class, 'store'])->name('ubo.store');
+
+    Route::post('/corporate/gis/{id}/upload-draft-file', [GisController::class, 'uploadDraftFile'])->name('corporate.gis.upload.draft');
+    Route::post('/corporate/gis/{id}/upload-notary-file', [GisController::class, 'uploadNotaryFile'])->name('corporate.gis.upload.notary');
+    Route::post('/corporate/gis/{id}/submit', [GisController::class, 'submit'])->name('corporate.gis.submit');
+
+    Route::get('/corporate/formation', [CorporateFormationController::class, 'index'])->name('corporate.formation');
+    Route::post('/corporate/formation/store', [CorporateFormationController::class, 'store'])->name('corporate.formation.store');
+    Route::get('/corporate/formation/{id}', [CorporateFormationController::class, 'show'])->name('corporate.formation.show');
+    Route::post('/corporate/formation/{id}/upload-draft-file', [CorporateFormationController::class, 'uploadDraftFile'])->name('corporate.formation.upload.draft');
+    Route::post('/corporate/formation/{id}/upload-notary-file', [CorporateFormationController::class, 'uploadNotaryFile'])->name('corporate.formation.upload.notary');
+    Route::post('/corporate/formation/{id}/submit', [CorporateFormationController::class, 'submit'])->name('corporate.formation.submit');
+    Route::put('/corporate/formation/{id}/update', [CorporateFormationController::class, 'update'])->name('corporate.formation.update');
+
+    Route::get('/corporate/sec-aoi', [SecAoiController::class, 'index'])->name('corporate.sec_aoi');
+    Route::post('/corporate/sec-aoi/store', [SecAoiController::class, 'store'])->name('corporate.sec_aoi.store');
+    Route::get('/corporate/sec-aoi/{id}', [SecAoiController::class, 'show'])->name('corporate.sec_aoi.show');
+    Route::post('/corporate/sec-aoi/{id}/upload-draft-file', [SecAoiController::class, 'uploadDraftFile'])->name('corporate.sec_aoi.upload.draft');
+    Route::post('/corporate/sec-aoi/{id}/upload-notary-file', [SecAoiController::class, 'uploadNotaryFile'])->name('corporate.sec_aoi.upload.notary');
+    Route::post('/corporate/sec-aoi/{id}/submit', [SecAoiController::class, 'submit'])->name('corporate.sec_aoi.submit');
+
+    Route::get('/corporate/bylaws', [BylawController::class, 'index'])->name('corporate.bylaws');
+    Route::post('/corporate/bylaws/store', [BylawController::class, 'store'])->name('corporate.bylaws.store');
+    Route::get('/corporate/bylaws/{id}', [BylawController::class, 'show'])->name('corporate.bylaws.show');
+    Route::post('/corporate/bylaws/{id}/upload-draft-file', [BylawController::class, 'uploadDraftFile'])->name('corporate.bylaws.upload.draft');
+    Route::post('/corporate/bylaws/{id}/upload-notary-file', [BylawController::class, 'uploadNotaryFile'])->name('corporate.bylaws.upload.notary');
+    Route::post('/corporate/bylaws/{id}/submit', [BylawController::class, 'submit'])->name('corporate.bylaws.submit');
+
+    Route::get('/stock-transfer-book', function () {
+        return redirect()->route('stock-transfer-book.index');
+    })->name('stock-transfer-book');
+
+    Route::get('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'index'])->name('stock-transfer-book.ledger');
+    Route::get('/stock-transfer-book/ledger/create', [StockTransferLedgerController::class, 'create'])->name('stock-transfer-book.ledger.create');
+    Route::post('/stock-transfer-book/ledger', [StockTransferLedgerController::class, 'store'])->name('stock-transfer-book.ledger.store');
+    Route::get('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'show'])->name('stock-transfer-book.ledger.show');
+    Route::get('/stock-transfer-book/ledger/{stockTransferLedger}/edit', [StockTransferLedgerController::class, 'edit'])->name('stock-transfer-book.ledger.edit');
+    Route::put('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'update'])->name('stock-transfer-book.ledger.update');
+    Route::delete('/stock-transfer-book/ledger/{stockTransferLedger}', [StockTransferLedgerController::class, 'destroy'])->name('stock-transfer-book.ledger.destroy');
+    Route::get('/stock-transfer-book/index', [StockTransferLedgerController::class, 'indexPage'])->name('stock-transfer-book.index');
+
+    Route::get('/stock-transfer-book/journal', [StockTransferJournalController::class, 'index'])->name('stock-transfer-book.journal');
+    Route::get('/stock-transfer-book/journal/create', [StockTransferJournalController::class, 'create'])->name('stock-transfer-book.journal.create');
+    Route::post('/stock-transfer-book/journal', [StockTransferJournalController::class, 'store'])->name('stock-transfer-book.journal.store');
+    Route::get('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'show'])->name('stock-transfer-book.journal.show');
+    Route::get('/stock-transfer-book/journal/{stockTransferJournal}/edit', [StockTransferJournalController::class, 'edit'])->name('stock-transfer-book.journal.edit');
+    Route::put('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'update'])->name('stock-transfer-book.journal.update');
+    Route::delete('/stock-transfer-book/journal/{stockTransferJournal}', [StockTransferJournalController::class, 'destroy'])->name('stock-transfer-book.journal.destroy');
+
+    Route::get('/stock-transfer-book/installment', [StockTransferInstallmentController::class, 'index'])->name('stock-transfer-book.installment');
+    Route::get('/stock-transfer-book/installment/create', [StockTransferInstallmentController::class, 'create'])->name('stock-transfer-book.installment.create');
+    Route::post('/stock-transfer-book/installment', [StockTransferInstallmentController::class, 'store'])->name('stock-transfer-book.installment.store');
+    Route::get('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'show'])->name('stock-transfer-book.installment.show');
+    Route::post('/stock-transfer-book/installment/{stockTransferInstallment}/payments', [StockTransferInstallmentController::class, 'recordPreviewPayment'])->name('stock-transfer-book.installment.payments.store');
+    Route::get('/stock-transfer-book/installment/{stockTransferInstallment}/edit', [StockTransferInstallmentController::class, 'edit'])->name('stock-transfer-book.installment.edit');
+    Route::put('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'update'])->name('stock-transfer-book.installment.update');
+    Route::post('/stock-transfer-book/installment/{stockTransferInstallment}/cancel', [StockTransferInstallmentController::class, 'cancelInstallment'])->name('stock-transfer-book.installment.cancel');
+    Route::delete('/stock-transfer-book/installment/{stockTransferInstallment}', [StockTransferInstallmentController::class, 'destroy'])->name('stock-transfer-book.installment.destroy');
+
+    Route::get('/stock-transfer-book/certificates', [StockTransferCertificateController::class, 'index'])->name('stock-transfer-book.certificates');
+    Route::get('/stock-transfer-book/certificates/create', [StockTransferCertificateController::class, 'create'])->name('stock-transfer-book.certificates.create');
+    Route::post('/stock-transfer-book/certificates', [StockTransferCertificateController::class, 'store'])->name('stock-transfer-book.certificates.store');
+    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}/template', [StockTransferCertificateController::class, 'templatePreview'])->name('stock-transfer-book.certificates.template');
+    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'show'])->name('stock-transfer-book.certificates.show');
+    Route::post('/stock-transfer-book/certificates/{stockTransferCertificate}/issue', [StockTransferCertificateController::class, 'issue'])->name('stock-transfer-book.certificates.issue');
+    Route::get('/stock-transfer-book/certificates/{stockTransferCertificate}/edit', [StockTransferCertificateController::class, 'edit'])->name('stock-transfer-book.certificates.edit');
+    Route::put('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'update'])->name('stock-transfer-book.certificates.update');
+    Route::delete('/stock-transfer-book/certificates/{stockTransferCertificate}', [StockTransferCertificateController::class, 'destroy'])->name('stock-transfer-book.certificates.destroy');
+    Route::post('/stock-transfer-book/certificates/requests', [StockTransferCertificateController::class, 'storeRequest'])->name('stock-transfer-book.certificates.requests.store');
+    Route::get('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}', [StockTransferCertificateController::class, 'showRequest'])->name('stock-transfer-book.certificates.requests.show');
+    Route::post('/stock-transfer-book/certificates/requests/{stockTransferIssuanceRequest}/approve', [StockTransferCertificateController::class, 'approveRequest'])->name('stock-transfer-book.certificates.requests.approve');
+    Route::get('/stock-transfer-book/lookup', [StockTransferLookupController::class, 'lookup'])->name('stock-transfer-book.lookup');
+    Route::get('/stock-transfer-book/defaults', [StockTransferLookupController::class, 'defaults'])->name('stock-transfer-book.defaults');
+    Route::get('/corporate-document-defaults', CorporateDocumentDefaultsController::class)->name('corporate-document-defaults');
+
+    Route::get('/bir-tax', [BirTaxController::class, 'index'])->name('bir-tax');
+    Route::get('/bir-tax/create', [BirTaxController::class, 'create'])->name('bir-tax.create');
+    Route::post('/bir-tax', [BirTaxController::class, 'store'])->name('bir-tax.store');
+    Route::get('/bir-tax/{birTax}', [BirTaxController::class, 'show'])->name('bir-tax.preview');
+    Route::get('/bir-tax/{birTax}/edit', [BirTaxController::class, 'edit'])->name('bir-tax.edit');
+    Route::put('/bir-tax/{birTax}', [BirTaxController::class, 'update'])->name('bir-tax.update');
+    Route::post('/bir-tax/{birTax}/authority-notes', [BirTaxController::class, 'storeAuthorityNote'])->name('bir-tax.notes.store');
+    Route::delete('/bir-tax/{birTax}', [BirTaxController::class, 'destroy'])->name('bir-tax.destroy');
+
+    Route::get('/natgov', [NatGovController::class, 'index'])->name('natgov');
+    Route::get('/natgov/create', [NatGovController::class, 'create'])->name('natgov.create');
+    Route::post('/natgov', [NatGovController::class, 'store'])->name('natgov.store');
+    Route::get('/natgov/{natgov}', [NatGovController::class, 'show'])->name('natgov.preview');
+    Route::get('/natgov/{natgov}/edit', [NatGovController::class, 'edit'])->name('natgov.edit');
+    Route::put('/natgov/{natgov}', [NatGovController::class, 'update'])->name('natgov.update');
+    Route::post('/natgov/{natgov}/authority-notes', [NatGovController::class, 'storeAuthorityNote'])->name('natgov.notes.store');
+    Route::delete('/natgov/{natgov}', [NatGovController::class, 'destroy'])->name('natgov.destroy');
+
+    Route::get('/corporate/notices', [NoticeController::class, 'index'])->name('notices');
+    Route::get('/corporate/notices/create', [NoticeController::class, 'create'])->name('notices.create');
+    Route::post('/corporate/notices', [NoticeController::class, 'store'])->name('notices.store');
+    Route::get('/corporate/notices/{notice}', [NoticeController::class, 'show'])->name('notices.preview');
+    Route::get('/corporate/notices/{notice}/edit', [NoticeController::class, 'edit'])->name('notices.edit');
+    Route::put('/corporate/notices/{notice}', [NoticeController::class, 'update'])->name('notices.update');
+    Route::delete('/corporate/notices/{notice}', [NoticeController::class, 'destroy'])->name('notices.destroy');
+
+    Route::get('/corporate/minutes', [MinuteController::class, 'index'])->name('minutes');
+    Route::get('/corporate/minutes/create', [MinuteController::class, 'create'])->name('minutes.create');
+    Route::post('/corporate/minutes', [MinuteController::class, 'store'])->name('minutes.store');
+    Route::get('/corporate/minutes/{minute}', [MinuteController::class, 'show'])->name('minutes.preview');
+    Route::get('/corporate/minutes/{minute}/edit', [MinuteController::class, 'edit'])->name('minutes.edit');
+    Route::put('/corporate/minutes/{minute}', [MinuteController::class, 'update'])->name('minutes.update');
+    Route::post('/corporate/minutes/{minute}/approve', [MinuteController::class, 'approve'])->name('minutes.approve');
+    Route::post('/corporate/minutes/{minute}/workspace-save', [MinuteController::class, 'saveWorkspace'])->name('minutes.workspace-save');
+    Route::post('/corporate/minutes/{minute}/final-audio', [MinuteController::class, 'saveFinalRecording'])->name('minutes.final-audio');
+    Route::post('/corporate/minutes/{minute}/final-save', [MinuteController::class, 'saveFinalPreview'])->name('minutes.final-save');
+    Route::delete('/corporate/minutes/{minute}', [MinuteController::class, 'destroy'])->name('minutes.destroy');
+
+    Route::get('/corporate/resolutions', [ResolutionController::class, 'index'])->name('resolutions');
+    Route::get('/corporate/resolutions/create', [ResolutionController::class, 'create'])->name('resolutions.create');
+    Route::post('/corporate/resolutions', [ResolutionController::class, 'store'])->name('resolutions.store');
+    Route::get('/corporate/resolutions/{resolution}', [ResolutionController::class, 'show'])->name('resolutions.preview');
+    Route::get('/corporate/resolutions/{resolution}/edit', [ResolutionController::class, 'edit'])->name('resolutions.edit');
+    Route::put('/corporate/resolutions/{resolution}', [ResolutionController::class, 'update'])->name('resolutions.update');
+    Route::delete('/corporate/resolutions/{resolution}', [ResolutionController::class, 'destroy'])->name('resolutions.destroy');
+
+    Route::get('/corporate/secretary-certificates', [SecretaryCertificateController::class, 'index'])->name('secretary-certificates');
+    Route::get('/corporate/secretary-certificates/create', [SecretaryCertificateController::class, 'create'])->name('secretary-certificates.create');
+    Route::post('/corporate/secretary-certificates', [SecretaryCertificateController::class, 'store'])->name('secretary-certificates.store');
+    Route::get('/corporate/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'show'])->name('secretary-certificates.preview');
+    Route::get('/corporate/secretary-certificates/{secretaryCertificate}/edit', [SecretaryCertificateController::class, 'edit'])->name('secretary-certificates.edit');
+    Route::put('/corporate/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'update'])->name('secretary-certificates.update');
+    Route::delete('/corporate/secretary-certificates/{secretaryCertificate}', [SecretaryCertificateController::class, 'destroy'])->name('secretary-certificates.destroy');
+
+    Route::get('/permits/template/mayors-permit/{id}', [PermitController::class, 'showMayorPermitTemplate'])->name('permits.template.mayors-permit');
+    Route::get('/permits/template/barangay-business-permit/{id}', [PermitController::class, 'showBarangayBusinessPermitTemplate'])->name('permits.template.barangay-business-permit');
+    Route::get('/permits/template/fire-permit/{id}', [PermitController::class, 'showFirePermitTemplate'])->name('permits.template.fire-permit');
+    Route::get('/permits/template/sanitary-permit/{id}', [PermitController::class, 'showSanitaryPermitTemplate'])->name('permits.template.sanitary-permit');
+    Route::get('/permits/template/obo-permit/{id}', [PermitController::class, 'showOboPermitTemplate'])->name('permits.template.obo-permit');
+
+    Route::get('/corporate/lgu', [PermitController::class, 'page'])->name('corporate.lgu');
+    Route::get('/permits', [PermitController::class, 'index'])->name('permits.index');
+    Route::post('/permits', [PermitController::class, 'store'])->name('permits.store');
+    Route::get('/permits/{id}', [PermitController::class, 'show'])->name('permits.show');
+    Route::put('/permits/{id}/update', [PermitController::class, 'update'])->name('permits.update');
+    Route::post('/permits/{id}/upload-document', [PermitController::class, 'uploadDocument'])->name('permits.upload.document');
+    Route::post('/permits/{id}/submit', [PermitController::class, 'submit'])->name('permits.submit');
+
+    Route::get('/correspondence/data', [CorrespondenceController::class, 'index'])->name('correspondence.data');
+    Route::post('/correspondence', [CorrespondenceController::class, 'store'])->name('correspondence.store');
+    Route::get('/correspondence/{id}', [CorrespondenceController::class, 'show'])->name('correspondence.show');
+    Route::put('/correspondence/{id}/update', [CorrespondenceController::class, 'update'])->name('correspondence.update');
+    Route::post('/correspondence/{id}/submit', [CorrespondenceController::class, 'submit'])->name('correspondence.submit');
+
+    Route::get('/correspondence/draft-preview/{slug}', [CorrespondenceController::class, 'showDraftPreview'])->name('correspondence.draft-preview');
+    Route::get('/correspondence/template/{slug}/{id}', [CorrespondenceController::class, 'showTemplate'])->name('correspondence.template');
+
+    Route::get('/legal/data', [LegalController::class, 'index'])->name('legal.index');
+    Route::post('/legal/store', [LegalController::class, 'store'])->name('legal.store');
+    Route::get('/legal/{id}', [LegalController::class, 'show'])->name('legal.show');
+    Route::put('/legal/{id}/update', [LegalController::class, 'update'])->name('legal.update');
+    Route::post('/legal/{id}/submit', [LegalController::class, 'submit'])->name('legal.submit');
+
+    Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
+    Route::post('/accounting', [AccountingController::class, 'store'])->name('accounting.store');
+    Route::get('/accounting/{id}', [AccountingController::class, 'show'])->name('accounting.show');
+    Route::put('/accounting/{id}/update', [AccountingController::class, 'update'])->name('accounting.update');
+    Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
+
+    Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
+    Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
+    Route::get('/banking/{id}', [BankingController::class, 'show'])->name('banking.show');
+    Route::put('/banking/{id}/update', [BankingController::class, 'update'])->name('banking.update');
+    Route::post('/banking/{id}/submit', [BankingController::class, 'submit'])->name('banking.submit');
+
+    Route::get('/operations/data', [OperationController::class, 'index'])->name('operations.index');
+    Route::post('/operations/store', [OperationController::class, 'store'])->name('operations.store');
+    Route::get('/operations/{id}', [OperationController::class, 'show'])->name('operations.show');
+    Route::put('/operations/{id}/update', [OperationController::class, 'update'])->name('operations.update');
+    Route::post('/operations/{id}/submit', [OperationController::class, 'submit'])->name('operations.submit');
+
+    Route::get('/lgu', function () {
+        return view('corporate.lgu');
+    })->name('lgu');
+
+    Route::get('/accounting-page', function () {
+        return view('corporate.accounting');
+    })->name('accounting');
+
+    Route::get('/banking', function () {
+        return view('corporate.banking');
+    })->name('banking');
+
+    Route::get('/legal', function () {
+        return view('corporate.legal');
+    })->name('legal');
+
+    Route::get('/operations', function () {
+        return view('corporate.operations');
+    })->name('operations');
+
+    Route::get('/correspondence', function () {
+        return view('corporate.correspondence');
+    })->name('correspondence');
+    Route::get('/transmittal', [TransmittalController::class, 'index'])->name('transmittal.index');
+    Route::get('/transmittal/data', [TransmittalController::class, 'data'])->name('transmittal.data');
+    Route::post('/transmittal', [TransmittalController::class, 'store'])->name('transmittal.store');
+    Route::post('/transmittal/{id}/submit', [TransmittalController::class, 'submit'])->name('transmittal.submit');
+    Route::post('/corporate-approvals/{module}/{id}/approve', [CorporateApprovalController::class, 'approve'])->name('corporate.approvals.approve');
+    Route::post('/corporate-approvals/{module}/{id}/reject', [CorporateApprovalController::class, 'reject'])->name('corporate.approvals.reject');
+    Route::post('/corporate-approvals/{module}/{id}/revise', [CorporateApprovalController::class, 'revise'])->name('corporate.approvals.revise');
+    Route::post('/corporate-approvals/{module}/{id}/archive', [CorporateApprovalController::class, 'archive'])->name('corporate.approvals.archive');
+    Route::get('/transmittal-receipts/{id}', [TransmittalReceiptController::class, 'show'])->name('transmittal.receipts.show');
+    Route::get('/transmittal/{transmittal}/preview', [TransmittalController::class, 'preview'])
+        ->name('transmittal.preview');
+
+    Route::get('/transmittal/{transmittal}/preview-pdf', [TransmittalController::class, 'previewPdf'])
+        ->name('transmittal.preview.pdf');
+    Route::get('/transmittal/{transmittal}/receipt-pdf', [TransmittalController::class, 'receiptPdf'])
+        ->name('transmittal.receipt.pdf');
 });

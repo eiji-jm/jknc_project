@@ -91,13 +91,13 @@ class BirTaxController extends Controller
                 return null;
             }
 
-            $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn ($segment) => $segment !== '')));
+            $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn($segment) => $segment !== '')));
 
             return url('/uploads/' . implode('/', $segments));
         };
 
-        $draftDocuments = collect($birTax->draft_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
-        $approvedDocuments = collect($birTax->approved_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $draftDocuments = collect($birTax->draft_documents ?? [])->filter(fn($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $approvedDocuments = collect($birTax->approved_documents ?? [])->filter(fn($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
         $draftOptions = $draftDocuments->map(function ($entry, $index) use ($uploadUrl) {
             return [
                 'url' => $uploadUrl($entry['path']),
@@ -269,7 +269,7 @@ class BirTaxController extends Controller
     private function filterPersistableData(array $data): array
     {
         return collect($data)
-            ->filter(fn ($value, $key) => Schema::hasColumn('bir_taxes', $key))
+            ->filter(fn($value, $key) => Schema::hasColumn('bir_taxes', $key))
             ->all();
     }
 

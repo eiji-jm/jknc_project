@@ -26,39 +26,37 @@ class StockTransferInstallmentController extends Controller
 
     public function index()
     {
-        $installments = Schema::hasTable('stock_transfer_installments')
-            ? StockTransferInstallment::latest()->get()
-            : collect();
+        $installments = StockTransferInstallment::latest()->get();
 
         $defaultParValue = null;
         if (Schema::hasTable('authorized_capital_stocks')) {
             $defaultParValue = AuthorizedCapitalStock::query()->latest()->value('par_value');
         }
 
-        $indexShareholders = Schema::hasTable('stock_transfer_ledgers')
-            ? StockTransferLedger::query()
-                ->whereNull('journal_id')
-                ->orderBy('family_name')
-                ->orderBy('first_name')
-                ->get()
-                ->map(function ($ledger) use ($defaultParValue) {
-                    $fullName = trim(collect([
-                        $ledger->first_name,
-                        $ledger->middle_name,
-                        $ledger->family_name,
-                    ])->filter()->implode(' '));
+        $indexShareholders = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->orderBy('family_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($ledger) use ($defaultParValue) {
+                $fullName = trim(collect([
+                    $ledger->first_name,
+                    $ledger->middle_name,
+                    $ledger->family_name,
+                ])->filter()->implode(' '));
 
-                    return [
-                        'id' => $ledger->id,
-                        'name' => $fullName,
-                        'stock_number' => $ledger->certificate_no,
-                        'shares' => $ledger->shares,
-                        'par_value' => $defaultParValue,
-                    ];
-                })
-                ->filter(fn ($row) => !empty($row['name']))
-                ->values()
-            : collect();
+                return [
+                    'id' => $ledger->id,
+                    'name' => $fullName,
+                    // Keep showing current base reference in UI if needed,
+                    // but new subscriptions will still get a NEW stock number on save.
+                    'stock_number' => $ledger->certificate_no,
+                    'shares' => $ledger->shares,
+                    'par_value' => $defaultParValue,
+                ];
+            })
+            ->filter(fn($row) => !empty($row['name']))
+            ->values();
 
         return view('corporate.stock-transfer-book.installment', compact(
             'installments',
@@ -262,7 +260,7 @@ class StockTransferInstallmentController extends Controller
         }
 
         $paymentRows = $this->buildPreviewPaymentRows($stockTransferInstallment);
-        [$installmentRows, , , $nextPaymentRow] = $this->buildTrackedInstallmentRows($stockTransferInstallment, $paymentRows);
+        [$installmentRows,,, $nextPaymentRow] = $this->buildTrackedInstallmentRows($stockTransferInstallment, $paymentRows);
 
         if (empty($nextPaymentRow)) {
             return redirect()
@@ -278,7 +276,7 @@ class StockTransferInstallmentController extends Controller
         }
 
         $paymentTargets = $data['payment_scope'] === 'all_remaining'
-            ? collect($installmentRows)->filter(fn (array $row) => $row['status'] !== 'Paid')->values()
+            ? collect($installmentRows)->filter(fn(array $row) => $row['status'] !== 'Paid')->values()
             : collect([$nextPaymentRow]);
 
         DB::transaction(function () use ($stockTransferInstallment, $ledger, $data, $paymentTargets) {
@@ -406,16 +404,16 @@ class StockTransferInstallmentController extends Controller
 
             $originalJournal = $stockTransferInstallment->journal
                 ?: StockTransferJournal::query()
-                    ->where(function ($query) use ($stockTransferInstallment) {
-                        if ($stockTransferInstallment->stock_number) {
-                            $query->orWhere('certificate_no', $stockTransferInstallment->stock_number);
-                        }
-                        $this->applyNameTokens($query, $stockTransferInstallment->subscriber, ['shareholder']);
-                    })
-                    ->where('transaction_type', '!=', 'Cancellation')
-                    ->latest('entry_date')
-                    ->latest('id')
-                    ->first();
+                ->where(function ($query) use ($stockTransferInstallment) {
+                    if ($stockTransferInstallment->stock_number) {
+                        $query->orWhere('certificate_no', $stockTransferInstallment->stock_number);
+                    }
+                    $this->applyNameTokens($query, $stockTransferInstallment->subscriber, ['shareholder']);
+                })
+                ->where('transaction_type', '!=', 'Cancellation')
+                ->latest('entry_date')
+                ->latest('id')
+                ->first();
 
             $cancelledShares = (int) (
                 $originalJournal?->no_shares
@@ -604,7 +602,7 @@ class StockTransferInstallmentController extends Controller
         $schedule = $this->markNextInstallmentAsPaid($installment, $paymentData);
 
         $totalPaid = (float) collect($schedule['installments'] ?? [])->sum(
-            fn (array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0
+            fn(array $row) => !empty($row['paymentDate']) ? (float) ($row['amount'] ?? 0) : 0
         );
 
         $nextStatus = $this->determineInstallmentStatus(
@@ -846,7 +844,7 @@ class StockTransferInstallmentController extends Controller
     private function buildPreviewPaymentRows(StockTransferInstallment $installment)
     {
         return collect($installment->scheduledInstallmentRows())
-            ->filter(fn (array $row) => !empty($row['paymentDate']))
+            ->filter(fn(array $row) => !empty($row['paymentDate']))
             ->values()
             ->map(function (array $row, int $index) use ($installment) {
                 $paymentDate = $row['paymentDate'] ?? null;
@@ -887,7 +885,7 @@ class StockTransferInstallmentController extends Controller
             ->values();
 
         $totalPaid = (float) $installmentRows
-            ->filter(fn (array $row) => $row['status'] === 'Paid')
+            ->filter(fn(array $row) => $row['status'] === 'Paid')
             ->sum('amount_value');
 
         if ($paymentRows->count() > $installmentRows->count()) {
@@ -900,7 +898,7 @@ class StockTransferInstallmentController extends Controller
         }
 
         $remainingBalance = max($expectedTotal - $totalPaid, 0);
-        $nextPaymentRow = $installmentRows->first(fn (array $row) => $row['status'] !== 'Paid');
+        $nextPaymentRow = $installmentRows->first(fn(array $row) => $row['status'] !== 'Paid');
 
         return [$installmentRows, $totalPaid, $remainingBalance, $nextPaymentRow];
     }

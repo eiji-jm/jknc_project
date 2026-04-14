@@ -91,13 +91,13 @@ class NatGovController extends Controller
                 return null;
             }
 
-            $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn ($segment) => $segment !== '')));
+            $segments = array_map('rawurlencode', array_values(array_filter(explode('/', trim($path, '/')), fn($segment) => $segment !== '')));
 
             return url('/uploads/' . implode('/', $segments));
         };
 
-        $draftDocuments = collect($natgov->draft_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
-        $approvedDocuments = collect($natgov->approved_documents ?? [])->filter(fn ($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $draftDocuments = collect($natgov->draft_documents ?? [])->filter(fn($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
+        $approvedDocuments = collect($natgov->approved_documents ?? [])->filter(fn($entry) => !empty($entry['path']) && Storage::disk('public')->exists($entry['path']))->values();
         $draftOptions = $draftDocuments->map(function ($entry, $index) use ($uploadUrl) {
             return [
                 'url' => $uploadUrl($entry['path']),
@@ -267,7 +267,7 @@ class NatGovController extends Controller
     private function filterPersistableData(array $data): array
     {
         return collect($data)
-            ->filter(fn ($value, $key) => Schema::hasColumn('nat_govs', $key))
+            ->filter(fn($value, $key) => Schema::hasColumn('nat_govs', $key))
             ->all();
     }
 

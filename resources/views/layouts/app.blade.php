@@ -236,6 +236,56 @@
             <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
+            @if(Auth::user()->hasPermission('access_company'))
+                <a href="{{ route('transmittal.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('transmittal*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-file-signature text-base"></i>
+                    <span>Transmittal</span>
+                </a>
+            @endif
+
+        </aside>
+
+        <!-- SECOND SIDEBAR -->
+        @if(request()->routeIs('townhall*'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('townhall') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Communications
+                        </a>
+
+                        <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                            <a href="{{ route('townhall.department') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Department
+                            </a>
+
+                            <a href="{{ route('townhall.attachments') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Attachments
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+        @elseif(request()->routeIs('admin.*') && $canSeeAdminIcon)
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Admin Panel
+                    </p>
                 </div>
 
                 <div class="flex-1 overflow-y-auto p-3">
@@ -473,6 +523,53 @@
                 || request()->routeIs('correspondence')
             )
         )
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.users') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Users
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.role-permissions') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Role Permissions
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.user-permissions') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                User Permissions
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('access_admin_dashboard') || Auth::user()->hasPermission('approve_townhall'))
+                            <a href="{{ route('admin.dashboard') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Town Hall
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('approve_corporate'))
+                            <a href="{{ route('admin.corporate.dashboard') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.corporate.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Corporate
+                            </a>
+                        @endif
+
+                    </div>
+                </div>
+
+            </aside>
+
+        @elseif(Auth::user()->hasPermission('access_corporate') && !request()->routeIs('activities*'))
             <aside x-data="{ scrollCorporateNav(amount) { this.$refs.corporateNav?.scrollBy({ top: amount, behavior: 'smooth' }); } }"
                    class="w-72 bg-white border-r border-gray-200 flex flex-col">
                 <div class="px-4 py-3 border-b border-gray-100">

@@ -31,24 +31,18 @@ class StockTransferCertificateController extends Controller
     {
         $manilaNow = Carbon::now('Asia/Manila');
 
-        $hasCertificatesTable = Schema::hasTable('stock_transfer_certificates');
-        $hasLedgersTable = Schema::hasTable('stock_transfer_ledgers');
-        $hasInstallmentsTable = Schema::hasTable('stock_transfer_installments');
+        $existingActiveStockNumbers = StockTransferCertificate::query()
+            ->whereNull('source_certificate_id')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', 'voided');
+            })
+            ->pluck('stock_number')
+            ->filter()
+            ->unique()
+            ->values();
 
-        $existingActiveStockNumbers = $hasCertificatesTable
-            ? StockTransferCertificate::query()
-                ->whereNull('source_certificate_id')
-                ->where(function ($query) {
-                    $query->whereNull('status')
-                        ->orWhere('status', '!=', 'voided');
-                })
-                ->pluck('stock_number')
-                ->filter()
-                ->unique()
-                ->values()
-            : collect();
-
-        if ($hasCertificatesTable && $this->hasCertificateWorkflowColumns()) {
+        if ($this->hasCertificateWorkflowColumns()) {
             $certificateStocks = StockTransferCertificate::query()
                 ->whereNull('source_certificate_id')
                 ->latest()
@@ -60,9 +54,9 @@ class StockTransferCertificateController extends Controller
                 ->latest()
                 ->get();
         } else {
-            $certificateStocks = $hasCertificatesTable
-                ? StockTransferCertificate::query()->latest()->get()
-                : collect();
+            $certificateStocks = StockTransferCertificate::query()
+                ->latest()
+                ->get();
 
             $certificateVouchers = collect();
         }
@@ -71,41 +65,33 @@ class StockTransferCertificateController extends Controller
             ? StockTransferIssuanceRequest::query()->with('certificate')->latest()->get()
             : collect();
 
-        $indexShareholders = $hasLedgersTable
-            ? StockTransferLedger::query()
-                ->whereNull('journal_id')
-                ->get(['first_name', 'middle_name', 'family_name'])
-                ->map(function ($ledger) {
-                    return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
-                })
-                ->filter()
-                ->unique()
-                ->values()
-            : collect();
+        $indexShareholders = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->get(['first_name', 'middle_name', 'family_name'])
+            ->map(function ($ledger) {
+                return trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' '));
+            })
+            ->filter()
+            ->unique()
+            ->values();
 
-        $availableStockNumbers = ($hasLedgersTable
-            ? StockTransferLedger::query()
-                ->whereNull('journal_id')
-                ->pluck('certificate_no')
-            : collect())
+        $availableStockNumbers = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->pluck('certificate_no')
             ->merge(
-                $hasInstallmentsTable
-                    ? StockTransferInstallment::query()
-                        ->get()
-                        ->filter(fn ($installment) => $installment->isFullyPaid())
-                        ->pluck('stock_number')
-                    : collect()
+                StockTransferInstallment::query()
+                    ->get()
+                    ->filter(fn($installment) => $installment->isFullyPaid())
+                    ->pluck('stock_number')
             )
             ->filter()
             ->unique()
             ->values();
 
-        $availableInstallments = $hasInstallmentsTable
-            ? StockTransferInstallment::query()
-                ->get()
-                ->filter(fn ($installment) => $installment->isFullyPaid())
-                ->values()
-            : collect();
+        $availableInstallments = StockTransferInstallment::query()
+            ->get()
+            ->filter(fn($installment) => $installment->isFullyPaid())
+            ->values();
 
         $hasCompanyTables = Schema::hasTable('gis_records');
         $hasAuthorizedCapitalTable = Schema::hasTable('authorized_capital_stocks');
@@ -153,28 +139,26 @@ class StockTransferCertificateController extends Controller
             ];
         });
 
-        $stockNumberDirectory = ($hasLedgersTable
-            ? StockTransferLedger::query()
-                ->whereNull('journal_id')
-                ->get(['certificate_no', 'first_name', 'middle_name', 'family_name', 'shares', 'status'])
-                ->map(function ($ledger) use ($existingActiveStockNumbers) {
-                    $stockNumber = trim((string) $ledger->certificate_no);
-                    if ($stockNumber === '' || $existingActiveStockNumbers->contains($stockNumber)) {
-                        return null;
-                    }
+        $stockNumberDirectory = StockTransferLedger::query()
+            ->whereNull('journal_id')
+            ->get(['certificate_no', 'first_name', 'middle_name', 'family_name', 'shares', 'status'])
+            ->map(function ($ledger) use ($existingActiveStockNumbers) {
+                $stockNumber = trim((string) $ledger->certificate_no);
+                if ($stockNumber === '' || $existingActiveStockNumbers->contains($stockNumber)) {
+                    return null;
+                }
 
-                    return (object) [
-                        'stock_number' => $stockNumber,
-                        'holder_name' => trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')),
-                        'shares' => $ledger->shares,
-                        'source' => 'Index',
-                        'status_label' => ucfirst($ledger->status ?: 'active'),
-                        'is_recommended' => true,
-                    ];
-                })
-                ->filter()
-                ->values()
-            : collect())
+                return (object) [
+                    'stock_number' => $stockNumber,
+                    'holder_name' => trim(collect([$ledger->first_name, $ledger->middle_name, $ledger->family_name])->filter()->implode(' ')),
+                    'shares' => $ledger->shares,
+                    'source' => 'Index',
+                    'status_label' => ucfirst($ledger->status ?: 'active'),
+                    'is_recommended' => true,
+                ];
+            })
+            ->filter()
+            ->values()
             ->merge(
                 $availableInstallments
                     ->filter(function ($installment) use ($existingActiveStockNumbers) {
@@ -193,7 +177,7 @@ class StockTransferCertificateController extends Controller
                     })
             )
             ->unique('stock_number')
-            ->sortByDesc(fn ($entry) => $entry->is_recommended)
+            ->sortByDesc(fn($entry) => $entry->is_recommended)
             ->values();
 
         return view('corporate.stock-transfer-book.certificates', [
@@ -421,12 +405,12 @@ class StockTransferCertificateController extends Controller
 
         $relatedRequests = $this->hasIssuanceRequestsTable()
             ? StockTransferIssuanceRequest::query()
-                ->where('certificate_id', $stockTransferCertificate->id)
-                ->orWhereHas('certificate', function ($query) use ($stockNumber) {
-                    $query->where('stock_number', $stockNumber);
-                })
-                ->latest()
-                ->get()
+            ->where('certificate_id', $stockTransferCertificate->id)
+            ->orWhereHas('certificate', function ($query) use ($stockNumber) {
+                $query->where('stock_number', $stockNumber);
+            })
+            ->latest()
+            ->get()
             : collect();
 
         $generatedPreviewPath = $stockTransferCertificate->document_path
@@ -689,8 +673,8 @@ class StockTransferCertificateController extends Controller
             'audited_financial_statements',
             'treasurer_affidavit',
             'sec_filing_proof',
-        ])->filter(fn ($field) => $request->hasFile($field))
-            ->map(fn ($field) => $request->file($field)->getClientOriginalName())
+        ])->filter(fn($field) => $request->hasFile($field))
+            ->map(fn($field) => $request->file($field)->getClientOriginalName())
             ->values()
             ->all();
 
@@ -999,7 +983,7 @@ class StockTransferCertificateController extends Controller
         $sourceCertificate = $certificate->sourceCertificate;
 
         $ledger = collect($relatedLedgers ?? collect())
-            ->first(fn ($entry) => ($entry->journal_id ?? null) === null)
+            ->first(fn($entry) => ($entry->journal_id ?? null) === null)
             ?: collect($relatedLedgers ?? collect())->first();
 
         $journal = collect($relatedJournals ?? collect())->first();
@@ -1065,8 +1049,7 @@ class StockTransferCertificateController extends Controller
 
     private function hasCertificateWorkflowColumns(): bool
     {
-        return Schema::hasTable('stock_transfer_certificates')
-            && Schema::hasColumn('stock_transfer_certificates', 'source_certificate_id')
+        return Schema::hasColumn('stock_transfer_certificates', 'source_certificate_id')
             && Schema::hasColumn('stock_transfer_certificates', 'certificate_type');
     }
 

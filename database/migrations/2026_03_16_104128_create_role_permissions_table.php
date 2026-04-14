@@ -56,9 +56,11 @@ return new class extends Migration
             return;
         }
 
-        if (Schema::hasColumn('role_permissions', 'approve_corporate')
+        if (
+            Schema::hasColumn('role_permissions', 'approve_corporate')
             || Schema::hasColumn('role_permissions', 'create_corporate')
-            || Schema::hasColumn('role_permissions', 'create_townhall')) {
+            || Schema::hasColumn('role_permissions', 'create_townhall')
+        ) {
             Schema::table('role_permissions', function (Blueprint $table) {
                 if (Schema::hasColumn('role_permissions', 'approve_corporate')) {
                     $table->dropColumn('approve_corporate');
