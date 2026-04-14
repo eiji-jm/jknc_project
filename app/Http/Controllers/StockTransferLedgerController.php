@@ -15,6 +15,7 @@ use App\Models\Contact;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class StockTransferLedgerController extends Controller
 {
@@ -29,7 +30,8 @@ class StockTransferLedgerController extends Controller
             ->whereNull('journal_id')
             ->latest()
             ->get();
-        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
+
+        $contacts = $this->loadContactDirectory();
 
         return view('corporate.stock-transfer-book.stb-index', compact('ledgers', 'contacts'));
     }
@@ -41,9 +43,64 @@ class StockTransferLedgerController extends Controller
             ->with('journal')
             ->latest()
             ->get();
-        $contacts = Contact::query()->orderBy('name')->get(['name', 'email', 'nationality', 'address', 'tax_id']);
+
+        $contacts = $this->loadContactDirectory();
 
         return view('corporate.stock-transfer-book.ledger', compact('ledgers', 'contacts'));
+    }
+
+    private function loadContactDirectory(): Collection
+    {
+        if (!Schema::hasTable('contacts')) {
+            return collect();
+        }
+
+        $selects = ['id'];
+
+        foreach (
+            [
+                'first_name',
+                'middle_name',
+                'last_name',
+                'email',
+                'contact_address',
+                'tin',
+            ] as $column
+        ) {
+            if (Schema::hasColumn('contacts', $column)) {
+                $selects[] = $column;
+            }
+        }
+
+        $query = Contact::query()->select($selects);
+
+        if (Schema::hasColumn('contacts', 'last_name')) {
+            $query->orderBy('last_name');
+        }
+
+        if (Schema::hasColumn('contacts', 'first_name')) {
+            $query->orderBy('first_name');
+        }
+
+        return $query->get()
+            ->map(function (Contact $contact) {
+                $name = trim(collect([
+                    $contact->first_name ?? null,
+                    $contact->middle_name ?? null,
+                    $contact->last_name ?? null,
+                ])->filter()->implode(' '));
+
+                return (object) [
+                    'id' => $contact->id,
+                    'name' => $name,
+                    'email' => $contact->email ?? null,
+                    'nationality' => null,
+                    'address' => $contact->contact_address ?? null,
+                    'tax_id' => $contact->tin ?? null,
+                ];
+            })
+            ->filter(fn($contact) => !empty($contact->name))
+            ->values();
     }
 
     public function create()
@@ -62,7 +119,13 @@ class StockTransferLedgerController extends Controller
     {
         $data = $this->validateData($request);
         $data['document_path'] = $this->handleUpload($request, 'document_path');
-        $contact = $this->resolveContact($data['first_name'] ?? null, $data['middle_name'] ?? null, $data['family_name'] ?? null);
+
+        $contact = $this->resolveContact(
+            $data['first_name'] ?? null,
+            $data['middle_name'] ?? null,
+            $data['family_name'] ?? null
+        );
+
         if (!$contact) {
             return back()->withErrors([
                 'first_name' => 'Stockholder must exist in Contacts before adding to Index.',
@@ -73,11 +136,10 @@ class StockTransferLedgerController extends Controller
             $data['certificate_no'] = $this->nextStockNumber();
         }
 
-        // Auto-fill contact details when missing.
-        $data['email'] = $data['email'] ?: $contact->email;
-        $data['nationality'] = $data['nationality'] ?: $contact->nationality;
-        $data['address'] = $data['address'] ?: $contact->address;
-        $data['tin'] = $data['tin'] ?: $contact->tax_id;
+        $data['email'] = $data['email'] ?: ($contact->email ?? null);
+        $data['nationality'] = $data['nationality'] ?: null;
+        $data['address'] = $data['address'] ?: ($contact->contact_address ?? null);
+        $data['tin'] = $data['tin'] ?: ($contact->tin ?? null);
 
         if (empty($data['date_registered'])) {
             $data['date_registered'] = now()->toDateString();
@@ -93,15 +155,18 @@ class StockTransferLedgerController extends Controller
     public function show(StockTransferLedger $stockTransferLedger)
     {
         $certificateNo = $stockTransferLedger->certificate_no;
-        $fullName = trim(collect([$stockTransferLedger->first_name, $stockTransferLedger->middle_name, $stockTransferLedger->family_name])
-            ->filter()
-            ->implode(' '));
+        $fullName = trim(collect([
+            $stockTransferLedger->first_name,
+            $stockTransferLedger->middle_name,
+            $stockTransferLedger->family_name,
+        ])->filter()->implode(' '));
 
         $journalEntries = StockTransferJournal::query()
             ->where(function ($query) use ($certificateNo, $fullName) {
                 if ($certificateNo) {
                     $query->orWhere('certificate_no', $certificateNo);
                 }
+
                 $this->applyNameTokens($query, $fullName, ['shareholder']);
             })
             ->latest()
@@ -112,6 +177,7 @@ class StockTransferLedgerController extends Controller
                 if ($certificateNo) {
                     $query->orWhere('stock_number', $certificateNo);
                 }
+
                 $this->applyNameTokens($query, $fullName, ['stockholder_name']);
             })
             ->latest()
@@ -122,6 +188,7 @@ class StockTransferLedgerController extends Controller
                 if ($certificateNo) {
                     $query->orWhere('stock_number', $certificateNo);
                 }
+
                 $this->applyNameTokens($query, $fullName, ['subscriber']);
             })
             ->latest()
@@ -131,6 +198,7 @@ class StockTransferLedgerController extends Controller
             ? StockTransferIssuanceRequest::query()
             ->where(function ($query) use ($certificateNo, $fullName) {
                 $this->applyNameTokens($query, $fullName, ['requester']);
+
                 if ($certificateNo) {
                     $query->orWhereHas('certificate', function ($certificateQuery) use ($certificateNo) {
                         $certificateQuery->where('stock_number', $certificateNo);
@@ -230,12 +298,13 @@ class StockTransferLedgerController extends Controller
     private function resolveContact(?string $firstName, ?string $middleName, ?string $familyName): ?Contact
     {
         $name = trim(collect([$firstName, $middleName, $familyName])->filter()->implode(' '));
+
         if ($name === '') {
             return null;
         }
 
         $query = Contact::query();
-        $this->applyNameTokens($query, $name, ['name']);
+        $this->applyNameTokens($query, $name, ['first_name', 'middle_name', 'last_name']);
 
         return $query->first();
     }
