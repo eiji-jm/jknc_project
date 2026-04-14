@@ -10,6 +10,7 @@ use App\Models\TownHallAcknowledgement;
 use Carbon\Carbon;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Schema;
 
 class TownHallController extends Controller
 {
