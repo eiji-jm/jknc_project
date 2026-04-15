@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class ContactsController extends Controller
@@ -3176,10 +3175,9 @@ class ContactsController extends Controller
 
     private function validateClientSpecimenSignedUpload(Request $request): void
     {
-        Validator::make(
-            ['specimen_signature_signed_upload' => $request->file('specimen_signature_signed_upload')],
-            ['specimen_signature_signed_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120']]
-        )->validate();
+        $request->validate([
+            'specimen_signature_signed_upload' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ]);
     }
 
     private function storeClientSubmittedSpecimenDocuments(Request $request, Contact $contact): void
