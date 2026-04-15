@@ -2,392 +2,707 @@
 
 @section('content')
 <div
-    class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
     x-data="payrollPage()"
+    class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col"
 >
-    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0 overflow-hidden">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">
 
         {{-- TOP BAR --}}
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center flex-1 min-w-0">
                 <h1 class="text-lg font-semibold text-gray-900">Payroll</h1>
-
-                <form method="GET" action="{{ route('human-capital.payroll') }}" class="flex items-center gap-2 flex-wrap">
-                    <select
-                        name="department"
-                        onchange="this.form.submit()"
-                        class="h-9 rounded-lg border border-gray-300 text-sm px-3 bg-white text-gray-700"
-                    >
-                        <option value="All" {{ request('department', 'All') === 'All' ? 'selected' : '' }}>All Departments</option>
-                        @foreach($departments as $department)
-                            <option value="{{ $department }}" {{ request('department') === $department ? 'selected' : '' }}>
-                                {{ $department }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <select
-                        name="status"
-                        onchange="this.form.submit()"
-                        class="h-9 rounded-lg border border-gray-300 text-sm px-3 bg-white text-gray-700"
-                    >
-                        <option value="All" {{ request('status', 'All') === 'All' ? 'selected' : '' }}>All Status</option>
-                        <option value="Processed" {{ request('status') === 'Processed' ? 'selected' : '' }}>Processed</option>
-                        <option value="Pending" {{ request('status') === 'Pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="Released" {{ request('status') === 'Released' ? 'selected' : '' }}>Released</option>
-                    </select>
-                </form>
             </div>
 
             <button
                 type="button"
-                @click="openCreate()"
-                class="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                @click="openAddSection(activeTab)"
+                class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0 hover:bg-blue-700 transition"
             >
-                <i class="fas fa-plus text-xs"></i>
-                Add Payroll
+                + Add
             </button>
         </div>
 
-        {{-- TABLE --}}
-        <div class="flex-1 min-h-0 overflow-auto">
-            <table class="min-w-full text-sm text-left">
-                <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                    <tr class="text-gray-600">
-                        <th class="px-4 py-3 font-medium">Pay Date</th>
-                        <th class="px-4 py-3 font-medium">Employee</th>
-                        <th class="px-4 py-3 font-medium">Employee ID</th>
-                        <th class="px-4 py-3 font-medium">Department</th>
-                        <th class="px-4 py-3 font-medium">Payroll Period</th>
-                        <th class="px-4 py-3 font-medium">Basic Pay</th>
-                        <th class="px-4 py-3 font-medium">Allowance</th>
-                        <th class="px-4 py-3 font-medium">Deductions</th>
-                        <th class="px-4 py-3 font-medium">Net Pay</th>
-                        <th class="px-4 py-3 font-medium">Status</th>
-                        <th class="px-4 py-3 font-medium">Prepared By</th>
-                        <th class="px-4 py-3 font-medium text-right">Action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse($payrolls as $payroll)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 text-gray-700">{{ optional($payroll->pay_date)->format('Y-m-d') }}</td>
-                            <td class="px-4 py-3 font-medium text-gray-900">{{ $payroll->employee_name }}</td>
-                            <td class="px-4 py-3 text-gray-700">{{ $payroll->employee_id ?: '—' }}</td>
-                            <td class="px-4 py-3 text-gray-700">{{ $payroll->department ?: '—' }}</td>
-                            <td class="px-4 py-3 text-gray-700">{{ $payroll->payroll_period }}</td>
-                            <td class="px-4 py-3 text-gray-700">₱{{ number_format((float) $payroll->basic_pay, 2) }}</td>
-                            <td class="px-4 py-3 text-gray-700">₱{{ number_format((float) $payroll->allowance, 2) }}</td>
-                            <td class="px-4 py-3 text-gray-700">₱{{ number_format((float) $payroll->deductions, 2) }}</td>
-                            <td class="px-4 py-3 font-semibold text-gray-900">₱{{ number_format((float) $payroll->net_pay, 2) }}</td>
-                            <td class="px-4 py-3">
-                                @php
-                                    $statusClasses = match($payroll->status) {
-                                        'Processed' => 'bg-blue-50 text-blue-700',
-                                        'Pending' => 'bg-yellow-50 text-yellow-700',
-                                        'Released' => 'bg-green-50 text-green-700',
-                                        default => 'bg-gray-100 text-gray-700',
-                                    };
-                                @endphp
-
-                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $statusClasses }}">
-                                    {{ $payroll->status }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-gray-700">{{ $payroll->prepared_by ?: '—' }}</td>
-                            <td class="px-4 py-3 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        @click='openEdit({
-                                            id: {{ $payroll->id }},
-                                            employee_name: @js($payroll->employee_name),
-                                            employee_id: @js($payroll->employee_id),
-                                            department: @js($payroll->department),
-                                            payroll_period: @js($payroll->payroll_period),
-                                            pay_date: @js(optional($payroll->pay_date)->format("Y-m-d")),
-                                            basic_pay: {{ (float) $payroll->basic_pay }},
-                                            allowance: {{ (float) $payroll->allowance }},
-                                            deductions: {{ (float) $payroll->deductions }},
-                                            status: @js($payroll->status)
-                                        })'
-                                        class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        Edit
-                                    </button>
-
-                                    <form method="POST" action="{{ route('human-capital.payroll.destroy', $payroll) }}" onsubmit="return confirm('Delete this payroll record?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button
-                                            type="submit"
-                                            class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                                        >
-                                            Delete
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="12" class="px-4 py-10 text-center text-sm text-gray-500">
-                                No payroll records found.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    {{-- ORGANIZATIONAL-STYLE SLIDER --}}
-    <div
-        x-show="showSlideOver"
-        x-transition.opacity
-        class="fixed inset-y-0 right-0 left-64 z-40"
-        style="display: none;"
-    >
-        <div class="absolute inset-0 bg-black/30" @click="closeSlideOver()"></div>
-
-        <div
-            x-show="showSlideOver"
-            x-transition:enter="transform transition ease-in-out duration-300"
-            x-transition:enter-start="translate-x-full"
-            x-transition:enter-end="translate-x-0"
-            x-transition:leave="transform transition ease-in-out duration-300"
-            x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="translate-x-full"
-            class="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl flex flex-col"
-        >
-            <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
-                <h2 class="text-base font-semibold text-gray-900" x-text="isEdit ? 'Edit Payroll' : 'Add Payroll'"></h2>
-                <button type="button" @click="closeSlideOver()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <form :action="formAction" method="POST" class="flex flex-col flex-1 min-h-0">
-                @csrf
-
-                <template x-if="isEdit">
-                    <input type="hidden" name="_method" value="PUT">
+        {{-- TABS --}}
+        <div class="px-4 py-3 border-b bg-white shrink-0 overflow-x-auto">
+            <div class="inline-flex min-w-max rounded-md border border-gray-200 overflow-hidden text-sm">
+                <template x-for="tab in tabs" :key="tab.key">
+                    <button
+                        type="button"
+                        @click="activeTab = tab.key"
+                        :class="activeTab === tab.key ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-2 border-r last:border-r-0 whitespace-nowrap"
+                        x-text="tab.label"
+                    ></button>
                 </template>
+            </div>
+        </div>
 
-                <div class="flex-1 overflow-y-auto px-6 py-5">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
-                            <input
-                                type="text"
-                                name="employee_name"
-                                x-model="form.employee_name"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                required
-                            >
-                        </div>
+        @if(session('success'))
+            <div class="mx-4 mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
 
+        @if($errors->any())
+            <div class="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div class="font-semibold mb-1">Please fix the following:</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="p-4 flex-grow overflow-hidden">
+            <div class="border rounded-md h-full overflow-auto bg-white">
+
+                {{-- Salary Grades --}}
+                <div x-show="activeTab === 'salary_grades'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium w-40">Code</th>
+                                <th class="p-3 text-left font-medium">Name</th>
+                                <th class="p-3 text-left font-medium w-40">ADR</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($salaryGrades as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->code }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">₱{{ number_format($item->applicable_daily_rate, 2) }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="3" class="p-10 text-center text-gray-400 italic">No salary grades yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Payroll Levels --}}
+                <div x-show="activeTab === 'levels'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium w-44">Level</th>
+                                <th class="p-3 text-left font-medium w-44">Salary Grade</th>
+                                <th class="p-3 text-left font-medium w-32">Type</th>
+                                <th class="p-3 text-left font-medium">Work Schedule</th>
+                                <th class="p-3 text-left font-medium w-32">Hours/Day</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($payrollLevels as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->level_name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->salaryGrade?->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->computation_type }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->work_schedule ? str($item->work_schedule)->replace('_', ' ')->title() : '—' }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->hours_per_day }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="5" class="p-10 text-center text-gray-400 italic">No payroll levels yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Benefits --}}
+                <div x-show="activeTab === 'benefits'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium">Name</th>
+                                <th class="p-3 text-left font-medium w-32">Type</th>
+                                <th class="p-3 text-left font-medium w-40">Value</th>
+                                <th class="p-3 text-left font-medium w-24">Active</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($benefits as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->type }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->type === 'percentage' ? $item->value.'%' : '₱'.number_format($item->value, 2) }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->is_active ? 'Yes' : 'No' }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="4" class="p-10 text-center text-gray-400 italic">No benefits yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Allowances --}}
+                <div x-show="activeTab === 'allowances'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium">Name</th>
+                                <th class="p-3 text-left font-medium w-32">Type</th>
+                                <th class="p-3 text-left font-medium w-40">Value</th>
+                                <th class="p-3 text-left font-medium w-24">Active</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($allowances as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->type }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->type === 'percentage' ? $item->value.'%' : '₱'.number_format($item->value, 2) }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->is_active ? 'Yes' : 'No' }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="4" class="p-10 text-center text-gray-400 italic">No allowances yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Deductions --}}
+                <div x-show="activeTab === 'deductions'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium">Name</th>
+                                <th class="p-3 text-left font-medium w-32">Type</th>
+                                <th class="p-3 text-left font-medium w-40">Value</th>
+                                <th class="p-3 text-left font-medium w-24">Active</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($deductions as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->type }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->type === 'percentage' ? $item->value.'%' : '₱'.number_format($item->value, 2) }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->is_active ? 'Yes' : 'No' }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="4" class="p-10 text-center text-gray-400 italic">No deductions yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Holidays --}}
+                <div x-show="activeTab === 'holidays'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium">Name</th>
+                                <th class="p-3 text-left font-medium w-40">Date</th>
+                                <th class="p-3 text-left font-medium w-32">Type</th>
+                                <th class="p-3 text-left font-medium w-32">Multiplier</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($holidays as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->holiday_date->format('Y-m-d') }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->holiday_type }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->multiplier }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="4" class="p-10 text-center text-gray-400 italic">No holidays yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Periods --}}
+                <div x-show="activeTab === 'periods'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium w-44">Name</th>
+                                <th class="p-3 text-left font-medium">Coverage</th>
+                                <th class="p-3 text-left font-medium w-36">Payroll Date</th>
+                                <th class="p-3 text-left font-medium w-36">Pay Date</th>
+                                <th class="p-3 text-left font-medium w-24">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($periods as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->period_start->format('Y-m-d') }} to {{ $item->period_end->format('Y-m-d') }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->payroll_date->format('Y-m-d') }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->pay_date->format('Y-m-d') }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words capitalize">{{ $item->status }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="5" class="p-10 text-center text-gray-400 italic">No payroll periods yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Profiles --}}
+                <div x-show="activeTab === 'profiles'" x-cloak class="h-full">
+                    <table class="w-full text-sm table-fixed border-collapse">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                            <tr>
+                                <th class="p-3 text-left font-medium">Employee</th>
+                                <th class="p-3 text-left font-medium w-40">Payroll Level</th>
+                                <th class="p-3 text-left font-medium w-40">Salary Grade</th>
+                                <th class="p-3 text-left font-medium w-32">Override</th>
+                                <th class="p-3 text-left font-medium w-28">Night Diff</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @forelse($profiles as $item)
+                                <tr class="border-t hover:bg-gray-50">
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ trim(($item->employee->first_name ?? '').' '.($item->employee->last_name ?? '')) }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->payrollLevel?->level_name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->payrollLevel?->salaryGrade?->name }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->basic_salary_override ? '₱'.number_format($item->basic_salary_override, 2) : '—' }}</td>
+                                    <td class="p-3 text-gray-900 align-top break-words">{{ $item->night_differential_enabled ? 'Enabled' : 'Disabled' }}</td>
+                                </tr>
+                            @empty
+                                <tr class="border-t">
+                                    <td colspan="5" class="p-10 text-center text-gray-400 italic">No employee payroll profiles yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Summaries --}}
+                <div x-show="activeTab === 'summaries'" x-cloak class="h-full p-4 space-y-4">
+                    <form action="{{ route('human-capital.payroll.generate-summary') }}" method="POST" class="flex flex-wrap items-end gap-3">
+                        @csrf
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-                            <input
-                                type="text"
-                                name="employee_id"
-                                x-model="form.employee_id"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                            <input
-                                type="text"
-                                name="department"
-                                x-model="form.department"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Payroll Period</label>
-                            <input
-                                type="text"
-                                name="payroll_period"
-                                x-model="form.payroll_period"
-                                placeholder="March 16-31, 2026"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                required
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Pay Date</label>
-                            <input
-                                type="date"
-                                name="pay_date"
-                                x-model="form.pay_date"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                required
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Basic Pay</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                name="basic_pay"
-                                x-model="form.basic_pay"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                required
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Allowance</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                name="allowance"
-                                x-model="form.allowance"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Deductions</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                name="deductions"
-                                x-model="form.deductions"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                            >
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select
-                                name="status"
-                                x-model="form.status"
-                                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                                required
-                            >
-                                <option value="Processed">Processed</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Released">Released</option>
+                            <label class="block text-sm text-gray-600 mb-1">Payroll Period</label>
+                            <select name="payroll_period_id" class="w-72 border rounded-md p-2 bg-white text-gray-900">
+                                @foreach($periods as $period)
+                                    <option value="{{ $period->id }}">
+                                        {{ $period->name }} ({{ $period->period_start->format('Y-m-d') }} to {{ $period->period_end->format('Y-m-d') }})
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
 
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Net Pay</label>
-                            <input
-                                type="text"
-                                :value="formattedNetPay"
-                                class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700"
-                                readonly
-                            >
-                        </div>
+                        <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition text-sm">
+                            Generate Payroll Summary
+                        </button>
+                    </form>
+
+                    <div class="border rounded-md overflow-auto bg-white">
+                        <table class="w-full text-sm table-fixed border-collapse">
+                            <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                                <tr>
+                                    <th class="p-3 text-left font-medium">Employee</th>
+                                    <th class="p-3 text-left font-medium w-44">Period</th>
+                                    <th class="p-3 text-left font-medium w-32">Gross Pay</th>
+                                    <th class="p-3 text-left font-medium w-32">Deductions</th>
+                                    <th class="p-3 text-left font-medium w-32">Net Pay</th>
+                                    <th class="p-3 text-left font-medium w-28">Payslip</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                @forelse($summaries as $item)
+                                    <tr class="border-t hover:bg-gray-50">
+                                        <td class="p-3 text-gray-900 align-top break-words">{{ trim(($item->employee->first_name ?? '').' '.($item->employee->last_name ?? '')) }}</td>
+                                        <td class="p-3 text-gray-900 align-top break-words">{{ $item->period?->name }}</td>
+                                        <td class="p-3 text-gray-900 align-top break-words">₱{{ number_format($item->gross_pay, 2) }}</td>
+                                        <td class="p-3 text-gray-900 align-top break-words">₱{{ number_format($item->total_deductions, 2) }}</td>
+                                        <td class="p-3 text-green-700 font-semibold align-top break-words">₱{{ number_format($item->net_pay, 2) }}</td>
+                                        <td class="p-3 text-gray-900 align-top break-words">
+                                            <a href="{{ route('human-capital.payroll.payslip.show', $item->id) }}" target="_blank" class="text-blue-600 hover:underline">
+                                                View Payslip
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr class="border-t">
+                                        <td colspan="6" class="p-10 text-center text-gray-400 italic">No payroll summaries yet.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <div class="border-t px-6 py-4 flex items-center justify-end gap-3 shrink-0">
+            </div>
+        </div>
+
+        {{-- ADD SLIDE OVER --}}
+        <div
+            x-show="showSlider"
+            x-cloak
+            class="fixed inset-0 z-50"
+            style="display: none;"
+        >
+            <div class="absolute inset-0 bg-black/40" @click="closeAddSection()"></div>
+
+            <div
+                x-ref="addPanel"
+                class="absolute top-0 right-0 h-full w-full max-w-[500px] bg-white shadow-2xl flex flex-col overflow-hidden transform translate-x-full transition-transform duration-300 ease-in-out"
+            >
+                <div class="p-6 border-b flex items-center justify-between shrink-0">
+                    <h2 class="font-bold text-lg text-gray-900" x-text="sliderTitle"></h2>
+                    <button type="button" @click="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+                </div>
+
+                <div class="px-6 pt-4 shrink-0">
+                    <div
+                        x-show="sliderError"
+                        x-text="sliderError"
+                        class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                    ></div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+
+                    {{-- Salary Grade --}}
+                    <form x-show="activeForm === 'salary_grades'" action="{{ route('human-capital.payroll.salary-grades.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Code</label>
+                            <input name="code" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Salary grade code" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Salary grade name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Applicable Daily Rate</label>
+                            <input type="number" step="0.01" name="applicable_daily_rate" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="0.00" required>
+                        </div>
+                    </form>
+
+                    {{-- Payroll Level --}}
+                    <form x-show="activeForm === 'levels'" action="{{ route('human-capital.payroll.levels.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Salary Grade</label>
+                            <select name="salary_grade_id" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                @foreach($salaryGrades as $item)
+                                    <option value="{{ $item->id }}">{{ $item->name }} - ₱{{ number_format($item->applicable_daily_rate, 2) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Level Name</label>
+                            <input name="level_name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Level name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Computation Type</label>
+                            <select name="computation_type" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="monthly">Monthly Paid</option>
+                                <option value="daily">Daily Paid</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Work Schedule</label>
+                            <select name="work_schedule" class="w-full border rounded-md p-2 bg-white text-gray-900">
+                                <option value="every_day">Works Every Day</option>
+                                <option value="no_sunday">Does Not Work on Sunday</option>
+                                <option value="no_sat_sun">Does Not Work on Saturday and Sunday</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Hours Per Day</label>
+                            <input type="number" step="0.01" name="hours_per_day" value="8" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                        </div>
+                    </form>
+
+                    {{-- Benefits --}}
+                    <form x-show="activeForm === 'benefits'" action="{{ route('human-capital.payroll.benefits.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Benefit Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Benefit name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Type</label>
+                            <select name="type" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="fixed">Fixed</option>
+                                <option value="percentage">Percentage</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Value</label>
+                            <input type="number" step="0.01" name="value" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="0.00" required>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="is_active" value="1" checked>
+                            Active
+                        </label>
+                    </form>
+
+                    {{-- Allowances --}}
+                    <form x-show="activeForm === 'allowances'" action="{{ route('human-capital.payroll.allowances.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Allowance Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Allowance name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Type</label>
+                            <select name="type" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="fixed">Fixed</option>
+                                <option value="percentage">Percentage</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Value</label>
+                            <input type="number" step="0.01" name="value" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="0.00" required>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="is_active" value="1" checked>
+                            Active
+                        </label>
+                    </form>
+
+                    {{-- Deductions --}}
+                    <form x-show="activeForm === 'deductions'" action="{{ route('human-capital.payroll.deductions.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Deduction Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Deduction name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Type</label>
+                            <select name="type" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="fixed">Fixed</option>
+                                <option value="percentage">Percentage</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Value</label>
+                            <input type="number" step="0.01" name="value" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="0.00" required>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="is_active" value="1" checked>
+                            Active
+                        </label>
+                    </form>
+
+                    {{-- Holidays --}}
+                    <form x-show="activeForm === 'holidays'" action="{{ route('human-capital.payroll.holidays.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Holiday Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Holiday name" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Holiday Date</label>
+                            <input type="date" name="holiday_date" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Holiday Type</label>
+                            <select name="holiday_type" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="regular">Regular</option>
+                                <option value="special">Special</option>
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Multiplier</label>
+                            <input type="number" step="0.01" name="multiplier" value="2.00" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                        </div>
+                    </form>
+
+                    {{-- Periods --}}
+                    <form x-show="activeForm === 'periods'" action="{{ route('human-capital.payroll.periods.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Name</label>
+                            <input name="name" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="1st Half of April 2026" required>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Period Start</label>
+                                <input type="date" name="period_start" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                            </div>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Period End</label>
+                                <input type="date" name="period_end" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                            </div>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Payroll Date</label>
+                                <input type="date" name="payroll_date" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                            </div>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Pay Date</label>
+                                <input type="date" name="pay_date" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                            </div>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select name="status" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                <option value="draft">Draft</option>
+                                <option value="open">Open</option>
+                                <option value="processed">Processed</option>
+                            </select>
+                        </div>
+                    </form>
+
+                    {{-- Profiles --}}
+                    <form x-show="activeForm === 'profiles'" action="{{ route('human-capital.payroll.profiles.store') }}" method="POST" class="space-y-4">
+                        @csrf
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Employee</label>
+                            <select name="employee_id" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                @foreach($employees as $employee)
+                                    <option value="{{ $employee->id }}">
+                                        {{ trim(($employee->first_name ?? '').' '.($employee->last_name ?? '')) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Payroll Level</label>
+                            <select name="payroll_level_id" class="w-full border rounded-md p-2 bg-white text-gray-900" required>
+                                @foreach($payrollLevels as $level)
+                                    <option value="{{ $level->id }}">
+                                        {{ $level->level_name }} - {{ $level->salaryGrade?->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Basic Salary Override</label>
+                            <input type="number" step="0.01" name="basic_salary_override" class="w-full border rounded-md p-2 bg-white text-gray-900" placeholder="Optional">
+                        </div>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="night_differential_enabled" value="1">
+                            Enable Night Differential
+                        </label>
+                    </form>
+
+                </div>
+
+                <div class="p-6 border-t flex gap-2 shrink-0 bg-white">
                     <button
                         type="button"
-                        @click="closeSlideOver()"
-                        class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        @click="closeAddSection()"
+                        class="flex-1 border rounded py-2"
                     >
                         Cancel
                     </button>
+
                     <button
-                        type="submit"
-                        class="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                        type="button"
+                        @click="submitActiveForm()"
+                        class="flex-1 bg-blue-600 text-white rounded py-2 hover:bg-blue-700 transition"
                     >
                         Save
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    function payrollPage() {
-        return {
-            showSlideOver: false,
-            isEdit: false,
-            formAction: "{{ route('human-capital.payroll.store') }}",
-            form: {
-                id: null,
-                employee_name: '',
-                employee_id: '',
-                department: '',
-                payroll_period: '',
-                pay_date: '',
-                basic_pay: '',
-                allowance: '',
-                deductions: '',
-                status: 'Processed',
-            },
+function payrollPage() {
+    return {
+        tabs: [
+            { key: 'salary_grades', label: 'Salary Grade' },
+            { key: 'levels', label: 'Payroll Level' },
+            { key: 'benefits', label: 'Benefits' },
+            { key: 'allowances', label: 'Allowances' },
+            { key: 'deductions', label: 'Deductions' },
+            { key: 'holidays', label: 'Holidays' },
+            { key: 'periods', label: 'Payroll Date' },
+            { key: 'profiles', label: 'Payroll Summary Setup' },
+            { key: 'summaries', label: 'Payroll Summary' },
+        ],
+        activeTab: 'salary_grades',
+        showSlider: false,
+        activeForm: null,
+        sliderTitle: 'Add Entry',
+        sliderError: '',
 
-            get formattedNetPay() {
-                const basic = parseFloat(this.form.basic_pay || 0);
-                const allowance = parseFloat(this.form.allowance || 0);
-                const deductions = parseFloat(this.form.deductions || 0);
-                const total = (basic + allowance) - deductions;
+        openAddSection(section) {
+            this.activeForm = section;
+            this.sliderTitle = this.getFormTitle(section);
+            this.sliderError = '';
+            this.showSlider = true;
 
-                return new Intl.NumberFormat('en-PH', {
-                    style: 'currency',
-                    currency: 'PHP',
-                }).format(total);
-            },
+            this.$nextTick(() => {
+                requestAnimationFrame(() => {
+                    this.$refs.addPanel.classList.remove('translate-x-full');
+                });
+            });
+        },
 
-            resetForm() {
-                this.form = {
-                    id: null,
-                    employee_name: '',
-                    employee_id: '',
-                    department: '',
-                    payroll_period: '',
-                    pay_date: '',
-                    basic_pay: '',
-                    allowance: '',
-                    deductions: '',
-                    status: 'Processed',
-                };
-            },
-
-            openCreate() {
-                this.isEdit = false;
-                this.formAction = "{{ route('human-capital.payroll.store') }}";
-                this.resetForm();
-                this.showSlideOver = true;
-            },
-
-            openEdit(data) {
-                this.isEdit = true;
-                this.formAction = `/human-capital/payroll/${data.id}`;
-                this.form = {
-                    id: data.id,
-                    employee_name: data.employee_name ?? '',
-                    employee_id: data.employee_id ?? '',
-                    department: data.department ?? '',
-                    payroll_period: data.payroll_period ?? '',
-                    pay_date: data.pay_date ?? '',
-                    basic_pay: data.basic_pay ?? '',
-                    allowance: data.allowance ?? '',
-                    deductions: data.deductions ?? '',
-                    status: data.status ?? 'Processed',
-                };
-                this.showSlideOver = true;
-            },
-
-            closeSlideOver() {
-                this.showSlideOver = false;
+        closeAddSection() {
+            if (this.$refs.addPanel) {
+                this.$refs.addPanel.classList.add('translate-x-full');
             }
-        }
-    }
+
+            setTimeout(() => {
+                this.showSlider = false;
+                this.activeForm = null;
+                this.sliderError = '';
+            }, 300);
+        },
+
+        getFormTitle(section) {
+            const titles = {
+                salary_grades: 'Add Salary Grade',
+                levels: 'Add Payroll Level',
+                benefits: 'Add Benefit',
+                allowances: 'Add Allowance',
+                deductions: 'Add Deduction',
+                holidays: 'Add Holiday',
+                periods: 'Add Payroll Period',
+                profiles: 'Assign Payroll to Employee',
+            };
+
+            return titles[section] || 'Add Entry';
+        },
+
+        submitActiveForm() {
+            this.sliderError = '';
+
+            let form = null;
+
+            if (this.activeForm === 'salary_grades') {
+                form = document.querySelector('form[x-show="activeForm === \'salary_grades\'"]');
+            } else if (this.activeForm === 'levels') {
+                form = document.querySelector('form[x-show="activeForm === \'levels\'"]');
+            } else if (this.activeForm === 'benefits') {
+                form = document.querySelector('form[x-show="activeForm === \'benefits\'"]');
+            } else if (this.activeForm === 'allowances') {
+                form = document.querySelector('form[x-show="activeForm === \'allowances\'"]');
+            } else if (this.activeForm === 'deductions') {
+                form = document.querySelector('form[x-show="activeForm === \'deductions\'"]');
+            } else if (this.activeForm === 'holidays') {
+                form = document.querySelector('form[x-show="activeForm === \'holidays\'"]');
+            } else if (this.activeForm === 'periods') {
+                form = document.querySelector('form[x-show="activeForm === \'periods\'"]');
+            } else if (this.activeForm === 'profiles') {
+                form = document.querySelector('form[x-show="activeForm === \'profiles\'"]');
+            }
+
+            if (form) {
+                form.submit();
+            } else {
+                this.sliderError = 'Unable to submit the form.';
+            }
+        },
+    };
+}
 </script>
 @endsection

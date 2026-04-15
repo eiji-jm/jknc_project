@@ -98,9 +98,16 @@ Route::middleware('auth')->group(function () {
         });
 
         Route::get('/payroll', [PayrollController::class, 'index'])->name('payroll');
-        Route::post('/payroll', [PayrollController::class, 'store'])->name('payroll.store');
-        Route::put('/payroll/{payroll}', [PayrollController::class, 'update'])->name('payroll.update');
-        Route::delete('/payroll/{payroll}', [PayrollController::class, 'destroy'])->name('payroll.destroy');
+        Route::post('/payroll/salary-grades', [PayrollController::class, 'storeSalaryGrade'])->name('payroll.salary-grades.store');
+        Route::post('/payroll/levels', [PayrollController::class, 'storePayrollLevel'])->name('payroll.levels.store');
+        Route::post('/payroll/benefits', [PayrollController::class, 'storeBenefit'])->name('payroll.benefits.store');
+        Route::post('/payroll/allowances', [PayrollController::class, 'storeAllowance'])->name('payroll.allowances.store');
+        Route::post('/payroll/deductions', [PayrollController::class, 'storeDeduction'])->name('payroll.deductions.store');
+        Route::post('/payroll/holidays', [PayrollController::class, 'storeHoliday'])->name('payroll.holidays.store');
+        Route::post('/payroll/periods', [PayrollController::class, 'storePayrollPeriod'])->name('payroll.periods.store');
+        Route::post('/payroll/profiles', [PayrollController::class, 'storeEmployeeProfile'])->name('payroll.profiles.store');
+        Route::post('/payroll/generate-summary', [PayrollController::class, 'generateSummary'])->name('payroll.generate-summary');
+        Route::get('/payroll/payslip/{summary}', [PayrollController::class, 'showPayslip'])->name('payroll.payslip.show');
 
         Route::get('/employee-profile', [EmployeeController::class, 'index'])->name('employee-profile');
         Route::post('/employee-profile', [EmployeeController::class, 'store'])->name('employee-profile.store');
