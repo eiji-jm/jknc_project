@@ -1,0 +1,28 @@
+[
+    {
+        "id": 1,
+        "deal_id": 7,
+        "reference_id": "PROP-CONDEAL-2026-001",
+        "crud_id": "DEAL-7",
+        "proposal_date": "2026-04-13",
+        "location": "San Jose, Purok 2, Cebu CityNear Northgen,Green Gate, Motor Wash",
+        "service_type": "Business Registration (SEC / DTI / BIR)",
+        "scope_of_service": "NA",
+        "what_you_will_receive": "Business Registration (SEC / DTI / BIR)\r\nPrinting\r\nProcess guidance and compliance coordination\r\nStatus updates and documentary checklist support",
+        "our_proposal_text": "We are pleased to submit this proposal for your consideration. John Kelly & Company will provide the required advisory, preparation, coordination, and compliance support aligned with your engagement requirements.",
+        "requirements_sole": "Client Contact Form\r\nClient Information Form\r\nTIN ID\r\nBusiness Permit / Mayor's Permit\r\nBIR Certificate of Registration",
+        "requirements_juridical": "Client Contact Form\r\nBusiness Information Form\r\nSEC / CDA Certificate of Registration\r\nBIR Certificate of Registration\r\nLatest GIS / Officers Information",
+        "requirements_optional": "Special Power of Attorney\r\nBoard Resolution / Secretary's Certificate\r\nAdditional supporting compliance records as may be required",
+        "price_regular": "3273.00",
+        "price_discount": "0.00",
+        "price_subtotal": "3273.00",
+        "price_tax": "0.00",
+        "price_total": "3273.00",
+        "price_down": "1636.50",
+        "price_balance": "1636.50",
+        "prepared_by_name": "e",
+        "prepared_by_id": "2",
+        "created_at": "2026-04-13 01:27:33",
+        "updated_at": "2026-04-13 02:02:28"
+    }
+]
