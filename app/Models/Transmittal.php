@@ -26,6 +26,7 @@ class Transmittal extends Model
         'action_drop_off',
         'action_email',
         'prepared_by_name',
+        'prepared_at',
         'approved_by_name',
         'approved_position',
         'document_custodian',
@@ -42,6 +43,7 @@ class Transmittal extends Model
 
     protected $casts = [
         'transmittal_date' => 'date',
+        'prepared_at' => 'datetime',
         'received_at' => 'datetime',
         'approved_at' => 'datetime',
         'action_delivery' => 'boolean',
@@ -92,7 +94,7 @@ class Transmittal extends Model
     }
 
     public function receipt()
-{
-    return $this->hasOne(TransmittalReceipt::class);
-}
+    {
+        return $this->hasOne(TransmittalReceipt::class);
+    }
 }

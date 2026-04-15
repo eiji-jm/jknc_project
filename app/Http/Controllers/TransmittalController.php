@@ -18,6 +18,11 @@ class TransmittalController extends Controller
     public function data(Request $request)
     {
         $workflow = $request->get('workflow_status', 'uploaded');
+        $perPage = (int) $request->get('per_page', 10);
+
+        if ($perPage < 1) {
+            $perPage = 10;
+        }
 
         $workflowMap = [
             'uploaded' => 'Uploaded',
@@ -29,10 +34,12 @@ class TransmittalController extends Controller
 
         $workflowStatus = $workflowMap[$workflow] ?? 'Uploaded';
 
-        $rows = Transmittal::with(['items', 'receipt'])
+        $paginator = Transmittal::with(['items', 'receipt'])
             ->where('workflow_status', $workflowStatus)
             ->latest()
-            ->get()
+            ->paginate($perPage);
+
+        $rows = collect($paginator->items())
             ->map(function ($item) {
                 return [
                     'id' => $item->id,
@@ -57,8 +64,10 @@ class TransmittalController extends Controller
                     'action_drop_off' => $item->action_drop_off,
                     'action_email' => $item->action_email,
                     'prepared_by_name' => $item->prepared_by_name,
+                    'prepared_at' => optional($item->prepared_at)->format('Y-m-d H:i'),
                     'approved_by_name' => $item->approved_by_name,
                     'approved_position' => $item->approved_position,
+                    'approved_at' => optional($item->approved_at)->format('Y-m-d H:i'),
                     'document_custodian' => $item->document_custodian,
                     'delivered_by' => $item->delivered_by,
                     'received_by' => $item->received_by,
@@ -84,7 +93,18 @@ class TransmittalController extends Controller
             })
             ->values();
 
-        return response()->json($rows);
+        return response()->json([
+            'data' => $rows,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+                'has_more_pages' => $paginator->hasMorePages(),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -106,8 +126,6 @@ class TransmittalController extends Controller
             'action_drop_off' => ['nullable'],
             'action_email' => ['nullable'],
 
-            'prepared_by_name' => ['nullable', 'string', 'max:255'],
-            'approved_by_name' => ['nullable', 'string', 'max:255'],
             'approved_position' => ['nullable', 'string', 'max:255'],
             'document_custodian' => ['nullable', 'string', 'max:255'],
             'delivered_by' => ['nullable', 'string', 'max:255'],
@@ -151,8 +169,10 @@ class TransmittalController extends Controller
                 'action_drop_off' => $request->boolean('action_drop_off'),
                 'action_email' => $request->boolean('action_email'),
 
-                'prepared_by_name' => $validated['prepared_by_name'] ?? null,
-                'approved_by_name' => $validated['approved_by_name'] ?? null,
+                'prepared_by_name' => Auth::user()?->name ?? 'System User',
+                'prepared_at' => now(),
+
+                'approved_by_name' => null,
                 'approved_position' => $validated['approved_position'] ?? null,
                 'document_custodian' => $validated['document_custodian'] ?? null,
                 'delivered_by' => $validated['delivered_by'] ?? null,
@@ -177,7 +197,7 @@ class TransmittalController extends Controller
                     !empty($item['remarks']) ||
                     $request->hasFile("item_files.$index");
 
-                if (!$hasContent) {
+                if (! $hasContent) {
                     continue;
                 }
 
@@ -219,7 +239,7 @@ class TransmittalController extends Controller
     {
         $transmittal = Transmittal::findOrFail($id);
 
-        if (!in_array($transmittal->workflow_status, ['Uploaded', 'Reverted'], true)) {
+        if (! in_array($transmittal->workflow_status, ['Uploaded', 'Reverted'], true)) {
             return response()->json([
                 'message' => 'Only uploaded or reverted transmittals can be submitted.'
             ], 422);
@@ -262,7 +282,7 @@ class TransmittalController extends Controller
     {
         $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
-        if (!$transmittal->receipt) {
+        if (! $transmittal->receipt) {
             abort(404, 'Receipt not found.');
         }
 

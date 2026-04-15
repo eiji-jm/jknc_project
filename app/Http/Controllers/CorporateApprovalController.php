@@ -699,33 +699,39 @@ class CorporateApprovalController extends Controller
     }
 
     public function approve($module, $id)
-    {
-        $this->authorizeApprover();
+{
+    $this->authorizeApprover();
 
-        $record = $this->resolveModel($module, $id);
+    $record = $this->resolveModel($module, $id);
 
-        if ($response = $this->ensureSubmittedForDecision($record)) {
-            return $response;
-        }
-
-        $record->update([
-            'approval_status' => 'Approved',
-            'workflow_status' => 'Accepted',
-            'approved_by' => Auth::id(),
-            'approved_at' => now(),
-            'review_note' => null,
-        ]);
-
-        if ($module === 'transmittal') {
-            $this->generateTransmittalReceipt($record);
-            $record->refresh()->load(['items', 'receipt']);
-            $this->sendTransmittalDeliveryEmail($record);
-        }
-
-        $this->sendStatusEmail($record, $module, 'Approved', null);
-
-        return back()->with('success', 'Record approved successfully.');
+    if ($response = $this->ensureSubmittedForDecision($record)) {
+        return $response;
     }
+
+    $updateData = [
+        'approval_status' => 'Approved',
+        'workflow_status' => 'Accepted',
+        'approved_by' => Auth::id(),
+        'approved_at' => now(),
+        'review_note' => null,
+    ];
+
+    if ($module === 'transmittal') {
+        $updateData['approved_by_name'] = Auth::user()?->name ?? 'Admin User';
+    }
+
+    $record->update($updateData);
+
+    if ($module === 'transmittal') {
+        $this->generateTransmittalReceipt($record);
+        $record->refresh()->load(['items', 'receipt']);
+        $this->sendTransmittalDeliveryEmail($record);
+    }
+
+    $this->sendStatusEmail($record, $module, 'Approved', null);
+
+    return back()->with('success', 'Record approved successfully.');
+}
 
     public function reject(Request $request, $module, $id)
     {

@@ -28,10 +28,12 @@
         actionDropOff: false,
         actionEmail: false,
 
-        previewPreparedBy: 'ANGELIE AVENIDO',
-        previewApprovedBy: 'MA. LOURDES MATA',
+        previewPreparedBy: '',
+        previewApprovedBy: '',
+        previewPreparedAt: '',
+        previewApprovedAt: '',
         previewApprovedPosition: 'Branch OIC',
-        previewCustodian: 'ANGELIE AVENIDO',
+        previewCustodian: '',
         previewDeliveredBy: 'Carmela Ortiz',
         previewReceivedBy: '',
         previewReceivedAt: '',
@@ -172,9 +174,36 @@
                     </tbody>
                 </table>
             </div>
+
+            <div id="paginationSection" class="mt-4 flex items-center justify-between text-sm text-gray-600">
+                <div id="paginationInfo">Showing 0 to 0 of 0 records</div>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        id="prevPageBtn"
+                        type="button"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onclick="changePage(currentPage - 1)"
+                        disabled
+                    >
+                        Previous
+                    </button>
+
+                    <span id="paginationLabel" class="min-w-[110px] text-center">Page 1 of 1</span>
+
+                    <button
+                        id="nextPageBtn"
+                        type="button"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onclick="changePage(currentPage + 1)"
+                        disabled
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- ADD / EDIT SLIDE OVER -->
         <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
             <div class="absolute inset-0 bg-black/40" @click="closeAddSectionAlpine()"></div>
 
@@ -293,10 +322,12 @@
                                 <div class="tm-sign-col">
                                     <div class="tm-sign-label">Prepared by:</div>
                                     <div class="tm-sign-line" x-text="previewPreparedBy || ' '"></div>
+                                    <div class="tm-sign-sub" x-text="previewPreparedAt || ''"></div>
 
                                     <div class="tm-sign-label tm-sign-gap">Approved by:</div>
                                     <div class="tm-sign-line" x-text="previewApprovedBy || ' '"></div>
                                     <div class="tm-sign-sub" x-text="previewApprovedPosition || ''"></div>
+                                    <div class="tm-sign-sub" x-text="previewApprovedAt || ''"></div>
 
                                     <div class="tm-sign-gap-sm"></div>
                                     <div class="tm-sign-line" x-text="previewCustodian || ' '"></div>
@@ -507,12 +538,22 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-500 mb-1">Prepared by</label>
-                                    <input type="text" x-model="previewPreparedBy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <input type="text" x-model="previewPreparedBy" readonly class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Prepared at</label>
+                                    <input type="text" x-model="previewPreparedAt" readonly class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600">
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-500 mb-1">Approved by</label>
-                                    <input type="text" x-model="previewApprovedBy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <input type="text" x-model="previewApprovedBy" readonly class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Approved at</label>
+                                    <input type="text" x-model="previewApprovedAt" readonly class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600">
                                 </div>
 
                                 <div>
@@ -739,6 +780,16 @@
 <script>
 let currentWorkflowFilter = 'uploaded';
 let transmittalRows = [];
+let currentPage = 1;
+let paginationMeta = {
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+    from: 0,
+    to: 0,
+    has_more_pages: false
+};
 
 function getAlpineData() {
     const root = document.getElementById('transmittal-page');
@@ -781,6 +832,7 @@ function setActiveTab() {
 
 function applyWorkflowFilter(filterValue) {
     currentWorkflowFilter = filterValue;
+    currentPage = 1;
     renderTable();
 }
 
@@ -788,6 +840,10 @@ function openAddSection() {
     const alpineData = getAlpineData();
     if (alpineData) {
         alpineData.showSlideOver = true;
+        alpineData.previewPreparedBy = '{{ auth()->user()->name ?? "System User" }}';
+        alpineData.previewPreparedAt = new Date().toLocaleString();
+        alpineData.previewApprovedBy = '';
+        alpineData.previewApprovedAt = '';
     }
 }
 
@@ -826,6 +882,8 @@ function escapeHtml(value) {
 async function fetchTransmittals() {
     const params = new URLSearchParams();
     params.append('workflow_status', currentWorkflowFilter);
+    params.append('page', currentPage);
+    params.append('per_page', 10);
 
     const res = await fetch(`/transmittal/data?${params.toString()}`, {
         headers: {
@@ -836,15 +894,48 @@ async function fetchTransmittals() {
     return await res.json();
 }
 
+function renderPagination(meta) {
+    const info = document.getElementById('paginationInfo');
+    const label = document.getElementById('paginationLabel');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+
+    if (!info || !label || !prevBtn || !nextBtn) return;
+
+    info.textContent = `Showing ${meta.from ?? 0} to ${meta.to ?? 0} of ${meta.total ?? 0} records`;
+    label.textContent = `Page ${meta.current_page ?? 1} of ${meta.last_page ?? 1}`;
+
+    prevBtn.disabled = (meta.current_page ?? 1) <= 1;
+    nextBtn.disabled = (meta.current_page ?? 1) >= (meta.last_page ?? 1);
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    if (page > (paginationMeta.last_page ?? 1)) return;
+
+    currentPage = page;
+    renderTable();
+}
+
 async function renderTable() {
     const tableBody = document.getElementById('tableBody');
     tableBody.innerHTML = '';
 
-    const data = await fetchTransmittals();
-    transmittalRows = data || [];
+    const response = await fetchTransmittals();
+    transmittalRows = response.data || [];
+    paginationMeta = response.pagination || {
+        current_page: 1,
+        last_page: 1,
+        per_page: 10,
+        total: 0,
+        from: 0,
+        to: 0,
+        has_more_pages: false
+    };
 
     updateStatusMessage();
     setActiveTab();
+    renderPagination(paginationMeta);
 
     if (!transmittalRows.length) {
         tableBody.innerHTML = `<tr><td colspan="10" class="px-3 py-8 text-center text-gray-500">No transmittal records found.</td></tr>`;
@@ -901,8 +992,6 @@ async function saveTransmittal() {
     formData.append('action_drop_off', alpineData.actionDropOff ? 1 : 0);
     formData.append('action_email', alpineData.actionEmail ? 1 : 0);
 
-    formData.append('prepared_by_name', alpineData.previewPreparedBy ?? '');
-    formData.append('approved_by_name', alpineData.previewApprovedBy ?? '');
     formData.append('approved_position', alpineData.previewApprovedPosition ?? '');
     formData.append('document_custodian', alpineData.previewCustodian ?? '');
     formData.append('delivered_by', alpineData.previewDeliveredBy ?? '');
@@ -945,6 +1034,7 @@ async function saveTransmittal() {
 
         alert(data.message || 'Transmittal saved successfully.');
         currentWorkflowFilter = 'uploaded';
+        currentPage = 1;
         closeAddSection();
         await renderTable();
     } catch (error) {
@@ -971,6 +1061,7 @@ async function submitTransmittal(id) {
 
         alert(data.message || 'Submitted successfully.');
         currentWorkflowFilter = 'submitted';
+        currentPage = 1;
         await renderTable();
     } catch (error) {
         alert('Something went wrong while submitting.');
