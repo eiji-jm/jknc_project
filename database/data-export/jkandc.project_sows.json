@@ -1,0 +1,21 @@
+[
+    {
+        "id": 1,
+        "project_id": 1,
+        "sow_number": "SOW-2026-001",
+        "version_number": "1.0",
+        "date_prepared": "2026-04-12",
+        "within_scope_items": "[{\"main_task_description\":\"Business Registration (SEC \\/ DTI \\/ BIR)\",\"sub_task_description\":\"To be defined during planning\",\"responsible\":\"e\",\"duration\":\"4\",\"start_date\":\"2026-04-13\",\"end_date\":\"2026-04-13\",\"status\":\"Pending\",\"remarks\":null},{\"main_task_description\":\"Printing\",\"sub_task_description\":\"To be defined during planning\",\"responsible\":\"e\",\"duration\":\"4\",\"start_date\":\"2026-04-13\",\"end_date\":\"2026-04-13\",\"status\":\"Pending\",\"remarks\":null}]",
+        "out_of_scope_items": "[]",
+        "client_confirmation_name": "Christian P. Crisostomo",
+        "internal_approval": "{\"prepared_by\":\"e\",\"reviewed_by\":\"Admin\",\"referred_by_closed_by\":null,\"sales_marketing\":\"Sales & Marketing\",\"lead_consultant\":\"e\",\"lead_associate_assigned\":\"t\",\"finance\":\"Finance\",\"president\":\"President\",\"record_custodian\":\"Record Custodian\",\"date_recorded\":\"2026-04-12\",\"date_signed\":null}",
+        "approval_status": "draft",
+        "approved_at": null,
+        "approved_by_name": null,
+        "ntp_status": "pending",
+        "client_signed_attachment_path": null,
+        "metadata": null,
+        "created_at": "2026-04-12 21:27:51",
+        "updated_at": "2026-04-12 21:27:51"
+    }
+]

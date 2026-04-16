@@ -1,0 +1,41 @@
+[
+    {
+        "id": 1,
+        "company_name": "JKNC",
+        "email": null,
+        "phone": "09853628203",
+        "website": null,
+        "description": null,
+        "address": "San Jose, Purok 2, Cebu City\r\nNear Northgen,Green Gate, Motor Wash",
+        "primary_contact_id": null,
+        "owner_name": "Shine",
+        "created_at": "2026-03-23 01:39:39",
+        "updated_at": "2026-03-23 01:39:39"
+    },
+    {
+        "id": 5,
+        "company_name": "Consulting Group",
+        "email": "shinepadi@gmail.com",
+        "phone": "09853628203",
+        "website": null,
+        "description": null,
+        "address": "San Jose, Purok 2, Cebu City\r\nNear Northgen,Green Gate, Motor Wash",
+        "primary_contact_id": 105,
+        "owner_name": "Shine",
+        "created_at": "2026-04-11 09:58:11",
+        "updated_at": "2026-04-11 09:58:11"
+    },
+    {
+        "id": 6,
+        "company_name": "Crocodile",
+        "email": "shinepadi@gmail.com",
+        "phone": "09853628203",
+        "website": null,
+        "description": null,
+        "address": "Talamban",
+        "primary_contact_id": 106,
+        "owner_name": "Shine Padillo",
+        "created_at": "2026-04-15 14:24:04",
+        "updated_at": "2026-04-15 14:24:04"
+    }
+]

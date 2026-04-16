@@ -1,0 +1,67 @@
+[
+    {
+        "id": 1,
+        "name": "Test User",
+        "email": "test@example.com",
+        "email_verified_at": null,
+        "password": "$2y$12$zyCuP2ec5VKvxvWlp6ZJD.Caf5VEJZD1sbbynHHhgmLi8Ob2byOmi",
+        "role": "Employee",
+        "can_edit_user_roles": 0,
+        "can_delete_users": 0,
+        "remember_token": null,
+        "created_at": "2026-03-05 08:38:33",
+        "updated_at": "2026-03-05 08:38:33"
+    },
+    {
+        "id": 2,
+        "name": "Shine",
+        "email": "shinepadi@gmail.com",
+        "email_verified_at": null,
+        "password": "$2y$12$R2s5ji4NVt0jItpZGQPEUOGDpkC6Kv7HvIzBg0YVeWx1.be3iFhqe",
+        "role": "Employee",
+        "can_edit_user_roles": 0,
+        "can_delete_users": 0,
+        "remember_token": null,
+        "created_at": "2026-03-23 01:30:16",
+        "updated_at": "2026-03-23 01:30:16"
+    },
+    {
+        "id": 3,
+        "name": "Shine",
+        "email": "tian@gmail.com",
+        "email_verified_at": null,
+        "password": "$2y$12$aLeLMaBe7MTSYUNf046uwOyP6fyatTBLXj8i3BjTmJz8lWF9Oh/WS",
+        "role": "Admin",
+        "can_edit_user_roles": 0,
+        "can_delete_users": 0,
+        "remember_token": null,
+        "created_at": "2026-03-28 19:30:00",
+        "updated_at": "2026-03-28 19:30:00"
+    },
+    {
+        "id": 4,
+        "name": "adminser",
+        "email": "admin@gmail.com",
+        "email_verified_at": null,
+        "password": "$2y$12$zSQ/3TG2rPvg0YVRKrIlk.GSB24VuayCH8NA3e3euuMjP5CwozvE.",
+        "role": "Admin",
+        "can_edit_user_roles": 0,
+        "can_delete_users": 0,
+        "remember_token": null,
+        "created_at": "2026-04-09 19:21:02",
+        "updated_at": "2026-04-09 19:21:02"
+    },
+    {
+        "id": 5,
+        "name": "EM",
+        "email": "em@gmail.com",
+        "email_verified_at": null,
+        "password": "$2y$12$vg.RamHUe3pR76cEHH07d.LnYq0TnDdBv.EUdCPMNSQ1HKcvpKusW",
+        "role": "Employee",
+        "can_edit_user_roles": 0,
+        "can_delete_users": 0,
+        "remember_token": null,
+        "created_at": "2026-04-10 22:30:02",
+        "updated_at": "2026-04-10 22:30:02"
+    }
+]
