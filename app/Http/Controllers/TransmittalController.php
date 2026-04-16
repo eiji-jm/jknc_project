@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Log;
 
 class TransmittalController extends Controller
 {
@@ -279,7 +280,8 @@ class TransmittalController extends Controller
     }
 
     public function receiptPdf($id)
-    {
+{
+    try {
         $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
         if (! $transmittal->receipt) {
@@ -292,5 +294,15 @@ class TransmittalController extends Controller
             ->setPaper($customPaper);
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+    } catch (\Throwable $e) {
+        Log::error('Receipt PDF failed', [
+            'transmittal_id' => $id,
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+
+        abort(500, 'Receipt PDF generation failed.');
     }
+}
 }

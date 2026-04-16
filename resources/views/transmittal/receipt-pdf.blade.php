@@ -176,20 +176,37 @@
     </style>
 </head>
 <body>
+    @php
+        $logoPath = public_path('images/imaglogo.png');
+        $receipt = $transmittal->receipt;
+    @endphp
+
     <div class="page">
         <div class="sheet">
             <div class="header">
                 <table class="header-table">
                     <tr>
                         <td class="header-left">
-                            <img src="{{ public_path('images/imaglogo.png') }}" alt="John Kelly Logo" class="logo">
+                            @if(file_exists($logoPath))
+                                <img src="{{ $logoPath }}" alt="John Kelly Logo" class="logo">
+                            @endif
+
                             <div class="company-name">JOHN KELLY &amp; COMPANY</div>
                             <div class="company-sub">Official Transmittal Receipt</div>
                         </td>
                         <td class="header-right">
-                            <div><span class="label">Receipt No:</span> {{ optional($transmittal->receipt)->receipt_no ?? 'N/A' }}</div>
-                            <div><span class="label">Receipt Date:</span> {{ optional($transmittal->receipt)->created_at ? \Carbon\Carbon::parse($transmittal->receipt->created_at)->format('Y-m-d') : now()->format('Y-m-d') }}</div>
-                            <div><span class="label">Linked Ref No:</span> {{ $transmittal->transmittal_no ?? 'N/A' }}</div>
+                            <div>
+                                <span class="label">Receipt No:</span>
+                                {{ $receipt->receipt_no ?? 'N/A' }}
+                            </div>
+                            <div>
+                                <span class="label">Receipt Date:</span>
+                                {{ optional($receipt?->created_at)->format('Y-m-d') ?? now()->format('Y-m-d') }}
+                            </div>
+                            <div>
+                                <span class="label">Linked Ref No:</span>
+                                {{ $transmittal->transmittal_no ?? 'N/A' }}
+                            </div>
                         </td>
                     </tr>
                 </table>
@@ -202,28 +219,50 @@
                 <tr>
                     <td>
                         <div class="info-box">
-                            <div class="info-line"><span class="label">Mode:</span> {{ $transmittal->mode ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">Office:</span> {{ $transmittal->office_name ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">From:</span> {{ $transmittal->mode === 'SEND' ? ($transmittal->office_name ?? 'N/A') : ($transmittal->party_name ?? 'N/A') }}</div>
-                            <div class="info-line"><span class="label">To:</span> {{ $transmittal->mode === 'SEND' ? ($transmittal->party_name ?? 'N/A') : ($transmittal->office_name ?? 'N/A') }}</div>
+                            <div class="info-line">
+                                <span class="label">Mode:</span>
+                                {{ $transmittal->mode ?? 'N/A' }}
+                            </div>
+                            <div class="info-line">
+                                <span class="label">Office:</span>
+                                {{ $transmittal->office_name ?? 'N/A' }}
+                            </div>
+                            <div class="info-line">
+                                <span class="label">From:</span>
+                                {{ $transmittal->mode === 'SEND' ? ($transmittal->office_name ?? 'N/A') : ($transmittal->party_name ?? 'N/A') }}
+                            </div>
+                            <div class="info-line">
+                                <span class="label">To:</span>
+                                {{ $transmittal->mode === 'SEND' ? ($transmittal->party_name ?? 'N/A') : ($transmittal->office_name ?? 'N/A') }}
+                            </div>
                         </div>
                     </td>
                     <td>
                         <div class="info-box">
-                            <div class="info-line"><span class="label">Delivery Type:</span>
+                            <div class="info-line">
+                                <span class="label">Delivery Type:</span>
                                 @if(($transmittal->delivery_type ?? '') === 'By Person')
-                                    {{ $transmittal->by_person_who ? 'By Person - '.$transmittal->by_person_who : 'By Person' }}
+                                    {{ $transmittal->by_person_who ? 'By Person - ' . $transmittal->by_person_who : 'By Person' }}
                                 @elseif(($transmittal->delivery_type ?? '') === 'Registered Mail')
-                                    {{ $transmittal->registered_mail_provider ? 'Registered Mail - '.$transmittal->registered_mail_provider : 'Registered Mail' }}
+                                    {{ $transmittal->registered_mail_provider ? 'Registered Mail - ' . $transmittal->registered_mail_provider : 'Registered Mail' }}
                                 @elseif(($transmittal->delivery_type ?? '') === 'Electronic')
-                                    {{ $transmittal->electronic_method ? 'Electronic - '.$transmittal->electronic_method : 'Electronic' }}
+                                    {{ $transmittal->electronic_method ? 'Electronic - ' . $transmittal->electronic_method : 'Electronic' }}
                                 @else
                                     N/A
                                 @endif
                             </div>
-                            <div class="info-line"><span class="label">Recipient Email:</span> {{ $transmittal->recipient_email ?: '—' }}</div>
-                            <div class="info-line"><span class="label">Workflow:</span> {{ $transmittal->workflow_status ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">Approval:</span> {{ $transmittal->approval_status ?? 'N/A' }}</div>
+                            <div class="info-line">
+                                <span class="label">Recipient Email:</span>
+                                {{ $transmittal->recipient_email ?: '—' }}
+                            </div>
+                            <div class="info-line">
+                                <span class="label">Workflow:</span>
+                                {{ $transmittal->workflow_status ?? 'N/A' }}
+                            </div>
+                            <div class="info-line">
+                                <span class="label">Approval:</span>
+                                {{ $transmittal->approval_status ?? 'N/A' }}
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -254,7 +293,9 @@
                     </tr>
                     <tr>
                         <td class="label-col">Approved By</td>
-                        <td>{{ $transmittal->approved_by_name ?? 'N/A' }} {{ $transmittal->approved_position ? '('.$transmittal->approved_position.')' : '' }}</td>
+                        <td>
+                            {{ $transmittal->approved_by_name ?? 'N/A' }}{{ $transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '' }}
+                        </td>
                     </tr>
                     <tr>
                         <td class="label-col">Delivered By</td>
@@ -266,7 +307,7 @@
                     </tr>
                     <tr>
                         <td class="label-col">Date and Time Received</td>
-                        <td>{{ $transmittal->received_at ? \Carbon\Carbon::parse($transmittal->received_at)->format('Y-m-d H:i:s') : 'N/A' }}</td>
+                        <td>{{ optional($transmittal->received_at)->format('Y-m-d H:i:s') ?? 'N/A' }}</td>
                     </tr>
                 </table>
             </div>
