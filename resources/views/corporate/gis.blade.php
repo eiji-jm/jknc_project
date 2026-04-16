@@ -245,7 +245,15 @@
 
             <div class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
 
-                <input name="uploaded_by" placeholder="Uploaded By" class="w-full border rounded p-2">
+                <div>
+                    <label class="block text-[13px] font-medium text-gray-700 mb-2">Uploaded By</label>
+                    <input
+                        type="text"
+                        value="{{ auth()->user()->name ?? auth()->user()->full_name ?? auth()->user()->employee_name ?? auth()->user()->username ?? auth()->user()->email }}"
+                        class="w-full border rounded p-2 bg-gray-50"
+                        readonly
+                    >
+                </div>
 
                 <select name="submission_status" class="w-full border rounded p-2">
                     <option>Submitted</option>
@@ -311,5 +319,4 @@
     </div>
 
 </div>
-
 @endsection

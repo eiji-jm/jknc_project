@@ -319,7 +319,12 @@ style="display:none;">
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-[13px] font-medium text-gray-700 mb-2">Uploaded By</label>
-                <input type="text" name="uploaded_by" class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm">
+                <input
+                    type="text"
+                    value="{{ auth()->user()->name ?? auth()->user()->full_name ?? auth()->user()->employee_name ?? auth()->user()->username ?? auth()->user()->email }}"
+                    class="w-full h-11 border border-gray-300 rounded-md px-4 text-sm bg-gray-50"
+                    readonly
+                >
             </div>
 
             <div>

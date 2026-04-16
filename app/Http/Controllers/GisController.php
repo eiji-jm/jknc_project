@@ -36,6 +36,18 @@ class GisController extends Controller
         return (int) $gis->submitted_by === (int) Auth::id();
     }
 
+    private function employeeName(): string
+    {
+        $user = Auth::user();
+
+        return $user->name
+            ?? $user->full_name
+            ?? $user->employee_name
+            ?? $user->username
+            ?? $user->email
+            ?? 'Unknown Employee';
+    }
+
     public function index()
     {
         if ($this->canApproveCorporate()) {
@@ -50,7 +62,6 @@ class GisController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'uploaded_by'         => 'nullable|string|max:255',
             'submission_status'   => 'nullable|string|max:255',
             'receive_on'          => 'nullable|date',
             'period_date'         => 'nullable|string|max:255',
@@ -82,7 +93,7 @@ class GisController extends Controller
         $isApprover = $this->canApproveCorporate();
 
         GisRecord::create([
-            'uploaded_by'       => $request->uploaded_by,
+            'uploaded_by'       => $this->employeeName(),
             'submission_status' => $isApprover ? 'Submitted' : 'Uploaded',
             'receive_on'        => $request->receive_on,
             'period_date'       => $request->period_date,

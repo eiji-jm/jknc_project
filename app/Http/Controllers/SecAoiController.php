@@ -27,6 +27,18 @@ class SecAoiController extends Controller
             && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
     }
 
+    private function employeeName(): string
+    {
+        $user = Auth::user();
+
+        return $user->name
+            ?? $user->full_name
+            ?? $user->employee_name
+            ?? $user->username
+            ?? $user->email
+            ?? 'Unknown Employee';
+    }
+
     public function index()
     {
         if ($this->canApproveCorporate()) {
@@ -50,7 +62,6 @@ class SecAoiController extends Controller
             'type_of_formation'        => 'nullable|string',
             'aoi_version'              => 'nullable|string',
             'aoi_type'                 => 'nullable|string',
-            'uploaded_by'              => 'nullable|string',
             'date_upload'              => 'nullable|date',
             'draft_file_upload'        => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'notary_file_upload'       => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
@@ -85,7 +96,7 @@ class SecAoiController extends Controller
             'type_of_formation'        => $request->type_of_formation,
             'aoi_version'              => $request->aoi_version,
             'aoi_type'                 => $request->aoi_type,
-            'uploaded_by'              => $request->uploaded_by,
+            'uploaded_by'              => $this->employeeName(),
             'date_upload'              => $request->date_upload,
             'file_path'                => $draftPath,
             'notary_file_path'         => $notaryPath,

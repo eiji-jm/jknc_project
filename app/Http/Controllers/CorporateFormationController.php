@@ -27,6 +27,18 @@ class CorporateFormationController extends Controller
             && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
     }
 
+    private function employeeName(): string
+    {
+        $user = Auth::user();
+
+        return $user->name
+            ?? $user->full_name
+            ?? $user->employee_name
+            ?? $user->username
+            ?? $user->email
+            ?? 'Unknown Employee';
+    }
+
     public function index()
     {
         if ($this->canApproveCorporate()) {
@@ -43,7 +55,6 @@ class CorporateFormationController extends Controller
         $request->validate([
             'corporate_name'      => 'required',
             'company_reg_no'      => 'required',
-            'issued_by'           => 'required',
             'issued_on'           => 'required',
             'date_upload'         => 'required',
             'draft_file_upload'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
@@ -72,7 +83,7 @@ class CorporateFormationController extends Controller
         SecCoi::create([
             'corporate_name'    => $request->corporate_name,
             'company_reg_no'    => $request->company_reg_no,
-            'issued_by'         => $request->issued_by,
+            'issued_by'         => $this->employeeName(),
             'issued_on'         => $request->issued_on,
             'date_upload'       => $request->date_upload,
             'file_path'         => $draftPath,
@@ -110,7 +121,6 @@ class CorporateFormationController extends Controller
         $request->validate([
             'corporate_name' => 'required|string|max:255',
             'company_reg_no' => 'required|string|max:255',
-            'issued_by'      => 'required|string|max:255',
             'issued_on'      => 'required|date',
             'date_upload'    => 'required|date',
         ]);
@@ -118,7 +128,7 @@ class CorporateFormationController extends Controller
         $record->update([
             'corporate_name' => $request->corporate_name,
             'company_reg_no' => $request->company_reg_no,
-            'issued_by'      => $request->issued_by,
+            'issued_by'      => $record->issued_by ?: $this->employeeName(),
             'issued_on'      => $request->issued_on,
             'date_upload'    => $request->date_upload,
         ]);

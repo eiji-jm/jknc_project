@@ -27,6 +27,18 @@ class BylawController extends Controller
             && in_array($record->workflow_status, ['Uploaded', 'Reverted']);
     }
 
+    private function employeeName(): string
+    {
+        $user = Auth::user();
+
+        return $user->name
+            ?? $user->full_name
+            ?? $user->employee_name
+            ?? $user->username
+            ?? $user->email
+            ?? 'Unknown Employee';
+    }
+
     public function index()
     {
         if ($this->canApproveCorporate()) {
@@ -51,7 +63,6 @@ class BylawController extends Controller
             'asm_notice'          => 'nullable|string',
             'regular_bodm'        => 'nullable|string',
             'bodm_notice'         => 'nullable|string',
-            'uploaded_by'         => 'nullable|string',
             'date_upload'         => 'nullable|date',
             'draft_file_upload'   => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'notary_file_upload'  => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
@@ -87,7 +98,7 @@ class BylawController extends Controller
             'asm_notice'         => $request->asm_notice,
             'regular_bodm'       => $request->regular_bodm,
             'bodm_notice'        => $request->bodm_notice,
-            'uploaded_by'        => $request->uploaded_by,
+            'uploaded_by'        => $this->employeeName(),
             'date_upload'        => $request->date_upload,
             'file_path'          => $draftPath,
             'notary_file_path'   => $notaryPath,
