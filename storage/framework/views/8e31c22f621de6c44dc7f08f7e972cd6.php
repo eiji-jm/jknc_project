@@ -1,0 +1,103 @@
+<?php $__env->startSection('content'); ?>
+<div class="w-full h-full px-6 py-5">
+
+    <?php if(session('success')): ?>
+        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <?php echo e(session('success')); ?>
+
+        </div>
+    <?php endif; ?>
+
+    <?php if(session('error')): ?>
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <?php echo e(session('error')); ?>
+
+        </div>
+    <?php endif; ?>
+
+    <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+                <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Edit Employee Permissions</h1>
+                <p class="text-sm text-gray-500 mt-1"><?php echo e($user->name); ?> • <?php echo e($user->email); ?></p>
+            </div>
+
+            <a href="<?php echo e(route('admin.user-permissions')); ?>"
+               class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                Back
+            </a>
+        </div>
+
+        <div class="p-5">
+            <form action="<?php echo e(route('admin.user-permissions.update', $user->id)); ?>" method="POST" class="border border-gray-200 rounded-xl p-5">
+                <?php echo csrf_field(); ?>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="manage_users" <?php echo e($permission->manage_users ? 'checked' : ''); ?>>
+                        <span>Manage Users</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_admin_dashboard" <?php echo e($permission->access_admin_dashboard ? 'checked' : ''); ?>>
+                        <span>Access Admin Dashboard</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_townhall" <?php echo e($permission->approve_townhall ? 'checked' : ''); ?>>
+                        <span>Approve Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_townhall" <?php echo e($permission->create_townhall ? 'checked' : ''); ?>>
+                        <span>Create Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_corporate" <?php echo e($permission->create_corporate ? 'checked' : ''); ?>>
+                        <span>Create Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_corporate" <?php echo e($permission->approve_corporate ? 'checked' : ''); ?>>
+                        <span>Approve Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_townhall" <?php echo e($permission->access_townhall ? 'checked' : ''); ?>>
+                        <span>Access Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_corporate" <?php echo e($permission->access_corporate ? 'checked' : ''); ?>>
+                        <span>Access Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_activities" <?php echo e($permission->access_activities ? 'checked' : ''); ?>>
+                        <span>Access Activities</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_contacts" <?php echo e($permission->access_contacts ? 'checked' : ''); ?>>
+                        <span>Access Contacts</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_company" <?php echo e($permission->access_company ? 'checked' : ''); ?>>
+                        <span>Access Company</span>
+                    </label>
+                </div>
+
+                <div class="mt-5">
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        Save Permissions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/admin/edit-user-permissions.blade.php ENDPATH**/ ?>
