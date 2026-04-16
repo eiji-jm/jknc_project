@@ -29,21 +29,21 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Supplier Code / ID</label>
-                        <input type="text" name="record_number" value="{{ old('record_number', $record['record_number'] ?? '') }}" class="w-full border rounded-md p-2">
+                        <input type="text" name="record_number" value="{{ old('record_number', $record['record_number'] ?? '') }}" class="w-full border rounded-md p-2 bg-gray-100" readonly>
                         @error('record_number')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Business Name</label>
-                        <input type="text" name="record_title" value="{{ old('record_title', $record['record_title'] ?? '') }}" class="w-full border rounded-md p-2">
+                        <input type="text" name="record_title" value="{{ old('record_title', '') }}" class="w-full border rounded-md p-2" placeholder="Enter business name">
                         @error('record_title')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Created Date</label>
-                        <input type="date" name="record_date" value="{{ old('record_date', $record['record_date'] ?? '') }}" class="w-full border rounded-md p-2">
+                        <input type="date" name="record_date" value="{{ old('record_date', $record['record_date'] ?? '') }}" class="w-full border rounded-md p-2 bg-gray-100" readonly>
                         @error('record_date')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                         @enderror

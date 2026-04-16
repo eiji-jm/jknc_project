@@ -35,7 +35,7 @@
         'data.source_document_type': 'Linked document type',
         'data.source_document_id': 'Linked source document',
         'data.master_item_type': 'Item type',
-        'data.master_item_id': 'Item / service',
+        'data.master_item_id': 'Item',
         'data.linked_item_type': 'Item type',
         'data.linked_item_id': 'Item / service',
         'data.payroll_expense_coa_id': 'Payroll expense account',
@@ -51,6 +51,70 @@
         if (!match) return message;
 
         return `${friendlyLabelForError(match[1])} is required.`;
+    }
+
+    function todayDateValue() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function generateSupplierCode() {
+        const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+        return `SUP-${stamp}`;
+    }
+
+    function generateModuleRecordNumber(moduleKey) {
+        const prefixMap = {
+            supplier: 'SUP',
+            service: 'SRV',
+            product: 'PRD',
+            chart_account: 'COA',
+            bank_account: 'BA',
+            pr: 'PR',
+            po: 'PO',
+            ca: 'CA',
+            lr: 'LR',
+            err: 'ERR',
+            dv: 'DV',
+            pda: 'PDA',
+            crf: 'CRF',
+            ibtf: 'IBTF',
+            arf: 'ARF',
+        };
+
+        const prefix = prefixMap[moduleKey] || String(moduleKey || 'FIN').toUpperCase();
+        const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+        return `${prefix}-${stamp}`;
+    }
+
+    function setReadonlyState(input, readOnly = false) {
+        if (!input) return;
+        input.readOnly = readOnly;
+        input.classList.toggle('bg-gray-100', readOnly);
+        input.classList.toggle('cursor-not-allowed', readOnly);
+    }
+
+    function setRecordNumberLocked(locked = true) {
+        const input = $('recordNumberInput');
+        const button = $('recordNumberEditButton');
+        if (!input) return;
+
+        setReadonlyState(input, locked);
+        if (button) {
+            button.textContent = locked ? 'Edit' : 'Lock';
+            button.setAttribute('aria-pressed', locked ? 'false' : 'true');
+        }
+    }
+
+    function toggleRecordNumberEditMode() {
+        const input = $('recordNumberInput');
+        if (!input) return;
+
+        const isLocked = input.readOnly;
+        setRecordNumberLocked(!isLocked);
+        if (isLocked) {
+            input.focus();
+            input.select();
+        }
     }
 
     function showFinanceToast(message, type = 'info') {
@@ -362,8 +426,8 @@
             recordDateLabel: 'Date',
             summaryKeys: ['requesting_department', 'requestor', 'supplier_id', 'coa_id'],
             fields: [
-                textField('requesting_department', 'Requesting Department / Unit', { required: true }),
-                textField('requestor', 'Requestor', { required: true }),
+                textField('requesting_department', 'Department', { required: true }),
+                textField('requestor', 'Employee Name', { required: true, autoFillCurrentUser: true, readOnly: true }),
                 selectField('request_type', 'Type', {
                     options: [
                         { value: 'Service', label: 'Service' },
@@ -371,24 +435,80 @@
                     ],
                     required: true,
                 }),
-                selectField('supplier_id', 'Supplier', { source: 'supplier' }),
-                selectField('master_item_type', 'Master Item Type', {
+                selectField('priority', 'Priority', {
                     options: [
-                        { value: 'service', label: 'Service' },
+                        { value: 'Normal', label: 'Normal' },
+                        { value: 'Urgent', label: 'Urgent' },
+                    ],
+                }),
+                selectField('purchase_type', 'Purchase Type', {
+                    options: [
+                        { value: 'Goods', label: 'Goods' },
+                        { value: 'Services', label: 'Services' },
+                    ],
+                }),
+                selectField('supplier_id', 'Supplier', { source: 'supplier' }),
+                selectField('new_vendor', 'New Vendor?', {
+                    options: [
+                        { value: 'Yes', label: 'Yes' },
+                        { value: 'No', label: 'No' },
+                    ],
+                }),
+                textField('employee_id', 'Employee ID'),
+                textField('employee_email', 'Email', { inputType: 'email' }),
+                textField('contact_number', 'Contact #'),
+                textField('position', 'Position'),
+                textField('superior', 'Superior'),
+                textField('superior_email', 'Superior Email', { inputType: 'email' }),
+                textField('vendor_id_number', 'Vendor ID Number'),
+                textField('vendors_tin', 'Vendors TIN#'),
+                textField('company_name', 'Company'),
+                textareaField('vendor_address', 'Address'),
+                textField('city', 'City'),
+                textField('province', 'Province'),
+                textField('zip', 'Zip'),
+                textField('vendor_phone', 'Phone Number'),
+                textField('vendor_email', 'Email', { inputType: 'email' }),
+                selectField('master_item_type', 'Item Type', {
+                    options: [
                         { value: 'product', label: 'Product' },
                     ],
                 }),
-                selectField('master_item_id', 'Item / Service Selected', {
-                    sourceMap: { service: 'service', product: 'product' },
+                selectField('master_item_id', 'Item Selected', {
+                    sourceMap: { product: 'product' },
                     sourceKey: 'master_item_type',
                 }),
                 textareaField('description_specification', 'Description / Specification'),
                 numberField('quantity', 'Quantity'),
                 numberField('unit_cost', 'Unit Cost'),
                 numberField('estimated_total_cost', 'Estimated Total Cost'),
+                numberField('subtotal', 'Subtotal'),
+                selectField('discount', 'Discount', {
+                    options: [
+                        { value: '0%', label: '0%' },
+                        { value: '5%', label: '5%' },
+                        { value: '10%', label: '10%' },
+                        { value: '15%', label: '15%' },
+                        { value: '20%', label: '20%' },
+                        { value: '25%', label: '25%' },
+                        { value: '30%', label: '30%' },
+                    ],
+                }),
+                numberField('discount_amount', 'Discount Amount'),
+                numberField('shipping_amount', 'Shipping'),
+                selectField('tax_type', 'Tax (VAT/Non-VAT/N/A)', {
+                    options: [
+                        { value: 'VAT', label: 'VAT' },
+                        { value: 'Non-VAT', label: 'Non-VAT' },
+                        { value: 'N/A', label: 'N/A' },
+                    ],
+                }),
+                numberField('tax_amount', 'Tax Amount'),
+                numberField('wht_amount', 'WHT'),
+                numberField('grand_total', 'Grand Total'),
                 selectField('coa_id', 'Account', { source: 'chart_account' }),
-                textareaField('purpose', 'Purpose / Justification'),
                 dateField('needed_date', 'Needed Date'),
+                textareaField('purpose', 'Purpose / Justification'),
                 textareaField('remarks', 'Remarks'),
             ],
         },
@@ -430,7 +550,7 @@
             recordDateLabel: 'Date',
             summaryKeys: ['requestor', 'department', 'amount_requested', 'mode_of_release'],
             fields: [
-                textField('requestor', 'Requestor', { required: true }),
+                textField('requestor', 'Requestor', { required: true, autoFillCurrentUser: true, readOnly: true }),
                 textField('department', 'Department'),
                 textareaField('purpose', 'Purpose', { required: true }),
                 numberField('amount_requested', 'Amount Requested', { required: true }),
@@ -644,6 +764,8 @@
     let currentModuleKey = financeModules[bootstrap.currentModule] ? bootstrap.currentModule : 'supplier';
     let currentWorkflowFilter = workflowFilters.includes(bootstrap.currentWorkflowFilter) ? bootstrap.currentWorkflowFilter : 'all';
     let currentPreviewRecord = null;
+    let currentPreviewTab = 'details';
+    let currentPreviewAttachmentUrl = '';
     let currentEditRecordId = null;
 
     const $ = (id) => document.getElementById(id);
@@ -937,17 +1059,19 @@
         const dependencyValue = field.dependsOnCheckbox ? formValues[`data[${field.dependsOnCheckbox}]`] : null;
         const disabledAttr = field.dependsOnCheckbox && !dependencyValue ? 'disabled' : '';
         const emptyOption = field.placeholder || `Select ${field.label}`;
+        const readOnlyAttr = field.readOnly ? 'readonly' : '';
+        const readOnlyClass = field.readOnly ? 'bg-gray-100 cursor-not-allowed' : '';
 
         let control = '';
 
         if (field.type === 'textarea') {
-            control = `<textarea name="${fieldName}" rows="${field.rows || 3}" class="w-full border rounded-md p-2">${escapeHtml(value)}</textarea>`;
+            control = `<textarea name="${fieldName}" rows="${field.rows || 3}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${readOnlyAttr}>${escapeHtml(value)}</textarea>`;
         } else if (field.type === 'select') {
             const options = getFieldOptions(field, formValues)
                 .map((option) => `<option value="${escapeHtml(option.id ?? option.value)}" ${String(value) === String(option.id ?? option.value) ? 'selected' : ''}>${escapeHtml(option.label ?? option.value)}</option>`)
                 .join('');
             control = `
-                <select name="${fieldName}" class="w-full border rounded-md p-2" ${disabledAttr} ${required}>
+                <select name="${fieldName}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${disabledAttr} ${required} ${field.readOnly ? 'disabled' : ''}>
                     <option value="">${escapeHtml(emptyOption)}</option>
                     ${options}
                 </select>
@@ -960,11 +1084,11 @@
                 </label>
             `;
         } else if (field.type === 'number') {
-            control = `<input type="number" step="0.01" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2" ${required}>`;
+            control = `<input type="number" step="0.01" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         } else if (field.type === 'date') {
-            control = `<input type="date" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2" ${required}>`;
+            control = `<input type="date" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         } else {
-            control = `<input type="${field.inputType || 'text'}" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2" ${required}>`;
+            control = `<input type="${field.inputType || 'text'}" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         }
 
         return `
@@ -974,6 +1098,488 @@
                 ${hint}
             </div>
         `;
+    }
+
+    function renderFieldsByNames(moduleConfig, fieldNames, values, record) {
+        return fieldNames.map((fieldName) => {
+            const field = (moduleConfig.fields || []).find((item) => item.name === fieldName);
+            if (!field) return '';
+
+            let fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+            if (!fieldValue && field.autoFillCurrentUser) {
+                fieldValue = bootstrap.currentUserName || '';
+            }
+            values[field.name] = fieldValue;
+            values[`data[${field.name}]`] = fieldValue;
+            return renderDynamicField(field, fieldValue, values);
+        }).join('');
+    }
+
+    function getPrLineItemRows(record) {
+        const lineItems = Array.isArray(record?.data?.line_items) ? record.data.line_items : [];
+
+        if (lineItems.length) {
+            return lineItems.map((item) => ({
+                item_id: item.item_id || '',
+                description: item.description || '',
+                category: item.category || '',
+                quantity: item.quantity || '',
+                amount: item.amount || '',
+                total: item.total || '',
+            }));
+        }
+
+        const legacyItem = {
+            item_id: record ? (getModuleFieldValue(record, { name: 'master_item_id' }) || '') : '',
+            description: record ? (getModuleFieldValue(record, { name: 'description_specification' }) || '') : '',
+            category: record ? (getModuleFieldValue(record, { name: 'master_item_type' }) || '') : '',
+            quantity: record ? (getModuleFieldValue(record, { name: 'quantity' }) || '') : '',
+            amount: record ? (getModuleFieldValue(record, { name: 'unit_cost' }) || '') : '',
+            total: record ? (getModuleFieldValue(record, { name: 'estimated_total_cost' }) || '') : '',
+        };
+
+        if (Object.values(legacyItem).some((value) => String(value || '').trim() !== '')) {
+            return [legacyItem];
+        }
+
+        return [{
+            item_id: '',
+            description: '',
+            category: '',
+            quantity: '',
+            amount: '',
+            total: '',
+        }];
+    }
+
+    function getPrItemDisplayValue(value) {
+        const productLookup = financeLookupOptions.product || [];
+        const matchById = productLookup.find((option) => String(option.id) === String(value));
+        if (matchById) {
+            return matchById.label;
+        }
+
+        return value || '';
+    }
+
+    function getPrCategoryDisplayValue(value) {
+        return value || '';
+    }
+
+    function resolvePrItemId(value) {
+        const productLookup = financeLookupOptions.product || [];
+        const cleaned = String(value || '').trim().toLowerCase();
+        const match = productLookup.find((option) => {
+            const optionId = String(option.id || '').trim().toLowerCase();
+            const optionLabel = String(option.label || '').trim().toLowerCase();
+            return optionId === cleaned || optionLabel === cleaned;
+        });
+
+        return match ? match.id : '';
+    }
+
+    function resolvePrCategory(value) {
+        const cleaned = String(value || '').trim().toLowerCase();
+        if (cleaned === 'service' || cleaned === 'product') {
+            return cleaned;
+        }
+        return '';
+    }
+
+    function renderPrLineItemsTable(record) {
+        const rows = getPrLineItemRows(record);
+        const productLookup = financeLookupOptions.product || [];
+        const productOptionsHtml = productLookup.map((option) => `<option value="${escapeHtml(option.label)}"></option>`).join('');
+        const categoryOptionsHtml = [
+            'Office Supplies',
+            'IT Hardware',
+            'Printing / Reproduction',
+            'Cleaning Supplies',
+            'Pantry Supplies',
+            'Furniture / Fixtures',
+            'Maintenance / Repair',
+            'Other',
+        ]
+            .map((label) => `<option value="${escapeHtml(label)}"></option>`)
+            .join('');
+
+        return `
+            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h5 class="text-sm font-semibold text-gray-700">Line Items</h5>
+                        <p class="mt-1 text-xs text-gray-500">Add as many items as you need.</p>
+                    </div>
+                    <button type="button" onclick="window.financeModule.addPrLineItemRow()" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                        + Add Item
+                    </button>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full min-w-[980px] border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200 bg-gray-50 text-gray-700">
+                                <th class="w-12 px-3 py-3 text-left">#</th>
+                                <th class="w-44 px-3 py-3 text-left">Item</th>
+                                <th class="px-3 py-3 text-left">Description</th>
+                                <th class="w-36 px-3 py-3 text-left">Category</th>
+                                <th class="w-24 px-3 py-3 text-left">Qty</th>
+                                <th class="w-36 px-3 py-3 text-left">Amount</th>
+                                <th class="w-32 px-3 py-3 text-left">Total</th>
+                                <th class="w-16 px-3 py-3 text-left"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="prLineItemsBody" data-pr-line-items-body>
+                            ${rows.map((row, index) => `
+                                <tr class="border-b border-gray-100 align-top" data-pr-line-item-row data-row-index="${index}">
+                                    <td class="px-3 py-3 font-semibold text-blue-700">${index + 1}</td>
+                                    <td class="px-3 py-3">
+                                        <input
+                                            type="text"
+                                            name="data[line_items][${index}][item_id]"
+                                            data-pr-line-item-field="item_id"
+                                            value="${escapeHtml(getPrItemDisplayValue(row.item_id))}"
+                                            class="w-full border rounded-md p-2"
+                                            placeholder="Type or select item"
+                                            list="prItemOptions"
+                                        >
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="text" name="data[line_items][${index}][description]" data-pr-line-item-field="description" value="${escapeHtml(row.description || '')}" class="w-full border rounded-md p-2" placeholder="Item description">
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input
+                                            type="text"
+                                            name="data[line_items][${index}][category]"
+                                            data-pr-line-item-field="category"
+                                            value="${escapeHtml(getPrCategoryDisplayValue(row.category))}"
+                                            class="w-full border rounded-md p-2"
+                                            placeholder="Type or select purchase category"
+                                            list="prCategoryOptions"
+                                        >
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="number" step="0.01" min="0" name="data[line_items][${index}][quantity]" data-pr-line-item-field="quantity" value="${escapeHtml(row.quantity || '')}" class="w-full border rounded-md p-2" placeholder="0">
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="number" step="0.01" min="0" name="data[line_items][${index}][amount]" data-pr-line-item-field="amount" value="${escapeHtml(row.amount || '')}" class="w-full border rounded-md p-2" placeholder="0.00">
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input type="number" step="0.01" min="0" name="data[line_items][${index}][total]" data-pr-line-item-field="total" value="${escapeHtml(row.total || '')}" class="w-full border rounded-md p-2 bg-gray-50 font-semibold" placeholder="0.00" readonly>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <button type="button" onclick="window.financeModule.removePrLineItemRow(this)" class="mt-2 rounded-md border border-gray-200 px-2 py-2 text-xs text-red-600 hover:bg-red-50">Remove</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <datalist id="prItemOptions">
+                    ${productOptionsHtml}
+                </datalist>
+                <datalist id="prCategoryOptions">
+                    ${categoryOptionsHtml}
+                </datalist>
+
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" name="data[master_item_type]" data-pr-primary-field="master_item_type" value="">
+                    <input type="hidden" name="data[master_item_id]" data-pr-primary-field="master_item_id" value="">
+                    <input type="hidden" name="data[description_specification]" data-pr-primary-field="description_specification" value="">
+                    <input type="hidden" name="data[quantity]" data-pr-primary-field="quantity" value="">
+                    <input type="hidden" name="data[unit_cost]" data-pr-primary-field="unit_cost" value="">
+                    <input type="hidden" name="data[estimated_total_cost]" data-pr-primary-field="estimated_total_cost" value="">
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPrCostSummary(record) {
+        const values = record ? record.data || {} : {};
+        const getValue = (name) => financeFormValues[name] ?? values[name] ?? '';
+
+        return `
+            <div class="rounded-xl border border-gray-200 bg-slate-50 p-4">
+                <h5 class="text-sm font-semibold text-gray-700">Cost Summary</h5>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${renderFieldsByNames(getModuleConfig('pr'), ['subtotal', 'discount', 'discount_amount', 'shipping_amount', 'tax_type', 'tax_amount', 'wht_amount', 'grand_total'], financeFormValues, record)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPrPreviewTable(record) {
+        const rows = getPrLineItemRows(record);
+        const productLookup = financeLookupOptions.product || [];
+        const lookupLabel = (id) => {
+            const match = productLookup.find((option) => String(option.id) === String(id));
+            return match ? match.label : (id || 'N/A');
+        };
+        const summaryLookup = {
+            subtotal: record.amount || '0.00',
+            discount: record.data?.discount || '0%',
+            discount_amount: record.data?.discount_amount || '0.00',
+            shipping_amount: record.data?.shipping_amount || '0.00',
+            tax_type: record.data?.tax_type || 'N/A',
+            tax_amount: record.data?.tax_amount || '0.00',
+            wht_amount: record.data?.wht_amount || '0.00',
+            grand_total: record.data?.grand_total || record.amount || '0.00',
+        };
+
+        return `
+            <div class="mt-6 rounded-2xl border border-gray-200 bg-white/95 p-5">
+                <h4 class="text-sm font-semibold uppercase tracking-[0.2em] text-gray-700">Items / Cost Details</h4>
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full min-w-[860px] border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 text-gray-700">
+                                <th class="border border-gray-200 px-3 py-2 text-left w-12">#</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left">Item</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left">Description</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left w-32">Category</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left w-24">Qty</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left w-32">Amount</th>
+                                <th class="border border-gray-200 px-3 py-2 text-left w-32">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((row, index) => `
+                                <tr>
+                                    <td class="border border-gray-200 px-3 py-2 font-semibold text-blue-700">${index + 1}</td>
+                                    <td class="border border-gray-200 px-3 py-2">${escapeHtml(lookupLabel(row.item_id))}</td>
+                                    <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.description || 'N/A')}</td>
+                                    <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.category || 'N/A')}</td>
+                                    <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.quantity || '0')}</td>
+                                    <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.amount || '0.00')}</td>
+                                    <td class="border border-gray-200 px-3 py-2 font-semibold">${escapeHtml(row.total || '0.00')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="rounded-xl border border-gray-200 bg-slate-50 p-4">
+                        <h5 class="text-sm font-semibold text-gray-700">Cost Summary</h5>
+                        <div class="mt-4 space-y-2 text-sm">
+                            ${['Subtotal', 'Discount', 'Discount Amount', 'Shipping', 'Tax Type', 'Tax Amount', 'WHT', 'Grand Total'].map((label) => {
+                                const keyMap = {
+                                    Subtotal: 'subtotal',
+                                    Discount: 'discount',
+                                    'Discount Amount': 'discount_amount',
+                                    Shipping: 'shipping_amount',
+                                    'Tax Type': 'tax_type',
+                                    'Tax Amount': 'tax_amount',
+                                    WHT: 'wht_amount',
+                                    'Grand Total': 'grand_total',
+                                };
+                                const key = keyMap[label];
+                                const value = summaryLookup[key] ?? 'N/A';
+                                return `
+                                    <div class="flex items-center justify-between gap-4 border-b border-dashed border-gray-200 pb-2 last:border-b-0">
+                                        <span class="text-gray-500">${escapeHtml(label)}</span>
+                                        <span class="font-semibold text-gray-900">${escapeHtml(String(value || 'N/A'))}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 bg-white p-4">
+                        <h5 class="text-sm font-semibold text-gray-700">Purpose & Notes</h5>
+                        <div class="mt-4 space-y-3 text-sm">
+                            <div class="flex items-start justify-between gap-4 border-b border-dashed border-gray-200 pb-2">
+                                <span class="text-gray-500">Purpose / Justification</span>
+                                <span class="font-medium text-gray-900 text-right break-words max-w-[60%]">${escapeHtml(record.data?.purpose || 'N/A')}</span>
+                            </div>
+                            <div class="flex items-start justify-between gap-4">
+                                <span class="text-gray-500">Remarks</span>
+                                <span class="font-medium text-gray-900 text-right break-words max-w-[60%]">${escapeHtml(record.data?.remarks || 'N/A')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                    <h5 class="text-sm font-semibold text-gray-700">Account Allocation</h5>
+                    <div class="mt-4 flex items-center justify-between gap-4 border-b border-dashed border-gray-200 pb-2">
+                        <span class="text-gray-500">Chart of Account</span>
+                        <span class="font-semibold text-gray-900 text-right break-words">${escapeHtml(getLookupLabel('chart_account', record.data?.coa_id) || record.data?.coa_id || 'N/A')}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getPrPrimaryFieldMap() {
+        return {
+            master_item_id: 'item_id',
+            description_specification: 'description',
+            quantity: 'quantity',
+            unit_cost: 'amount',
+            estimated_total_cost: 'total',
+        };
+    }
+
+    function updatePrTotals() {
+        if (currentModuleKey !== 'pr') return;
+
+        const rows = Array.from(document.querySelectorAll('[data-pr-line-item-row]'));
+        let subtotal = 0;
+
+        rows.forEach((row) => {
+            const quantity = parseFloat(row.querySelector('[data-pr-line-item-field="quantity"]')?.value || '0') || 0;
+            const amount = parseFloat(row.querySelector('[data-pr-line-item-field="amount"]')?.value || '0') || 0;
+            const totalInput = row.querySelector('[data-pr-line-item-field="total"]');
+            const total = quantity * amount;
+            subtotal += total;
+            if (totalInput) {
+                totalInput.value = total.toFixed(2);
+            }
+        });
+
+        const subtotalInput = $('financeForm').querySelector('input[name="data[subtotal]"]');
+        const discountSelect = $('financeForm').querySelector('select[name="data[discount]"]');
+        const discountAmountInput = $('financeForm').querySelector('input[name="data[discount_amount]"]');
+        const shippingInput = $('financeForm').querySelector('input[name="data[shipping_amount]"]');
+        const taxSelect = $('financeForm').querySelector('select[name="data[tax_type]"]');
+        const taxAmountInput = $('financeForm').querySelector('input[name="data[tax_amount]"]');
+        const whtInput = $('financeForm').querySelector('input[name="data[wht_amount]"]');
+        const grandTotalInput = $('financeForm').querySelector('input[name="data[grand_total]"]');
+        const amountInput = $('amountInput');
+
+        const discountRate = String(discountSelect?.value || '0%').replace('%', '');
+        const discountAmount = subtotal * ((parseFloat(discountRate) || 0) / 100);
+        const shipping = parseFloat(shippingInput?.value || '0') || 0;
+        const taxAmount = parseFloat(taxAmountInput?.value || '0') || 0;
+        const wht = parseFloat(whtInput?.value || '0') || 0;
+        const grandTotal = subtotal - discountAmount + shipping + taxAmount - wht;
+
+        if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
+        if (discountAmountInput) discountAmountInput.value = discountAmount.toFixed(2);
+        if (grandTotalInput) grandTotalInput.value = grandTotal.toFixed(2);
+        if (amountInput) amountInput.value = grandTotal.toFixed(2);
+        syncPrPrimaryFields();
+    }
+
+    function bindPurchaseRequestLineItemRow(row) {
+        if (!row || row.dataset.prBound === '1') return;
+        row.dataset.prBound = '1';
+
+        row.querySelectorAll('input, select, textarea').forEach((input) => {
+            input.addEventListener('input', () => {
+                updatePrTotals();
+                renderDrawerPreview();
+            });
+            input.addEventListener('change', () => {
+                updatePrTotals();
+                renderDrawerPreview();
+            });
+        });
+    }
+
+    function bindPurchaseRequestLineItems() {
+        if (currentModuleKey !== 'pr') return;
+
+        document.querySelectorAll('[data-pr-line-item-row]').forEach((row) => bindPurchaseRequestLineItemRow(row));
+        updatePrTotals();
+    }
+
+    function syncPrPrimaryFields() {
+        if (currentModuleKey !== 'pr') return;
+
+        const firstRow = Array.from(document.querySelectorAll('[data-pr-line-item-row]')).find((row) => {
+            return Array.from(row.querySelectorAll('[data-pr-line-item-field]')).some((input) => String(input.value || '').trim() !== '');
+        }) || document.querySelector('[data-pr-line-item-row]');
+        const primaryMap = getPrPrimaryFieldMap();
+        const form = $('financeForm');
+        if (!form) return;
+
+        Object.entries(primaryMap).forEach(([primaryField, rowField]) => {
+            const target = form.querySelector(`[data-pr-primary-field="${primaryField}"]`);
+            const source = firstRow?.querySelector(`[data-pr-line-item-field="${rowField}"]`);
+            if (target) {
+                if (primaryField === 'master_item_id') {
+                    target.value = source ? resolvePrItemId(source.value) : '';
+                } else {
+                    target.value = source ? (source.value || '') : '';
+                }
+            }
+        });
+
+        const typeTarget = form.querySelector('[data-pr-primary-field="master_item_type"]');
+        if (typeTarget) {
+            typeTarget.value = 'product';
+        }
+    }
+
+    function addPrLineItemRow() {
+        if (currentModuleKey !== 'pr') return;
+
+        const tbody = $('prLineItemsBody');
+        if (!tbody) return;
+
+        const index = tbody.querySelectorAll('[data-pr-line-item-row]').length;
+
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 align-top';
+        row.setAttribute('data-pr-line-item-row', '');
+        row.setAttribute('data-row-index', String(index));
+        row.innerHTML = `
+            <td class="px-3 py-3 font-semibold text-blue-700">${index + 1}</td>
+            <td class="px-3 py-3">
+                <input type="text" name="data[line_items][${index}][item_id]" data-pr-line-item-field="item_id" class="w-full border rounded-md p-2" placeholder="Type or select item" list="prItemOptions">
+            </td>
+            <td class="px-3 py-3">
+                <input type="text" name="data[line_items][${index}][description]" data-pr-line-item-field="description" class="w-full border rounded-md p-2" placeholder="Item description">
+            </td>
+            <td class="px-3 py-3">
+                <input type="text" name="data[line_items][${index}][category]" data-pr-line-item-field="category" class="w-full border rounded-md p-2" placeholder="Type or select category" list="prCategoryOptions">
+            </td>
+            <td class="px-3 py-3">
+                <input type="number" step="0.01" min="0" name="data[line_items][${index}][quantity]" data-pr-line-item-field="quantity" class="w-full border rounded-md p-2" placeholder="0">
+            </td>
+            <td class="px-3 py-3">
+                <input type="number" step="0.01" min="0" name="data[line_items][${index}][amount]" data-pr-line-item-field="amount" class="w-full border rounded-md p-2" placeholder="0.00">
+            </td>
+            <td class="px-3 py-3">
+                <input type="number" step="0.01" min="0" name="data[line_items][${index}][total]" data-pr-line-item-field="total" class="w-full border rounded-md p-2 bg-gray-50 font-semibold" placeholder="0.00" readonly>
+            </td>
+            <td class="px-3 py-3">
+                <button type="button" onclick="window.financeModule.removePrLineItemRow(this)" class="mt-2 rounded-md border border-gray-200 px-2 py-2 text-xs text-red-600 hover:bg-red-50">Remove</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+        bindPurchaseRequestLineItemRow(row);
+        updatePrTotals();
+    }
+
+    function removePrLineItemRow(button) {
+        if (currentModuleKey !== 'pr') return;
+        const row = button?.closest('[data-pr-line-item-row]');
+        const tbody = $('prLineItemsBody');
+        if (!row || !tbody) return;
+
+        if (tbody.querySelectorAll('[data-pr-line-item-row]').length <= 1) {
+            row.querySelectorAll('input, select').forEach((input) => {
+                input.value = '';
+            });
+            updatePrTotals();
+            return;
+        }
+
+        row.remove();
+        Array.from(tbody.querySelectorAll('[data-pr-line-item-row]')).forEach((tr, index) => {
+            tr.setAttribute('data-row-index', String(index));
+            tr.children[0].textContent = String(index + 1);
+            tr.querySelectorAll('[name]').forEach((input) => {
+                const name = input.getAttribute('name');
+                input.setAttribute('name', name.replace(/data\[line_items\]\[\d+\]/, `data[line_items][${index}]`));
+            });
+            bindPurchaseRequestLineItemRow(tr);
+        });
+        updatePrTotals();
     }
 
     let financeFormValues = {};
@@ -1037,8 +1643,22 @@
     function wireDynamicFieldEvents() {
         const form = $('financeForm');
         form.querySelectorAll('input, select, textarea').forEach((input) => {
-            input.addEventListener('input', renderDrawerPreview);
-            input.addEventListener('change', renderDrawerPreview);
+            if (currentModuleKey === 'pr' && input.closest('[data-pr-line-item-row]')) {
+                return;
+            }
+
+            input.addEventListener('input', () => {
+                if (currentModuleKey === 'pr') {
+                    updatePrTotals();
+                }
+                renderDrawerPreview();
+            });
+            input.addEventListener('change', () => {
+                if (currentModuleKey === 'pr') {
+                    updatePrTotals();
+                }
+                renderDrawerPreview();
+            });
         });
     }
 
@@ -1052,9 +1672,11 @@
             supplierCompletionMode = 'complete_internally';
         }
 
-        const recordNumberValue = record ? record.record_number || '' : '';
+        const recordNumberValue = record
+            ? (record.record_number || '')
+            : generateModuleRecordNumber(currentModuleKey);
         const recordTitleValue = record ? record.record_title || '' : '';
-        const recordDateValue = record ? record.record_date || '' : '';
+        const recordDateValue = record ? record.record_date || '' : todayDateValue();
         const amountValue = record ? record.amount || '' : '';
         const statusValue = record ? record.status || 'Active' : 'Active';
         const existingAttachments = record ? (record.attachments || []) : [];
@@ -1081,34 +1703,127 @@
         $('drawerSaveButton').textContent = isSendToSupplierMode() ? 'Send Form' : (record ? 'Update' : 'Save');
         $('existingAttachmentsJson').value = JSON.stringify(existingAttachments);
 
+        setReadonlyState($('recordNumberInput'), true);
+        setReadonlyState($('recordDateInput'), currentModuleKey === 'supplier');
+        setRecordNumberLocked(true);
+
+        const drawerPanel = $('drawerPanel');
+        if (drawerPanel) {
+            drawerPanel.classList.remove('max-w-[540px]', 'max-w-[680px]', 'max-w-[760px]', 'max-w-[1240px]', 'max-w-none');
+            drawerPanel.classList.add('max-w-none');
+        }
+
+        const drawerPreviewPane = $('drawerPreviewPane');
+        const drawerFormPane = $('drawerFormPane');
+        if (drawerPreviewPane && drawerFormPane) {
+            drawerPreviewPane.classList.remove('hidden');
+            drawerPreviewPane.classList.remove('basis-1/2', 'basis-auto', 'flex-1', 'w-full');
+            drawerFormPane.classList.remove('flex-1', 'max-w-none', 'max-w-[540px]', 'max-w-[580px]', 'basis-1/2', 'basis-auto', 'w-full');
+            drawerPreviewPane.classList.add('basis-1/2');
+            drawerFormPane.classList.add('basis-1/2', 'max-w-none');
+        }
+
         renderSupplierModeTabs();
         setSupplierFormLayout();
 
         const supplierFields = moduleConfig.fields.filter((field) => field.name !== 'completion_mode');
-        const fieldsToRender = currentModuleKey === 'supplier' && isSendToSupplierMode()
-            ? supplierFields.filter((field) => field.name === 'email_address')
-            : supplierFields;
+        const fieldsHtml = (() => {
+            if (currentModuleKey === 'supplier') {
+                const fieldsToRender = isSendToSupplierMode()
+                    ? supplierFields.filter((field) => field.name === 'email_address')
+                    : supplierFields;
 
-        const fieldsHtml = [
-            currentModuleKey === 'supplier'
-                ? `<input type="hidden" name="data[completion_mode]" value="${escapeHtml(supplierCompletionMode)}">`
-                : '',
-            ...fieldsToRender.map((field) => {
-                const fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+                return [
+                    `<input type="hidden" name="data[completion_mode]" value="${escapeHtml(supplierCompletionMode)}">`,
+                    ...fieldsToRender.map((field) => {
+                        let fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+                        if (!fieldValue && field.autoFillCurrentUser) {
+                            fieldValue = bootstrap.currentUserName || '';
+                        }
+                        values[field.name] = fieldValue;
+                        values[`data[${field.name}]`] = fieldValue;
+                        return renderDynamicField(field, fieldValue, values);
+                    }),
+                ].join('');
+            }
+
+            if (currentModuleKey === 'pr') {
+                return `
+                    <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Request Details</h4>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${renderFieldsByNames(moduleConfig, ['requesting_department', 'requestor', 'request_type', 'priority', 'purchase_type', 'needed_date'], values, record)}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Requester Details</h4>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${renderFieldsByNames(moduleConfig, ['employee_id', 'employee_email', 'contact_number', 'position', 'superior', 'superior_email'], values, record)}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Vendor Details</h4>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${renderFieldsByNames(moduleConfig, ['supplier_id', 'new_vendor', 'vendor_id_number', 'vendors_tin', 'company_name', 'vendor_address', 'city', 'province', 'zip', 'vendor_phone', 'vendor_email'], values, record)}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Account Allocation</h4>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${renderFieldsByNames(moduleConfig, ['coa_id'], values, record)}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Items / Cost Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Add as many items as needed. Totals can be reviewed below and will keep the form spaced out.</p>
+                        <div class="mt-4 space-y-4">
+                            ${renderPrLineItemsTable(record)}
+
+                            <div class="rounded-xl border border-gray-200 bg-slate-50 p-4">
+                                <h5 class="text-sm font-semibold text-gray-700">Cost Summary</h5>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    ${renderFieldsByNames(moduleConfig, ['subtotal', 'discount', 'discount_amount', 'shipping_amount', 'tax_type', 'tax_amount', 'wht_amount', 'grand_total'], values, record)}
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                                <h5 class="text-sm font-semibold text-gray-700">Purpose & Notes</h5>
+                                <div class="mt-4 grid grid-cols-1 gap-4">
+                                    ${renderFieldsByNames(moduleConfig, ['purpose', 'remarks'], values, record)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return supplierFields.map((field) => {
+                let fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+                if (!fieldValue && field.autoFillCurrentUser) {
+                    fieldValue = bootstrap.currentUserName || '';
+                }
                 values[field.name] = fieldValue;
                 values[`data[${field.name}]`] = fieldValue;
                 return renderDynamicField(field, fieldValue, values);
-            }),
-        ].join('');
+            }).join('');
+        })();
 
         $('dynamicFields').innerHTML = fieldsHtml;
         renderAttachmentList(existingAttachments);
         wireDynamicFieldEvents();
+        bindPurchaseRequestLineItems();
         renderDrawerPreview();
     }
 
     function renderDrawerPreview() {
         const moduleConfig = getModuleConfig(currentModuleKey);
+        const companyName = 'John Kelly & Company';
+        const companyLegalName = 'JK&C INC.';
+        const companyLogo = '/images/imaglogo.png';
         const formValues = {};
         const formData = new FormData($('financeForm'));
         formData.forEach((value, key) => {
@@ -1118,47 +1833,213 @@
         const recordTitle = $('recordTitleInput').value.trim();
         const recordDate = $('recordDateInput').value;
         const amount = $('amountInput').value;
+        const titleLabel = `${moduleConfig.label} Form`.toUpperCase();
+        const summaryItems = [
+            ['Number', recordNumber || 'N/A'],
+            ['Title', recordTitle || 'N/A'],
+            ['Date', recordDate || 'N/A'],
+            ['Amount', amount || '0.00'],
+        ];
 
-        const dataPairs = moduleConfig.fields.map((field) => {
-            const value = formValues[`data[${field.name}]`];
-            if (!value) {
-                return '';
-            }
-            return `
-                <div class="flex justify-between gap-4 py-2 border-b border-dashed border-gray-100">
-                    <span class="text-gray-500">${escapeHtml(field.label)}</span>
-                    <span class="text-right font-medium text-gray-900 break-words">${escapeHtml(getFormDisplayValue(field, value, formValues))}</span>
+        if (currentModuleKey === 'pr') {
+            const rows = Array.from(document.querySelectorAll('[data-pr-line-item-row]')).map((row) => ({
+                item_id: row.querySelector('[data-pr-line-item-field="item_id"]')?.value || '',
+                description: row.querySelector('[data-pr-line-item-field="description"]')?.value || '',
+                category: row.querySelector('[data-pr-line-item-field="category"]')?.value || '',
+                quantity: row.querySelector('[data-pr-line-item-field="quantity"]')?.value || '',
+                amount: row.querySelector('[data-pr-line-item-field="amount"]')?.value || '',
+                total: row.querySelector('[data-pr-line-item-field="total"]')?.value || '',
+            }));
+
+            const summaryValues = {
+                subtotal: $('financeForm').querySelector('input[name="data[subtotal]"]')?.value || '0.00',
+                discount: $('financeForm').querySelector('select[name="data[discount]"]')?.value || '0%',
+                discount_amount: $('financeForm').querySelector('input[name="data[discount_amount]"]')?.value || '0.00',
+                shipping_amount: $('financeForm').querySelector('input[name="data[shipping_amount]"]')?.value || '0.00',
+                tax_type: $('financeForm').querySelector('select[name="data[tax_type]"]')?.value || 'N/A',
+                tax_amount: $('financeForm').querySelector('input[name="data[tax_amount]"]')?.value || '0.00',
+                wht_amount: $('financeForm').querySelector('input[name="data[wht_amount]"]')?.value || '0.00',
+                grand_total: $('financeForm').querySelector('input[name="data[grand_total]"]')?.value || '0.00',
+            };
+
+            $('drawerPreview').innerHTML = `
+                <div class="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+                    <div class="mb-3 flex items-center justify-between rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
+                        <span>PDF Holder</span>
+                        <span>Live Preview</span>
+                    </div>
+                    <div class="mx-auto max-w-[760px] overflow-hidden rounded-[6px] border border-gray-300 bg-white shadow-lg">
+                        <div class="relative px-5 py-5 text-center border-b border-gray-300 bg-white">
+                            <div class="mx-auto flex items-center justify-center rounded-xl bg-white px-4 py-2">
+                                <img src="${companyLogo}" alt="${escapeHtml(companyName)}" class="block h-24 w-auto max-w-[220px] object-contain">
+                            </div>
+                            <div class="mt-3 text-[16px] font-semibold leading-tight text-gray-900">${escapeHtml(companyName)}</div>
+                        <div class="text-[10px] font-medium tracking-[0.3em] text-gray-500">${escapeHtml(companyLegalName)}</div>
+                    </div>
+
+                    <div class="relative bg-blue-700 px-4 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.32em] text-white">
+                        ${escapeHtml(titleLabel)}
+                    </div>
+
+                    <div class="relative grid grid-cols-2 border-t border-gray-300 text-sm">
+                        ${summaryItems.map(([label, value], index) => `
+                            <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                <p class="mt-1 text-[15px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="relative border-t border-gray-300">
+                        <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                            <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Items / Cost Details</h4>
+                        </div>
+                        <div class="p-4 overflow-x-auto">
+                            <table class="w-full min-w-[860px] border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-700">
+                                        <th class="border border-gray-200 px-3 py-2 text-left w-12">#</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left">Item</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left">Description</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left w-32">Category</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left w-24">Qty</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left w-32">Amount</th>
+                                        <th class="border border-gray-200 px-3 py-2 text-left w-32">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rows.map((row, index) => `
+                                        <tr>
+                                            <td class="border border-gray-200 px-3 py-2 font-semibold text-blue-700">${index + 1}</td>
+                                            <td class="border border-gray-200 px-3 py-2">${escapeHtml(getPrItemDisplayValue(row.item_id) || 'N/A')}</td>
+                                            <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.description || 'N/A')}</td>
+                                            <td class="border border-gray-200 px-3 py-2">${escapeHtml(getPrCategoryDisplayValue(row.category) || 'N/A')}</td>
+                                            <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.quantity || '0')}</td>
+                                            <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.amount || '0.00')}</td>
+                                            <td class="border border-gray-200 px-3 py-2 font-semibold">${escapeHtml(row.total || '0.00')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="relative border-t border-gray-300">
+                        <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                            <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Cost Summary</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2">
+                            ${[
+                                ['Subtotal', summaryValues.subtotal],
+                                ['Discount', summaryValues.discount],
+                                ['Discount Amount', summaryValues.discount_amount],
+                                ['Shipping', summaryValues.shipping_amount],
+                                ['Tax (VAT/Non-VAT/N/A)', summaryValues.tax_type],
+                                ['Tax Amount', summaryValues.tax_amount],
+                                ['WHT', summaryValues.wht_amount],
+                                ['Grand Total', summaryValues.grand_total],
+                            ].map(([label, value], index) => `
+                                <div class="${index % 2 === 0 ? 'md:border-r' : ''} border-gray-300 px-4 py-3 border-b">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                    <p class="mt-1 text-[15px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="relative border-t border-gray-300">
+                        <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                            <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Purpose & Notes</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2">
+                            <div class="border-r border-gray-300 px-4 py-3">
+                                <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Purpose / Justification</p>
+                                <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml($('financeForm').querySelector('textarea[name="data[purpose]"]')?.value || 'Not filled yet')}</p>
+                            </div>
+                            <div class="px-4 py-3">
+                                <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Remarks</p>
+                                <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml($('financeForm').querySelector('textarea[name="data[remarks]"]')?.value || 'Not filled yet')}</p>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
                 </div>
             `;
-        }).filter(Boolean).join('');
+            return;
+        }
+
+        const previewFields = moduleConfig.fields
+            .filter((field) => field.name !== 'completion_mode')
+            .filter((field) => {
+                if (currentModuleKey === 'supplier' && isSendToSupplierMode()) {
+                    return field.name === 'email_address';
+                }
+
+                return true;
+            });
+
+        const dataPairs = previewFields.map((field, index) => {
+            const value = formValues[`data[${field.name}]`];
+            const cellClasses = [
+                'px-4',
+                'py-3',
+                'border-b',
+                'border-gray-300',
+                index % 2 === 0 ? 'md:border-r' : '',
+            ].filter(Boolean).join(' ');
+
+            if (!value) {
+                return `
+                    <div class="${cellClasses}">
+                        <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(field.label)}</p>
+                        <p class="mt-2 min-h-[20px] border-b border-dotted border-gray-300 text-[14px] font-semibold text-gray-900 italic">Not filled yet</p>
+                    </div>
+                `;
+            }
+            return `
+                <div class="${cellClasses}">
+                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(field.label)}</p>
+                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(getFormDisplayValue(field, value, formValues))}</p>
+                </div>
+            `;
+        }).join('');
 
         $('drawerPreview').innerHTML = `
-            <div class="space-y-4">
-                <div class="rounded-xl border border-gray-200 p-4 bg-gray-50">
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                            <p class="text-gray-500">Number</p>
-                            <p class="font-semibold text-gray-900">${escapeHtml(recordNumber || 'N/A')}</p>
+            <div class="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+                <div class="mb-3 flex items-center justify-between rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
+                    <span>PDF Holder</span>
+                    <span>Live Preview</span>
+                </div>
+                <div class="mx-auto max-w-[760px] overflow-hidden rounded-[6px] border border-gray-300 bg-white shadow-lg">
+                <div class="relative px-5 py-5 text-center border-b border-gray-300 bg-white">
+                    <div class="mx-auto flex items-center justify-center rounded-xl bg-white px-4 py-2">
+                        <img src="${companyLogo}" alt="${escapeHtml(companyName)}" class="block h-24 w-auto max-w-[220px] object-contain">
+                    </div>
+                    <div class="mt-3 text-[16px] font-semibold leading-tight text-gray-900">${escapeHtml(companyName)}</div>
+                    <div class="text-[10px] font-medium tracking-[0.3em] text-gray-500">${escapeHtml(companyLegalName)}</div>
+                </div>
+
+                <div class="relative bg-blue-700 px-4 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.32em] text-white">
+                    ${escapeHtml(titleLabel)}
+                </div>
+
+                <div class="relative grid grid-cols-2 border-t border-gray-300 text-sm">
+                    ${summaryItems.map(([label, value], index) => `
+                        <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                            <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                            <p class="mt-1 text-[15px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
                         </div>
-                        <div>
-                            <p class="text-gray-500">Title</p>
-                            <p class="font-semibold text-gray-900 break-words">${escapeHtml(recordTitle || 'N/A')}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-500">Date</p>
-                            <p class="font-semibold text-gray-900">${escapeHtml(recordDate || 'N/A')}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-500">Amount</p>
-                            <p class="font-semibold text-gray-900">${escapeHtml(amount || '0.00')}</p>
-                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="relative border-t border-gray-300">
+                    <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                        <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Details</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2">
+                        ${dataPairs || '<div class="px-3 py-4 text-gray-400 italic">No module fields entered yet.</div>'}
                     </div>
                 </div>
-                <div class="rounded-xl border border-gray-200 p-4">
-                    <h4 class="font-semibold text-gray-900 mb-3">Details</h4>
-                    <div class="space-y-1 text-sm">
-                        ${dataPairs || '<p class="text-gray-400 italic">No module fields entered yet.</p>'}
-                    </div>
                 </div>
             </div>
         `;
@@ -1172,7 +2053,10 @@
 
     function closePreview() {
         currentPreviewRecord = null;
+        currentPreviewTab = 'details';
+        currentPreviewAttachmentUrl = '';
         $('previewDocument').innerHTML = '';
+        $('previewTabContent').innerHTML = '';
         $('previewActions').innerHTML = '';
         showOnlySection('tableSection');
     }
@@ -1184,6 +2068,7 @@
         const drawerPanel = $('drawerPanel');
         drawerSection.classList.remove('hidden');
         requestAnimationFrame(() => drawerPanel.classList.remove('translate-x-full'));
+        requestAnimationFrame(() => renderDrawerPreview());
     }
 
     function closeFinanceDrawer() {
@@ -1206,84 +2091,154 @@
         return financeRecords.find((record) => String(record.id) === String(id));
     }
 
+    function normalizeAttachmentUrl(path) {
+        return `/${String(path || '').replace(/^\//, '')}`;
+    }
+
     function renderPreviewDocument(record) {
-        const moduleConfig = getModuleConfig(record.module_key);
-        const entries = [
-            ['Module', moduleConfig.label],
-            ['Record Number', record.record_number],
-            ['Record Title', record.record_title],
-            ['Record Date', record.record_date],
-            ['Amount', record.amount ? formatCurrency(record.amount) : 'N/A'],
-            ['Status', record.status],
-            ['Workflow', record.workflow_status],
-            ['Approval', record.approval_status],
-            ['Created By', record.user],
-            ['Submitted At', record.submitted_at],
-            ['Approved At', record.approved_at],
-            ['Review Note', record.review_note || 'N/A'],
-        ];
-
-        const dynamicEntries = (moduleConfig.fields || []).map((field) => {
-            const rawValue = getFieldValue(record, field.name);
-            const value = getFormDisplayValue(field, rawValue, record.data || {});
-            return [field.label, value || 'N/A'];
-        });
-
-        const attachments = (record.attachments || []).map((attachment) => `
-            <a href="/${String(attachment.path || '').replace(/^\//, '')}" target="_blank" class="block text-blue-600 hover:underline break-all">${escapeHtml(attachment.name || attachment.path)}</a>
-        `).join('');
+        const previewUrl = currentPreviewAttachmentUrl || `/finance/${record.id}/preview-html`;
+        const attachmentMode = Boolean(currentPreviewAttachmentUrl);
+        const attachmentName = currentPreviewAttachmentUrl
+            ? (record.attachments || []).find((attachment) => normalizeAttachmentUrl(attachment.path) === currentPreviewAttachmentUrl)?.name || 'Attached PDF'
+            : 'Browser Preview';
 
         $('previewDocument').innerHTML = `
-            <div class="max-w-4xl mx-auto">
-                <div class="rounded-2xl border border-gray-200 p-6 bg-white shadow-sm">
-                    <div class="flex items-start justify-between gap-4 border-b border-gray-100 pb-4 mb-6">
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-gray-500">Finance Operations</p>
-                            <h3 class="text-2xl font-semibold text-gray-900 mt-2">${escapeHtml(moduleConfig.label)}</h3>
-                            <p class="text-sm text-gray-500 mt-1">${escapeHtml(record.display_label || '')}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-gray-500">Workflow</p>
-                            <p class="font-semibold text-gray-900">${escapeHtml(record.workflow_status || '')}</p>
-                            <p class="text-xs text-gray-500 mt-3">Approval</p>
-                            <p class="font-semibold text-gray-900">${escapeHtml(record.approval_status || '')}</p>
-                        </div>
+            <div class="max-w-5xl mx-auto">
+                <div class="rounded-[24px] border border-gray-200 bg-slate-100 p-4">
+                    <div class="mb-3 flex items-center justify-between gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-500 shadow-sm">
+                        <span>${escapeHtml(attachmentMode ? 'Attachment PDF' : 'Browser Preview')}</span>
+                        <span class="truncate">${escapeHtml(attachmentName)}</span>
                     </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        ${entries.map(([label, value]) => `
-                            <div class="border border-gray-100 rounded-xl p-3">
-                                <p class="text-xs uppercase tracking-wide text-gray-500">${escapeHtml(label)}</p>
-                                <p class="mt-1 font-medium text-gray-900 break-words">${escapeHtml(value || 'N/A')}</p>
-                            </div>
-                        `).join('')}
+                    <div class="overflow-hidden rounded-[14px] border border-gray-300 bg-white shadow-lg">
+                        <iframe
+                            src="${escapeHtml(previewUrl)}"
+                            title="Finance preview"
+                            class="block w-full"
+                            style="height: 980px; border: 0; background: #ffffff;"
+                        ></iframe>
                     </div>
-
-                    <div class="mt-6">
-                        <h4 class="font-semibold text-gray-900 mb-3">Module Fields</h4>
-                        <div class="space-y-2 text-sm">
-                            ${dynamicEntries.map(([label, value]) => `
-                                <div class="flex items-start justify-between gap-6 border-b border-dashed border-gray-100 py-2">
-                                    <span class="text-gray-500">${escapeHtml(label)}</span>
-                                    <span class="text-right font-medium text-gray-900 break-words">${escapeHtml(value || 'N/A')}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-
-                    <div class="mt-6">
-                        <h4 class="font-semibold text-gray-900 mb-3">Attachments</h4>
-                        <div class="space-y-2">
-                            ${attachments || '<p class="text-gray-400 italic text-sm">No attachments uploaded.</p>'}
-                        </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <a href="${escapeHtml(previewUrl)}" target="_blank" class="rounded-full border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                            Open ${escapeHtml(attachmentMode ? 'Attachment' : 'Preview')}
+                        </a>
                     </div>
                 </div>
             </div>
         `;
     }
 
+    function renderPreviewTabContent(record) {
+        const detailItems = `
+            <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                <h4 class="text-[15px] font-semibold text-gray-900">${escapeHtml(record.module_label || 'Finance Record')} Details</h4>
+                <div class="mt-4 space-y-4">
+                    ${[
+                        ['Record Number', record.record_number || 'N/A'],
+                        ['Record Title', record.record_title || 'N/A'],
+                        ['Record Date', record.record_date || 'N/A'],
+                        ['Amount', record.amount ? formatCurrency(record.amount) : 'N/A'],
+                        ['Workflow', record.workflow_status || 'N/A'],
+                        ['Approval', record.approval_status || 'N/A'],
+                        ['Status', record.status || 'N/A'],
+                        ['Created By', record.user || 'N/A'],
+                        ['Review Note', record.review_note || 'N/A'],
+                    ].map(([label, value]) => `
+                        <div class="space-y-1 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
+                            <p class="text-[11px] uppercase tracking-[0.18em] text-gray-500">${escapeHtml(label)}</p>
+                            <p class="text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        const attachments = Array.isArray(record.attachments) ? record.attachments : [];
+        const pdfAttachments = attachments.filter((attachment) => {
+            const name = String(attachment.name || attachment.path || '').toLowerCase();
+            const mime = String(attachment.mime || '').toLowerCase();
+            return name.endsWith('.pdf') || mime.includes('pdf');
+        });
+        const otherAttachments = attachments.filter((attachment) => !pdfAttachments.includes(attachment));
+
+        const attachmentsHtml = `
+            <div class="space-y-4">
+                <div class="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                    <h4 class="text-[15px] font-semibold text-gray-900">Attached PDFs</h4>
+                    <p class="mt-1 text-xs text-gray-500">Choose a PDF to load it into the preview pane.</p>
+                    <div class="mt-4 space-y-3">
+                        ${pdfAttachments.length ? pdfAttachments.map((attachment, index) => {
+                            const url = normalizeAttachmentUrl(attachment.path || '');
+                            const active = currentPreviewAttachmentUrl === url;
+                            return `
+                                <button
+                                    type="button"
+                                    onclick="window.financeModule.previewAttachment(${JSON.stringify(url)}, ${JSON.stringify(attachment.name || `Attachment ${index + 1}`)})"
+                                    class="w-full rounded-xl border px-4 py-3 text-left transition ${active ? 'border-blue-200 bg-white shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="font-semibold text-gray-900 break-all">${escapeHtml(attachment.name || `Attachment ${index + 1}`)}</p>
+                                            <p class="mt-1 text-xs text-gray-500 break-all">${escapeHtml(attachment.path || '')}</p>
+                                        </div>
+                                        <span class="rounded-full border border-gray-200 px-3 py-1 text-[11px] font-medium text-gray-600">View</span>
+                                    </div>
+                                </button>
+                            `;
+                        }).join('') : '<p class="text-sm text-gray-400 italic">No PDF attachments uploaded.</p>'}
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-white p-4">
+                    <h4 class="text-[15px] font-semibold text-gray-900">Other Attachments</h4>
+                    <div class="mt-4 space-y-3">
+                        ${otherAttachments.length ? otherAttachments.map((attachment, index) => `
+                            <a href="/${String(attachment.path || '').replace(/^\//, '')}" target="_blank" class="block rounded-xl border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50 transition">
+                                <p class="font-medium text-gray-900 break-all">${escapeHtml(attachment.name || `Attachment ${index + 1}`)}</p>
+                                <p class="mt-1 text-xs text-gray-500 break-all">${escapeHtml(attachment.path || '')}</p>
+                            </a>
+                        `).join('') : '<p class="text-sm text-gray-400 italic">No other attachments uploaded.</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('previewTabContent').innerHTML = currentPreviewTab === 'attachments' ? attachmentsHtml : detailItems;
+    }
+
+    function updatePreviewTabButtons() {
+        const detailsButton = $('previewTabDetails');
+        const attachmentsButton = $('previewTabAttachments');
+        if (!detailsButton || !attachmentsButton) return;
+
+        const isDetails = currentPreviewTab === 'details';
+        detailsButton.className = `rounded-full px-4 py-2 text-sm font-medium transition ${isDetails ? 'bg-white text-blue-700 shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'}`;
+        attachmentsButton.className = `rounded-full px-4 py-2 text-sm font-medium transition ${!isDetails ? 'bg-white text-blue-700 shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900'}`;
+    }
+
+    function changePreviewTab(tab) {
+        currentPreviewTab = tab === 'attachments' ? 'attachments' : 'details';
+        if (currentPreviewRecord) {
+            if (currentPreviewTab === 'attachments') {
+                const firstPdf = (currentPreviewRecord.attachments || []).find((attachment) => {
+                    const name = String(attachment.name || attachment.path || '').toLowerCase();
+                    const mime = String(attachment.mime || '').toLowerCase();
+                    return name.endsWith('.pdf') || mime.includes('pdf');
+                });
+                currentPreviewAttachmentUrl = firstPdf ? normalizeAttachmentUrl(firstPdf.path || '') : '';
+            } else {
+                currentPreviewAttachmentUrl = '';
+            }
+            renderPreviewTabContent(currentPreviewRecord);
+            renderPreviewDocument(currentPreviewRecord);
+            renderPreviewActions(currentPreviewRecord);
+        }
+        updatePreviewTabButtons();
+    }
+
     function renderPreviewActions(record) {
         const actions = [];
+        const previewUrl = currentPreviewAttachmentUrl || `/finance/${record.id}/preview-html`;
+        const previewLabel = currentPreviewAttachmentUrl ? 'Attachment PDF' : 'Preview';
+        actions.push(`<a href="${escapeHtml(previewUrl)}" target="_blank" class="block w-full border border-gray-300 rounded-md py-2 text-center hover:bg-gray-50">Open ${escapeHtml(previewLabel)}</a>`);
         actions.push(`<button type="button" onclick="window.financeModule.openFinanceDrawer(window.financeModule.getRecordById(${record.id}))" class="w-full border border-gray-300 rounded-md py-2 hover:bg-gray-50">Edit</button>`);
         actions.push(`<button type="button" onclick="window.financeModule.printFinanceRecord(${record.id})" class="w-full border border-gray-300 rounded-md py-2 hover:bg-gray-50">Print</button>`);
 
@@ -1318,19 +2273,25 @@
         if (!record) return;
 
         currentPreviewRecord = record;
+        currentPreviewTab = 'details';
+        currentPreviewAttachmentUrl = '';
         $('previewModuleTitle').textContent = record.module_label;
-        $('previewRecordNumber').textContent = record.record_number || 'N/A';
-        $('previewRecordTitle').textContent = record.record_title || 'N/A';
-        $('previewRecordDate').textContent = record.record_date || 'N/A';
-        $('previewAmount').textContent = record.amount ? formatCurrency(record.amount) : 'N/A';
-        $('previewWorkflow').textContent = record.workflow_status || 'Uploaded';
-        $('previewApproval').textContent = record.approval_status || 'Pending';
-        $('previewStatus').textContent = record.status || 'Active';
-        $('previewUser').textContent = record.user || bootstrap.currentUserName || '';
-        $('previewReviewNote').textContent = record.review_note || 'N/A';
         renderPreviewDocument(record);
+        renderPreviewTabContent(record);
+        updatePreviewTabButtons();
         renderPreviewActions(record);
         showOnlySection('previewSection');
+    }
+
+    function previewAttachment(url) {
+        if (!currentPreviewRecord || !url) return;
+
+        currentPreviewAttachmentUrl = url;
+        currentPreviewTab = 'attachments';
+        renderPreviewDocument(currentPreviewRecord);
+        renderPreviewTabContent(currentPreviewRecord);
+        renderPreviewActions(currentPreviewRecord);
+        updatePreviewTabButtons();
     }
 
     function upsertFinanceRecord(record) {
@@ -1387,13 +2348,13 @@
                 return;
             }
 
-            formData.set('record_number', $('recordNumberInput').value.trim() || `SUP-${Date.now()}`);
+            formData.set('record_number', $('recordNumberInput').value.trim() || generateModuleRecordNumber(currentModuleKey));
             formData.set('record_title', $('recordTitleInput').value.trim() || 'Supplier Completion');
             formData.set('record_date', $('recordDateInput').value || new Date().toISOString().slice(0, 10));
             formData.set('amount', $('amountInput').value || '');
             formData.set('status', $('statusInput').value || 'Active');
         } else {
-            formData.set('record_number', $('recordNumberInput').value.trim());
+            formData.set('record_number', $('recordNumberInput').value.trim() || generateModuleRecordNumber(currentModuleKey));
             formData.set('record_title', $('recordTitleInput').value.trim());
             formData.set('record_date', $('recordDateInput').value);
             formData.set('amount', $('amountInput').value);
@@ -1746,6 +2707,8 @@
         changeModule,
         changeWorkflow,
         changeSupplierCompletionMode,
+        toggleRecordNumberEditMode,
+        changePreviewTab,
         openFinanceDrawer,
         closeFinanceDrawer,
         openPreview,
@@ -1759,6 +2722,7 @@
         shareSupplierRecord,
         resendSupplierForm,
         changeSupplierEmailAndResend,
+        previewAttachment,
         copySupplierLink,
         printFinanceRecord,
         scrollFinanceModuleTabs,
@@ -1767,7 +2731,9 @@
     window.openFinanceDrawer = () => window.financeModule.openFinanceDrawer();
     window.closeFinanceDrawer = () => window.financeModule.closeFinanceDrawer();
     window.closePreview = () => window.financeModule.closePreview();
+    window.changePreviewTab = (tab) => window.financeModule.changePreviewTab(tab);
     window.changeSupplierCompletionMode = (mode) => window.financeModule.changeSupplierCompletionMode(mode);
+    window.toggleRecordNumberEditMode = () => window.financeModule.toggleRecordNumberEditMode();
     window.saveFinanceRecord = (event) => window.financeModule.saveFinanceRecord(event);
     window.scrollFinanceModuleTabs = (amount) => window.financeModule.scrollFinanceModuleTabs(amount);
 

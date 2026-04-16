@@ -62,45 +62,12 @@
 
                     <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
                         <h3 id="previewModuleTitle" class="text-[18px] font-semibold text-gray-900 mb-6">Finance Record</h3>
-                        <div class="space-y-4 text-[14px]">
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Record Number</span>
-                                <span id="previewRecordNumber" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Record Title</span>
-                                <span id="previewRecordTitle" class="text-right font-medium text-gray-900 break-words"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Record Date</span>
-                                <span id="previewRecordDate" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Amount</span>
-                                <span id="previewAmount" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Workflow</span>
-                                <span id="previewWorkflow" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Approval</span>
-                                <span id="previewApproval" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Status</span>
-                                <span id="previewStatus" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Created By</span>
-                                <span id="previewUser" class="text-right font-medium text-gray-900"></span>
-                            </div>
-                            <div class="flex justify-between gap-4">
-                                <span class="text-gray-500">Review Note</span>
-                                <span id="previewReviewNote" class="text-right font-medium text-gray-900 break-words"></span>
-                            </div>
+                        <div class="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 mb-4 shadow-sm">
+                            <button type="button" id="previewTabDetails" onclick="window.financeModule.changePreviewTab('details')" class="rounded-full px-4 py-2 text-sm font-medium transition bg-white text-blue-700 shadow-sm border border-gray-200">Details</button>
+                            <button type="button" id="previewTabAttachments" onclick="window.financeModule.changePreviewTab('attachments')" class="rounded-full px-4 py-2 text-sm font-medium transition text-gray-600 hover:text-gray-900">Attachments</button>
                         </div>
 
+                        <div id="previewTabContent"></div>
                         <div class="mt-6 flex flex-col gap-2" id="previewActions"></div>
                     </div>
                 </div>
@@ -111,7 +78,7 @@
             <div class="absolute inset-0 bg-black/40" onclick="window.closeFinanceDrawer()"></div>
             <div class="absolute inset-y-0 right-0 flex max-w-full">
                 <div id="drawerPanel" class="w-screen max-w-[100vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out">
-                    <div class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
+                <div id="drawerPreviewPane" class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
                         <div class="h-full bg-white border border-gray-200 rounded-xl overflow-auto">
                             <div class="p-6 border-b border-gray-100">
                                 <h3 class="text-[18px] font-semibold text-gray-900" id="drawerPreviewTitle">New Finance Record</h3>
@@ -123,7 +90,7 @@
                         </div>
                     </div>
 
-                    <div class="w-full max-w-[540px] bg-white flex flex-col h-full">
+                    <div id="drawerFormPane" class="w-full max-w-[540px] bg-white flex flex-col h-full">
                         <div class="p-6 border-b flex items-center justify-between shrink-0">
                             <div>
                                 <h2 class="font-bold text-lg text-gray-900" id="drawerTitle">Add Finance Record</h2>
@@ -145,7 +112,18 @@
                             <div id="recordCoreFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1" id="recordNumberLabel">Record Number</label>
-                                    <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2" placeholder="">
+                                    <div class="relative">
+                                        <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2 pr-16" placeholder="">
+                                        <button
+                                            id="recordNumberEditButton"
+                                            type="button"
+                                            onclick="window.financeModule.toggleRecordNumberEditMode()"
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                            aria-pressed="false"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div>

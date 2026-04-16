@@ -56,6 +56,176 @@ class FinanceController extends Controller
         return self::MODULES[$moduleKey] ?? Str::headline($moduleKey);
     }
 
+    private function financePdfImageDataUri(string $relativePath): ?string
+    {
+        $absolutePath = public_path($relativePath);
+
+        if (!is_file($absolutePath)) {
+            return null;
+        }
+
+        $contents = file_get_contents($absolutePath);
+        if ($contents === false) {
+            return null;
+        }
+
+        $mime = mime_content_type($absolutePath) ?: 'image/png';
+
+        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+    }
+
+    private function financePdfLookupLabel(array $lookupOptions, string $moduleKey, mixed $id): ?string
+    {
+        if (blank($id) || !array_key_exists($moduleKey, $lookupOptions)) {
+            return null;
+        }
+
+        foreach ($lookupOptions[$moduleKey] as $option) {
+            if ((string) ($option['id'] ?? '') === (string) $id) {
+                return (string) ($option['label'] ?? $option['record_number'] ?? $option['id']);
+            }
+        }
+
+        return null;
+    }
+
+    private function financePdfValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            $flattened = array_filter(array_map(function ($item) {
+                if (is_array($item)) {
+                    return json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+
+                return blank($item) ? null : (string) $item;
+            }, $value));
+
+            return $flattened ? implode(', ', $flattened) : 'N/A';
+        }
+
+        $stringValue = trim((string) $value);
+
+        return $stringValue === '' ? 'N/A' : $stringValue;
+    }
+
+    private function financePdfContext(FinanceRecord $record): array
+    {
+        $data = $record->data ?? [];
+        $lookupOptions = $this->resolveLookupOptions();
+        $moduleLabel = $this->moduleLabel($record->module_key);
+        $companyName = 'John Kelly & Company';
+        $companyLegalName = 'JK&C INC.';
+        $companyLogo = $this->financePdfImageDataUri('images/imaglogo.png');
+        $summaryCards = [
+            ['label' => 'Module', 'value' => $moduleLabel],
+            ['label' => 'Record Number', 'value' => $record->record_number ?: 'N/A'],
+            ['label' => 'Record Title', 'value' => $record->record_title ?: 'N/A'],
+            ['label' => 'Record Date', 'value' => optional($record->record_date)->format('Y-m-d') ?: 'N/A'],
+            ['label' => 'Amount', 'value' => $record->amount !== null ? number_format((float) $record->amount, 2) : 'N/A'],
+            ['label' => 'Status', 'value' => $record->status ?: 'N/A'],
+            ['label' => 'Workflow', 'value' => $record->workflow_status ?: 'N/A'],
+            ['label' => 'Approval', 'value' => $record->approval_status ?: 'N/A'],
+            ['label' => 'Created By', 'value' => $record->user ?: 'N/A'],
+            ['label' => 'Submitted At', 'value' => optional($record->submitted_at)->format('Y-m-d H:i:s') ?: 'N/A'],
+            ['label' => 'Approved At', 'value' => optional($record->approved_at)->format('Y-m-d H:i:s') ?: 'N/A'],
+            ['label' => 'Review Note', 'value' => $record->review_note ?: 'N/A'],
+        ];
+
+        $excludedDetailKeys = [
+            'line_items',
+            'subtotal',
+            'discount',
+            'discount_amount',
+            'shipping_amount',
+            'tax_type',
+            'tax_amount',
+            'wht_amount',
+            'grand_total',
+            'master_item_type',
+            'master_item_id',
+        ];
+
+        $detailRows = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, $excludedDetailKeys, true)) {
+                continue;
+            }
+
+            if (is_array($value) || $value === null || $value === '') {
+                continue;
+            }
+
+            $label = Str::headline(str_replace('_id', ' id', (string) $key));
+            $display = $this->financePdfValue($value);
+
+            if ($key === 'supplier_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'supplier', $value) ?: $display;
+            } elseif ($key === 'coa_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'chart_account', $value) ?: $display;
+            } elseif ($key === 'bank_account_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'bank_account', $value) ?: $display;
+            } elseif ($key === 'linked_pr_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'pr', $value) ?: $display;
+            } elseif ($key === 'linked_po_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'po', $value) ?: $display;
+            } elseif ($key === 'linked_ca_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'ca', $value) ?: $display;
+            } elseif ($key === 'linked_lr_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'lr', $value) ?: $display;
+            } elseif ($key === 'linked_dv_id') {
+                $display = $this->financePdfLookupLabel($lookupOptions, 'dv', $value) ?: $display;
+            }
+
+            $detailRows[] = [
+                'label' => $label,
+                'value' => $display,
+            ];
+        }
+
+        $lineItems = [];
+        foreach ((array) data_get($data, 'line_items', []) as $item) {
+            $lineItems[] = [
+                'item' => $this->financePdfLookupLabel($lookupOptions, 'product', data_get($item, 'item_id')) ?: $this->financePdfValue(data_get($item, 'item_id')),
+                'description' => $this->financePdfValue(data_get($item, 'description')),
+                'category' => $this->financePdfValue(data_get($item, 'category')),
+                'quantity' => $this->financePdfValue(data_get($item, 'quantity')),
+                'amount' => $this->financePdfValue(data_get($item, 'amount')),
+                'total' => $this->financePdfValue(data_get($item, 'total')),
+            ];
+        }
+
+        $costSummary = [
+            ['label' => 'Subtotal', 'value' => $data['subtotal'] ?? $record->amount ?? '0.00'],
+            ['label' => 'Discount', 'value' => $data['discount'] ?? '0%'],
+            ['label' => 'Discount Amount', 'value' => $data['discount_amount'] ?? '0.00'],
+            ['label' => 'Shipping', 'value' => $data['shipping_amount'] ?? '0.00'],
+            ['label' => 'Tax (VAT/Non-VAT/N/A)', 'value' => $data['tax_type'] ?? 'N/A'],
+            ['label' => 'Tax Amount', 'value' => $data['tax_amount'] ?? '0.00'],
+            ['label' => 'WHT', 'value' => $data['wht_amount'] ?? '0.00'],
+            ['label' => 'Grand Total', 'value' => $data['grand_total'] ?? $record->amount ?? '0.00'],
+        ];
+
+        $attachments = array_values(array_filter((array) ($record->attachments ?? []), fn ($attachment) => !blank(data_get($attachment, 'name')) || !blank(data_get($attachment, 'path'))));
+
+        return [
+            'companyName' => $companyName,
+            'companyLegalName' => $companyLegalName,
+            'companyLogo' => $companyLogo,
+            'moduleLabel' => $moduleLabel,
+            'record' => $record,
+            'summaryCards' => $summaryCards,
+            'detailRows' => $detailRows,
+            'lineItems' => $lineItems,
+            'costSummary' => $costSummary,
+            'attachments' => $attachments,
+            'chartAccountLabel' => $this->financePdfLookupLabel($lookupOptions, 'chart_account', data_get($data, 'coa_id')) ?: data_get($data, 'coa_id') ?: 'N/A',
+        ];
+    }
+
     private function acceptedRecordQuery(string $moduleKey, array $dataConstraints = [])
     {
         $query = FinanceRecord::query()
@@ -333,7 +503,7 @@ class FinanceController extends Controller
                 'data.requestor' => 'required|string|max:255',
                 'data.request_type' => 'required|in:Service,Product',
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
-                'data.master_item_type' => 'required|in:service,product',
+                'data.master_item_type' => 'required|in:product',
                 'data.master_item_id' => 'required|integer',
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
                 'data.quantity' => 'nullable|numeric|min:0',
@@ -415,7 +585,7 @@ class FinanceController extends Controller
         }
 
         if ($moduleKey === 'pr') {
-            $rules['data.master_item_id'] = ['required', $this->acceptedLinkedRecordRule('service')];
+            $rules['data.master_item_id'] = ['required', $this->acceptedLinkedRecordRule('product')];
         }
 
         if ($moduleKey === 'chart_account') {
@@ -642,6 +812,15 @@ class FinanceController extends Controller
         }
 
         return response()->json($this->transformRecord($financeRecord));
+    }
+
+    public function previewHtml(FinanceRecord $financeRecord)
+    {
+        if (!$this->canApproveFinance() && (int) $financeRecord->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        return view('finance.preview-html', $this->financePdfContext($financeRecord->fresh()));
     }
 
     public function store(Request $request)

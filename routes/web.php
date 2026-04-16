@@ -305,6 +305,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
     Route::get('/finance/{financeRecord}', [FinanceController::class, 'show'])->name('finance.show');
+    Route::get('/finance/{financeRecord}/preview-html', [FinanceController::class, 'previewHtml'])->name('finance.preview.html');
     Route::post('/finance', [FinanceController::class, 'store'])->name('finance.store');
     Route::put('/finance/{financeRecord}', [FinanceController::class, 'update'])->name('finance.update');
     Route::post('/finance/{financeRecord}/submit', [FinanceController::class, 'submit'])->name('finance.submit');
