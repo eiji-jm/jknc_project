@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Attachments')
 
 @section('content')
 <div class="px-6 py-5 h-full flex flex-col bg-[#f5f6f8]">

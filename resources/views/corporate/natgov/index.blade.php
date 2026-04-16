@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'NatGov')
 
 @section('content')
 @php
@@ -204,5 +205,4 @@
         }
     })();
 </script>
-
 

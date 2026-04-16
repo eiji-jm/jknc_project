@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Users')
 
 @section('content')
 <div class="w-full h-full px-6 py-5" x-data="{ showCreateUser: false }">

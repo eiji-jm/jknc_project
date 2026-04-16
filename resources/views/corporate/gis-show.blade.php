@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'General Information Sheet (GIS)')
 @section('content')
 
 @php

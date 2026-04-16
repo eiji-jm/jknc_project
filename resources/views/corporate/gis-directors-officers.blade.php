@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Board of Directors / Officers')
 
 @section('content')
 

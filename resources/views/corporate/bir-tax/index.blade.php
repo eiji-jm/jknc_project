@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'BIR & Tax')
 
 @section('content')
 @php
@@ -207,5 +208,4 @@
         }
     })();
 </script>
-
 

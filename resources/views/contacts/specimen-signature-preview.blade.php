@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Specimen Signature Preview')
 
 @section('content')
 <div class="{{ ($downloadMode ?? false) ? 'bg-white p-0' : 'bg-[#f7f6f2] p-6' }}">

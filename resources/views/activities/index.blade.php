@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Activities')
 
 @section('content')
 <style>
@@ -3212,4 +3213,3 @@ document.addEventListener('alpine:init', () => {
 </template>
 
 @endsection
-

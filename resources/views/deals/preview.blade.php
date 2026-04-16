@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Deal Preview')
 
 @section('content')
 <div class="bg-[#f7f6f2] p-6">

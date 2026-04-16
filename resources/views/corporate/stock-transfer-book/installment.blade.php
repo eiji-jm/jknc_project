@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Stock Transfer Book – Installment')
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ showPreview: false, selectedInstallment: null, showAddPanel: false }" @keydown.escape.window="showAddPanel = false">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Stock Transfer Book – Ledger Preview')
 @section('content')
 @php
     $fullName = trim(collect([$ledger->first_name ?? '', $ledger->middle_name ?? '', $ledger->family_name ?? ''])->filter()->implode(' '));

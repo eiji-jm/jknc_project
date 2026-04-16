@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Policy')
 
 @section('content')
 <div class="min-h-full bg-[#f8f8f8]">

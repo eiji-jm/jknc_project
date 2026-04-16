@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Ultimate Beneficial Owner Declaration')
 
 @section('content')
 <div class="mt-4 w-full px-4 pb-8 sm:px-6 lg:px-8">

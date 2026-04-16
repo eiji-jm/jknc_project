@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Town Hall Details')
 
 @section('content')
 <div class="bg-[#f5f6f8] min-h-screen p-6">

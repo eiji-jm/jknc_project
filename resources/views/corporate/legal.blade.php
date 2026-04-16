@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Legal')
 @section('content')
 <div
     id="legal-page"

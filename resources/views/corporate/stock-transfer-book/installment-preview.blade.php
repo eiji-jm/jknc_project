@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Installment')
 @section('content')
 @php
     $paymentStatus = strtolower((string) ($installment->payment_status ?? 'unpaid'));

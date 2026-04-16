@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Stock Transfer Book - Certificates')
 
 @php($currentUser = auth()->user()?->name ?? '')
 @php($stockNumberOptions = collect($availableStockNumbers ?? collect())->merge(collect($availableInstallments ?? collect())->pluck('stock_number'))->filter()->unique()->values())

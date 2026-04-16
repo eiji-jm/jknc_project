@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Stock Transfer Book – Journal Preview')
 @section('content')
 @php
     $historyRows = collect($journalEntries ?? [])

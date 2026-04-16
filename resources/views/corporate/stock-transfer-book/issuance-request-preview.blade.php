@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Stock Transfer Book – Issuance Request Preview')
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4" x-data="{ activePreview: '{{ $uploadedRequestUrl ? 'uploaded' : 'system' }}' }">
     <div class="bg-white border border-gray-100 rounded-xl overflow-hidden">

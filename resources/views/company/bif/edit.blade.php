@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Edit Business Client Information Form')
 
 @section('content')
 @php

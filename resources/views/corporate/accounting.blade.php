@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Accounting')
 @section('content')
 <div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col">
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0">

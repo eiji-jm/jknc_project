@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Deal PDF')
 
 @section('content')
 <div class="{{ $downloadMode ? 'bg-white p-0' : 'bg-[#f7f6f2] p-6' }}">

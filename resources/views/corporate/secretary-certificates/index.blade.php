@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Secretary Certificates')
 
 @section('content')
 @php

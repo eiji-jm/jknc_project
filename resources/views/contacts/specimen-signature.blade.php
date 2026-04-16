@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Specimen Signature')
 
 @section('content')
 @php

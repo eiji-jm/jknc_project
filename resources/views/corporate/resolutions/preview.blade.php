@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Resolution Preview')
 
 @section('content')
 @php

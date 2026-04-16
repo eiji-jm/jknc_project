@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Deal Details')
 
 @section('content')
 @php

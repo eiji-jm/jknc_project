@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'LGU')
 @section('content')
 <div
     id="lguPage"

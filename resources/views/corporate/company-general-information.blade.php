@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Company General Information')
 @section('content')
 <div class="w-full px-4 sm:px-6 lg:px-8 mt-4">
 

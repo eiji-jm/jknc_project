@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('title', 'Town Hall')
 
 @section('content')
 <div id="townhall-page" class="w-full h-full px-6 py-5" x-data="{
