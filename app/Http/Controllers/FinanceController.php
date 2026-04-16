@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SupplierCompletionMail;
 use App\Models\FinanceRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -92,6 +94,52 @@ class FinanceController extends Controller
             && (int) $record->submitted_by === (int) Auth::id()
             && in_array($record->workflow_status ?? 'Uploaded', ['Uploaded', 'Reverted'], true)
             && data_get($record->data, 'completion_mode') === 'send_to_supplier';
+    }
+
+    private function canManageSupplierCompletion(FinanceRecord $record): bool
+    {
+        return $record->module_key === 'supplier'
+            && data_get($record->data, 'completion_mode') === 'send_to_supplier'
+            && ($this->canApproveFinance() || (int) $record->submitted_by === (int) Auth::id());
+    }
+
+    private function supplierCompletionEmailAddress(FinanceRecord $record): ?string
+    {
+        $email = trim((string) data_get($record->data, 'email_address', ''));
+
+        return blank($email) ? null : $email;
+    }
+
+    private function ensureSupplierCompletionLink(FinanceRecord $record): string
+    {
+        $record->update([
+            'share_token' => $record->share_token ?: Str::random(64),
+            'shared_at' => now(),
+            'workflow_status' => 'Shared',
+            'approval_status' => 'Pending Supplier Completion',
+        ]);
+
+        return route('finance.supplier.completion', $record->fresh()->share_token);
+    }
+
+    private function sendSupplierCompletionEmail(FinanceRecord $record): string
+    {
+        $email = $this->supplierCompletionEmailAddress($record);
+
+        if (blank($email)) {
+            throw ValidationException::withMessages([
+                'data.email_address' => 'Supplier email address is required to send the completion form.',
+            ]);
+        }
+
+        $link = $this->ensureSupplierCompletionLink($record);
+        $freshRecord = $record->fresh();
+
+        Mail::to($email)->send(
+            new SupplierCompletionMail($freshRecord, $link)
+        );
+
+        return $link;
     }
 
     private function optionLabel(FinanceRecord $record): string
@@ -261,6 +309,9 @@ class FinanceController extends Controller
         $rules = [
             'supplier' => [
                 'data.completion_mode' => 'nullable|in:complete_internally,send_to_supplier',
+                'data.email_address' => 'required|email|max:255',
+                'data.representative_full_name' => 'required|string|max:255',
+                'data.phone_number' => 'required|string|max:255',
             ],
             'service' => [
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
@@ -395,7 +446,31 @@ class FinanceController extends Controller
     private function validateModulePayload(Request $request, ?FinanceRecord $financeRecord = null): void
     {
         $moduleKey = (string) $request->input('module_key', $financeRecord?->module_key);
+        $supplierSendMode = $moduleKey === 'supplier'
+            && data_get($request->input('data', []), 'completion_mode') === 'send_to_supplier';
         $rules = array_merge($this->commonValidationRules(), $this->moduleSpecificRules($moduleKey));
+
+        if ($supplierSendMode) {
+            $rules['record_number'] = 'nullable|string|max:255';
+            $rules['record_title'] = 'nullable|string|max:255';
+            $rules['record_date'] = 'nullable|date';
+            $rules['amount'] = 'nullable|numeric|min:0';
+            $rules['status'] = 'nullable|in:Active,Inactive';
+            $rules['data.representative_full_name'] = 'nullable|string|max:255';
+            $rules['data.designation'] = 'nullable|string|max:255';
+            $rules['data.phone_number'] = 'nullable|string|max:255';
+            $rules['data.alternate_contact_number'] = 'nullable|string|max:255';
+            $rules['data.business_address'] = 'nullable|string|max:1000';
+            $rules['data.billing_address'] = 'nullable|string|max:1000';
+            $rules['data.tin'] = 'nullable|string|max:255';
+            $rules['data.vat_status'] = 'nullable|string|max:255';
+            $rules['data.payment_terms'] = 'nullable|string|max:255';
+            $rules['data.accreditation_status'] = 'nullable|string|max:255';
+            $rules['data.bank_name'] = 'nullable|string|max:255';
+            $rules['data.bank_account_name'] = 'nullable|string|max:255';
+            $rules['data.bank_account_number'] = 'nullable|string|max:255';
+            $rules['data.remarks'] = 'nullable|string|max:2000';
+        }
 
         if ($financeRecord) {
             $rules['module_key'] = ['required', Rule::in([$financeRecord->module_key])];
@@ -576,12 +651,22 @@ class FinanceController extends Controller
         $isApprover = $this->canApproveFinance();
         $attachments = $this->persistAttachments($request);
         $data = $this->normalizeModuleData($request->module_key, $request->input('data', []));
+        $supplierSendMode = $request->module_key === 'supplier' && data_get($data, 'completion_mode') === 'send_to_supplier';
+        $recordNumber = trim((string) $request->input('record_number', ''));
+        $recordTitle = trim((string) $request->input('record_title', ''));
+        $recordDate = $request->input('record_date');
+
+        if ($supplierSendMode) {
+            $recordNumber = $recordNumber ?: 'SUP-' . Str::upper(Str::random(8));
+            $recordTitle = $recordTitle ?: 'Supplier Completion';
+            $recordDate = $recordDate ?: now()->toDateString();
+        }
 
         $record = FinanceRecord::create([
             'module_key' => $request->module_key,
-            'record_number' => $request->record_number,
-            'record_title' => $request->record_title,
-            'record_date' => $request->record_date,
+            'record_number' => $recordNumber,
+            'record_title' => $recordTitle,
+            'record_date' => $recordDate,
             'amount' => $request->amount,
             'status' => $request->status,
             'workflow_status' => $isApprover ? 'Accepted' : 'Uploaded',
@@ -598,9 +683,14 @@ class FinanceController extends Controller
             'user' => Auth::user()->name ?? 'Unknown User',
         ]);
 
+        if ($request->module_key === 'supplier' && data_get($data, 'completion_mode') === 'send_to_supplier') {
+            $this->sendSupplierCompletionEmail($record);
+            $record = $record->fresh();
+        }
+
         return response()->json([
             'message' => $record->workflow_status === 'Shared'
-                ? 'Finance record created and shared with supplier.'
+                ? 'Finance record created and emailed to the supplier.'
                 : ($isApprover ? 'Finance record saved and accepted.' : 'Finance record saved successfully.'),
             'data' => $this->transformRecord($record),
         ], 201);
@@ -618,12 +708,22 @@ class FinanceController extends Controller
         $existingAttachments = is_array($existingAttachments) ? $existingAttachments : [];
         $attachments = $this->persistAttachments($request, $existingAttachments);
         $data = $this->normalizeModuleData($request->module_key, $request->input('data', []));
+        $supplierSendMode = $request->module_key === 'supplier' && data_get($data, 'completion_mode') === 'send_to_supplier';
+        $recordNumber = trim((string) $request->input('record_number', ''));
+        $recordTitle = trim((string) $request->input('record_title', ''));
+        $recordDate = $request->input('record_date');
+
+        if ($supplierSendMode) {
+            $recordNumber = $recordNumber ?: ($financeRecord->record_number ?: 'SUP-' . Str::upper(Str::random(8)));
+            $recordTitle = $recordTitle ?: ($financeRecord->record_title ?: 'Supplier Completion');
+            $recordDate = $recordDate ?: optional($financeRecord->record_date)->format('Y-m-d') ?: now()->toDateString();
+        }
 
         $payload = [
             'module_key' => $request->module_key,
-            'record_number' => $request->record_number,
-            'record_title' => $request->record_title,
-            'record_date' => $request->record_date,
+            'record_number' => $recordNumber,
+            'record_title' => $recordTitle,
+            'record_date' => $recordDate,
             'amount' => $request->amount,
             'status' => $request->status,
             'data' => $data,
@@ -637,8 +737,15 @@ class FinanceController extends Controller
 
         $financeRecord->update($payload);
 
+        if ($request->module_key === 'supplier' && data_get($data, 'completion_mode') === 'send_to_supplier' && blank($financeRecord->share_token)) {
+            $this->sendSupplierCompletionEmail($financeRecord);
+            $financeRecord = $financeRecord->fresh();
+        }
+
         return response()->json([
-            'message' => 'Finance record updated successfully.',
+            'message' => $financeRecord->workflow_status === 'Shared'
+                ? 'Finance record updated and emailed to the supplier.'
+                : 'Finance record updated successfully.',
             'data' => $this->transformRecord($financeRecord->fresh()),
         ]);
     }
@@ -732,29 +839,44 @@ class FinanceController extends Controller
 
     public function shareSupplierLink(FinanceRecord $financeRecord)
     {
-        if (!$this->canShareSupplierRecord($financeRecord)) {
+        if (!$this->canManageSupplierCompletion($financeRecord)) {
             abort(403, 'Unauthorized');
         }
 
-        if (blank($financeRecord->share_token)) {
-            $financeRecord->update([
-                'share_token' => Str::random(64),
-                'shared_at' => now(),
-                'workflow_status' => 'Shared',
-                'approval_status' => 'Pending Supplier Completion',
-            ]);
-        } else {
-            $financeRecord->update([
-                'shared_at' => now(),
-                'workflow_status' => 'Shared',
-                'approval_status' => 'Pending Supplier Completion',
-            ]);
-        }
+        $link = $this->sendSupplierCompletionEmail($financeRecord->fresh());
+        $financeRecord = $financeRecord->fresh();
 
         return response()->json([
-            'message' => 'Supplier completion link is ready.',
-            'link' => route('finance.supplier.completion', $financeRecord->fresh()->share_token),
+            'message' => 'Supplier completion link has been emailed.',
+            'link' => $link,
             'data' => $this->transformRecord($financeRecord->fresh()),
+        ]);
+    }
+
+    public function updateSupplierEmailAndResend(Request $request, FinanceRecord $financeRecord)
+    {
+        if (!$this->canManageSupplierCompletion($financeRecord)) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'email_address' => 'required|email|max:255',
+        ]);
+
+        $data = $financeRecord->data ?? [];
+        $data['email_address'] = $request->email_address;
+
+        $financeRecord->update([
+            'data' => $data,
+        ]);
+
+        $link = $this->sendSupplierCompletionEmail($financeRecord->fresh());
+        $financeRecord = $financeRecord->fresh();
+
+        return response()->json([
+            'message' => 'Supplier email updated and completion form resent.',
+            'link' => $link,
+            'data' => $this->transformRecord($financeRecord),
         ]);
     }
 

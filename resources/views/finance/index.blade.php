@@ -140,7 +140,9 @@
                             <input type="hidden" id="financeModuleKey" name="module_key" value="">
                             <input type="hidden" id="existingAttachmentsJson" name="existing_attachments_json" value="[]">
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div id="supplierModeTabs" class="hidden"></div>
+
+                            <div id="recordCoreFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1" id="recordNumberLabel">Record Number</label>
                                     <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2" placeholder="">
@@ -152,7 +154,7 @@
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div id="recordMetaFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1" id="recordDateLabel">Date</label>
                                     <input id="recordDateInput" name="record_date" type="date" class="w-full border rounded-md p-2">
@@ -164,7 +166,7 @@
                                 </div>
                             </div>
 
-                            <div>
+                            <div id="statusField">
                                 <label class="block text-sm font-medium mb-1">Status</label>
                                 <select id="statusInput" name="status" class="w-full border rounded-md p-2">
                                     <option value="Active">Active</option>
@@ -174,7 +176,7 @@
 
                             <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-                            <div>
+                            <div id="attachmentsSection">
                                 <label class="block text-sm font-medium mb-1 text-blue-700">Attachments</label>
                                 <input
                                     id="attachmentsInput"
@@ -198,8 +200,10 @@
                 </div>
             </div>
         </div>
-    </div>
 </div>
+</div>
+
+<div id="financeToastStack" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
 
 <script>
     window.financeBootstrap = @js([

@@ -353,7 +353,7 @@
                         <a href="{{ route('finance', ['module' => 'err']) }}" data-finance-module="err"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request('module') === 'err' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            ERR
+                            Expense Reimbursement Request
                         </a>
                         <a href="{{ route('finance', ['module' => 'dv']) }}" data-finance-module="dv"
                            class="block px-3 py-2 rounded-lg transition
@@ -363,22 +363,22 @@
                         <a href="{{ route('finance', ['module' => 'pda']) }}" data-finance-module="pda"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request('module') === 'pda' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            PDA
+                            Payroll Disbursement Authorization
                         </a>
                         <a href="{{ route('finance', ['module' => 'crf']) }}" data-finance-module="crf"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request('module') === 'crf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            CRF
+                            Cash Return Form
                         </a>
                         <a href="{{ route('finance', ['module' => 'ibtf']) }}" data-finance-module="ibtf"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request('module') === 'ibtf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            IBTF
+                            Interbank Fund Transfer Form
                         </a>
                         <a href="{{ route('finance', ['module' => 'arf']) }}" data-finance-module="arf"
                            class="block px-3 py-2 rounded-lg transition
                            {{ request('module') === 'arf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                            ARF
+                            Asset Registration Form
                         </a>
                     </div>
                 </div>

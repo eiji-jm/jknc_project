@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supplier Completion | Finance</title>
+    <title>Supplier Completion | JK&C INC.</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
     <div class="max-w-5xl mx-auto px-4 py-10">
         <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="px-6 py-5 border-b bg-gray-50">
-                <p class="text-xs uppercase tracking-[0.2em] text-gray-500">Finance Operations</p>
-                <h1 class="text-2xl font-semibold text-gray-900 mt-2">Supplier Completion Form</h1>
-                <p class="text-sm text-gray-600 mt-2">Complete the remaining supplier information below and submit it back for internal review.</p>
+            <div class="px-6 py-5 border-b bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4">
+                <img src="{{ asset('images/imaglogo.png') }}" alt="John Kelly & Company" class="h-14 w-auto object-contain">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-gray-500">John Kelly &amp; Company</p>
+                    <h1 class="text-2xl font-semibold text-gray-900 mt-2">Supplier Completion Form</h1>
+                    <p class="text-sm text-gray-600 mt-2">Complete the remaining supplier information below and submit it back for internal review.</p>
+                </div>
             </div>
 
             @if(session('success'))
@@ -115,11 +118,11 @@
                             <option value="Blacklisted" @selected(old('data.accreditation_status', $record['data']['accreditation_status'] ?? '') === 'Blacklisted')>Blacklisted</option>
                         </select>
                     </div>
-                    <div>
+                    <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-1">Business Address</label>
                         <textarea name="data[business_address]" rows="3" class="w-full border rounded-md p-2">{{ old('data.business_address', $record['data']['business_address'] ?? '') }}</textarea>
                     </div>
-                    <div>
+                    <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-1">Billing Address</label>
                         <textarea name="data[billing_address]" rows="3" class="w-full border rounded-md p-2">{{ old('data.billing_address', $record['data']['billing_address'] ?? '') }}</textarea>
                     </div>

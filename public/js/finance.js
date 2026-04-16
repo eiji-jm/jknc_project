@@ -6,7 +6,7 @@
     const textField = (name, label, options = {}) => ({ name, label, type: 'text', ...options });
     const numberField = (name, label, options = {}) => ({ name, label, type: 'number', ...options });
     const dateField = (name, label, options = {}) => ({ name, label, type: 'date', ...options });
-    const textareaField = (name, label, options = {}) => ({ name, label, type: 'textarea', rows: 3, ...options });
+    const textareaField = (name, label, options = {}) => ({ name, label, type: 'textarea', rows: 3, fullWidth: true, ...options });
     const selectField = (name, label, options = {}) => ({ name, label, type: 'select', options: [], ...options });
     const checkboxField = (name, label, options = {}) => ({ name, label, type: 'checkbox', ...options });
 
@@ -51,6 +51,105 @@
         if (!match) return message;
 
         return `${friendlyLabelForError(match[1])} is required.`;
+    }
+
+    function showFinanceToast(message, type = 'info') {
+        const host = $('financeToastStack');
+        if (!host) {
+            alert(message);
+            return;
+        }
+
+        const palette = {
+            info: 'border-sky-200 bg-sky-50 text-sky-800',
+            success: 'border-green-200 bg-green-50 text-green-800',
+            warning: 'border-amber-200 bg-amber-50 text-amber-800',
+            error: 'border-red-200 bg-red-50 text-red-800',
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto min-w-[280px] max-w-[360px] rounded-xl border px-4 py-3 shadow-lg backdrop-blur ${palette[type] || palette.info}`;
+        toast.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+                <p class="text-sm leading-5 whitespace-pre-line">${escapeHtml(message)}</p>
+                <button type="button" class="text-current/60 hover:text-current font-semibold" aria-label="Dismiss">&times;</button>
+            </div>
+        `;
+
+        const close = () => {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 180);
+        };
+
+        toast.querySelector('button')?.addEventListener('click', close);
+        host.appendChild(toast);
+        setTimeout(close, 4200);
+    }
+
+    let supplierCompletionMode = 'complete_internally';
+
+    function isSupplierModule() {
+        return currentModuleKey === 'supplier';
+    }
+
+    function isSendToSupplierMode() {
+        return isSupplierModule() && supplierCompletionMode === 'send_to_supplier';
+    }
+
+    function renderSupplierModeTabs() {
+        const target = $('supplierModeTabs');
+        if (!target) return;
+
+        if (!isSupplierModule()) {
+            target.classList.add('hidden');
+            target.innerHTML = '';
+            return;
+        }
+
+        target.classList.remove('hidden');
+
+        const activeComplete = supplierCompletionMode === 'complete_internally';
+        const activeSend = supplierCompletionMode === 'send_to_supplier';
+
+        target.innerHTML = `
+            <div class="flex gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
+                <button type="button" onclick="window.financeModule.changeSupplierCompletionMode('complete_internally')"
+                    class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${activeComplete ? 'bg-white text-blue-700 shadow-sm border border-blue-100' : 'text-gray-600 hover:text-gray-900'}">
+                    Complete Internally
+                </button>
+                <button type="button" onclick="window.financeModule.changeSupplierCompletionMode('send_to_supplier')"
+                    class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${activeSend ? 'bg-white text-blue-700 shadow-sm border border-blue-100' : 'text-gray-600 hover:text-gray-900'}">
+                    Send to Supplier
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">
+                ${activeSend
+                    ? 'Send a completion form to the supplier email address.'
+                    : 'Fill out the supplier details internally and save the record.'}
+            </p>
+        `;
+    }
+
+    function setSupplierFormLayout() {
+        const isSend = isSendToSupplierMode();
+        [
+            'recordCoreFields',
+            'recordMetaFields',
+            'statusField',
+            'attachmentsSection',
+        ].forEach((id) => {
+            const el = $(id);
+            if (el) {
+                el.classList.toggle('hidden', isSend);
+            }
+        });
+
+        const dynamicFields = $('dynamicFields');
+        if (dynamicFields) {
+            dynamicFields.classList.toggle('grid', !isSend);
+            dynamicFields.classList.toggle('md:grid-cols-2', !isSend);
+            dynamicFields.classList.toggle('gap-4', !isSend);
+        }
     }
 
     const financeModules = {
@@ -112,7 +211,17 @@
                 selectField('supplier_id', 'Supplier', { source: 'supplier', required: true }),
                 selectField('coa_id', 'Account', { source: 'chart_account', required: true }),
                 textField('category', 'Category'),
-                textField('unit_of_measure', 'Unit of Measure'),
+                selectField('unit_of_measure', 'Unit of Measure', {
+                    options: [
+                        { value: 'per hour', label: 'per hour' },
+                        { value: 'per day', label: 'per day' },
+                        { value: 'per month', label: 'per month' },
+                        { value: 'per service/job', label: 'per service/job' },
+                        { value: 'per unit', label: 'per unit' },
+                        { value: 'per session', label: 'per session' },
+                        { value: 'per contract', label: 'per contract' },
+                    ],
+                }),
                 numberField('default_cost', 'Default Cost'),
                 selectField('tax_type', 'Tax Type', {
                     options: [
@@ -142,7 +251,17 @@
                 selectField('supplier_id', 'Supplier', { source: 'supplier', required: true }),
                 selectField('coa_id', 'Account', { source: 'chart_account', required: true }),
                 textField('category', 'Category'),
-                textField('unit_of_measure', 'Unit of Measure'),
+                selectField('unit_of_measure', 'Unit of Measure', {
+                    options: [
+                        { value: 'per hour', label: 'per hour' },
+                        { value: 'per day', label: 'per day' },
+                        { value: 'per month', label: 'per month' },
+                        { value: 'per service/job', label: 'per service/job' },
+                        { value: 'per unit', label: 'per unit' },
+                        { value: 'per session', label: 'per session' },
+                        { value: 'per contract', label: 'per contract' },
+                    ],
+                }),
                 numberField('default_cost', 'Default Cost'),
                 selectField('tax_type', 'Tax Type', {
                     options: [
@@ -927,6 +1046,11 @@
         const moduleConfig = getModuleConfig(currentModuleKey);
         const values = {};
         financeFormValues = values;
+        if (currentModuleKey === 'supplier' && record?.data?.completion_mode) {
+            supplierCompletionMode = record.data.completion_mode;
+        } else if (currentModuleKey !== 'supplier') {
+            supplierCompletionMode = 'complete_internally';
+        }
 
         const recordNumberValue = record ? record.record_number || '' : '';
         const recordTitleValue = record ? record.record_title || '' : '';
@@ -947,24 +1071,35 @@
         $('recordDateInput').value = recordDateValue;
         $('amountInput').value = amountValue;
         $('statusInput').value = statusValue;
-        $('drawerTitle').textContent = record ? `Edit ${moduleConfig.label}` : moduleConfig.addLabel;
-        $('drawerSubtitle').textContent = record
-            ? `Update the ${moduleConfig.label.toLowerCase()} record and save changes.`
-            : `Create a new ${moduleConfig.label.toLowerCase()} record.`;
+        $('drawerTitle').textContent = record ? `Edit ${moduleConfig.label}` : `Add ${moduleConfig.label}`;
+        $('drawerSubtitle').textContent = isSendToSupplierMode()
+            ? 'Enter the supplier email address and send the completion form.'
+            : (record
+                ? `Update the ${moduleConfig.label.toLowerCase()} record and save changes.`
+                : `Create a new ${moduleConfig.label.toLowerCase()} record.`);
         $('drawerPreviewTitle').textContent = record ? `Preview: ${record.display_label || record.record_title || moduleConfig.label}` : 'New Finance Record';
-        $('drawerSaveButton').textContent = record ? 'Update' : 'Save';
+        $('drawerSaveButton').textContent = isSendToSupplierMode() ? 'Send Form' : (record ? 'Update' : 'Save');
         $('existingAttachmentsJson').value = JSON.stringify(existingAttachments);
 
-        if (currentModuleKey === 'supplier' && !record) {
-            values['data[completion_mode]'] = 'complete_internally';
-        }
+        renderSupplierModeTabs();
+        setSupplierFormLayout();
 
-        const fieldsHtml = moduleConfig.fields.map((field) => {
-            const fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
-            values[field.name] = fieldValue;
-            values[`data[${field.name}]`] = fieldValue;
-            return renderDynamicField(field, fieldValue, values);
-        }).join('');
+        const supplierFields = moduleConfig.fields.filter((field) => field.name !== 'completion_mode');
+        const fieldsToRender = currentModuleKey === 'supplier' && isSendToSupplierMode()
+            ? supplierFields.filter((field) => field.name === 'email_address')
+            : supplierFields;
+
+        const fieldsHtml = [
+            currentModuleKey === 'supplier'
+                ? `<input type="hidden" name="data[completion_mode]" value="${escapeHtml(supplierCompletionMode)}">`
+                : '',
+            ...fieldsToRender.map((field) => {
+                const fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+                values[field.name] = fieldValue;
+                values[`data[${field.name}]`] = fieldValue;
+                return renderDynamicField(field, fieldValue, values);
+            }),
+        ].join('');
 
         $('dynamicFields').innerHTML = fieldsHtml;
         renderAttachmentList(existingAttachments);
@@ -1061,6 +1196,12 @@
         }, 300);
     }
 
+    function changeSupplierCompletionMode(mode) {
+        if (!isSupplierModule()) return;
+        supplierCompletionMode = mode === 'send_to_supplier' ? 'send_to_supplier' : 'complete_internally';
+        renderFinanceForm(currentEditRecordId ? getRecordById(currentEditRecordId) : null);
+    }
+
     function getRecordById(id) {
         return financeRecords.find((record) => String(record.id) === String(id));
     }
@@ -1154,6 +1295,11 @@
             actions.push(`<button type="button" onclick="window.financeModule.shareSupplierRecord(${record.id})" class="w-full bg-sky-600 text-white rounded-md py-2 hover:bg-sky-700">Send to Supplier</button>`);
         }
 
+        if (record.module_key === 'supplier' && record.data?.completion_mode === 'send_to_supplier' && (record.workflow_status === 'Shared' || record.share_token)) {
+            actions.push(`<button type="button" onclick="window.financeModule.resendSupplierForm(${record.id})" class="w-full bg-sky-700 text-white rounded-md py-2 hover:bg-sky-800">Resend Completion Form</button>`);
+            actions.push(`<button type="button" onclick="window.financeModule.changeSupplierEmailAndResend(${record.id})" class="w-full border border-sky-300 text-sky-700 rounded-md py-2 hover:bg-sky-50">Change Email &amp; Resend</button>`);
+        }
+
         if (record.can_review) {
             actions.push(`<button type="button" onclick="window.financeModule.approveFinanceRecord(${record.id})" class="w-full bg-green-600 text-white rounded-md py-2 hover:bg-green-700">Approve</button>`);
             actions.push(`<button type="button" onclick="window.financeModule.revertFinanceRecord(${record.id})" class="w-full bg-amber-500 text-white rounded-md py-2 hover:bg-amber-600">Return for Revision</button>`);
@@ -1229,17 +1375,34 @@
         const form = $('financeForm');
         const formData = new FormData(form);
         const moduleConfig = getModuleConfig(currentModuleKey);
+        const sendToSupplier = isSendToSupplierMode();
 
         formData.set('module_key', currentModuleKey);
-        formData.set('record_number', $('recordNumberInput').value.trim());
-        formData.set('record_title', $('recordTitleInput').value.trim());
-        formData.set('record_date', $('recordDateInput').value);
-        formData.set('amount', $('amountInput').value);
-        formData.set('status', $('statusInput').value);
+        formData.set('data[completion_mode]', sendToSupplier ? 'send_to_supplier' : 'complete_internally');
 
-        if (!formData.get('record_number') || !formData.get('record_title') || !formData.get('record_date')) {
-            alert('Please fill in the record number, title, and date.');
-            return;
+        if (sendToSupplier && currentModuleKey === 'supplier') {
+            const supplierEmail = String(formData.get('data[email_address]') || '').trim();
+            if (!supplierEmail) {
+                alert('Please enter the supplier email address.');
+                return;
+            }
+
+            formData.set('record_number', $('recordNumberInput').value.trim() || `SUP-${Date.now()}`);
+            formData.set('record_title', $('recordTitleInput').value.trim() || 'Supplier Completion');
+            formData.set('record_date', $('recordDateInput').value || new Date().toISOString().slice(0, 10));
+            formData.set('amount', $('amountInput').value || '');
+            formData.set('status', $('statusInput').value || 'Active');
+        } else {
+            formData.set('record_number', $('recordNumberInput').value.trim());
+            formData.set('record_title', $('recordTitleInput').value.trim());
+            formData.set('record_date', $('recordDateInput').value);
+            formData.set('amount', $('amountInput').value);
+            formData.set('status', $('statusInput').value);
+
+            if (!formData.get('record_number') || !formData.get('record_title') || !formData.get('record_date')) {
+                alert('Please fill in the record number, title, and date.');
+                return;
+            }
         }
 
         const endpoint = currentEditRecordId ? `/finance/${currentEditRecordId}` : '/finance';
@@ -1384,14 +1547,81 @@
         openPreview(data.data.id);
         if (data.link) {
             await navigator.clipboard.writeText(data.link).catch(() => {});
-            alert(`Supplier link ready:\n${data.link}`);
+            showFinanceToast('Supplier link has been emailed and copied to clipboard.', 'success');
+        } else {
+            showFinanceToast(data.message || 'Supplier link has been emailed.', 'success');
+        }
+    }
+
+    async function resendSupplierForm(id) {
+        const res = await fetch(`/finance/${id}/share-supplier-link`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            alert(data.message || 'Unable to resend supplier form.');
+            return;
+        }
+
+        upsertFinanceRecord(data.data);
+        refreshFinanceView();
+        openPreview(data.data.id);
+        if (data.link) {
+            await navigator.clipboard.writeText(data.link).catch(() => {});
+            showFinanceToast('Supplier completion form resent and copied to clipboard.', 'success');
+        } else {
+            showFinanceToast(data.message || 'Supplier completion form resent.', 'success');
+        }
+    }
+
+    async function changeSupplierEmailAndResend(id) {
+        const record = getRecordById(id);
+        if (!record) return;
+
+        const currentEmail = record.data?.email_address || '';
+        const email = prompt('Enter the new supplier email address:', currentEmail);
+        if (!email) return;
+
+        const formData = new FormData();
+        formData.append('email_address', email.trim());
+
+        const res = await fetch(`/finance/${id}/supplier-email`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            const firstErrorKey = data.errors ? Object.keys(data.errors)[0] : null;
+            const firstErrorMessage = firstErrorKey && data.errors[firstErrorKey] ? data.errors[firstErrorKey][0] : '';
+            alert(firstErrorMessage || data.message || 'Unable to update supplier email.');
+            return;
+        }
+
+        upsertFinanceRecord(data.data);
+        refreshFinanceView();
+        openPreview(data.data.id);
+        if (data.link) {
+            await navigator.clipboard.writeText(data.link).catch(() => {});
+            showFinanceToast('Supplier email updated and completion form resent.', 'success');
+        } else {
+            showFinanceToast(data.message || 'Supplier email updated and completion form resent.', 'success');
         }
     }
 
     async function copySupplierLink(link) {
         if (!link) return;
         await navigator.clipboard.writeText(link).catch(() => {});
-        alert('Supplier link copied to clipboard.');
+        showFinanceToast('Supplier link copied to clipboard.', 'success');
     }
 
     function printFinanceRecord(id) {
@@ -1463,6 +1693,7 @@
     function changeModule(moduleKey) {
         currentModuleKey = moduleKey;
         currentWorkflowFilter = 'all';
+        supplierCompletionMode = moduleKey === 'supplier' ? 'complete_internally' : 'complete_internally';
         const url = new URL(window.location.href);
         url.searchParams.set('module', moduleKey);
         url.searchParams.delete('workflow_status');
@@ -1514,6 +1745,7 @@
     window.financeModule = {
         changeModule,
         changeWorkflow,
+        changeSupplierCompletionMode,
         openFinanceDrawer,
         closeFinanceDrawer,
         openPreview,
@@ -1525,6 +1757,8 @@
         revertFinanceRecord,
         archiveFinanceRecord,
         shareSupplierRecord,
+        resendSupplierForm,
+        changeSupplierEmailAndResend,
         copySupplierLink,
         printFinanceRecord,
         scrollFinanceModuleTabs,
@@ -1533,6 +1767,7 @@
     window.openFinanceDrawer = () => window.financeModule.openFinanceDrawer();
     window.closeFinanceDrawer = () => window.financeModule.closeFinanceDrawer();
     window.closePreview = () => window.financeModule.closePreview();
+    window.changeSupplierCompletionMode = (mode) => window.financeModule.changeSupplierCompletionMode(mode);
     window.saveFinanceRecord = (event) => window.financeModule.saveFinanceRecord(event);
     window.scrollFinanceModuleTabs = (amount) => window.financeModule.scrollFinanceModuleTabs(amount);
 
