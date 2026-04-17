@@ -4,9 +4,7 @@
     <meta charset="utf-8">
     <title>Transmittal Receipt</title>
     <style>
-        @page {
-            margin: 6px 8px;
-        }
+        @page { margin: 6px 8px; }
 
         body {
             font-family: Arial, sans-serif;
@@ -15,24 +13,16 @@
             font-size: 8px;
         }
 
-        .page {
-            width: 100%;
-        }
-
-        .sheet {
-            width: 100%;
-        }
-
-        .header {
-            margin-bottom: 4px;
-        }
-
         .header-table,
         .top-info,
         .details-table,
         .signatures {
             width: 100%;
             border-collapse: collapse;
+        }
+
+        .header {
+            margin-bottom: 4px;
         }
 
         .header-left,
@@ -45,12 +35,6 @@
             width: 170px;
             font-size: 7px;
             line-height: 1.2;
-        }
-
-        .logo {
-            width: 42px;
-            height: auto;
-            margin-bottom: 2px;
         }
 
         .company-name {
@@ -101,14 +85,10 @@
             font-weight: bold;
         }
 
-        .section {
-            margin-top: 3px;
-            margin-bottom: 3px;
-        }
-
         .section-title {
             font-size: 9px;
             font-weight: bold;
+            margin-top: 3px;
             margin-bottom: 3px;
             padding-bottom: 2px;
             border-bottom: 1px solid #cbd5e1;
@@ -162,163 +142,81 @@
     </style>
 </head>
 <body>
-    @php
-        $receipt = $transmittal->receipt;
+    <div class="header">
+        <table class="header-table">
+            <tr>
+                <td class="header-left">
+                    <div class="company-name">JOHN KELLY &amp; COMPANY</div>
+                    <div class="company-sub">Official Transmittal Receipt</div>
+                </td>
+                <td class="header-right">
+                    <div><span class="label">Receipt No:</span> {{ $receipt->receipt_no ?? 'N/A' }}</div>
+                    <div><span class="label">Receipt Date:</span> {{ $receiptDate }}</div>
+                    <div><span class="label">Linked Ref No:</span> {{ $transmittal->transmittal_no ?? 'N/A' }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
 
-        $receiptDate = $receipt && $receipt->created_at
-            ? $receipt->created_at->format('Y-m-d')
-            : now()->format('Y-m-d');
+    <div class="receipt-title">TRANSMITTAL RECEIPT</div>
+    <div class="receipt-subtitle">Generated upon approved transmittal</div>
 
-        $receivedAt = $transmittal->received_at
-            ? $transmittal->received_at->format('Y-m-d H:i:s')
-            : 'N/A';
+    <table class="top-info">
+        <tr>
+            <td>
+                <div class="info-box">
+                    <div class="info-line"><span class="label">Mode:</span> {{ $transmittal->mode ?? 'N/A' }}</div>
+                    <div class="info-line"><span class="label">Office:</span> {{ $transmittal->office_name ?? 'N/A' }}</div>
+                    <div class="info-line"><span class="label">From:</span> {{ $fromValue }}</div>
+                    <div class="info-line"><span class="label">To:</span> {{ $toValue }}</div>
+                </div>
+            </td>
+            <td>
+                <div class="info-box">
+                    <div class="info-line"><span class="label">Delivery Type:</span> {{ $deliveryType }}</div>
+                    <div class="info-line"><span class="label">Recipient Email:</span> {{ $transmittal->recipient_email ?: '—' }}</div>
+                    <div class="info-line"><span class="label">Workflow:</span> {{ $transmittal->workflow_status ?? 'N/A' }}</div>
+                    <div class="info-line"><span class="label">Approval:</span> {{ $transmittal->approval_status ?? 'N/A' }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
 
-        $deliveryType = 'N/A';
-        if (($transmittal->delivery_type ?? '') === 'By Person') {
-            $deliveryType = $transmittal->by_person_who
-                ? 'By Person - ' . $transmittal->by_person_who
-                : 'By Person';
-        } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
-            $deliveryType = $transmittal->registered_mail_provider
-                ? 'Registered Mail - ' . $transmittal->registered_mail_provider
-                : 'Registered Mail';
-        } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
-            $deliveryType = $transmittal->electronic_method
-                ? 'Electronic - ' . $transmittal->electronic_method
-                : 'Electronic';
-        }
+    <div class="section-title">RECEIPT DETAILS</div>
 
-        $actions = collect([
-            $transmittal->action_delivery ? 'Delivery' : null,
-            $transmittal->action_pick_up  ? 'Pick Up'  : null,
-            $transmittal->action_drop_off ? 'Drop Off' : null,
-            $transmittal->action_email    ? 'Email'    : null,
-        ])->filter()->implode(', ');
+    <table class="details-table">
+        <tr><td class="label-col">Address</td><td>{{ $transmittal->address ?? 'N/A' }}</td></tr>
+        <tr><td class="label-col">Actions</td><td>{{ $actions }}</td></tr>
+        <tr><td class="label-col">Prepared By</td><td>{{ $transmittal->prepared_by_name ?? 'N/A' }}</td></tr>
+        <tr><td class="label-col">Approved By</td><td>{{ $approvedByText }}</td></tr>
+        <tr><td class="label-col">Delivered By</td><td>{{ $transmittal->delivered_by ?? 'N/A' }}</td></tr>
+        <tr><td class="label-col">Received By</td><td>{{ $transmittal->received_by ?? 'N/A' }}</td></tr>
+        <tr><td class="label-col">Date and Time Received</td><td>{{ $receivedAt }}</td></tr>
+    </table>
 
-        if ($actions === '') {
-            $actions = '—';
-        }
+    <table class="signatures">
+        <tr>
+            <td>
+                <div class="sign-label">Prepared by:</div>
+                <div class="sign-line">{{ $transmittal->prepared_by_name ?? ' ' }}</div>
+            </td>
+            <td>
+                <div class="sign-label">Approved by:</div>
+                <div class="sign-line">{{ $transmittal->approved_by_name ?? ' ' }}</div>
+            </td>
+            <td>
+                <div class="sign-label">Delivered by:</div>
+                <div class="sign-line">{{ $transmittal->delivered_by ?? ' ' }}</div>
+            </td>
+            <td>
+                <div class="sign-label">Received by:</div>
+                <div class="sign-line">{{ $transmittal->received_by ?? ' ' }}</div>
+            </td>
+        </tr>
+    </table>
 
-        // $logoBase64 is passed from the controller as a data URI.
-        // Fall back to encoding here if somehow not passed.
-        if (empty($logoBase64)) {
-            $logoPath = public_path('images/imaglogo.png');
-            $logoBase64 = (file_exists($logoPath) && is_readable($logoPath))
-                ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
-                : null;
-        }
-    @endphp
-
-    <div class="page">
-        <div class="sheet">
-
-            {{-- Header --}}
-            <div class="header">
-                <table class="header-table">
-                    <tr>
-                        <td class="header-left">
-                            @if($logoBase64)
-                                <img src="{{ $logoBase64 }}" alt="John Kelly Logo" class="logo">
-                            @endif
-                            <div class="company-name">JOHN KELLY &amp; COMPANY</div>
-                            <div class="company-sub">Official Transmittal Receipt</div>
-                        </td>
-                        <td class="header-right">
-                            <div><span class="label">Receipt No:</span> {{ $receipt->receipt_no ?? 'N/A' }}</div>
-                            <div><span class="label">Receipt Date:</span> {{ $receiptDate }}</div>
-                            <div><span class="label">Linked Ref No:</span> {{ $transmittal->transmittal_no ?? 'N/A' }}</div>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="receipt-title">TRANSMITTAL RECEIPT</div>
-            <div class="receipt-subtitle">Generated upon approved transmittal</div>
-
-            {{-- Top two-column info --}}
-            <table class="top-info">
-                <tr>
-                    <td>
-                        <div class="info-box">
-                            <div class="info-line"><span class="label">Mode:</span> {{ $transmittal->mode ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">Office:</span> {{ $transmittal->office_name ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">From:</span> {{ $transmittal->mode === 'SEND' ? ($transmittal->office_name ?? 'N/A') : ($transmittal->party_name ?? 'N/A') }}</div>
-                            <div class="info-line"><span class="label">To:</span> {{ $transmittal->mode === 'SEND' ? ($transmittal->party_name ?? 'N/A') : ($transmittal->office_name ?? 'N/A') }}</div>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="info-box">
-                            <div class="info-line"><span class="label">Delivery Type:</span> {{ $deliveryType }}</div>
-                            <div class="info-line"><span class="label">Recipient Email:</span> {{ $transmittal->recipient_email ?: '—' }}</div>
-                            <div class="info-line"><span class="label">Workflow:</span> {{ $transmittal->workflow_status ?? 'N/A' }}</div>
-                            <div class="info-line"><span class="label">Approval:</span> {{ $transmittal->approval_status ?? 'N/A' }}</div>
-                        </div>
-                    </td>
-                </tr>
-            </table>
-
-            {{-- Receipt details --}}
-            <div class="section">
-                <div class="section-title">RECEIPT DETAILS</div>
-                <table class="details-table">
-                    <tr>
-                        <td class="label-col">Address</td>
-                        <td>{{ $transmittal->address ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Actions</td>
-                        <td>{{ $actions }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Prepared By</td>
-                        <td>{{ $transmittal->prepared_by_name ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Approved By</td>
-                        <td>{{ $transmittal->approved_by_name ?? 'N/A' }}{{ $transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Delivered By</td>
-                        <td>{{ $transmittal->delivered_by ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Received By</td>
-                        <td>{{ $transmittal->received_by ?? 'N/A' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label-col">Date and Time Received</td>
-                        <td>{{ $receivedAt }}</td>
-                    </tr>
-                </table>
-            </div>
-
-            {{-- Signature row --}}
-            <table class="signatures">
-                <tr>
-                    <td>
-                        <div class="sign-label">Prepared by:</div>
-                        <div class="sign-line">{{ $transmittal->prepared_by_name ?? ' ' }}</div>
-                    </td>
-                    <td>
-                        <div class="sign-label">Approved by:</div>
-                        <div class="sign-line">{{ $transmittal->approved_by_name ?? ' ' }}</div>
-                    </td>
-                    <td>
-                        <div class="sign-label">Delivered by:</div>
-                        <div class="sign-line">{{ $transmittal->delivered_by ?? ' ' }}</div>
-                    </td>
-                    <td>
-                        <div class="sign-label">Received by:</div>
-                        <div class="sign-line">{{ $transmittal->received_by ?? ' ' }}</div>
-                    </td>
-                </tr>
-            </table>
-
-            <div class="footer">
-                This document is system-generated by John Kelly &amp; Company CRM. Linked Transmittal: {{ $transmittal->transmittal_no ?? 'N/A' }}.
-            </div>
-
-        </div>
+    <div class="footer">
+        This document is system-generated by John Kelly &amp; Company CRM. Linked Transmittal: {{ $transmittal->transmittal_no ?? 'N/A' }}.
     </div>
 </body>
 </html>

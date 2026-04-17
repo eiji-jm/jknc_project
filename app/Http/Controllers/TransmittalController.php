@@ -263,36 +263,65 @@ class TransmittalController extends Controller
 
     $customPaper = [0, 0, 612, 255];
 
-    // Make sure writable DomPDF directories exist on both local and Render
-    $dompdfRoot = storage_path('app/dompdf');
-    $fontCachePath = $dompdfRoot . DIRECTORY_SEPARATOR . 'fonts';
-    $tempPath = $dompdfRoot . DIRECTORY_SEPARATOR . 'temp';
+    $receipt = $transmittal->receipt;
 
-    if (! is_dir($fontCachePath)) {
-        mkdir($fontCachePath, 0755, true);
+    $receiptDate = $receipt && $receipt->created_at
+        ? $receipt->created_at->format('Y-m-d')
+        : now()->format('Y-m-d');
+
+    $receivedAt = $transmittal->received_at
+        ? $transmittal->received_at->format('Y-m-d H:i:s')
+        : 'N/A';
+
+    $deliveryType = 'N/A';
+    if (($transmittal->delivery_type ?? '') === 'By Person') {
+        $deliveryType = $transmittal->by_person_who
+            ? 'By Person - ' . $transmittal->by_person_who
+            : 'By Person';
+    } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
+        $deliveryType = $transmittal->registered_mail_provider
+            ? 'Registered Mail - ' . $transmittal->registered_mail_provider
+            : 'Registered Mail';
+    } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
+        $deliveryType = $transmittal->electronic_method
+            ? 'Electronic - ' . $transmittal->electronic_method
+            : 'Electronic';
     }
 
-    if (! is_dir($tempPath)) {
-        mkdir($tempPath, 0755, true);
+    $actions = collect([
+        $transmittal->action_delivery ? 'Delivery' : null,
+        $transmittal->action_pick_up ? 'Pick Up' : null,
+        $transmittal->action_drop_off ? 'Drop Off' : null,
+        $transmittal->action_email ? 'Email' : null,
+    ])->filter()->implode(', ');
+
+    if ($actions === '') {
+        $actions = '—';
     }
 
-    $logoBase64 = null;
-    $logoPath = public_path('images/imaglogo.png');
+    $fromValue = $transmittal->mode === 'SEND'
+        ? ($transmittal->office_name ?? 'N/A')
+        : ($transmittal->party_name ?? 'N/A');
 
-    if (file_exists($logoPath) && is_readable($logoPath)) {
-        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
-    }
+    $toValue = $transmittal->mode === 'SEND'
+        ? ($transmittal->party_name ?? 'N/A')
+        : ($transmittal->office_name ?? 'N/A');
+
+    $approvedByText = ($transmittal->approved_by_name ?? 'N/A')
+        . ($transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '');
 
     try {
-        $pdf = Pdf::setOption([
-                'isRemoteEnabled' => false,
-                'isHtml5ParserEnabled' => true,
-                'chroot' => base_path(),
-                'tempDir' => $tempPath,
-                'fontCache' => $fontCachePath,
-                'defaultFont' => 'Arial',
+        $pdf = Pdf::loadView('transmittal.receipt-pdf', [
+                'transmittal' => $transmittal,
+                'receipt' => $receipt,
+                'receiptDate' => $receiptDate,
+                'receivedAt' => $receivedAt,
+                'deliveryType' => $deliveryType,
+                'actions' => $actions,
+                'fromValue' => $fromValue,
+                'toValue' => $toValue,
+                'approvedByText' => $approvedByText,
             ])
-            ->loadView('transmittal.receipt-pdf', compact('transmittal', 'logoBase64'))
             ->setPaper($customPaper);
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
@@ -304,7 +333,6 @@ class TransmittalController extends Controller
             'line' => $e->getLine(),
         ]);
 
-        // temporary very simple fallback PDF for debugging only
         $fallbackHtml = '
             <html>
             <body style="font-family: Arial, sans-serif; font-size: 12px;">
@@ -316,16 +344,7 @@ class TransmittalController extends Controller
             </html>
         ';
 
-        $fallbackPdf = Pdf::setOption([
-                'isRemoteEnabled' => false,
-                'isHtml5ParserEnabled' => true,
-                'chroot' => base_path(),
-                'tempDir' => $tempPath,
-                'fontCache' => $fontCachePath,
-                'defaultFont' => 'Arial',
-            ])
-            ->loadHTML($fallbackHtml)
-            ->setPaper($customPaper);
+        $fallbackPdf = Pdf::loadHTML($fallbackHtml)->setPaper($customPaper);
 
         return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     }
