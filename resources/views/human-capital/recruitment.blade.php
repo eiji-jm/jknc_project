@@ -289,6 +289,7 @@
                             <td class="px-4 py-3 text-gray-600" x-text="row.interview_date || row.date"></td>
                             <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
                             <td class="px-4 py-3">
+                                <button @click="viewInterview(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
                                 <button @click="deleteInterview(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
@@ -326,7 +327,7 @@
         </div>
 
         {{-- PAGINATION FOOTER --}}
-        <div class="px-4 py-2 border-t border-gray-100 bg-blue-50/30 flex items-center justify-end text-[13px] font-semibold text-blue-600 gap-4">
+        <div class="px-4 py-2 border-t border-gray-100 bg-blue-50/30 flex items-center justify-end text-[13px] font-semibold text-blue-600 gap-4" x-show="activeTab !== 'Assessment'">
             <div class="flex items-center gap-2">
                 <span>Records per page</span>
                 <div class="relative">
@@ -1477,6 +1478,94 @@
         </div>
     </div>
 
+    {{-- ===================== INTERVIEW VIEW MODAL ===================== --}}
+    <div
+        x-show="showInterviewViewModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[60] flex justify-center items-center bg-black/60 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showInterviewViewModal = false"
+    >
+        <div 
+            class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all"
+            x-show="showInterviewViewModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        >
+            <template x-if="viewInterviewData">
+                <div class="flex flex-col">
+                    {{-- Header Banner --}}
+                    <div class="h-32 bg-gradient-to-r from-purple-600 to-blue-700 p-8 relative">
+                        <button @click="showInterviewViewModal = false" class="absolute top-4 right-4 text-white/50 hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                        <div class="absolute -bottom-10 left-8">
+                            <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white text-purple-600">
+                                <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Body --}}
+                    <div class="px-8 pt-16 pb-8 space-y-6">
+                        <div>
+                            <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewInterviewData.name"></h2>
+                            <p class="text-purple-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewInterviewData.position"></p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Interview Type</p>
+                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.type || viewInterviewData.round"></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                                <p class="font-bold uppercase text-[11px]" :class="statusClass(viewInterviewData.status)" x-text="viewInterviewData.status"></p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Interviewer</p>
+                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.interviewer"></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Duration</p>
+                                <p class="text-gray-800 text-sm" x-text="(viewInterviewData.duration || '60') + ' minutes'"></p>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Date & Time</p>
+                            <p class="text-gray-800 text-sm" x-text="viewInterviewData.interview_date || viewInterviewData.date"></p>
+                        </div>
+
+                        <div x-show="viewInterviewData.meeting_link" class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Meeting Link</p>
+                            <a :href="viewInterviewData.meeting_link" target="_blank" class="text-blue-600 hover:underline text-sm break-all" x-text="viewInterviewData.meeting_link"></a>
+                        </div>
+
+                        <div class="pt-4 flex gap-3">
+                            <button @click="showInterviewViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
+                                Close
+                            </button>
+                            <button class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200 uppercase tracking-widest text-[11px]"
+                                x-text="isDatePassed(viewInterviewData.interview_date || viewInterviewData.date) ? 'Send a Job Offer' : 'Send Reminder'">
+                                Send Reminder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
     {{-- ===================== ADD NEW ASSESSMENT MODAL ===================== --}}
     <div
         x-show="showAssessmentModal"
@@ -1681,12 +1770,14 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         showCafModal: false,
         showCafViewModal: false,
         showInterviewModal: false,
+        showInterviewViewModal: false,
         showAssessmentModal: false,
         showAssessmentViewModal: false,
         viewData: null,
         viewJpfData: {},
         viewCafData: null,
         viewAssessmentData: null,
+        viewInterviewData: null,
 
         tabs: [
             { key: 'MRF',        label: 'MRF' },
@@ -1780,6 +1871,11 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         viewCAF(row) {
             this.viewCafData = row;
             this.showCafViewModal = true;
+        },
+
+        viewInterview(row) {
+            this.viewInterviewData = row;
+            this.showInterviewViewModal = true;
         },
 
         deleteCAF(id) {
@@ -2097,6 +2193,11 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 'Disapproved': 'bg-red-100 text-red-700',
             };
             return map[status] ?? 'bg-gray-100 text-gray-600';
+        },
+
+        isDatePassed(dateStr) {
+            if (!dateStr) return false;
+            return new Date(dateStr) < new Date();
         },
 
         get filteredRows() {
