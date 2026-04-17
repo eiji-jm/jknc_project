@@ -263,6 +263,19 @@ class TransmittalController extends Controller
 
     $customPaper = [0, 0, 612, 255];
 
+    // Make sure writable DomPDF directories exist on both local and Render
+    $dompdfRoot = storage_path('app/dompdf');
+    $fontCachePath = $dompdfRoot . DIRECTORY_SEPARATOR . 'fonts';
+    $tempPath = $dompdfRoot . DIRECTORY_SEPARATOR . 'temp';
+
+    if (! is_dir($fontCachePath)) {
+        mkdir($fontCachePath, 0755, true);
+    }
+
+    if (! is_dir($tempPath)) {
+        mkdir($tempPath, 0755, true);
+    }
+
     $logoBase64 = null;
     $logoPath = public_path('images/imaglogo.png');
 
@@ -275,29 +288,43 @@ class TransmittalController extends Controller
                 'isRemoteEnabled' => false,
                 'isHtml5ParserEnabled' => true,
                 'chroot' => base_path(),
-                'tempDir' => sys_get_temp_dir(),
-                'fontCache' => storage_path('fonts'),
+                'tempDir' => $tempPath,
+                'fontCache' => $fontCachePath,
+                'defaultFont' => 'Arial',
             ])
             ->loadView('transmittal.receipt-pdf', compact('transmittal', 'logoBase64'))
             ->setPaper($customPaper);
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     } catch (\Throwable $e) {
-        Log::error('Receipt PDF failed', [
+        Log::error('Styled receipt PDF failed on server', [
             'transmittal_id' => $id,
             'error' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
         ]);
 
+        // temporary very simple fallback PDF for debugging only
+        $fallbackHtml = '
+            <html>
+            <body style="font-family: Arial, sans-serif; font-size: 12px;">
+                <h3>Styled receipt PDF failed on server.</h3>
+                <p>Error was logged. Please check Render logs.</p>
+                <p>Receipt No: ' . e($transmittal->receipt->receipt_no) . '</p>
+                <p>Ref No: ' . e($transmittal->transmittal_no) . '</p>
+            </body>
+            </html>
+        ';
+
         $fallbackPdf = Pdf::setOption([
                 'isRemoteEnabled' => false,
                 'isHtml5ParserEnabled' => true,
                 'chroot' => base_path(),
-                'tempDir' => sys_get_temp_dir(),
-                'fontCache' => storage_path('fonts'),
+                'tempDir' => $tempPath,
+                'fontCache' => $fontCachePath,
+                'defaultFont' => 'Arial',
             ])
-            ->loadHTML('<h3>Receipt PDF failed on server.</h3><p>Please click Open and try again.</p>')
+            ->loadHTML($fallbackHtml)
             ->setPaper($customPaper);
 
         return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
