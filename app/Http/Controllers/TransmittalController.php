@@ -281,28 +281,28 @@ class TransmittalController extends Controller
 
     public function receiptPdf($id)
 {
+    $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
+
+    if (! $transmittal->receipt) {
+        abort(404, 'Receipt not found.');
+    }
+
     try {
-        $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
-
-        if (! $transmittal->receipt) {
-            abort(404, 'Receipt not found.');
-        }
-
         $customPaper = [0, 0, 300, 200];
 
         $pdf = Pdf::loadView('transmittal.receipt-pdf', compact('transmittal'))
-            ->setPaper($customPaper);
+            ->setPaper($customPaper, 'portrait');
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     } catch (\Throwable $e) {
-        Log::error('Receipt PDF failed', [
+        \Log::error('Receipt PDF failed', [
             'transmittal_id' => $id,
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
         ]);
 
-        abort(500, 'Receipt PDF generation failed.');
+        return response()->view('transmittal.receipt-pdf', compact('transmittal'));
     }
 }
 }
