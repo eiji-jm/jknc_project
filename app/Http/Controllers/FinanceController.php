@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SupplierCompletionMail;
 use App\Models\FinanceRecord;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -74,6 +75,17 @@ class FinanceController extends Controller
         return 'data:' . $mime . ';base64,' . base64_encode($contents);
     }
 
+    private function financeAttachmentUrl(?array $attachment): ?string
+    {
+        $path = trim((string) data_get($attachment, 'path', ''));
+
+        if ($path === '') {
+            return null;
+        }
+
+        return route('uploads.show', ['path' => $path]);
+    }
+
     private function financePdfLookupLabel(array $lookupOptions, string $moduleKey, mixed $id): ?string
     {
         if (blank($id) || !array_key_exists($moduleKey, $lookupOptions)) {
@@ -112,14 +124,387 @@ class FinanceController extends Controller
         return $stringValue === '' ? 'N/A' : $stringValue;
     }
 
-    private function financePdfContext(FinanceRecord $record): array
+    private function financePreviewFieldValue(FinanceRecord $record, string $fieldName, array $lookupOptions): string
+    {
+        $data = $record->data ?? [];
+        $value = data_get($data, $fieldName);
+
+        if (in_array($fieldName, ['completion_mode', 'vat_status', 'accreditation_status', 'tax_type', 'payment_type', 'mode_of_release', 'mode_of_return', 'reimbursement_mode', 'bank_status', 'account_type', 'account_status', 'service_status', 'product_status', 'normal_balance', 'variance_indicator', 'purchase_type', 'priority', 'request_type'], true)) {
+            return $this->financePdfValue($value);
+        }
+
+        return match ($fieldName) {
+            'supplier_id' => $this->financePdfLookupLabel($lookupOptions, 'supplier', $value) ?: $this->financePdfValue($value),
+            'coa_id', 'parent_account_id', 'payroll_expense_coa_id', 'asset_coa_id' => $this->financePdfLookupLabel($lookupOptions, 'chart_account', $value) ?: $this->financePdfValue($value),
+            'bank_account_id', 'funding_bank_account_id', 'receiving_bank_account_id', 'source_bank_account_id', 'destination_bank_account_id' => $this->financePdfLookupLabel($lookupOptions, 'bank_account', $value) ?: $this->financePdfValue($value),
+            'linked_pr_id' => $this->financePdfLookupLabel($lookupOptions, 'pr', $value) ?: $this->financePdfValue($value),
+            'linked_po_id' => $this->financePdfLookupLabel($lookupOptions, 'po', $value) ?: $this->financePdfValue($value),
+            'linked_ca_id' => $this->financePdfLookupLabel($lookupOptions, 'ca', $value) ?: $this->financePdfValue($value),
+            'linked_lr_id' => $this->financePdfLookupLabel($lookupOptions, 'lr', $value) ?: $this->financePdfValue($value),
+            'linked_dv_id' => $this->financePdfLookupLabel($lookupOptions, 'dv', $value) ?: $this->financePdfValue($value),
+            'source_document_id' => $this->financePdfLookupLabel($lookupOptions, (string) data_get($data, 'source_document_type', ''), $value) ?: $this->financePdfValue($value),
+            'master_item_id' => $this->financePdfLookupLabel($lookupOptions, (string) data_get($data, 'master_item_type', 'product'), $value) ?: $this->financePdfValue($value),
+            'linked_item_id' => $this->financePdfLookupLabel($lookupOptions, (string) data_get($data, 'linked_item_type', 'product'), $value) ?: $this->financePdfValue($value),
+            default => $this->financePdfValue($value),
+        };
+    }
+
+    private function financePreviewRow(FinanceRecord $record, array $lookupOptions, string $fieldName, ?string $label = null): array
+    {
+        return [
+            'label' => $label ?: Str::headline(str_replace('_id', ' id', $fieldName)),
+            'value' => $this->financePreviewFieldValue($record, $fieldName, $lookupOptions),
+        ];
+    }
+
+    private function financePreviewSections(FinanceRecord $record, array $lookupOptions): array
+    {
+        $moduleKey = $record->module_key;
+        $data = $record->data ?? [];
+        $notesSection = [
+            'type' => 'notes',
+            'title' => 'Review Notes',
+        ];
+
+        $section = function (string $title, array $fields) use ($record, $lookupOptions): array {
+            return [
+                'type' => 'fields',
+                'title' => $title,
+                'rows' => array_map(fn ($field) => is_array($field)
+                    ? $this->financePreviewRow($record, $lookupOptions, $field['name'], $field['label'] ?? null)
+                    : $this->financePreviewRow($record, $lookupOptions, $field), $fields),
+            ];
+        };
+
+        return match ($moduleKey) {
+            'supplier' => data_get($data, 'completion_mode') === 'send_to_supplier' && blank($record->supplier_completed_at)
+                ? []
+                : [
+                    $section('Supplier Profile', [
+                        ['name' => 'completion_mode', 'label' => 'Completion Mode'],
+                        ['name' => 'trade_name', 'label' => 'Trade Name'],
+                        ['name' => 'supplier_type', 'label' => 'Supplier Type'],
+                        ['name' => 'representative_full_name', 'label' => 'Representative Full Name'],
+                        ['name' => 'designation', 'label' => 'Designation'],
+                        ['name' => 'email_address', 'label' => 'Email Address'],
+                        ['name' => 'phone_number', 'label' => 'Phone Number'],
+                        ['name' => 'alternate_contact_number', 'label' => 'Alternate Contact Number'],
+                    ]),
+                $section('Business & Billing', [
+                    ['name' => 'business_address', 'label' => 'Business Address'],
+                    ['name' => 'billing_address', 'label' => 'Billing Address'],
+                    ['name' => 'tin', 'label' => 'TIN'],
+                    ['name' => 'vat_status', 'label' => 'VAT / Non-VAT'],
+                    ['name' => 'payment_terms', 'label' => 'Payment Terms'],
+                    ['name' => 'accreditation_status', 'label' => 'Accreditation Status'],
+                ]),
+                $section('Banking & Notes', [
+                    ['name' => 'bank_name', 'label' => 'Bank Name'],
+                    ['name' => 'bank_account_name', 'label' => 'Bank Account Name'],
+                    ['name' => 'bank_account_number', 'label' => 'Bank Account Number'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'service' => [
+                $section('Service Profile', [
+                    ['name' => 'service_description', 'label' => 'Service Description'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                    ['name' => 'category', 'label' => 'Category'],
+                    ['name' => 'unit_of_measure', 'label' => 'Unit of Measure'],
+                    ['name' => 'default_cost', 'label' => 'Default Cost'],
+                ]),
+                $section('Classification & Notes', [
+                    ['name' => 'tax_type', 'label' => 'Tax Type'],
+                    ['name' => 'service_status', 'label' => 'Service Status'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'product' => [
+                $section('Product Profile', [
+                    ['name' => 'product_description', 'label' => 'Product Description'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                    ['name' => 'category', 'label' => 'Category'],
+                    ['name' => 'unit_of_measure', 'label' => 'Unit of Measure'],
+                    ['name' => 'default_cost', 'label' => 'Default Cost'],
+                ]),
+                $section('Classification & Notes', [
+                    ['name' => 'tax_type', 'label' => 'Tax Type'],
+                    ['name' => 'product_status', 'label' => 'Product Status'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'chart_account' => [
+                $section('Account Profile', [
+                    ['name' => 'account_description', 'label' => 'Account Description'],
+                    ['name' => 'is_sub_account', 'label' => 'Sub-Account'],
+                    ['name' => 'parent_account_id', 'label' => 'Main Account'],
+                    ['name' => 'account_type', 'label' => 'Account Type'],
+                    ['name' => 'account_group', 'label' => 'Account Group'],
+                ]),
+                $section('Balance & Status', [
+                    ['name' => 'normal_balance', 'label' => 'Normal Balance'],
+                    ['name' => 'account_status', 'label' => 'Status'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'bank_account' => [
+                $section('Bank Profile', [
+                    ['name' => 'bank_name', 'label' => 'Bank Name'],
+                    ['name' => 'branch', 'label' => 'Branch'],
+                    ['name' => 'currency', 'label' => 'Currency'],
+                    ['name' => 'account_type', 'label' => 'Account Type'],
+                    ['name' => 'bank_status', 'label' => 'Status'],
+                ]),
+                $section('Accounting Link & Notes', [
+                    ['name' => 'linked_coa_id', 'label' => 'Linked Chart of Account'],
+                    ['name' => 'signatory_notes', 'label' => 'Signatory Notes'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'pr' => [
+                $section('Request Details', [
+                    ['name' => 'requesting_department', 'label' => 'Department'],
+                    ['name' => 'request_type', 'label' => 'Type'],
+                    ['name' => 'priority', 'label' => 'Priority'],
+                    ['name' => 'purchase_type', 'label' => 'Purchase Type'],
+                    ['name' => 'needed_date', 'label' => 'Needed Date'],
+                ]),
+                $section('Requester Details', [
+                    ['name' => 'requestor', 'label' => 'Employee Name'],
+                    ['name' => 'employee_id', 'label' => 'Employee ID'],
+                    ['name' => 'employee_email', 'label' => 'Email'],
+                    ['name' => 'contact_number', 'label' => 'Contact #'],
+                    ['name' => 'position', 'label' => 'Position'],
+                    ['name' => 'superior', 'label' => 'Superior'],
+                    ['name' => 'superior_email', 'label' => 'Superior Email'],
+                ]),
+                $section('Vendor Details', [
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'new_vendor', 'label' => 'New Vendor?'],
+                    ['name' => 'vendor_id_number', 'label' => 'Vendor ID Number'],
+                    ['name' => 'vendors_tin', 'label' => 'Vendors TIN#'],
+                    ['name' => 'company_name', 'label' => 'Company'],
+                    ['name' => 'vendor_phone', 'label' => 'Phone Number'],
+                    ['name' => 'vendor_email', 'label' => 'Email'],
+                    ['name' => 'vendor_address', 'label' => 'Address'],
+                    ['name' => 'city', 'label' => 'City'],
+                    ['name' => 'province', 'label' => 'Province'],
+                    ['name' => 'zip', 'label' => 'Zip'],
+                ]),
+                ['type' => 'line_items', 'title' => 'Items / Cost Details'],
+                ['type' => 'cost_summary', 'title' => 'Cost Summary'],
+                $section('Purpose & Notes', [
+                    ['name' => 'purpose', 'label' => 'Purpose / Justification'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'po' => [
+                $section('Order Details', [
+                    ['name' => 'linked_pr_id', 'label' => 'Linked PR'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'expected_delivery_date', 'label' => 'Expected Delivery Date'],
+                    ['name' => 'delivery_address', 'label' => 'Delivery Address'],
+                    ['name' => 'terms_and_conditions', 'label' => 'Terms and Conditions'],
+                ]),
+                $section('Item & Cost Details', [
+                    ['name' => 'linked_item_type', 'label' => 'Items / Services Type'],
+                    ['name' => 'linked_item_id', 'label' => 'Items / Services'],
+                    ['name' => 'quantity', 'label' => 'Quantity'],
+                    ['name' => 'unit_cost', 'label' => 'Unit Cost'],
+                    ['name' => 'total_amount', 'label' => 'Total Amount'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                ]),
+                $section('Notes', [
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'ca' => [
+                $section('Request Details', [
+                    ['name' => 'requestor', 'label' => 'Requestor'],
+                    ['name' => 'needed_date', 'label' => 'Needed Date'],
+                    ['name' => 'priority', 'label' => 'Priority'],
+                    ['name' => 'cash_advance_type', 'label' => 'Cash Advance Type'],
+                    ['name' => 'for_client', 'label' => 'For Client?'],
+                    ['name' => 'purpose', 'label' => 'Justification / Business Need'],
+                    ['name' => 'usage_categories', 'label' => 'Cash Advance Usage / Expense Categories'],
+                    ['name' => 'other_business_purpose_specify', 'label' => 'Other Business Purpose - Specify'],
+                    ['name' => 'other_expense_specify', 'label' => 'Other Expense - Specify'],
+                    ['name' => 'client_names', 'label' => 'Client Name(s)'],
+                ]),
+                $section('Requester Details', [
+                    ['name' => 'employee_id', 'label' => 'Employee ID'],
+                    ['name' => 'employee_name', 'label' => 'Employee Name'],
+                    ['name' => 'employee_email', 'label' => 'Email'],
+                    ['name' => 'contact_number', 'label' => 'Contact #'],
+                    ['name' => 'position', 'label' => 'Position'],
+                    ['name' => 'department', 'label' => 'Department'],
+                    ['name' => 'superior', 'label' => 'Superior'],
+                    ['name' => 'superior_email', 'label' => 'Superior Email'],
+                ]),
+                $section('Cash Advance Details', [
+                    ['name' => 'amount_requested', 'label' => 'Amount Requested'],
+                    ['name' => 'mode_of_release', 'label' => 'Mode of Release'],
+                    ['name' => 'paid_through', 'label' => 'Paid Through'],
+                ]),
+                $section('Declarations & Authorizations', [
+                    ['name' => 'official_business_cash_advance', 'label' => 'Official Business Cash Advance'],
+                    ['name' => 'employee_cash_advance_personal', 'label' => 'Employee Cash Advance - Personal Purpose'],
+                    ['name' => 'liquidation_non_compliance', 'label' => 'Liquidation Non-Compliance'],
+                    ['name' => 'automatic_salary_deduction_authorization', 'label' => 'Automatic Salary Deduction Authorization'],
+                    ['name' => 'final_pay_deduction_authorization', 'label' => 'Final Pay Deduction Authorization'],
+                    ['name' => 'policy_acknowledgment', 'label' => 'Policy Acknowledgment'],
+                ]),
+                $section('Funding & Notes', [
+                    ['name' => 'bank_account_id', 'label' => 'Bank Account / Cash Source'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'lr' => [
+                $section('Liquidation Details', [
+                    ['name' => 'linked_ca_id', 'label' => 'CA Reference No.'],
+                    ['name' => 'total_cash_advance', 'label' => 'CA Amount'],
+                    ['name' => 'purpose', 'label' => 'Justification / Business Need'],
+                ]),
+                $section('Requester Details', [
+                    ['name' => 'employee_id', 'label' => 'Employee ID'],
+                    ['name' => 'employee_name', 'label' => 'Employee Name'],
+                    ['name' => 'employee_email', 'label' => 'Email'],
+                    ['name' => 'contact_number', 'label' => 'Contact #'],
+                    ['name' => 'position', 'label' => 'Position'],
+                    ['name' => 'department', 'label' => 'Department'],
+                    ['name' => 'superior', 'label' => 'Superior'],
+                    ['name' => 'superior_email', 'label' => 'Superior Email'],
+                ]),
+                [
+                    'type' => 'line_items',
+                    'title' => 'Liquidation / Cost Details',
+                ],
+                [
+                    'type' => 'cost_summary',
+                    'title' => 'Cost Summary',
+                ],
+                $notesSection,
+            ],
+            'err' => [
+                $section('Reimbursement Details', [
+                    ['name' => 'linked_lr_id', 'label' => 'Linked LR'],
+                    ['name' => 'expense_details', 'label' => 'Expense Details'],
+                    ['name' => 'amount', 'label' => 'Amount'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'reimbursement_mode', 'label' => 'Mode of Reimbursement'],
+                ]),
+                $section('Accounting & Funding', [
+                    ['name' => 'coa_id', 'label' => 'Account from Chart of Accounts'],
+                    ['name' => 'bank_account_id', 'label' => 'Bank Account'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'dv' => [
+                $section('Voucher Details', [
+                    ['name' => 'source_document_type', 'label' => 'Linked Source Document Type'],
+                    ['name' => 'source_document_id', 'label' => 'Linked Source Document'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'amount', 'label' => 'Amount'],
+                    ['name' => 'payment_type', 'label' => 'Payment Type'],
+                    ['name' => 'payment_date', 'label' => 'Payment Date'],
+                ]),
+                $section('Accounting & Notes', [
+                    ['name' => 'bank_account_id', 'label' => 'Bank Account'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                    ['name' => 'reference_number', 'label' => 'Reference Number'],
+                    ['name' => 'purpose', 'label' => 'Purpose'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'pda' => [
+                $section('Payroll Details', [
+                    ['name' => 'total_payroll_amount', 'label' => 'Total Payroll Amount'],
+                    ['name' => 'department', 'label' => 'Department / Coverage'],
+                    ['name' => 'funding_bank_account_id', 'label' => 'Funding Bank Account'],
+                    ['name' => 'payroll_expense_coa_id', 'label' => 'Payroll Expense Account'],
+                ]),
+                $section('Supporting Notes', [
+                    ['name' => 'supporting_payroll_summary', 'label' => 'Supporting Payroll Summary'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'crf' => [
+                $section('Return Details', [
+                    ['name' => 'linked_lr_id', 'label' => 'Linked LR'],
+                    ['name' => 'amount_returned', 'label' => 'Amount Returned'],
+                    ['name' => 'mode_of_return', 'label' => 'Mode of Return'],
+                    ['name' => 'receiving_bank_account_id', 'label' => 'Receiving Bank / Cash Account'],
+                    ['name' => 'coa_id', 'label' => 'Account'],
+                ]),
+                $section('Reference & Notes', [
+                    ['name' => 'reference_number', 'label' => 'Reference Number'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'ibtf' => [
+                $section('Transfer Details', [
+                    ['name' => 'source_bank_account_id', 'label' => 'Source Bank Account'],
+                    ['name' => 'destination_bank_account_id', 'label' => 'Destination Bank Account'],
+                    ['name' => 'amount', 'label' => 'Amount'],
+                    ['name' => 'reason', 'label' => 'Reason / Purpose'],
+                ]),
+                $section('Reference & Notes', [
+                    ['name' => 'source_account_code', 'label' => 'Source Account Code'],
+                    ['name' => 'destination_account_code', 'label' => 'Destination Account Code'],
+                    ['name' => 'transfer_reference_number', 'label' => 'Transfer Reference Number'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            'arf' => [
+                $section('Asset Details', [
+                    ['name' => 'linked_po_id', 'label' => 'Linked PO'],
+                    ['name' => 'linked_dv_id', 'label' => 'Linked DV'],
+                    ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'asset_description', 'label' => 'Asset Description'],
+                    ['name' => 'asset_category', 'label' => 'Asset Category'],
+                    ['name' => 'serial_number', 'label' => 'Serial Number'],
+                    ['name' => 'model', 'label' => 'Model'],
+                ]),
+                $section('Valuation & Custody', [
+                    ['name' => 'acquisition_cost', 'label' => 'Acquisition Cost'],
+                    ['name' => 'acquisition_date', 'label' => 'Acquisition Date'],
+                    ['name' => 'asset_coa_id', 'label' => 'Asset Account from Chart of Accounts'],
+                    ['name' => 'location', 'label' => 'Location'],
+                    ['name' => 'custodian', 'label' => 'Custodian'],
+                    ['name' => 'useful_life', 'label' => 'Useful Life'],
+                    ['name' => 'residual_value', 'label' => 'Residual Value'],
+                    ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                $notesSection,
+            ],
+            default => [],
+        };
+    }
+
+    private function financePdfContext(FinanceRecord $record, bool $includeLogo = true): array
     {
         $data = $record->data ?? [];
         $lookupOptions = $this->resolveLookupOptions();
         $moduleLabel = $this->moduleLabel($record->module_key);
         $companyName = 'John Kelly & Company';
         $companyLegalName = 'JK&C INC.';
-        $companyLogo = $this->financePdfImageDataUri('images/imaglogo.png');
+        $companyLogo = $includeLogo ? $this->financePdfImageDataUri('images/imaglogo.png') : null;
         $summaryCards = [
             ['label' => 'Module', 'value' => $moduleLabel],
             ['label' => 'Record Number', 'value' => $record->record_number ?: 'N/A'],
@@ -132,59 +517,7 @@ class FinanceController extends Controller
             ['label' => 'Created By', 'value' => $record->user ?: 'N/A'],
             ['label' => 'Submitted At', 'value' => optional($record->submitted_at)->format('Y-m-d H:i:s') ?: 'N/A'],
             ['label' => 'Approved At', 'value' => optional($record->approved_at)->format('Y-m-d H:i:s') ?: 'N/A'],
-            ['label' => 'Review Note', 'value' => $record->review_note ?: 'N/A'],
         ];
-
-        $excludedDetailKeys = [
-            'line_items',
-            'subtotal',
-            'discount',
-            'discount_amount',
-            'shipping_amount',
-            'tax_type',
-            'tax_amount',
-            'wht_amount',
-            'grand_total',
-            'master_item_type',
-            'master_item_id',
-        ];
-
-        $detailRows = [];
-        foreach ($data as $key => $value) {
-            if (in_array($key, $excludedDetailKeys, true)) {
-                continue;
-            }
-
-            if (is_array($value) || $value === null || $value === '') {
-                continue;
-            }
-
-            $label = Str::headline(str_replace('_id', ' id', (string) $key));
-            $display = $this->financePdfValue($value);
-
-            if ($key === 'supplier_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'supplier', $value) ?: $display;
-            } elseif ($key === 'coa_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'chart_account', $value) ?: $display;
-            } elseif ($key === 'bank_account_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'bank_account', $value) ?: $display;
-            } elseif ($key === 'linked_pr_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'pr', $value) ?: $display;
-            } elseif ($key === 'linked_po_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'po', $value) ?: $display;
-            } elseif ($key === 'linked_ca_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'ca', $value) ?: $display;
-            } elseif ($key === 'linked_lr_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'lr', $value) ?: $display;
-            } elseif ($key === 'linked_dv_id') {
-                $display = $this->financePdfLookupLabel($lookupOptions, 'dv', $value) ?: $display;
-            }
-
-            $detailRows[] = [
-                'label' => $label,
-                'value' => $display,
-            ];
-        }
 
         $lineItems = [];
         foreach ((array) data_get($data, 'line_items', []) as $item) {
@@ -198,18 +531,34 @@ class FinanceController extends Controller
             ];
         }
 
-        $costSummary = [
-            ['label' => 'Subtotal', 'value' => $data['subtotal'] ?? $record->amount ?? '0.00'],
-            ['label' => 'Discount', 'value' => $data['discount'] ?? '0%'],
-            ['label' => 'Discount Amount', 'value' => $data['discount_amount'] ?? '0.00'],
-            ['label' => 'Shipping', 'value' => $data['shipping_amount'] ?? '0.00'],
-            ['label' => 'Tax (VAT/Non-VAT/N/A)', 'value' => $data['tax_type'] ?? 'N/A'],
-            ['label' => 'Tax Amount', 'value' => $data['tax_amount'] ?? '0.00'],
-            ['label' => 'WHT', 'value' => $data['wht_amount'] ?? '0.00'],
-            ['label' => 'Grand Total', 'value' => $data['grand_total'] ?? $record->amount ?? '0.00'],
-        ];
+        $costSummary = match ($record->module_key) {
+            'lr' => [
+                ['label' => 'Subtotal', 'value' => $data['subtotal'] ?? '0.00'],
+                ['label' => 'Discount Total', 'value' => $data['discount_total'] ?? '0.00'],
+                ['label' => 'Tax Total', 'value' => $data['tax_total'] ?? '0.00'],
+                ['label' => 'Shipping Total', 'value' => $data['shipping_total'] ?? '0.00'],
+                ['label' => 'WHT Total', 'value' => $data['wht_total'] ?? '0.00'],
+                ['label' => 'Grand Total', 'value' => $data['grand_total'] ?? $record->amount ?? '0.00'],
+            ],
+            default => [
+                ['label' => 'Subtotal', 'value' => $data['subtotal'] ?? $record->amount ?? '0.00'],
+                ['label' => 'Discount', 'value' => $data['discount'] ?? '0%'],
+                ['label' => 'Discount Amount', 'value' => $data['discount_amount'] ?? '0.00'],
+                ['label' => 'Shipping', 'value' => $data['shipping_amount'] ?? '0.00'],
+                ['label' => 'Tax (VAT/Non-VAT/N/A)', 'value' => $data['tax_type'] ?? 'N/A'],
+                ['label' => 'Tax Amount', 'value' => $data['tax_amount'] ?? '0.00'],
+                ['label' => 'WHT', 'value' => $data['wht_amount'] ?? '0.00'],
+                ['label' => 'Grand Total', 'value' => $data['grand_total'] ?? $record->amount ?? '0.00'],
+            ],
+        };
 
-        $attachments = array_values(array_filter((array) ($record->attachments ?? []), fn ($attachment) => !blank(data_get($attachment, 'name')) || !blank(data_get($attachment, 'path'))));
+        $attachments = array_values(array_map(function ($attachment) {
+            $attachment = is_array($attachment) ? $attachment : [];
+            $attachment['url'] = $this->financeAttachmentUrl($attachment);
+            $attachment['download_url'] = $attachment['url'] ? $attachment['url'] . '?download=1' : null;
+
+            return $attachment;
+        }, array_filter((array) ($record->attachments ?? []), fn ($attachment) => !blank(data_get($attachment, 'name')) || !blank(data_get($attachment, 'path')))));
 
         return [
             'companyName' => $companyName,
@@ -218,7 +567,8 @@ class FinanceController extends Controller
             'moduleLabel' => $moduleLabel,
             'record' => $record,
             'summaryCards' => $summaryCards,
-            'detailRows' => $detailRows,
+            'detailRows' => [],
+            'previewSections' => $this->financePreviewSections($record, $lookupOptions),
             'lineItems' => $lineItems,
             'costSummary' => $costSummary,
             'attachments' => $attachments,
@@ -403,7 +753,13 @@ class FinanceController extends Controller
             'approved_at' => optional($record->approved_at)->format('Y-m-d H:i:s'),
             'review_note' => $record->review_note,
             'data' => $record->data ?? [],
-            'attachments' => $record->attachments ?? [],
+            'attachments' => array_values(array_map(function ($attachment) {
+                $attachment = is_array($attachment) ? $attachment : [];
+                $attachment['url'] = $this->financeAttachmentUrl($attachment);
+                $attachment['download_url'] = $attachment['url'] ? $attachment['url'] . '?download=1' : null;
+
+                return $attachment;
+            }, (array) ($record->attachments ?? []))),
             'share_token' => $record->share_token,
             'shared_at' => optional($record->shared_at)->format('Y-m-d H:i:s'),
             'supplier_completed_at' => optional($record->supplier_completed_at)->format('Y-m-d H:i:s'),
@@ -449,7 +805,7 @@ class FinanceController extends Controller
         return [
             'module_key' => 'required|in:' . implode(',', $this->moduleKeys()),
             'record_number' => 'required|string|max:255',
-            'record_title' => 'required|string|max:255',
+            'record_title' => 'nullable|string|max:255',
             'record_date' => 'required|date',
             'amount' => 'nullable|numeric|min:0',
             'status' => 'required|in:Active,Inactive',
@@ -525,17 +881,26 @@ class FinanceController extends Controller
                 'data.purpose' => 'required|string|max:2000',
                 'data.amount_requested' => 'required|numeric|min:0',
                 'data.mode_of_release' => 'required|in:Cash,Bank Transfer,Check',
-                'data.bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],
-                'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
+                'data.bank_account_id' => ['nullable', $this->acceptedLinkedRecordRule('bank_account')],
+                'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'lr' => [
-                'data.linked_dv_id' => ['required', $this->acceptedLinkedRecordRule('dv', ['source_document_type' => 'ca'])],
-                'data.linked_ca_id' => ['nullable', $this->acceptedLinkedRecordRule('ca')],
+                'data.linked_ca_id' => ['required', $this->acceptedLinkedRecordRule('ca')],
+                'data.linked_dv_id' => ['nullable', $this->acceptedLinkedRecordRule('dv', ['source_document_type' => 'ca'])],
                 'data.total_cash_advance' => 'required|numeric|min:0',
+                'data.purpose' => 'required|string|max:2000',
+                'data.employee_id' => 'nullable|string|max:255',
+                'data.employee_name' => 'nullable|string|max:255',
+                'data.employee_email' => 'nullable|email|max:255',
+                'data.contact_number' => 'nullable|string|max:255',
+                'data.position' => 'nullable|string|max:255',
+                'data.department' => 'nullable|string|max:255',
+                'data.superior' => 'nullable|string|max:255',
+                'data.superior_email' => 'nullable|email|max:255',
                 'data.actual_expenses' => 'required|numeric|min:0',
                 'data.variance' => 'required|numeric',
                 'data.variance_indicator' => 'required|in:Shortage,Overage,Balanced',
-                'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
+                'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'err' => [
                 'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr')],
@@ -600,7 +965,7 @@ class FinanceController extends Controller
         }
 
         if ($moduleKey === 'lr') {
-            $rules['data.linked_ca_id'] = ['nullable', $this->acceptedLinkedRecordRule('ca')];
+            $rules['data.linked_dv_id'] = ['nullable', $this->acceptedLinkedRecordRule('dv', ['source_document_type' => 'ca'])];
         }
 
         if ($moduleKey === 'arf') {
@@ -704,15 +1069,14 @@ class FinanceController extends Controller
 
         if ($moduleKey === 'lr') {
             $linkedDvId = data_get($validated, 'data.linked_dv_id');
-
-            if (!$this->recordExistsForWorkflow('dv', $linkedDvId, ['source_document_type' => 'ca'])) {
+            $linkedCaId = data_get($validated, 'data.linked_ca_id');
+            if (!blank($linkedDvId) && !$this->recordExistsForWorkflow('dv', $linkedDvId, ['source_document_type' => 'ca'])) {
                 throw ValidationException::withMessages([
                     'data.linked_dv_id' => 'The selected DV must come from a cash advance.',
                 ]);
             }
 
-            $linkedCaId = data_get($validated, 'data.linked_ca_id');
-            if (!blank($linkedCaId)) {
+            if (!blank($linkedCaId) && !blank($linkedDvId)) {
                 $linkedDv = FinanceRecord::query()->find($linkedDvId);
                 $linkedCaFromDv = data_get($linkedDv?->data, 'source_document_id');
 
@@ -816,11 +1180,15 @@ class FinanceController extends Controller
 
     public function previewHtml(FinanceRecord $financeRecord)
     {
-        if (!$this->canApproveFinance() && (int) $financeRecord->submitted_by !== (int) Auth::id()) {
-            abort(403, 'Unauthorized');
-        }
-
         return view('finance.preview-html', $this->financePdfContext($financeRecord->fresh()));
+    }
+
+    public function previewPdf(FinanceRecord $financeRecord)
+    {
+        $context = $this->financePdfContext($financeRecord->fresh(), false);
+        $pdf = Pdf::loadView('finance.pdf', $context)->setPaper('letter', 'portrait');
+
+        return $pdf->stream(($financeRecord->record_number ?: 'finance-record') . '.pdf');
     }
 
     public function store(Request $request)
@@ -839,6 +1207,8 @@ class FinanceController extends Controller
             $recordNumber = $recordNumber ?: 'SUP-' . Str::upper(Str::random(8));
             $recordTitle = $recordTitle ?: 'Supplier Completion';
             $recordDate = $recordDate ?: now()->toDateString();
+        } elseif ($recordTitle === '') {
+            $recordTitle = self::MODULES[$request->module_key] ?? Str::headline($request->module_key);
         }
 
         $record = FinanceRecord::create([
@@ -896,6 +1266,8 @@ class FinanceController extends Controller
             $recordNumber = $recordNumber ?: ($financeRecord->record_number ?: 'SUP-' . Str::upper(Str::random(8)));
             $recordTitle = $recordTitle ?: ($financeRecord->record_title ?: 'Supplier Completion');
             $recordDate = $recordDate ?: optional($financeRecord->record_date)->format('Y-m-d') ?: now()->toDateString();
+        } elseif ($recordTitle === '') {
+            $recordTitle = $financeRecord->record_title ?: (self::MODULES[$request->module_key] ?? Str::headline($request->module_key));
         }
 
         $payload = [

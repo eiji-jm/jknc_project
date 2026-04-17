@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $record->record_number ?: $record->record_title ?: $moduleLabel }}</title>
     <style>
+        @page {
+            size: letter;
+            margin: 0;
+        }
         :root {
             --blue: #1d4ed8;
             --border: #dbe2ea;
@@ -37,7 +41,7 @@
             cursor: pointer;
         }
         .page {
-            max-width: 1120px;
+            max-width: 816px;
             margin: 18px auto;
             background: #fff;
             border: 1px solid #d1d5db;
@@ -179,6 +183,37 @@
             margin-bottom: 10px;
         }
         .attachments a:hover { background: #f9fafb; }
+        .note-card {
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            background: #fffbeb;
+            padding: 12px;
+        }
+        .note-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            font-size: 11px;
+            color: #6b7280;
+        }
+        .note-card-author {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .note-card-label {
+            margin-top: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .16em;
+            color: #b45309;
+        }
+        .note-card-body {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #111827;
+            white-space: pre-line;
+        }
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
@@ -192,6 +227,10 @@
     </div>
 
     <div class="page">
+        @php
+            $noteAuthor = $record->approved_by ?: $record->submitted_by ?: $record->user ?: 'Finance Team';
+            $noteDate = $record->approved_at ?: $record->submitted_at ?: $record->updated_at;
+        @endphp
         <div class="header">
             <div class="brand">
                 @if($companyLogo)
@@ -229,103 +268,130 @@
             @endforeach
         </table>
 
-        <div class="box">
-            <div class="section-title">Details</div>
-            <div class="block">
-                @if(count($detailRows))
-                    <table class="details">
-                        @foreach(array_chunk($detailRows, 2) as $pair)
-                            <tr>
-                                @foreach($pair as $detail)
-                                    <td>
-                                        <p class="label">{{ $detail['label'] }}</p>
-                                        <p class="value">{{ $detail['value'] }}</p>
-                                    </td>
-                                @endforeach
-                                @for($i = count($pair); $i < 2; $i++)
-                                    <td></td>
-                                @endfor
-                            </tr>
-                        @endforeach
-                    </table>
-                @else
-                    <p class="note">No additional details provided.</p>
-                @endif
-            </div>
-        </div>
-
-        @if($record->module_key === 'pr')
+        @foreach($previewSections as $section)
             <div class="box">
-                <div class="section-title">Items / Cost Details</div>
                 <div class="block">
-                    @if(count($lineItems))
-                        <table class="line-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Item</th>
-                                    <th>Description</th>
-                                    <th>Category</th>
-                                    <th>Qty</th>
-                                    <th>Amount</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($lineItems as $index => $item)
+                    @if(data_get($section, 'type') === 'supplier_send' && blank($record->supplier_completed_at))
+                        <table class="details">
+                            <tr>
+                                <td colspan="2">
+                                    <p class="label">Supplier Completion Dispatch</p>
+                                    <p class="value">A completion form will be sent to the supplier email address.</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <p class="label">Email Address</p>
+                                    <p class="value">{{ data_get($record->data, 'email_address') ?: 'N/A' }}</p>
+                                </td>
+                                <td>
+                                    <p class="label">Completion Mode</p>
+                                    <p class="value">Send to Supplier</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <p class="label">Representative Full Name</p>
+                                    <p class="value">{{ data_get($record->data, 'representative_full_name') ?: 'N/A' }}</p>
+                                </td>
+                                <td>
+                                    <p class="label">Phone Number</p>
+                                    <p class="value">{{ data_get($record->data, 'phone_number') ?: 'N/A' }}</p>
+                                </td>
+                            </tr>
+                        </table>
+                    @elseif(data_get($section, 'type') === 'line_items')
+                        @if(count($lineItems))
+                            <table class="line-table">
+                                <thead>
                                     <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td>{{ $item['item'] }}</td>
-                                        <td>{{ $item['description'] }}</td>
-                                        <td>{{ $item['category'] }}</td>
-                                        <td>{{ $item['quantity'] }}</td>
-                                        <td>{{ $item['amount'] }}</td>
-                                        <td><strong>{{ $item['total'] }}</strong></td>
+                                        <th>#</th>
+                                        <th>Item</th>
+                                        <th>Description</th>
+                                        <th>Category</th>
+                                        <th>Qty</th>
+                                        <th>Amount</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($lineItems as $index => $item)
+                                        <tr>
+                                            <td>{{ $index + 1 }}</td>
+                                            <td>{{ $item['item'] }}</td>
+                                            <td>{{ $item['description'] }}</td>
+                                            <td>{{ $item['category'] }}</td>
+                                            <td>{{ $item['quantity'] }}</td>
+                                            <td>{{ $item['amount'] }}</td>
+                                            <td><strong>{{ $item['total'] }}</strong></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <p class="note">No line items added yet.</p>
+                        @endif
+                    @elseif(data_get($section, 'type') === 'cost_summary')
+                        <table class="details">
+                            @foreach(array_chunk($costSummary, 2) as $pair)
+                                <tr>
+                                    @foreach($pair as $item)
+                                        <td>
+                                            <p class="label">{{ $item['label'] }}</p>
+                                            <p class="value">{{ $item['value'] }}</p>
+                                        </td>
+                                    @endforeach
+                                    @for($i = count($pair); $i < 2; $i++)
+                                        <td></td>
+                                    @endfor
+                                </tr>
+                            @endforeach
+                        </table>
+                    @elseif(data_get($section, 'type') === 'notes')
+                        @if(trim((string) $record->review_note) !== '')
+                            <div class="note-card">
+                                <div class="note-card-header">
+                                    <div>
+                                        <span class="note-card-author">{{ $noteAuthor }}</span>
+                                    </div>
+                                    <div>{{ $noteDate ? $noteDate->timezone('Asia/Manila')->format('M d, Y h:i A') : '' }}</div>
+                                </div>
+                                <div class="note-card-label">Review Note</div>
+                                <div class="note-card-body">{{ $record->review_note }}</div>
+                            </div>
+                        @else
+                            <p class="note">No review notes yet.</p>
+                        @endif
+                    @else
+                        @php
+                            $rows = data_get($section, 'rows', []);
+                        @endphp
+                        @if(count($rows))
+                            <table class="details">
+                                @foreach(array_chunk($rows, 2) as $pair)
+                                    <tr>
+                                        @foreach($pair as $detail)
+                                            <td>
+                                                <p class="label">{{ $detail['label'] }}</p>
+                                                <p class="value">{{ $detail['value'] }}</p>
+                                            </td>
+                                        @endforeach
+                                        @for($i = count($pair); $i < 2; $i++)
+                                            <td></td>
+                                        @endfor
                                     </tr>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    @else
-                        <p class="note">No line items added yet.</p>
+                            </table>
+                        @else
+                            <p class="note">No additional details provided.</p>
+                        @endif
                     @endif
-
-                    <div class="section-title" style="margin-top: 14px;">Cost Summary</div>
-                    <table class="details">
-                        @foreach(array_chunk($costSummary, 2) as $pair)
-                            <tr>
-                                @foreach($pair as $item)
-                                    <td>
-                                        <p class="label">{{ $item['label'] }}</p>
-                                        <p class="value">{{ $item['value'] }}</p>
-                                    </td>
-                                @endforeach
-                                @for($i = count($pair); $i < 2; $i++)
-                                    <td></td>
-                                @endfor
-                            </tr>
-                        @endforeach
-                    </table>
-
-                    <div class="section-title" style="margin-top: 14px;">Purpose & Notes</div>
-                    <table class="details">
-                        <tr>
-                            <td>
-                                <p class="label">Purpose / Justification</p>
-                                <p class="value">{{ data_get($record->data, 'purpose') ?: 'N/A' }}</p>
-                            </td>
-                            <td>
-                                <p class="label">Remarks</p>
-                                <p class="value">{{ data_get($record->data, 'remarks') ?: 'N/A' }}</p>
-                            </td>
-                        </tr>
-                    </table>
                 </div>
             </div>
-        @endif
+        @endforeach
 
         @if(count($attachments))
             <div class="box">
-                <div class="section-title">Attachments</div>
                 <div class="attachments">
                     @foreach($attachments as $attachment)
                         <a href="{{ data_get($attachment, 'path') }}" target="_blank">

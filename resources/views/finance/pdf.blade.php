@@ -280,7 +280,7 @@
         <div class="section-box">
             <div class="section-title">Details</div>
             <div class="section-body">
-                @if(count($detailRows))
+                @if(count($detailRows ?? []))
                     <table class="detail-table">
                         @foreach(array_chunk($detailRows, 2) as $pair)
                             <tr>

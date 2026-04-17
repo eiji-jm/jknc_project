@@ -109,7 +109,7 @@
 
                             <div id="supplierModeTabs" class="hidden"></div>
 
-                            <div id="recordCoreFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div id="recordCoreFields" class="grid grid-cols-1 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1" id="recordNumberLabel">Record Number</label>
                                     <div class="relative">
@@ -125,11 +125,7 @@
                                         </button>
                                     </div>
                                 </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1" id="recordTitleLabel">Record Title</label>
-                                    <input id="recordTitleInput" name="record_title" type="text" class="w-full border rounded-md p-2" placeholder="">
-                                </div>
+                                <input id="recordTitleInput" name="record_title" type="hidden" value="">
                             </div>
 
                             <div id="recordMetaFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -137,12 +133,8 @@
                                     <label class="block text-sm font-medium mb-1" id="recordDateLabel">Date</label>
                                     <input id="recordDateInput" name="record_date" type="date" class="w-full border rounded-md p-2">
                                 </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Amount</label>
-                                    <input id="amountInput" name="amount" type="number" step="0.01" class="w-full border rounded-md p-2" placeholder="0.00">
-                                </div>
                             </div>
+                            <input id="amountInput" name="amount" type="hidden" step="0.01" value="">
 
                             <div id="statusField">
                                 <label class="block text-sm font-medium mb-1">Status</label>
@@ -195,5 +187,6 @@
         'csrfToken' => csrf_token(),
     ]);
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="{{ asset('js/finance.js') }}"></script>
 @endsection
