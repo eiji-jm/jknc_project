@@ -303,9 +303,9 @@
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Name</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
-                        <th class="px-4 py-3 text-left font-semibold">Salary</th>
                         <th class="px-4 py-3 text-left font-semibold">Start Date</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-right font-semibold pr-6">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -317,8 +317,11 @@
                             <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
                             <td class="px-4 py-3 text-gray-600" x-text="row.salary"></td>
-                            <td class="px-4 py-3 text-gray-500" x-text="row.startDate"></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.startDate || row.start_date"></td>
                             <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3 text-right">
+                                <button @click="deleteJobOffer(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
                         </tr>
                     </template>
                 </tbody>
@@ -1555,14 +1558,105 @@
                             <button @click="showInterviewViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
                                 Close
                             </button>
-                            <button class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200 uppercase tracking-widest text-[11px]"
+                            <button @click="openJobOfferModal(viewInterviewData)" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200 uppercase tracking-widest text-[11px]"
                                 x-text="isDatePassed(viewInterviewData.interview_date || viewInterviewData.date) ? 'Send a Job Offer' : 'Send Reminder'">
-                                Send Reminder
                             </button>
                         </div>
                     </div>
                 </div>
             </template>
+        </div>
+    </div>
+
+    {{-- ===================== ADD NEW JOB OFFER MODAL ===================== --}}
+    <div
+        x-show="showJobOfferModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[70] flex justify-center items-center bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showJobOfferModal = false"
+    >
+        <div 
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all"
+            x-show="showJobOfferModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        >
+            <div class="px-6 py-4 border-b flex items-center justify-between bg-white text-gray-800">
+                <h3 class="font-bold text-lg tracking-tight">Add New Job Offer</h3>
+                <button @click="showJobOfferModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitJobOffer()" class="p-6 space-y-5 bg-white">
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Candidate Name</label>
+                        <input type="text" x-model="jobOfferForm.name" required placeholder="Enter name"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
+                        <input type="text" x-model="jobOfferForm.position" required placeholder="Position title"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Salary</label>
+                        <input type="text" x-model="jobOfferForm.salary" placeholder="$100,000"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Start Date</label>
+                        <input type="date" x-model="jobOfferForm.startDate" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Employment Type</label>
+                        <select x-model="jobOfferForm.employmentType" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all cursor-pointer appearance-none">
+                            <option value="Full-time">Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Project-based">Project-based</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Department</label>
+                        <input type="text" x-model="jobOfferForm.department" placeholder="e.g. Engineering"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Benefits</label>
+                    <textarea x-model="jobOfferForm.benefits" rows="4" placeholder="Health insurance, 401k, etc..."
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 resize-none"></textarea>
+                </div>
+
+                <div class="pt-4 border-t flex justify-end gap-3">
+                    <button type="button" @click="showJobOfferModal = false"
+                        class="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition active:scale-95">
+                        Create Job Offer
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1773,6 +1867,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         showInterviewViewModal: false,
         showAssessmentModal: false,
         showAssessmentViewModal: false,
+        showJobOfferModal: false,
         viewData: null,
         viewJpfData: {},
         viewCafData: null,
@@ -1834,6 +1929,11 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         interviewForm: {
             name: '', position: '', type: 'Online', interviewer: '', 
             interview_date: '', duration: '60', meeting_link: ''
+        },
+
+        jobOfferForm: {
+            name: '', position: '', salary: '', startDate: '',
+            employmentType: 'Full-time', department: '', benefits: ''
         },
 
         draggedItem: null,
@@ -1933,6 +2033,46 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             .catch(err => console.error('Error deleting interview:', err));
         },
 
+        submitJobOffer() {
+            axios.post('{{ route("human-capital.recruitment.store_job_offer") }}', this.jobOfferForm)
+            .then(res => {
+                this.data['Job Offer'].unshift(res.data.data);
+                this.showJobOfferModal = false;
+            })
+            .catch(err => {
+                alert('Error saving Job Offer: ' + (err.response?.data?.message || err.message));
+            });
+        },
+
+        deleteJobOffer(id) {
+            if (!confirm('Are you sure you want to delete this job offer?')) return;
+            axios.delete(`/human-capital/recruitment/job-offer/${id}`)
+            .then(() => {
+                this.data['Job Offer'] = this.data['Job Offer'].filter(j => j.id !== id);
+            })
+            .catch(err => console.error('Error deleting job offer:', err));
+        },
+
+        openJobOfferModal(interviewData = null) {
+            if (interviewData) {
+                this.jobOfferForm = {
+                    name: interviewData.name,
+                    position: interviewData.position,
+                    salary: '',
+                    startDate: '',
+                    employmentType: 'Full-time',
+                    department: '',
+                    benefits: ''
+                };
+            } else {
+                this.jobOfferForm = {
+                    name: '', position: '', salary: '', startDate: '',
+                    employmentType: 'Full-time', department: '', benefits: ''
+                };
+            }
+            this.showJobOfferModal = true;
+        },
+
         openModal() {
             if (this.activeTab === 'MRF') {
                 // Reset form
@@ -1971,6 +2111,8 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                     name: '', position: '', test: 'Technical Test', date: '', notes: ''
                 };
                 this.showAssessmentModal = true;
+            } else if (this.activeTab === 'Job Offer') {
+                this.openJobOfferModal();
             } else {
                 alert('Add New functionality for ' + this.activeTab + ' is not yet implemented.');
             }
@@ -2197,7 +2339,27 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
 
         isDatePassed(dateStr) {
             if (!dateStr) return false;
-            return new Date(dateStr) < new Date();
+            try {
+                // Ensure date string is compatible (replace space with T for YYYY-MM-DD HH:MM:SS)
+                const normalized = String(dateStr).trim().replace(' ', 'T');
+                const interviewDate = new Date(normalized);
+                
+                if (isNaN(interviewDate.getTime())) {
+                    console.warn('Invalid date format:', dateStr);
+                    return false;
+                }
+
+                const now = new Date();
+                const passed = interviewDate < now;
+                
+                // Debug log to help identify why it might not be changing
+                console.log(`Checking Date: ${normalized} | Current: ${now.toISOString()} | Passed: ${passed}`);
+                
+                return passed;
+            } catch (e) {
+                console.error('Error in isDatePassed:', e);
+                return false;
+            }
         },
 
         get filteredRows() {

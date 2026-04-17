@@ -179,4 +179,29 @@ class RecruitmentController extends Controller
         JobPosting::findOrFail($id)->delete();
         return response()->json(['success' => true]);
     }
+    public function storeJobOffer(Request $request)
+    {
+        try {
+            $jobOffer = JobOffer::create([
+                'name' => $request->name,
+                'position' => $request->position,
+                'salary' => $request->salary,
+                'start_date' => $request->startDate,
+                'employment_type' => $request->employmentType,
+                'department' => $request->department,
+                'benefits' => $request->benefits,
+                'status' => 'Pending'
+            ]);
+
+            return response()->json(['success' => true, 'data' => $jobOffer]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteJobOffer($id)
+    {
+        JobOffer::findOrFail($id)->delete();
+        return response()->json(['success' => true]);
+    }
 }
