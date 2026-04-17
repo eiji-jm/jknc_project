@@ -121,30 +121,24 @@ class TransmittalController extends Controller
             'registered_mail_provider' => ['nullable', 'string', 'max:255'],
             'electronic_method' => ['nullable', 'string', 'max:255'],
             'recipient_email' => ['nullable', 'email', 'max:255'],
-
             'action_delivery' => ['nullable'],
             'action_pick_up' => ['nullable'],
             'action_drop_off' => ['nullable'],
             'action_email' => ['nullable'],
-
             'approved_position' => ['nullable', 'string', 'max:255'],
             'document_custodian' => ['nullable', 'string', 'max:255'],
             'delivered_by' => ['nullable', 'string', 'max:255'],
             'received_by' => ['nullable', 'string', 'max:255'],
             'received_at' => ['nullable', 'date'],
-
             'items' => ['nullable'],
             'item_files.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx', 'max:10240'],
         ]);
 
         if (empty($validated['party_name']) || empty($validated['office_name'])) {
-            return response()->json([
-                'message' => 'Party name and office name are required.'
-            ], 422);
+            return response()->json(['message' => 'Party name and office name are required.'], 422);
         }
 
         $items = $request->input('items', []);
-
         if (is_string($items)) {
             $decodedItems = json_decode($items, true);
             $items = is_array($decodedItems) ? $decodedItems : [];
@@ -164,22 +158,18 @@ class TransmittalController extends Controller
                 'registered_mail_provider' => $validated['registered_mail_provider'] ?? null,
                 'electronic_method' => $validated['electronic_method'] ?? null,
                 'recipient_email' => $validated['recipient_email'] ?? null,
-
                 'action_delivery' => $request->boolean('action_delivery'),
                 'action_pick_up' => $request->boolean('action_pick_up'),
                 'action_drop_off' => $request->boolean('action_drop_off'),
                 'action_email' => $request->boolean('action_email'),
-
                 'prepared_by_name' => Auth::user()?->name ?? 'System User',
                 'prepared_at' => now(),
-
                 'approved_by_name' => null,
                 'approved_position' => $validated['approved_position'] ?? null,
                 'document_custodian' => $validated['document_custodian'] ?? null,
                 'delivered_by' => $validated['delivered_by'] ?? null,
                 'received_by' => $validated['received_by'] ?? null,
                 'received_at' => $validated['received_at'] ?? null,
-
                 'workflow_status' => 'Uploaded',
                 'approval_status' => 'Pending',
                 'submitted_by' => Auth::id(),
@@ -191,19 +181,13 @@ class TransmittalController extends Controller
 
             foreach (($items ?? []) as $index => $item) {
                 $hasContent =
-                    !empty($item['particular']) ||
-                    !empty($item['unique_id']) ||
-                    !empty($item['qty']) ||
-                    !empty($item['description']) ||
-                    !empty($item['remarks']) ||
-                    $request->hasFile("item_files.$index");
+                    !empty($item['particular']) || !empty($item['unique_id']) ||
+                    !empty($item['qty']) || !empty($item['description']) ||
+                    !empty($item['remarks']) || $request->hasFile("item_files.$index");
 
-                if (! $hasContent) {
-                    continue;
-                }
+                if (! $hasContent) continue;
 
                 $attachmentPath = null;
-
                 if ($request->hasFile("item_files.$index")) {
                     $attachmentPath = $request->file("item_files.$index")
                         ->store('transmittal/item-attachments', 'public');
@@ -222,17 +206,11 @@ class TransmittalController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Transmittal saved successfully.',
-                'id' => $transmittal->id,
-            ]);
+            return response()->json(['message' => 'Transmittal saved successfully.', 'id' => $transmittal->id]);
+
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            return response()->json([
-                'message' => 'Failed to save transmittal.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to save transmittal.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -241,9 +219,7 @@ class TransmittalController extends Controller
         $transmittal = Transmittal::findOrFail($id);
 
         if (! in_array($transmittal->workflow_status, ['Uploaded', 'Reverted'], true)) {
-            return response()->json([
-                'message' => 'Only uploaded or reverted transmittals can be submitted.'
-            ], 422);
+            return response()->json(['message' => 'Only uploaded or reverted transmittals can be submitted.'], 422);
         }
 
         $transmittal->update([
@@ -252,9 +228,7 @@ class TransmittalController extends Controller
             'submitted_by' => Auth::id(),
         ]);
 
-        return response()->json([
-            'message' => 'Transmittal submitted for approval successfully.'
-        ]);
+        return response()->json(['message' => 'Transmittal submitted for approval successfully.']);
     }
 
     public function preview($id)
@@ -280,137 +254,53 @@ class TransmittalController extends Controller
     }
 
     public function receiptPdf($id)
-    {
-        $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
+{
+    $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
-        if (! $transmittal->receipt) {
-            abort(404, 'Receipt not found.');
-        }
-
-        $customPaper = [0, 0, 612, 255];
-
-        // Ensure DomPDF font cache directory exists and is writable
-        $fontCachePath = storage_path('fonts');
-        if (! is_dir($fontCachePath)) {
-            mkdir($fontCachePath, 0755, true);
-        }
-
-        // Safely encode logo as base64 so it works on any server (Render, Herd, etc.)
-        $logoPath = public_path('images/imaglogo.png');
-        $logoBase64 = null;
-        if (file_exists($logoPath) && is_readable($logoPath)) {
-            $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
-        }
-
-        try {
-            $pdf = Pdf::loadView('transmittal.receipt-pdf', compact('transmittal', 'logoBase64'))
-                ->setPaper($customPaper);
-
-            return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
-        } catch (\Throwable $e) {
-            Log::error('Receipt PDF failed', [
-                'transmittal_id' => $id,
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            // -------------------------------------------------------
-            // Fallback: build a plain HTML receipt if Blade/DomPDF fails
-            // -------------------------------------------------------
-            $receipt = $transmittal->receipt;
-
-            $receiptDate = $receipt && $receipt->created_at
-                ? $receipt->created_at->format('Y-m-d')
-                : now()->format('Y-m-d');
-
-            $receivedAt = $transmittal->received_at
-                ? $transmittal->received_at->format('Y-m-d H:i:s')
-                : 'N/A';
-
-            $deliveryType = 'N/A';
-            if (($transmittal->delivery_type ?? '') === 'By Person') {
-                $deliveryType = $transmittal->by_person_who
-                    ? 'By Person - ' . $transmittal->by_person_who
-                    : 'By Person';
-            } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
-                $deliveryType = $transmittal->registered_mail_provider
-                    ? 'Registered Mail - ' . $transmittal->registered_mail_provider
-                    : 'Registered Mail';
-            } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
-                $deliveryType = $transmittal->electronic_method
-                    ? 'Electronic - ' . $transmittal->electronic_method
-                    : 'Electronic';
-            }
-
-            $actions = collect([
-                $transmittal->action_delivery ? 'Delivery' : null,
-                $transmittal->action_pick_up ? 'Pick Up' : null,
-                $transmittal->action_drop_off ? 'Drop Off' : null,
-                $transmittal->action_email ? 'Email' : null,
-            ])->filter()->implode(', ');
-
-            if ($actions === '') {
-                $actions = '—';
-            }
-
-            $html = '
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <title>Receipt Fallback</title>
-                <style>
-                    @page { margin: 6px 8px; }
-                    body { font-family: Arial, sans-serif; color: #111827; margin: 0; font-size: 8px; }
-                    .title { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
-                    .sub { text-align: center; font-size: 6px; margin-bottom: 6px; }
-                    table { width: 100%; border-collapse: collapse; }
-                    td { border: 1px solid #cbd5e1; padding: 3px 5px; font-size: 7px; }
-                    .no-border td { border: none; padding: 0 0 3px 0; }
-                    .label { font-weight: bold; width: 110px; background: #f8fafc; }
-                    .footer { margin-top: 5px; font-size: 6px; color: #6b7280; border-top: 1px solid #cbd5e1; padding-top: 3px; }
-                </style>
-            </head>
-            <body>
-                <div class="title">TRANSMITTAL RECEIPT</div>
-                <div class="sub">Generated upon approved transmittal</div>
-
-                <table class="no-border">
-                    <tr>
-                        <td><strong>Receipt No:</strong> ' . e($receipt->receipt_no ?? 'N/A') . '</td>
-                        <td><strong>Receipt Date:</strong> ' . e($receiptDate) . '</td>
-                        <td><strong>Linked Ref No:</strong> ' . e($transmittal->transmittal_no ?? 'N/A') . '</td>
-                    </tr>
-                </table>
-
-                <table style="margin-top:4px;">
-                    <tr><td class="label">Mode</td><td>' . e($transmittal->mode ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Office</td><td>' . e($transmittal->office_name ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">From</td><td>' . e($transmittal->mode === 'SEND' ? ($transmittal->office_name ?? 'N/A') : ($transmittal->party_name ?? 'N/A')) . '</td></tr>
-                    <tr><td class="label">To</td><td>' . e($transmittal->mode === 'SEND' ? ($transmittal->party_name ?? 'N/A') : ($transmittal->office_name ?? 'N/A')) . '</td></tr>
-                    <tr><td class="label">Address</td><td>' . e($transmittal->address ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Delivery Type</td><td>' . e($deliveryType) . '</td></tr>
-                    <tr><td class="label">Recipient Email</td><td>' . e($transmittal->recipient_email ?: '—') . '</td></tr>
-                    <tr><td class="label">Workflow</td><td>' . e($transmittal->workflow_status ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Approval</td><td>' . e($transmittal->approval_status ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Actions</td><td>' . e($actions) . '</td></tr>
-                    <tr><td class="label">Prepared By</td><td>' . e($transmittal->prepared_by_name ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Approved By</td><td>' . e(($transmittal->approved_by_name ?? 'N/A') . ($transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '')) . '</td></tr>
-                    <tr><td class="label">Delivered By</td><td>' . e($transmittal->delivered_by ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Received By</td><td>' . e($transmittal->received_by ?? 'N/A') . '</td></tr>
-                    <tr><td class="label">Date and Time Received</td><td>' . e($receivedAt) . '</td></tr>
-                </table>
-
-                <div class="footer">
-                    This document is system-generated by John Kelly &amp; Company CRM.
-                </div>
-            </body>
-            </html>';
-
-            $fallbackPdf = Pdf::loadHTML($html)->setPaper($customPaper);
-
-            return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
-        }
+    if (! $transmittal->receipt) {
+        abort(404, 'Receipt not found.');
     }
+
+    $customPaper = [0, 0, 612, 255];
+
+    $logoBase64 = null;
+    $logoPath = public_path('images/imaglogo.png');
+
+    if (file_exists($logoPath) && is_readable($logoPath)) {
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+    }
+
+    try {
+        $pdf = Pdf::setOption([
+                'isRemoteEnabled' => false,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+                'tempDir' => sys_get_temp_dir(),
+                'fontCache' => storage_path('fonts'),
+            ])
+            ->loadView('transmittal.receipt-pdf', compact('transmittal', 'logoBase64'))
+            ->setPaper($customPaper);
+
+        return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+    } catch (\Throwable $e) {
+        Log::error('Receipt PDF failed', [
+            'transmittal_id' => $id,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+
+        $fallbackPdf = Pdf::setOption([
+                'isRemoteEnabled' => false,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+                'tempDir' => sys_get_temp_dir(),
+                'fontCache' => storage_path('fonts'),
+            ])
+            ->loadHTML('<h3>Receipt PDF failed on server.</h3><p>Please click Open and try again.</p>')
+            ->setPaper($customPaper);
+
+        return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+    }
+}
 }
