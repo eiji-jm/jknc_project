@@ -132,6 +132,13 @@
             font-size: 7px;
         }
 
+        .sign-datetime {
+            margin-top: 2px;
+            font-size: 6px;
+            color: #4b5563;
+            line-height: 1.15;
+        }
+
         .footer {
             margin-top: 5px;
             border-top: 1px solid #cbd5e1;
@@ -199,10 +206,12 @@
             <td>
                 <div class="sign-label">Prepared by:</div>
                 <div class="sign-line">{{ $transmittal->prepared_by_name ?? ' ' }}</div>
+                <div class="sign-datetime">{{ $preparedAt }}</div>
             </td>
             <td>
                 <div class="sign-label">Approved by:</div>
                 <div class="sign-line">{{ $transmittal->approved_by_name ?? ' ' }}</div>
+                <div class="sign-datetime">{{ $approvedAt }}</div>
             </td>
             <td>
                 <div class="sign-label">Delivered by:</div>

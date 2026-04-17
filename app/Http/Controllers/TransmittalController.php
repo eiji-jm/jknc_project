@@ -273,6 +273,14 @@ class TransmittalController extends Controller
         ? $transmittal->received_at->format('Y-m-d H:i:s')
         : 'N/A';
 
+    $preparedAt = $transmittal->prepared_at
+        ? $transmittal->prepared_at->format('Y-m-d H:i:s')
+        : 'N/A';
+
+    $approvedAt = $transmittal->approved_at
+        ? $transmittal->approved_at->format('Y-m-d H:i:s')
+        : 'N/A';
+
     $deliveryType = 'N/A';
     if (($transmittal->delivery_type ?? '') === 'By Person') {
         $deliveryType = $transmittal->by_person_who
@@ -316,6 +324,8 @@ class TransmittalController extends Controller
                 'receipt' => $receipt,
                 'receiptDate' => $receiptDate,
                 'receivedAt' => $receivedAt,
+                'preparedAt' => $preparedAt,
+                'approvedAt' => $approvedAt,
                 'deliveryType' => $deliveryType,
                 'actions' => $actions,
                 'fromValue' => $fromValue,
