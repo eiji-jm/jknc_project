@@ -305,18 +305,17 @@ Route::middleware('auth')->group(function () {
     | POLICIES MODULE
     |--------------------------------------------------------------------------
     */
-    // Page
-    Route::get('/policies', [PolicyController::class, 'index'])
-        ->name('policies.index');
+    Route::get('/policies', [PolicyController::class, 'index'])->name('policies.index');
+    Route::post('/policies', [PolicyController::class, 'store'])->name('policies.store');
+    Route::get('/policies/preview-pdf', [PolicyController::class, 'previewPdf'])->name('policies.preview');
+    Route::get('/policies/{id}', [PolicyController::class, 'show'])->name('policies.show');
+    Route::get('/policies/{id}/edit', [PolicyController::class, 'edit'])->name('policies.edit');
 
-    // Store (Save Policy)
-    Route::post('/policies', [PolicyController::class, 'store'])
-        ->name('policies.store');
-
-    // PDF Preview (for modal)
-    Route::get('/policies/preview-pdf', [PolicyController::class, 'previewPdf'])
-        ->name('policies.preview');
-
+    Route::get('/admin/policies', [PolicyController::class, 'submitted'])->name('admin.policies.index');
+    Route::post('/admin/policies/{id}/approve', [PolicyController::class, 'approve'])->name('admin.policies.approve');
+    Route::post('/admin/policies/{id}/reject', [PolicyController::class, 'reject'])->name('admin.policies.reject');
+    Route::post('/admin/policies/{id}/revise', [PolicyController::class, 'revise'])->name('admin.policies.revise');
+    Route::get('/admin/policies/{id}', [PolicyController::class, 'showAdmin'])->name('admin.policies.show');
     /*
     |--------------------------------------------------------------------------
     | COMPANY MODULE

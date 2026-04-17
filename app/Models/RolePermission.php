@@ -20,5 +20,6 @@ class RolePermission extends Model
         'access_activities',
         'access_contacts',
         'access_company',
+        'approve_policies',
     ];
 }

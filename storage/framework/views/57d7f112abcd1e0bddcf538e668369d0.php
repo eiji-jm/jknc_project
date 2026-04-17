@@ -82,18 +82,18 @@
                             <span>Create Town Hall</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="create_corporate" <?php echo e($permission->create_corporate ? 'checked' : ''); ?>>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 <?php echo e($isProtected ? 'bg-gray-50' : ''); ?>">
+                            <input type="checkbox" name="create_corporate" <?php echo e($permission->create_corporate ? 'checked' : ''); ?><?php echo e($isProtected ? 'disabled' : ''); ?>>
                             <span>Create Corporate</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="approve_corporate" <?php echo e($permission->approve_corporate ? 'checked' : ''); ?>>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 <?php echo e($isProtected ? 'bg-gray-50' : ''); ?>">
+                            <input type="checkbox" name="approve_corporate" <?php echo e($permission->approve_corporate ? 'checked' : ''); ?><?php echo e($isProtected ? 'disabled' : ''); ?>>
                             <span>Approve Corporate</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="access_townhall" <?php echo e($permission->access_townhall ? 'checked' : ''); ?>>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 <?php echo e($isProtected ? 'bg-gray-50' : ''); ?>">
+                            <input type="checkbox" name="access_townhall" <?php echo e($permission->access_townhall ? 'checked' : ''); ?><?php echo e($isProtected ? 'disabled' : ''); ?>>
                             <span>Access Town Hall</span>
                         </label>
 
@@ -115,6 +115,11 @@
                         <label class="flex items-center gap-3 border rounded-lg p-3 <?php echo e($isProtected ? 'bg-gray-50' : ''); ?>">
                             <input type="checkbox" name="access_company" <?php echo e($permission->access_company ? 'checked' : ''); ?> <?php echo e($isProtected ? 'disabled' : ''); ?>>
                             <span>Access Company</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 <?php echo e($isProtected ? 'bg-gray-50' : ''); ?>">
+                            <input type="checkbox" name="approve_policies" <?php echo e($permission->approve_policies ? 'checked' : ''); ?> <?php echo e($isProtected ? 'disabled' : ''); ?>>
+                            <span>Approve Policies</span>
                         </label>
                     </div>
                 </form>

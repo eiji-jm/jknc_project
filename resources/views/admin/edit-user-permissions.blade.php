@@ -87,6 +87,11 @@
                         <input type="checkbox" name="access_company" {{ $permission->access_company ? 'checked' : '' }}>
                         <span>Access Company</span>
                     </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_policies" {{ $permission->approve_policies ? 'checked' : '' }}>
+                        <span>Approve Policies</span>
+                    </label>
                 </div>
 
                 <div class="mt-5">
