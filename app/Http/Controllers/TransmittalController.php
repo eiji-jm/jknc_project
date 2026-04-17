@@ -279,7 +279,7 @@ class TransmittalController extends Controller
         return $pdf->stream('transmittal-' . $transmittal->transmittal_no . '.pdf');
     }
 
-   public function receiptPdf($id)
+  public function receiptPdf($id)
 {
     $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
@@ -302,7 +302,7 @@ class TransmittalController extends Controller
             'line' => $e->getLine(),
         ]);
 
-        abort(500, 'Receipt PDF generation failed.');
+        return response()->view('transmittal.receipt-pdf', compact('transmittal'));
     }
 }
 }
