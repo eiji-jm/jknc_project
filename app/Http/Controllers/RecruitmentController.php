@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\ManpowerRequest;
 use App\Models\JobPosting;
+use App\Models\CandidateApplication;
+use App\Models\CandidateAssessment;
+use App\Models\CandidateInterview;
+use App\Models\JobOffer;
 
 class RecruitmentController extends Controller
 {
@@ -12,8 +16,14 @@ class RecruitmentController extends Controller
     {
         $mrfData = ManpowerRequest::latest()->get();
         $jpfData = JobPosting::latest()->get();
+        $cafData = CandidateApplication::latest()->get();
+        $assessmentData = CandidateAssessment::latest()->get();
+        $interviewData = CandidateInterview::latest()->get();
+        $jobOfferData = JobOffer::latest()->get();
 
-        return view('human-capital.recruitment', compact('mrfData', 'jpfData'));
+        return view('human-capital.recruitment', compact(
+            'mrfData', 'jpfData', 'cafData', 'assessmentData', 'interviewData', 'jobOfferData'
+        ));
     }
 
     public function storeMRF(Request $request)
@@ -44,7 +54,6 @@ class RecruitmentController extends Controller
             'checked_by'         => $request->checkedBy,
         ];
         
-        // Generate ID if not provided
         if (!isset($data['request_id'])) {
             $year = date('Y');
             $count = ManpowerRequest::whereYear('created_at', $year)->count() + 1;
@@ -52,11 +61,7 @@ class RecruitmentController extends Controller
         }
 
         $mrf = ManpowerRequest::create($data);
-
-        return response()->json([
-            'success' => true,
-            'data' => $mrf
-        ]);
+        return response()->json(['success' => true, 'data' => $mrf]);
     }
 
     public function storeJPF(Request $request)
@@ -79,26 +84,99 @@ class RecruitmentController extends Controller
         }
 
         $jpf = JobPosting::create($data);
+        return response()->json(['success' => true, 'data' => $jpf]);
+    }
 
-        return response()->json([
-            'success' => true,
-            'data' => $jpf
+    public function storeCAF(Request $request)
+    {
+        $cvPath = null;
+        if ($request->hasFile('cv')) {
+            $cvPath = $request->file('cv')->store('resumes', 'public');
+        }
+
+        $caf = CandidateApplication::create([
+            'name' => $request->fullName,
+            'position' => $request->positionApplied,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'cv_path' => $cvPath,
+            'cover_letter' => $request->coverLetter,
+            'status' => 'Pending',
+            'applied_date' => date('Y-m-d')
         ]);
+
+        return response()->json(['success' => true, 'data' => $caf]);
+    }
+
+    public function storeAssessment(Request $request)
+    {
+        $assessment = CandidateAssessment::create([
+            'name' => $request->name,
+            'position' => $request->position,
+            'test_type' => $request->test,
+            'assessment_date' => $request->date,
+            'notes' => $request->notes,
+            'status' => 'Pending Assessment'
+        ]);
+
+        return response()->json(['success' => true, 'data' => $assessment]);
+    }
+
+    public function updateAssessmentStatus(Request $request, $id)
+    {
+        $assessment = CandidateAssessment::findOrFail($id);
+        $assessment->update(['status' => $request->status]);
+        return response()->json(['success' => true]);
+    }
+
+    public function storeInterview(Request $request)
+    {
+        try {
+            $interview = CandidateInterview::create([
+                'name' => $request->name,
+                'position' => $request->position,
+                'type' => $request->type,
+                'round' => $request->type, // For backward compatibility
+                'interviewer' => $request->interviewer,
+                'interview_date' => $request->interview_date,
+                'duration' => $request->duration,
+                'meeting_link' => $request->meeting_link,
+                'status' => 'Scheduled'
+            ]);
+
+            return response()->json(['success' => true, 'data' => $interview]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteInterview($id)
+    {
+        CandidateInterview::findOrFail($id)->delete();
+        return response()->json(['success' => true]);
+    }
+
+    public function deleteCAF($id)
+    {
+        CandidateApplication::findOrFail($id)->delete();
+        return response()->json(['success' => true]);
+    }
+
+    public function deleteAssessment($id)
+    {
+        CandidateAssessment::findOrFail($id)->delete();
+        return response()->json(['success' => true]);
     }
 
     public function deleteMRF($id)
     {
-        $mrf = ManpowerRequest::findOrFail($id);
-        $mrf->delete();
-
+        ManpowerRequest::findOrFail($id)->delete();
         return response()->json(['success' => true]);
     }
 
     public function deleteJPF($id)
     {
-        $jpf = JobPosting::findOrFail($id);
-        $jpf->delete();
-
+        JobPosting::findOrFail($id)->delete();
         return response()->json(['success' => true]);
     }
 }
