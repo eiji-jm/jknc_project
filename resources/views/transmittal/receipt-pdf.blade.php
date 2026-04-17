@@ -163,7 +163,6 @@
 </head>
 <body>
     @php
-        $logoPath = public_path('images/imaglogo.png');
         $receipt = $transmittal->receipt;
 
         $receiptDate = $receipt && $receipt->created_at
@@ -200,6 +199,15 @@
         if ($actions === '') {
             $actions = '—';
         }
+
+        // $logoBase64 is passed from the controller already encoded.
+        // If for any reason it wasn't passed, try to encode it here as a fallback.
+        if (empty($logoBase64)) {
+            $logoPath = public_path('images/imaglogo.png');
+            $logoBase64 = (file_exists($logoPath) && is_readable($logoPath))
+                ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+                : null;
+        }
     @endphp
 
     <div class="page">
@@ -208,8 +216,8 @@
                 <table class="header-table">
                     <tr>
                         <td class="header-left">
-                            @if(file_exists($logoPath))
-                                <img src="{{ $logoPath }}" alt="John Kelly Logo" class="logo">
+                            @if($logoBase64)
+                                <img src="{{ $logoBase64 }}" alt="John Kelly Logo" class="logo">
                             @endif
                             <div class="company-name">JOHN KELLY &amp; COMPANY</div>
                             <div class="company-sub">Official Transmittal Receipt</div>
