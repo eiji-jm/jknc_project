@@ -68,7 +68,7 @@
 
             {{-- MRF TABLE --}}
             <table class="w-full text-sm border-collapse" x-show="activeTab === 'MRF'">
-                <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Request ID</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
@@ -109,7 +109,7 @@
 
             {{-- JPF TABLE --}}
             <table class="w-full text-sm border-collapse" x-show="activeTab === 'JPF'">
-                <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Job ID</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
@@ -143,7 +143,7 @@
 
             {{-- CAF TABLE --}}
             <table class="w-full text-sm border-collapse" x-show="activeTab === 'CAF'">
-                <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Name</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
@@ -265,7 +265,7 @@
 
             {{-- INTERVIEW TABLE --}}
             <table class="w-full text-sm border-collapse" x-show="activeTab === 'Interview'">
-                <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Name</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
@@ -299,13 +299,14 @@
 
             {{-- JOB OFFER TABLE --}}
             <table class="w-full text-sm border-collapse" x-show="activeTab === 'Job Offer'">
-                <thead class="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
                     <tr class="border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold">Name</th>
                         <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Salary</th>
                         <th class="px-4 py-3 text-left font-semibold">Start Date</th>
                         <th class="px-4 py-3 text-left font-semibold">Status</th>
-                        <th class="px-4 py-3 text-right font-semibold pr-6">Actions</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -319,7 +320,8 @@
                             <td class="px-4 py-3 text-gray-600" x-text="row.salary"></td>
                             <td class="px-4 py-3 text-gray-500" x-text="row.startDate || row.start_date"></td>
                             <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
-                            <td class="px-4 py-3 text-right">
+                            <td class="px-4 py-3 text-left whitespace-nowrap">
+                                <button @click="viewJobOffer(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
                                 <button @click="deleteJobOffer(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
@@ -792,26 +794,21 @@
 
     {{-- ===================== MRF VIEW MODAL ===================== --}}
 
-    <div
-        x-show="showViewModal"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        class="fixed inset-0 z-50 flex bg-white"
-        style="display:none;"
-        @click.self="showViewModal = false"
-    >
-        <div
-            x-show="showViewModal"
-            x-transition:enter="transform transition ease-out duration-300"
-            x-transition:enter-start="translate-x-full"
-            x-transition:enter-end="translate-x-0"
-            x-transition:leave="transform transition ease-in duration-200"
-            x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="translate-x-full"
-            class="bg-white w-full h-full flex flex-col overflow-hidden shadow-2xl"
-        >
-            <div class="flex items-center justify-between px-8 py-5 border-b bg-gray-50 flex-shrink-0">
+    {{-- ===================== MRF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 w-[95vw] flex pointer-events-none">
+            <div x-show="showViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+                <div class="flex items-center justify-between px-8 py-5 border-b bg-gray-50 flex-shrink-0">
                 <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
@@ -908,6 +905,7 @@
             </div>
             <div class="flex justify-end px-10 py-6 border-t bg-white shrink-0">
                 <button @click="showViewModal = false" class="px-10 py-3 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all transform hover:scale-[1.02] active:scale-100">Close Form</button>
+            </div>
             </div>
         </div>
     </div>
@@ -1079,16 +1077,20 @@
         </div>
     </div>
 
-    {{-- ===================== JPF VIEW MODAL (FULL PAGE) ===================== --}}
-    <div
-        x-show="showJpfViewModal"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        class="fixed inset-0 z-50 flex bg-white"
-        style="display:none;"
-    >
-        <div class="flex flex-col w-full h-full overflow-hidden">
+    {{-- ===================== JPF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showJpfViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showJpfViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showJpfViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 w-[95vw] flex pointer-events-none">
+            <div x-show="showJpfViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
             {{-- Toolbar --}}
             <div class="h-16 px-8 border-b border-gray-100 flex items-center justify-between bg-white shadow-sm shrink-0">
                 <div class="flex items-center gap-4">
@@ -1145,6 +1147,7 @@
             </div>
             </div>
         </div>
+    </div>
 
     {{-- ===================== CAF MODAL ===================== --}}
     <div
@@ -1326,77 +1329,72 @@
         </div>
     </div>
 
-    {{-- ===================== ASSESSMENT VIEW MODAL ===================== --}}
-    <div
-        x-show="showAssessmentViewModal"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-[60] flex justify-center items-center bg-black/60 backdrop-blur-sm"
-        style="display:none;"
-        @click.self="showAssessmentViewModal = false"
-    >
-        <div 
-            class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all"
-            x-show="showAssessmentViewModal"
-            x-transition:enter="ease-out duration-300"
-            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
-            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-        >
-            <template x-if="viewAssessmentData">
-                <div class="flex flex-col">
-                    {{-- Header Banner --}}
-                    <div class="h-32 bg-gradient-to-r from-blue-600 to-indigo-700 p-8 relative">
-                        <button @click="showAssessmentViewModal = false" class="absolute top-4 right-4 text-white/50 hover:text-white transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        <div class="absolute -bottom-10 left-8">
-                            <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white">
-                                <svg class="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Body --}}
-                    <div class="px-8 pt-16 pb-8 space-y-6">
-                        <div>
-                            <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewAssessmentData.name"></h2>
-                            <p class="text-blue-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewAssessmentData.position"></p>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Assessment Type</p>
-                                <p class="font-bold text-gray-800" x-text="viewAssessmentData.test"></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
-                                <p class="font-bold uppercase text-[11px]" :class="statusClass(viewAssessmentData.status)" x-text="viewAssessmentData.status"></p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4 pt-2">
-                            <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                    </div>
-                                    <div>
-                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assessment Date</p>
-                                        <p class="font-bold text-gray-800" x-text="viewAssessmentData.date"></p>
-                                    </div>
-                                </div>
-                                <div x-show="viewAssessmentData.score" class="text-right">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Calculated Score</p>
-                                    <p class="text-xl font-black text-indigo-600" x-text="viewAssessmentData.score"></p>
+    {{-- ===================== ASSESSMENT VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showAssessmentViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showAssessmentViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showAssessmentViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showAssessmentViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewAssessmentData">
+                    <div class="flex flex-col h-full">
+                        {{-- Header Banner --}}
+                        <div class="h-32 bg-gradient-to-r from-blue-600 to-indigo-700 p-8 relative shrink-0">
+                            <button @click="showAssessmentViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <div class="absolute -bottom-10 left-8">
+                                <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white">
+                                    <svg class="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="pt-6 flex gap-3">
+                        {{-- Body --}}
+                        <div class="flex-1 overflow-y-auto px-8 pt-16 pb-8 space-y-8">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewAssessmentData.name"></h2>
+                                <p class="text-blue-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewAssessmentData.position"></p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Assessment Type</p>
+                                    <p class="font-bold text-gray-800" x-text="viewAssessmentData.test"></p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                                    <p class="font-bold uppercase text-[11px]" :class="statusClass(viewAssessmentData.status)" x-text="viewAssessmentData.status"></p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 pt-2">
+                                <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assessment Date</p>
+                                            <p class="font-bold text-gray-800" x-text="viewAssessmentData.date"></p>
+                                        </div>
+                                    </div>
+                                    <div x-show="viewAssessmentData.score" class="text-right">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Calculated Score</p>
+                                        <p class="text-xl font-black text-indigo-600" x-text="viewAssessmentData.score"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-3 shrink-0">
                             <button @click="showAssessmentViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
                                 Close
                             </button>
@@ -1405,67 +1403,62 @@
                             </button>
                         </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
     </div>
 
-    {{-- ===================== CAF VIEW MODAL ===================== --}}
-    <div
-        x-show="showCafViewModal"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-[60] flex justify-center items-center bg-black/60 backdrop-blur-sm"
-        style="display:none;"
-        @click.self="showCafViewModal = false"
-    >
-        <div 
-            class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all"
-            x-show="showCafViewModal"
-            x-transition:enter="ease-out duration-300"
-            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
-            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-        >
-            <template x-if="viewCafData">
-                <div class="flex flex-col">
-                    <div class="h-32 bg-gradient-to-r from-teal-500 to-emerald-600 p-8 relative">
-                        <button @click="showCafViewModal = false" class="absolute top-4 right-4 text-white/50 hover:text-white transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        <div class="absolute -bottom-10 left-8">
-                            <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white text-teal-600">
-                                <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="px-8 pt-16 pb-8 space-y-6">
-                        <div>
-                            <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewCafData.name"></h2>
-                            <p class="text-teal-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewCafData.position"></p>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Address</p>
-                                <p class="text-gray-800 break-all text-sm" x-text="viewCafData.email"></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone Number</p>
-                                <p class="text-gray-800 text-sm" x-text="viewCafData.phone"></p>
+    {{-- ===================== CAF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showCafViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showCafViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showCafViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showCafViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewCafData">
+                    <div class="flex flex-col h-full">
+                        <div class="h-32 bg-gradient-to-r from-teal-500 to-emerald-600 p-8 relative shrink-0">
+                            <button @click="showCafViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <div class="absolute -bottom-10 left-8">
+                                <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white text-teal-600">
+                                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                </div>
                             </div>
                         </div>
 
-                        <div x-show="viewCafData.cover_letter" class="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Cover Letter / Message</p>
-                            <div class="text-sm text-gray-700 leading-relaxed italic" x-text="viewCafData.cover_letter"></div>
+                        <div class="flex-1 overflow-y-auto px-8 pt-16 pb-8 space-y-8">
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewCafData.name"></h2>
+                                <p class="text-teal-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewCafData.position"></p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Address</p>
+                                    <p class="text-gray-800 break-all text-sm" x-text="viewCafData.email"></p>
+                                </div>
+                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone Number</p>
+                                    <p class="text-gray-800 text-sm" x-text="viewCafData.phone"></p>
+                                </div>
+                            </div>
+
+                            <div x-show="viewCafData.cover_letter" class="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Cover Letter / Message</p>
+                                <div class="text-sm text-gray-700 leading-relaxed italic" x-text="viewCafData.cover_letter"></div>
+                            </div>
                         </div>
 
-                        <div class="pt-4 flex gap-3">
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-3 shrink-0">
                             <button @click="showCafViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
                                 Close
                             </button>
@@ -1476,85 +1469,89 @@
                             </a>
                         </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
     </div>
 
-    {{-- ===================== INTERVIEW VIEW MODAL ===================== --}}
-    <div
-        x-show="showInterviewViewModal"
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-[60] flex justify-center items-center bg-black/60 backdrop-blur-sm"
-        style="display:none;"
-        @click.self="showInterviewViewModal = false"
-    >
-        <div 
-            class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all"
-            x-show="showInterviewViewModal"
-            x-transition:enter="ease-out duration-300"
-            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
-            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
-        >
-            <template x-if="viewInterviewData">
-                <div class="flex flex-col">
-                    {{-- Header Banner --}}
-                    <div class="h-32 bg-gradient-to-r from-purple-600 to-blue-700 p-8 relative">
-                        <button @click="showInterviewViewModal = false" class="absolute top-4 right-4 text-white/50 hover:text-white transition">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                        <div class="absolute -bottom-10 left-8">
-                            <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white text-purple-600">
-                                <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+    {{-- ===================== INTERVIEW VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showInterviewViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showInterviewViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showInterviewViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showInterviewViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewInterviewData">
+                    <div class="flex flex-col h-full">
+                        {{-- Aesthetic Header --}}
+                        <div class="h-32 bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center overflow-hidden shrink-0 relative">
+                            <div class="absolute inset-0 opacity-10">
+                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path></svg>
                             </div>
+                            <div class="relative text-center">
+                                <div class="inline-flex p-3 bg-white/20 backdrop-blur-md rounded-2xl mb-2 border border-white/30">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </div>
+                                <h3 class="text-white font-black text-xl tracking-tight uppercase">Interview Details</h3>
+                            </div>
+                            <button @click="showInterviewViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
                         </div>
-                    </div>
 
-                    {{-- Body --}}
-                    <div class="px-8 pt-16 pb-8 space-y-6">
-                        <div>
-                            <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewInterviewData.name"></h2>
-                            <p class="text-purple-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewInterviewData.position"></p>
-                        </div>
+                        <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-white">
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Candidate Name</p>
+                                    <p class="text-gray-900 font-bold text-lg" x-text="viewInterviewData.name"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</p>
+                                    <p class="text-purple-600 font-bold text-lg" x-text="viewInterviewData.position"></p>
+                                </div>
+                            </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interview Type</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewInterviewData.type || viewInterviewData.round"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+                                    <p class="font-bold uppercase text-[11px]" :class="statusClass(viewInterviewData.status)" x-text="viewInterviewData.status"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interviewer</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewInterviewData.interviewer"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Duration</p>
+                                    <p class="text-gray-700 font-medium" x-text="(viewInterviewData.duration || '60') + ' minutes'"></p>
+                                </div>
+                            </div>
+
                             <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Interview Type</p>
-                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.type || viewInterviewData.round"></p>
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Date & Time</p>
+                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.interview_date || viewInterviewData.date"></p>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
-                                <p class="font-bold uppercase text-[11px]" :class="statusClass(viewInterviewData.status)" x-text="viewInterviewData.status"></p>
-                            </div>
-                        </div>
 
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Interviewer</p>
-                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.interviewer"></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Duration</p>
-                                <p class="text-gray-800 text-sm" x-text="(viewInterviewData.duration || '60') + ' minutes'"></p>
+                            <div x-show="viewInterviewData.meeting_link" class="space-y-2 pt-6 border-t border-gray-50">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Meeting Link</p>
+                                <a :href="viewInterviewData.meeting_link" target="_blank" class="text-blue-600 hover:underline font-medium break-all text-sm block bg-blue-50/50 p-4 rounded-2xl border border-blue-100" x-text="viewInterviewData.meeting_link"></a>
                             </div>
                         </div>
 
-                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Date & Time</p>
-                            <p class="text-gray-800 text-sm" x-text="viewInterviewData.interview_date || viewInterviewData.date"></p>
-                        </div>
-
-                        <div x-show="viewInterviewData.meeting_link" class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
-                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Meeting Link</p>
-                            <a :href="viewInterviewData.meeting_link" target="_blank" class="text-blue-600 hover:underline text-sm break-all" x-text="viewInterviewData.meeting_link"></a>
-                        </div>
-
-                        <div class="pt-4 flex gap-3">
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-4 shrink-0">
                             <button @click="showInterviewViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
                                 Close
                             </button>
@@ -1563,8 +1560,8 @@
                             </button>
                         </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
     </div>
 
@@ -1657,6 +1654,94 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- ===================== VIEW JOB OFFER SLIDE-OVER ===================== --}}
+    <div x-show="showJobOfferViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showJobOfferViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showJobOfferViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showJobOfferViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewJobOfferData">
+                    <div class="flex flex-col h-full">
+                        {{-- Aesthetic Header --}}
+                        <div class="h-32 bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center overflow-hidden shrink-0 relative">
+                            <div class="absolute inset-0 opacity-10">
+                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path></svg>
+                            </div>
+                            <div class="relative text-center">
+                                <div class="inline-flex p-3 bg-white/20 backdrop-blur-md rounded-2xl mb-2 border border-white/30">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <h3 class="text-white font-black text-xl tracking-tight uppercase">Job Offer Details</h3>
+                            </div>
+                            <button @click="showJobOfferViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto px-8 pt-8 pb-8 space-y-8 bg-white">
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Candidate Name</p>
+                                    <p class="text-gray-900 font-bold text-lg" x-text="viewJobOfferData.name"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</p>
+                                    <p class="text-blue-600 font-bold text-lg" x-text="viewJobOfferData.position"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Salary</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.salary"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.startDate || viewJobOfferData.start_date"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Employment Type</p>
+                                    <span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg font-bold text-[11px] uppercase tracking-wider border border-blue-100 w-fit" x-text="viewJobOfferData.employment_type || viewJobOfferData.employmentType"></span>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Department</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.department || 'N/A'"></p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-6 border-t border-gray-50">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Benefits</p>
+                                <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                                    <p class="text-gray-600 text-[13px] leading-relaxed italic" x-text="viewJobOfferData.benefits || 'No benefits listed.'"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-4 shrink-0">
+                            <button @click="showJobOfferViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
+                                Close
+                            </button>
+                            <button class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-200 uppercase tracking-widest text-[11px]">
+                                Send Email
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>
 
@@ -1868,11 +1953,13 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         showAssessmentModal: false,
         showAssessmentViewModal: false,
         showJobOfferModal: false,
+        showJobOfferViewModal: false,
         viewData: null,
         viewJpfData: {},
         viewCafData: null,
         viewAssessmentData: null,
         viewInterviewData: null,
+        viewJobOfferData: null,
 
         tabs: [
             { key: 'MRF',        label: 'MRF' },
@@ -2071,6 +2158,11 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 };
             }
             this.showJobOfferModal = true;
+        },
+
+        viewJobOffer(offer) {
+            this.viewJobOfferData = offer;
+            this.showJobOfferViewModal = true;
         },
 
         openModal() {
