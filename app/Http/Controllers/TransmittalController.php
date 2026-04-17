@@ -279,7 +279,7 @@ class TransmittalController extends Controller
         return $pdf->stream('transmittal-' . $transmittal->transmittal_no . '.pdf');
     }
 
-    public function receiptPdf($id)
+   public function receiptPdf($id)
 {
     $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
@@ -288,10 +288,10 @@ class TransmittalController extends Controller
     }
 
     try {
-        $customPaper = [0, 0, 300, 200];
+        $customPaper = [0, 0, 612, 255];
 
         $pdf = Pdf::loadView('transmittal.receipt-pdf', compact('transmittal'))
-            ->setPaper($customPaper, 'portrait');
+            ->setPaper($customPaper);
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     } catch (\Throwable $e) {
@@ -302,7 +302,7 @@ class TransmittalController extends Controller
             'line' => $e->getLine(),
         ]);
 
-        return response()->view('transmittal.receipt-pdf', compact('transmittal'));
+        abort(500, 'Receipt PDF generation failed.');
     }
 }
 }

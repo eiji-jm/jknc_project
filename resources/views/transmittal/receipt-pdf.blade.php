@@ -5,14 +5,14 @@
     <title>Transmittal Receipt</title>
     <style>
         @page {
-            margin: 6mm 6mm 6mm 6mm;
+            margin: 6px 8px;
         }
 
         body {
             font-family: Arial, sans-serif;
             color: #111827;
             margin: 0;
-            font-size: 6px;
+            font-size: 8px;
         }
 
         .page {
@@ -21,15 +21,16 @@
 
         .sheet {
             width: 100%;
-            margin: 0 auto;
         }
 
         .header {
-            width: 100%;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
         }
 
-        .header-table {
+        .header-table,
+        .top-info,
+        .details-table,
+        .signatures {
             width: 100%;
             border-collapse: collapse;
         }
@@ -41,65 +42,59 @@
 
         .header-right {
             text-align: right;
-            width: 100px;
-            font-size: 5px;
+            width: 170px;
+            font-size: 7px;
             line-height: 1.2;
         }
 
         .logo {
             width: 42px;
             height: auto;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
         }
 
         .company-name {
-            font-size: 7px;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 0;
-            letter-spacing: 0.1px;
+            line-height: 1.1;
+            margin-bottom: 1px;
         }
 
         .company-sub {
-            font-size: 5px;
+            font-size: 7px;
             color: #4b5563;
         }
 
         .receipt-title {
             text-align: center;
-            font-size: 8px;
+            font-size: 13px;
             font-weight: bold;
-            margin: 3px 0 1px;
-            letter-spacing: 0.2px;
+            margin: 2px 0 1px;
+            line-height: 1.1;
         }
 
         .receipt-subtitle {
             text-align: center;
-            font-size: 5px;
+            font-size: 6px;
             color: #6b7280;
-            margin-bottom: 4px;
-        }
-
-        .top-info {
-            width: 100%;
-            border-collapse: collapse;
             margin-bottom: 4px;
         }
 
         .top-info td {
             vertical-align: top;
             width: 50%;
-            padding: 0 2px 0 0;
+            padding-right: 4px;
         }
 
         .info-box {
             border: 1px solid #cbd5e1;
-            border-radius: 3px;
-            padding: 3px 4px;
+            padding: 4px 5px;
         }
 
         .info-line {
             margin-bottom: 2px;
             line-height: 1.15;
+            font-size: 7px;
         }
 
         .label {
@@ -112,65 +107,56 @@
         }
 
         .section-title {
-            font-size: 7px;
+            font-size: 9px;
             font-weight: bold;
-            margin-bottom: 2px;
-            padding-bottom: 1px;
+            margin-bottom: 3px;
+            padding-bottom: 2px;
             border-bottom: 1px solid #cbd5e1;
-            text-transform: uppercase;
-            letter-spacing: 0.1px;
-        }
-
-        .details-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 2px;
         }
 
         .details-table td {
-            padding: 1px 2px;
+            padding: 3px 5px;
             border: 1px solid #cbd5e1;
             vertical-align: top;
-            font-size: 5px;
+            font-size: 7px;
+            line-height: 1.15;
         }
 
         .details-table .label-col {
-            width: 62px;
+            width: 110px;
             font-weight: bold;
             background: #f8fafc;
         }
 
         .signatures {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 3px;
+            margin-top: 5px;
         }
 
         .signatures td {
             width: 25%;
             vertical-align: top;
-            padding-right: 3px;
+            padding-right: 6px;
         }
 
         .sign-label {
             font-weight: bold;
-            margin-bottom: 3px;
-            font-size: 5px;
+            margin-bottom: 4px;
+            font-size: 7px;
         }
 
         .sign-line {
             border-bottom: 1px solid #94a3b8;
-            padding-bottom: 1px;
+            padding-bottom: 2px;
             font-weight: bold;
-            min-height: 5px;
-            font-size: 5px;
+            min-height: 9px;
+            font-size: 7px;
         }
 
         .footer {
-            margin-top: 3px;
+            margin-top: 5px;
             border-top: 1px solid #cbd5e1;
-            padding-top: 2px;
-            font-size: 4px;
+            padding-top: 3px;
+            font-size: 6px;
             color: #6b7280;
         }
     </style>
@@ -262,7 +248,7 @@
             </table>
 
             <div class="section">
-                <div class="section-title">Receipt Details</div>
+                <div class="section-title">RECEIPT DETAILS</div>
 
                 <table class="details-table">
                     <tr>
