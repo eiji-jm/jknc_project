@@ -287,9 +287,9 @@ class TransmittalController extends Controller
         abort(404, 'Receipt not found.');
     }
 
-    try {
-        $customPaper = [0, 0, 612, 255];
+    $customPaper = [0, 0, 612, 255];
 
+    try {
         $pdf = Pdf::loadView('transmittal.receipt-pdf', compact('transmittal'))
             ->setPaper($customPaper);
 
@@ -302,7 +302,134 @@ class TransmittalController extends Controller
             'line' => $e->getLine(),
         ]);
 
-        return response()->view('transmittal.receipt-pdf', compact('transmittal'));
+        $receipt = $transmittal->receipt;
+
+        $receiptDate = $receipt && $receipt->created_at
+            ? $receipt->created_at->format('Y-m-d')
+            : now()->format('Y-m-d');
+
+        $receivedAt = $transmittal->received_at
+            ? $transmittal->received_at->format('Y-m-d H:i:s')
+            : 'N/A';
+
+        $deliveryType = 'N/A';
+
+        if (($transmittal->delivery_type ?? '') === 'By Person') {
+            $deliveryType = $transmittal->by_person_who
+                ? 'By Person - ' . $transmittal->by_person_who
+                : 'By Person';
+        } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
+            $deliveryType = $transmittal->registered_mail_provider
+                ? 'Registered Mail - ' . $transmittal->registered_mail_provider
+                : 'Registered Mail';
+        } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
+            $deliveryType = $transmittal->electronic_method
+                ? 'Electronic - ' . $transmittal->electronic_method
+                : 'Electronic';
+        }
+
+        $actions = collect([
+            $transmittal->action_delivery ? 'Delivery' : null,
+            $transmittal->action_pick_up ? 'Pick Up' : null,
+            $transmittal->action_drop_off ? 'Drop Off' : null,
+            $transmittal->action_email ? 'Email' : null,
+        ])->filter()->implode(', ');
+
+        if ($actions === '') {
+            $actions = '—';
+        }
+
+        $html = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Receipt Fallback</title>
+            <style>
+                @page { margin: 6px 8px; }
+                body {
+                    font-family: Arial, sans-serif;
+                    color: #111827;
+                    margin: 0;
+                    font-size: 8px;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 13px;
+                    font-weight: bold;
+                    margin-bottom: 4px;
+                }
+                .sub {
+                    text-align: center;
+                    font-size: 6px;
+                    margin-bottom: 6px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                td {
+                    border: 1px solid #cbd5e1;
+                    padding: 3px 5px;
+                    font-size: 7px;
+                }
+                .no-border td {
+                    border: none;
+                    padding: 0 0 3px 0;
+                }
+                .label {
+                    font-weight: bold;
+                    width: 110px;
+                    background: #f8fafc;
+                }
+                .footer {
+                    margin-top: 5px;
+                    font-size: 6px;
+                    color: #6b7280;
+                    border-top: 1px solid #cbd5e1;
+                    padding-top: 3px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="title">TRANSMITTAL RECEIPT</div>
+            <div class="sub">Generated upon approved transmittal</div>
+
+            <table class="no-border">
+                <tr>
+                    <td><strong>Receipt No:</strong> ' . e($receipt->receipt_no ?? 'N/A') . '</td>
+                    <td><strong>Receipt Date:</strong> ' . e($receiptDate) . '</td>
+                    <td><strong>Linked Ref No:</strong> ' . e($transmittal->transmittal_no ?? 'N/A') . '</td>
+                </tr>
+            </table>
+
+            <table style="margin-top:4px;">
+                <tr><td class="label">Mode</td><td>' . e($transmittal->mode ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Office</td><td>' . e($transmittal->office_name ?? 'N/A') . '</td></tr>
+                <tr><td class="label">From</td><td>' . e($transmittal->mode === 'SEND' ? ($transmittal->office_name ?? 'N/A') : ($transmittal->party_name ?? 'N/A')) . '</td></tr>
+                <tr><td class="label">To</td><td>' . e($transmittal->mode === 'SEND' ? ($transmittal->party_name ?? 'N/A') : ($transmittal->office_name ?? 'N/A')) . '</td></tr>
+                <tr><td class="label">Address</td><td>' . e($transmittal->address ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Delivery Type</td><td>' . e($deliveryType) . '</td></tr>
+                <tr><td class="label">Recipient Email</td><td>' . e($transmittal->recipient_email ?: '—') . '</td></tr>
+                <tr><td class="label">Workflow</td><td>' . e($transmittal->workflow_status ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Approval</td><td>' . e($transmittal->approval_status ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Actions</td><td>' . e($actions) . '</td></tr>
+                <tr><td class="label">Prepared By</td><td>' . e($transmittal->prepared_by_name ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Approved By</td><td>' . e(($transmittal->approved_by_name ?? 'N/A') . ($transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '')) . '</td></tr>
+                <tr><td class="label">Delivered By</td><td>' . e($transmittal->delivered_by ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Received By</td><td>' . e($transmittal->received_by ?? 'N/A') . '</td></tr>
+                <tr><td class="label">Date and Time Received</td><td>' . e($receivedAt) . '</td></tr>
+            </table>
+
+            <div class="footer">
+                This document is system-generated by John Kelly &amp; Company CRM.
+            </div>
+        </body>
+        </html>';
+
+        $fallbackPdf = Pdf::loadHTML($html)->setPaper($customPaper);
+
+        return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
     }
 }
 }
