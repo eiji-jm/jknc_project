@@ -1,0 +1,240 @@
+<?php $__env->startSection('content'); ?>
+<div class="w-full h-full px-6 py-5">
+
+    <?php if(session('success')): ?>
+        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <?php echo e(session('success')); ?>
+
+        </div>
+    <?php endif; ?>
+
+    <?php if(session('error')): ?>
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <?php echo e(session('error')); ?>
+
+        </div>
+    <?php endif; ?>
+
+    <?php
+        $submittedCount = $policies->where('workflow_status', 'Submitted')->count();
+        $acceptedCount = $policies->where('workflow_status', 'Accepted')->count();
+        $rejectedCount = $policies->where('approval_status', 'Rejected')->count();
+        $revertedCount = $policies->where('workflow_status', 'Reverted')->count();
+    ?>
+
+    <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
+        
+        <div class="px-5 py-4 border-b border-gray-200">
+            <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Policies Approval Dashboard</h1>
+            <p class="text-sm text-gray-500 mt-1">Review policy submissions for approval</p>
+        </div>
+
+        <div class="px-5 py-5 flex-1 flex flex-col gap-5">
+
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-5">
+                    <p class="text-xs font-semibold tracking-wide text-blue-600 uppercase">Submitted</p>
+                    <p class="mt-2 text-[20px] font-bold text-blue-700"><?php echo e($submittedCount); ?></p>
+                </div>
+
+                <div class="rounded-2xl border border-green-100 bg-green-50 px-4 py-5">
+                    <p class="text-xs font-semibold tracking-wide text-green-600 uppercase">Accepted</p>
+                    <p class="mt-2 text-[20px] font-bold text-green-700"><?php echo e($acceptedCount); ?></p>
+                </div>
+
+                <div class="rounded-2xl border border-red-100 bg-red-50 px-4 py-5">
+                    <p class="text-xs font-semibold tracking-wide text-red-600 uppercase">Rejected</p>
+                    <p class="mt-2 text-[20px] font-bold text-red-700"><?php echo e($rejectedCount); ?></p>
+                </div>
+
+                <div class="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-5">
+                    <p class="text-xs font-semibold tracking-wide text-yellow-600 uppercase">Reverted</p>
+                    <p class="mt-2 text-[20px] font-bold text-yellow-700"><?php echo e($revertedCount); ?></p>
+                </div>
+            </div>
+
+            
+            <form method="GET" action="<?php echo e(route('admin.policies.index')); ?>"
+                  class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                    <div class="lg:col-span-6">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Search</label>
+                        <input
+                            type="text"
+                            name="search"
+                            value="<?php echo e(request('search')); ?>"
+                            placeholder="Search policy title, code, prepared by..."
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Module</label>
+                        <select
+                            name="module"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                            <option value="">All Modules</option>
+                            <option value="Policies" <?php echo e(request('module') === 'Policies' ? 'selected' : ''); ?>>Policies</option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-2">Workflow Status</label>
+                        <select
+                            name="status"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                            <option value="">All Status</option>
+                            <option value="Submitted" <?php echo e(request('status') === 'Submitted' ? 'selected' : ''); ?>>Submitted</option>
+                            <option value="Accepted" <?php echo e(request('status') === 'Accepted' ? 'selected' : ''); ?>>Accepted</option>
+                            <option value="Reverted" <?php echo e(request('status') === 'Reverted' ? 'selected' : ''); ?>>Reverted</option>
+                            <option value="Archived" <?php echo e(request('status') === 'Archived' ? 'selected' : ''); ?>>Archived</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end gap-3">
+                    <a href="<?php echo e(route('admin.policies.index')); ?>"
+                       class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-xl text-gray-700 hover:bg-white transition">
+                        Clear Filters
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                    >
+                        Apply Filter
+                    </button>
+                </div>
+            </form>
+
+            
+            <div class="border border-gray-200 rounded-xl overflow-hidden flex-1">
+                <table class="w-full text-sm text-left border-collapse">
+                    <thead class="bg-gray-100 text-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Ref#</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Module</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Policy Title</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Version</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Prepared By</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Date Uploaded</th>
+                            <th class="px-4 py-3 border-r border-gray-200 font-semibold">Workflow Status</th>
+                            <th class="px-4 py-3 font-semibold text-center">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="bg-white text-gray-700">
+                        <?php $__empty_1 = true; $__currentLoopData = $policies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $policy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                            <tr class="border-t border-gray-200 hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 border-r border-gray-200"><?php echo e($policy->code ?? $policy->id); ?></td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <span class="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-700 font-medium">
+                                        Policies
+                                    </span>
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <div class="font-medium text-gray-800"><?php echo e($policy->policy ?? '-'); ?></div>
+                                    <?php if(!empty($policy->classification)): ?>
+                                        <div class="text-xs text-gray-400 mt-1"><?php echo e($policy->classification); ?></div>
+                                    <?php endif; ?>
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200"><?php echo e($policy->version ?? '-'); ?></td>
+                                <td class="px-4 py-3 border-r border-gray-200"><?php echo e($policy->prepared_by ?? '-'); ?></td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <?php echo e(optional($policy->created_at)->format('Y-m-d') ?? '-'); ?>
+
+                                </td>
+
+                                <td class="px-4 py-3 border-r border-gray-200">
+                                    <?php
+                                        $workflow = $policy->workflow_status ?? 'Submitted';
+
+                                        $workflowClasses = match($workflow) {
+                                            'Accepted' => 'bg-green-50 text-green-700',
+                                            'Reverted' => 'bg-yellow-50 text-yellow-700',
+                                            'Archived' => 'bg-gray-200 text-gray-700',
+                                            default => 'bg-blue-50 text-blue-700',
+                                        };
+                                    ?>
+
+                                    <span class="px-2 py-1 text-xs rounded-full font-medium <?php echo e($workflowClasses); ?>">
+                                        <?php echo e($workflow); ?>
+
+                                    </span>
+                                </td>
+
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex items-center justify-center gap-2 flex-wrap">
+                                        <?php if(($policy->workflow_status ?? null) === 'Submitted' && Auth::user()->hasPermission('approve_policies')): ?>
+                                            <form method="POST" action="<?php echo e(route('admin.policies.approve', $policy->id)); ?>">
+                                                <?php echo csrf_field(); ?>
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+                                                >
+                                                    Approve
+                                                </button>
+                                            </form>
+
+                                            <form method="POST" action="<?php echo e(route('admin.policies.reject', $policy->id)); ?>">
+                                                <?php echo csrf_field(); ?>
+                                                <input type="hidden" name="review_note" value="Rejected by admin">
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                                                >
+                                                    Reject
+                                                </button>
+                                            </form>
+
+                                            <form method="POST" action="<?php echo e(route('admin.policies.revise', $policy->id)); ?>">
+                                                <?php echo csrf_field(); ?>
+                                                <input type="hidden" name="review_note" value="Needs revision">
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-white hover:bg-slate-900 transition"
+                                                >
+                                                    Revise
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                        <a
+                                            href="<?php echo e(route('admin.policies.show', $policy->id)); ?>"
+                                            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                                        >
+                                            View
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                            <tr>
+                                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                                    No policy submissions found.
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <?php if(method_exists($policies, 'links')): ?>
+                <div class="mt-2">
+                    <?php echo e($policies->links()); ?>
+
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/admin/policies-dashboard.blade.php ENDPATH**/ ?>

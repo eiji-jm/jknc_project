@@ -47,6 +47,7 @@ use App\Http\Controllers\BirTaxController;
 use App\Http\Controllers\NatGovController;
 use App\Http\Controllers\UltimateBeneficialOwnerController;
 use App\Http\Controllers\PermitController;
+use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
@@ -305,14 +306,17 @@ Route::middleware('auth')->group(function () {
     | POLICIES MODULE
     |--------------------------------------------------------------------------
     */
-    Route::get('/policies', function () {
-        return view('policies.policies');
-    })->name('policies.index');
+    Route::get('/policies', [PolicyController::class, 'index'])->name('policies.index');
+    Route::post('/policies', [PolicyController::class, 'store'])->name('policies.store');
+    Route::get('/policies/preview-pdf', [PolicyController::class, 'previewPdf'])->name('policies.preview');
+    Route::get('/policies/{id}', [PolicyController::class, 'show'])->name('policies.show');
+    Route::get('/policies/{id}/edit', [PolicyController::class, 'edit'])->name('policies.edit');
 
-    Route::post('/policies', function () {
-        return back()->with('success', 'Policy added successfully.');
-    })->name('policies.store');
-
+    Route::get('/admin/policies', [PolicyController::class, 'submitted'])->name('admin.policies.index');
+    Route::post('/admin/policies/{id}/approve', [PolicyController::class, 'approve'])->name('admin.policies.approve');
+    Route::post('/admin/policies/{id}/reject', [PolicyController::class, 'reject'])->name('admin.policies.reject');
+    Route::post('/admin/policies/{id}/revise', [PolicyController::class, 'revise'])->name('admin.policies.revise');
+    Route::get('/admin/policies/{id}', [PolicyController::class, 'showAdmin'])->name('admin.policies.show');
     /*
     |--------------------------------------------------------------------------
     | COMPANY MODULE
