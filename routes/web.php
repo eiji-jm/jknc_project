@@ -262,6 +262,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/deals/{id}/update-stage', [DealController::class, 'updateDealStage'])->name('deals.stage.update.post');
     Route::put('/deals/{id}', [DealController::class, 'update'])->name('deals.update');
     Route::get('/deals/{deal}/proposal', [DealProposalController::class, 'show'])->name('deals.proposal.show');
+    Route::get('/deals/{deal}/proposal/preview-view', [DealProposalController::class, 'previewPage'])->name('deals.proposal.preview-page');
     Route::post('/deals/{deal}/proposal/preview', [DealProposalController::class, 'preview'])->name('deals.proposal.preview');
     Route::match(['put', 'patch'], '/deals/{deal}/proposal', [DealProposalController::class, 'update'])->name('deals.proposal.update');
     Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');

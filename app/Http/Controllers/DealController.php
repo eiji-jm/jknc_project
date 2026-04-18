@@ -1127,7 +1127,7 @@ class DealController extends Controller
     public function show(int $id): View
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage', 'project'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'proposal'])->find($id);
             if ($storedDeal) {
                 $stages = $this->dealStages();
                 $currentStage = null;
@@ -1258,6 +1258,7 @@ class DealController extends Controller
                     'deal' => $deal,
                     'detail' => $detail,
                     'stages' => $stages,
+                    'hasSavedProposal' => $storedDeal->proposal !== null,
                     'dealFormData' => $this->storedDealFormData($storedDeal),
                     ...$this->dealPanelContext($this->storedDealFormData($storedDeal)),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
@@ -1360,6 +1361,7 @@ class DealController extends Controller
                 'deal' => $deal,
                 'detail' => $detail,
                 'stages' => $stages,
+                'hasSavedProposal' => false,
                 'dealFormData' => $this->normalizeDealFormData($mockPayload),
                 ...$this->dealPanelContext($this->normalizeDealFormData($mockPayload)),
                 'openDealModal' => (bool) request()->boolean('edit_deal'),
@@ -1521,6 +1523,7 @@ class DealController extends Controller
             'deal' => $deal,
             'detail' => $detail,
             'stages' => $stages,
+            'hasSavedProposal' => false,
             'dealFormData' => $this->normalizeDealFormData([
                 ...$deal,
                 'contact_id' => 101,

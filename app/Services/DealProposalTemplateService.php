@@ -10,6 +10,7 @@ use Symfony\Component\Process\Process;
 class DealProposalTemplateService
 {
     private const TEMPLATE_PATH = 'proposal-templates/deal-proposal-template.docx';
+    private const MICROSOFT_WORD_PATH = 'C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE';
     private const LIBRE_OFFICE_PATH = 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
     private const BULLET_LIST_PLACEHOLDERS = [
         '{{WHAT_YOU_WILL_RECEIVE}}',
@@ -20,8 +21,8 @@ class DealProposalTemplateService
 
     public function generate(array $data, string $fileName): string
     {
-        $templatePath = storage_path('app/'.self::TEMPLATE_PATH);
-        if (!is_file($templatePath)) {
+        $templatePath = $this->resolveTemplatePath();
+        if ($templatePath === null) {
             throw new RuntimeException('Proposal template file was not found.');
         }
 
@@ -86,19 +87,81 @@ class DealProposalTemplateService
             return null;
         }
 
-        if (!is_file(self::LIBRE_OFFICE_PATH)) {
-            return null;
-        }
-
         $sourcePath = Storage::disk('public')->path($docxRelativePath);
-        $tempDir = storage_path('app/temp/libreoffice-preview-'.uniqid('', true));
+        $tempDir = storage_path('app/temp/proposal-pdf-preview-'.uniqid('', true));
 
         if (!is_dir($tempDir) && !mkdir($tempDir, 0777, true) && !is_dir($tempDir)) {
             return null;
         }
 
+        $pdfName = pathinfo($sourcePath, PATHINFO_FILENAME).'.pdf';
+        $generatedPdfPath = $tempDir.DIRECTORY_SEPARATOR.$pdfName;
+
+        if (!$this->convertDocxToPdf($sourcePath, $tempDir, $generatedPdfPath)) {
+            $this->cleanupDirectory($tempDir);
+            return null;
+        }
+
+        $relativePdfPath = preg_replace('/\.docx$/i', '.pdf', $docxRelativePath) ?: ($docxRelativePath.'.pdf');
+        Storage::disk('public')->put($relativePdfPath, file_get_contents($generatedPdfPath));
+
+        $this->cleanupDirectory($tempDir);
+
+        return $relativePdfPath;
+    }
+
+    private function convertDocxToPdf(string $sourcePath, string $tempDir, string $generatedPdfPath): bool
+    {
+        if ($this->convertWithMicrosoftWord($sourcePath, $generatedPdfPath)) {
+            return true;
+        }
+
+        return $this->convertWithLibreOffice($sourcePath, $tempDir, $generatedPdfPath);
+    }
+
+    private function convertWithMicrosoftWord(string $sourcePath, string $generatedPdfPath): bool
+    {
+        $wordPath = $this->resolveMicrosoftWordPath();
+        if ($wordPath === null) {
+            return false;
+        }
+
+        $command = implode('; ', [
+            "\$ErrorActionPreference = 'Stop'",
+            '$word = New-Object -ComObject Word.Application',
+            '$word.Visible = $false',
+            '$word.DisplayAlerts = 0',
+            '$document = $word.Documents.Open(' . $this->powershellLiteral($sourcePath) . ')',
+            '$document.SaveAs([ref] ' . $this->powershellLiteral($generatedPdfPath) . ', [ref] 17)',
+            '$document.Close()',
+            '$word.Quit()',
+        ]);
+
         $process = new Process([
-            self::LIBRE_OFFICE_PATH,
+            'powershell.exe',
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-Command',
+            $command,
+        ]);
+
+        $process->setTimeout(120);
+        $process->run();
+
+        return $process->isSuccessful() && is_file($generatedPdfPath);
+    }
+
+    private function convertWithLibreOffice(string $sourcePath, string $tempDir, string $generatedPdfPath): bool
+    {
+        $libreOfficePath = $this->resolveLibreOfficePath();
+        if ($libreOfficePath === null) {
+            return false;
+        }
+
+        $process = new Process([
+            $libreOfficePath,
             '--headless',
             '--convert-to',
             'pdf',
@@ -110,20 +173,68 @@ class DealProposalTemplateService
         $process->setTimeout(60);
         $process->run();
 
-        $pdfName = pathinfo($sourcePath, PATHINFO_FILENAME).'.pdf';
-        $generatedPdfPath = $tempDir.DIRECTORY_SEPARATOR.$pdfName;
+        return $process->isSuccessful() && is_file($generatedPdfPath);
+    }
 
-        if (!$process->isSuccessful() || !is_file($generatedPdfPath)) {
-            $this->cleanupDirectory($tempDir);
-            return null;
+    private function resolveTemplatePath(): ?string
+    {
+        $configuredPath = trim((string) env('DEAL_PROPOSAL_TEMPLATE_PATH', ''));
+        $candidates = array_filter([
+            $configuredPath !== '' ? $configuredPath : null,
+            storage_path('app/'.self::TEMPLATE_PATH),
+            storage_path('app/public/'.self::TEMPLATE_PATH),
+            resource_path('doc_templates/deal-proposal-template.docx'),
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
         }
 
-        $relativePdfPath = preg_replace('/\.docx$/i', '.pdf', $docxRelativePath) ?: ($docxRelativePath.'.pdf');
-        Storage::disk('public')->put($relativePdfPath, file_get_contents($generatedPdfPath));
+        return null;
+    }
 
-        $this->cleanupDirectory($tempDir);
+    private function resolveLibreOfficePath(): ?string
+    {
+        $configuredPath = trim((string) env('LIBRE_OFFICE_PATH', ''));
+        $candidates = array_filter([
+            $configuredPath !== '' ? $configuredPath : null,
+            self::LIBRE_OFFICE_PATH,
+        ]);
 
-        return $relativePdfPath;
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveMicrosoftWordPath(): ?string
+    {
+        $configuredPath = trim((string) env('MICROSOFT_WORD_PATH', ''));
+        $candidates = array_filter([
+            $configuredPath !== '' ? $configuredPath : null,
+            self::MICROSOFT_WORD_PATH,
+            'C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE',
+            'C:\\Program Files\\Microsoft Office\\Office16\\WINWORD.EXE',
+            'C:\\Program Files (x86)\\Microsoft Office\\Office16\\WINWORD.EXE',
+        ]);
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function powershellLiteral(string $value): string
+    {
+        return "'" . str_replace("'", "''", $value) . "'";
     }
 
     private function placeholderMap(array $data): array
