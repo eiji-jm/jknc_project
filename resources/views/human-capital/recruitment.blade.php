@@ -1883,6 +1883,7 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Type of Interview</label>
                         <select x-model="interviewForm.type" required
+                            @change="interviewForm.type === 'Online' ? generateMeetingLink() : interviewForm.meeting_link = ''"
                             class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all cursor-pointer appearance-none">
                             <option value="Online">Online</option>
                             <option value="In Person">In Person</option>
@@ -1908,10 +1909,18 @@
                     </div>
                 </div>
 
-                <div>
+                <div x-show="interviewForm.type === 'Online'">
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Meeting Link</label>
-                    <input type="url" x-model="interviewForm.meeting_link" placeholder="https://"
-                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50">
+                    <div class="flex gap-2 items-center">
+                        <input type="url" x-model="interviewForm.meeting_link" placeholder="https://meet.jit.si/..."
+                            class="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 font-mono text-xs" readonly>
+                        <button type="button" @click="generateMeetingLink()"
+                            class="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-blue-200 whitespace-nowrap">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Generate
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1.5">Mock link — replace with a real meeting URL before sending.</p>
                 </div>
 
                 <div class="pt-4 border-t flex justify-end gap-3">
@@ -2095,8 +2104,14 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 duration: '60',
                 meeting_link: ''
             };
+            this.generateMeetingLink();
             this.activeTab = 'Interview';
             this.showInterviewModal = true;
+        },
+
+        generateMeetingLink() {
+            const seg = (len) => Array.from({length: len}, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+            this.interviewForm.meeting_link = `https://meet.google.com/${seg(3)}-${seg(4)}-${seg(3)}`;
         },
 
         submitInterview() {
@@ -2197,6 +2212,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                     name: '', position: '', type: 'Online', interviewer: '', 
                     interview_date: '', duration: '60', meeting_link: ''
                 };
+                this.generateMeetingLink();
                 this.showInterviewModal = true;
             } else if (this.activeTab === 'Assessment') {
                 this.assessmentForm = {
