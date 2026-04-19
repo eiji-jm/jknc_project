@@ -1010,6 +1010,7 @@ class DealController extends Controller
         $this->applyFeePersistence($createdDeal, $validated);
         $this->syncDealNameToCode($createdDeal);
         $createdDeal->save();
+        $this->projectProvisioner->createOrSyncFromDeal($createdDeal);
 
         $request->session()->forget('deals.preview_payload');
 
@@ -1060,6 +1061,7 @@ class DealController extends Controller
         $this->ensureDealCodeAssigned($deal, $contact);
         $this->syncDealNameToCode($deal);
         $deal->save();
+        $this->projectProvisioner->createOrSyncFromDeal($deal);
 
         return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
     }
@@ -2458,11 +2460,21 @@ class DealController extends Controller
 
     private function dealPersistencePayload(array $validated): array
     {
-        if (Schema::hasColumn('deals', 'other_fees')) {
+        if (! Schema::hasTable('deals')) {
             return $validated;
         }
 
-        unset($validated['other_fees']);
+        $dealColumns = collect(Schema::getColumnListing('deals'))
+            ->filter(fn ($column): bool => is_string($column) && $column !== '')
+            ->flip();
+
+        $validated = collect($validated)
+            ->filter(fn ($value, $key): bool => $dealColumns->has((string) $key))
+            ->all();
+
+        if (! Schema::hasColumn('deals', 'other_fees')) {
+            unset($validated['other_fees']);
+        }
 
         return $validated;
     }

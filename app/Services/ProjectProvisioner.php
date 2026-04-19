@@ -17,18 +17,21 @@ class ProjectProvisioner
 {
     public function createFromApprovedDeal(Deal $deal): ?Project
     {
+        return $this->createOrSyncFromDeal($deal);
+    }
+
+    public function createOrSyncFromDeal(Deal $deal): ?Project
+    {
         if (! Schema::hasTable('projects')) {
             return null;
         }
 
         $engagementType = Str::lower(trim((string) ($deal->engagement_type ?? '')));
-        if (! Str::contains($engagementType, 'project') && ! Str::contains($engagementType, 'hybrid')) {
-            return null;
-        }
+        $isRegular = Str::contains($engagementType, 'regular');
+        $isProject = Str::contains($engagementType, 'project') || Str::contains($engagementType, 'hybrid');
 
-        $existingProject = Project::query()->where('deal_id', $deal->id)->first();
-        if ($existingProject) {
-            return $existingProject;
+        if (! $isRegular && ! $isProject) {
+            return null;
         }
 
         $contact = $deal->contact()->first();
@@ -41,16 +44,15 @@ class ProjectProvisioner
 
         $scopeItems = $this->defaultScopeItems($deal);
         $internalApproval = $this->defaultInternalApprovalPayload($deal);
-
-        $project = Project::query()->create([
+        $projectAttributes = [
             'deal_id' => $deal->id,
             'contact_id' => $deal->contact_id,
             'company_id' => $company?->id,
             'name' => $deal->deal_code ?: ('Project for '.($deal->company_name ?: $clientName ?: 'Client')),
             'engagement_type' => $deal->engagement_type,
-            'status' => 'Start',
-            'current_phase' => 'Start',
-            'current_step' => 'START Checklist',
+            'status' => $isRegular ? 'RSAT' : 'Start',
+            'current_phase' => $isRegular ? 'RSAT' : 'Start',
+            'current_step' => $isRegular ? 'RSAT Checklist' : 'START Checklist',
             'planned_start_date' => $deal->planned_start_date,
             'target_completion_date' => $deal->estimated_completion_date,
             'client_preferred_completion_date' => $deal->client_preferred_completion_date,
@@ -70,17 +72,29 @@ class ProjectProvisioner
                 'deal_stage_at_creation' => $deal->stage,
             ],
             'opened_at' => now(),
-        ]);
+        ];
+
+        $existingProject = Project::query()->where('deal_id', $deal->id)->first();
+        if ($existingProject) {
+            $existingProject->fill([
+                ...$projectAttributes,
+                'opened_at' => $existingProject->opened_at ?: now(),
+            ])->save();
+
+            return $existingProject;
+        }
+
+        $project = Project::query()->create($projectAttributes);
 
         ProjectStart::query()->create([
             'project_id' => $project->id,
             'form_date' => now()->toDateString(),
             'date_started' => now()->toDateString(),
             'status' => 'pending',
-            'checklist' => $this->defaultStartChecklist($deal, $contact, $company),
+            'checklist' => $this->defaultStartChecklist($deal, $contact, $company, $isRegular),
             'kyc_requirements' => $this->defaultStartKycRequirements($deal, $contact, $company),
             'engagement_requirements' => $this->defaultStartEngagementRequirements($deal),
-            'approval_steps' => $this->defaultStartApprovalSteps($deal),
+            'approval_steps' => $this->defaultStartApprovalSteps($deal, $isRegular),
             'routing' => $this->defaultStartRouting(),
             'clearance' => $this->defaultStartClearance($deal),
         ]);
@@ -138,18 +152,21 @@ class ProjectProvisioner
             ->first();
     }
 
-    private function defaultStartChecklist(Deal $deal, ?Contact $contact, ?Company $company): array
+    private function defaultStartChecklist(Deal $deal, ?Contact $contact, ?Company $company, bool $isRegular = false): array
     {
         $contactApproved = strtolower((string) ($contact?->cif_status ?? '')) === 'approved';
         $bifApproved = Schema::hasTable('company_bifs')
             && strtolower((string) ($company?->latestBif?->status ?? '')) === 'approved';
+        $trackerLabel = $isRegular
+            ? 'Regular Service Activity Tracker (RSAT)'
+            : 'Service Task Activation & Routing Tracker (Start)';
 
         return [
             ['label' => 'Client Contact Form', 'status' => $deal->contact_id ? 'provided' : 'pending', 'auto_checked' => true],
             ['label' => 'Deal Form', 'status' => strtolower((string) $deal->deal_status) === 'approved' ? 'provided' : 'pending', 'auto_checked' => true],
             ['label' => 'Business Information Form', 'status' => $bifApproved ? 'provided' : 'pending', 'auto_checked' => true],
             ['label' => 'Client Information Form', 'status' => $contactApproved ? 'provided' : 'pending', 'auto_checked' => true],
-            ['label' => 'Service Task Activation & Routing Tracker (Start)', 'status' => 'provided', 'auto_checked' => true],
+            ['label' => $trackerLabel, 'status' => 'provided', 'auto_checked' => true],
             ['label' => 'Others', 'status' => 'pending', 'auto_checked' => false],
         ];
     }
@@ -244,18 +261,21 @@ class ProjectProvisioner
         ]];
     }
 
-    private function defaultStartApprovalSteps(Deal $deal): array
+    private function defaultStartApprovalSteps(Deal $deal, bool $isRegular = false): array
     {
         $sales = 'Sales & Marketing';
         $leadConsultant = $deal->assigned_consultant ?: 'Lead Consultant';
         $leadAssociate = $deal->assigned_associate ?: 'Lead Associate';
+        $trackerLabel = $isRegular
+            ? 'Regular Service Activity Tracker (RSAT)'
+            : 'Service Task Activation & Routing Tracker (Start)';
 
         return [
             ['requirement' => 'Client Contact Form', 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Deal Form', 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Business Information Form', 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Client Information Form', 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
-            ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => $trackerLabel, 'responsible_person' => $sales, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => $sales.'/'.$leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Proposal/Contract', 'responsible_person' => $sales.'/'.$leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
             ['requirement' => 'Final Quote', 'responsible_person' => $leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],

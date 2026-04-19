@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ProjectController extends Controller
@@ -26,7 +27,9 @@ class ProjectController extends Controller
             $projects = Project::query()
                 ->with(['deal:id,deal_code', 'company:id,company_name'])
                 ->latest()
-                ->get();
+                ->get()
+                ->filter(fn (Project $project): bool => ! Str::contains(Str::lower(trim((string) $project->engagement_type)), 'regular'))
+                ->values();
         }
 
         $stats = [

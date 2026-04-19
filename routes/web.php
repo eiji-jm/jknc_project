@@ -33,6 +33,7 @@ use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminUserPermissionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RegularController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SecAoiController;
 use App\Http\Controllers\StockholderController;
@@ -282,7 +283,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
     Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
 
-    Route::view('/regular', 'regular.index')->name('regular.index');
+    Route::get('/regular', [RegularController::class, 'index'])->name('regular.index');
+    Route::get('/regular/{regular}', [RegularController::class, 'show'])->name('regular.show');
+    Route::post('/regular/{regular}/rsat', [RegularController::class, 'updateRsat'])->name('regular.rsat.update');
+    Route::get('/regular/{regular}/rsat/download', [RegularController::class, 'downloadRsatPdf'])->name('regular.rsat.download');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
