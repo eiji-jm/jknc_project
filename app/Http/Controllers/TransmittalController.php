@@ -72,6 +72,7 @@ class TransmittalController extends Controller
                     'document_custodian' => $item->document_custodian,
                     'delivered_by' => $item->delivered_by,
                     'received_by' => $item->received_by,
+                    'receiver_affiliation' => $item->receiver_affiliation,
                     'received_at' => optional($item->received_at)->format('Y-m-d\TH:i'),
                     'items' => $item->items->map(function ($row) {
                         return [
@@ -129,6 +130,7 @@ class TransmittalController extends Controller
             'document_custodian' => ['nullable', 'string', 'max:255'],
             'delivered_by' => ['nullable', 'string', 'max:255'],
             'received_by' => ['nullable', 'string', 'max:255'],
+            'receiver_affiliation' => ['nullable', 'string', 'max:255'],
             'received_at' => ['nullable', 'date'],
             'items' => ['nullable'],
             'item_files.*' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx', 'max:10240'],
@@ -169,6 +171,7 @@ class TransmittalController extends Controller
                 'document_custodian' => $validated['document_custodian'] ?? null,
                 'delivered_by' => $validated['delivered_by'] ?? null,
                 'received_by' => $validated['received_by'] ?? null,
+                'receiver_affiliation' => $validated['receiver_affiliation'] ?? null,
                 'received_at' => $validated['received_at'] ?? null,
                 'workflow_status' => 'Uploaded',
                 'approval_status' => 'Pending',
@@ -254,109 +257,109 @@ class TransmittalController extends Controller
     }
 
     public function receiptPdf($id)
-{
-    $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
+    {
+        $transmittal = Transmittal::with(['receipt'])->findOrFail($id);
 
-    if (! $transmittal->receipt) {
-        abort(404, 'Receipt not found.');
+        if (! $transmittal->receipt) {
+            abort(404, 'Receipt not found.');
+        }
+
+        $customPaper = [0, 0, 612, 255];
+
+        $receipt = $transmittal->receipt;
+
+        $receiptDate = $receipt && $receipt->created_at
+            ? $receipt->created_at->format('Y-m-d')
+            : now()->format('Y-m-d');
+
+        $receivedAt = $transmittal->received_at
+            ? $transmittal->received_at->format('Y-m-d H:i:s')
+            : 'N/A';
+
+        $preparedAt = $transmittal->prepared_at
+            ? $transmittal->prepared_at->format('Y-m-d H:i:s')
+            : 'N/A';
+
+        $approvedAt = $transmittal->approved_at
+            ? $transmittal->approved_at->format('Y-m-d H:i:s')
+            : 'N/A';
+
+        $deliveryType = 'N/A';
+        if (($transmittal->delivery_type ?? '') === 'By Person') {
+            $deliveryType = $transmittal->by_person_who
+                ? 'By Person - ' . $transmittal->by_person_who
+                : 'By Person';
+        } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
+            $deliveryType = $transmittal->registered_mail_provider
+                ? 'Registered Mail - ' . $transmittal->registered_mail_provider
+                : 'Registered Mail';
+        } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
+            $deliveryType = $transmittal->electronic_method
+                ? 'Electronic - ' . $transmittal->electronic_method
+                : 'Electronic';
+        }
+
+        $actions = collect([
+            $transmittal->action_delivery ? 'Delivery' : null,
+            $transmittal->action_pick_up ? 'Pick Up' : null,
+            $transmittal->action_drop_off ? 'Drop Off' : null,
+            $transmittal->action_email ? 'Email' : null,
+        ])->filter()->implode(', ');
+
+        if ($actions === '') {
+            $actions = '—';
+        }
+
+        $fromValue = $transmittal->mode === 'SEND'
+            ? ($transmittal->office_name ?? 'N/A')
+            : ($transmittal->party_name ?? 'N/A');
+
+        $toValue = $transmittal->mode === 'SEND'
+            ? ($transmittal->party_name ?? 'N/A')
+            : ($transmittal->office_name ?? 'N/A');
+
+        $approvedByText = ($transmittal->approved_by_name ?? 'N/A')
+            . ($transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '');
+
+        try {
+            $pdf = Pdf::loadView('transmittal.receipt-pdf', [
+                    'transmittal' => $transmittal,
+                    'receipt' => $receipt,
+                    'receiptDate' => $receiptDate,
+                    'receivedAt' => $receivedAt,
+                    'preparedAt' => $preparedAt,
+                    'approvedAt' => $approvedAt,
+                    'deliveryType' => $deliveryType,
+                    'actions' => $actions,
+                    'fromValue' => $fromValue,
+                    'toValue' => $toValue,
+                    'approvedByText' => $approvedByText,
+                ])
+                ->setPaper($customPaper);
+
+            return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+        } catch (\Throwable $e) {
+            Log::error('Styled receipt PDF failed on server', [
+                'transmittal_id' => $id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            $fallbackHtml = '
+                <html>
+                <body style="font-family: Arial, sans-serif; font-size: 12px;">
+                    <h3>Styled receipt PDF failed on server.</h3>
+                    <p>Error was logged. Please check Render logs.</p>
+                    <p>Receipt No: ' . e($transmittal->receipt->receipt_no) . '</p>
+                    <p>Ref No: ' . e($transmittal->transmittal_no) . '</p>
+                </body>
+                </html>
+            ';
+
+            $fallbackPdf = Pdf::loadHTML($fallbackHtml)->setPaper($customPaper);
+
+            return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+        }
     }
-
-    $customPaper = [0, 0, 612, 255];
-
-    $receipt = $transmittal->receipt;
-
-    $receiptDate = $receipt && $receipt->created_at
-        ? $receipt->created_at->format('Y-m-d')
-        : now()->format('Y-m-d');
-
-    $receivedAt = $transmittal->received_at
-        ? $transmittal->received_at->format('Y-m-d H:i:s')
-        : 'N/A';
-
-    $preparedAt = $transmittal->prepared_at
-        ? $transmittal->prepared_at->format('Y-m-d H:i:s')
-        : 'N/A';
-
-    $approvedAt = $transmittal->approved_at
-        ? $transmittal->approved_at->format('Y-m-d H:i:s')
-        : 'N/A';
-
-    $deliveryType = 'N/A';
-    if (($transmittal->delivery_type ?? '') === 'By Person') {
-        $deliveryType = $transmittal->by_person_who
-            ? 'By Person - ' . $transmittal->by_person_who
-            : 'By Person';
-    } elseif (($transmittal->delivery_type ?? '') === 'Registered Mail') {
-        $deliveryType = $transmittal->registered_mail_provider
-            ? 'Registered Mail - ' . $transmittal->registered_mail_provider
-            : 'Registered Mail';
-    } elseif (($transmittal->delivery_type ?? '') === 'Electronic') {
-        $deliveryType = $transmittal->electronic_method
-            ? 'Electronic - ' . $transmittal->electronic_method
-            : 'Electronic';
-    }
-
-    $actions = collect([
-        $transmittal->action_delivery ? 'Delivery' : null,
-        $transmittal->action_pick_up ? 'Pick Up' : null,
-        $transmittal->action_drop_off ? 'Drop Off' : null,
-        $transmittal->action_email ? 'Email' : null,
-    ])->filter()->implode(', ');
-
-    if ($actions === '') {
-        $actions = '—';
-    }
-
-    $fromValue = $transmittal->mode === 'SEND'
-        ? ($transmittal->office_name ?? 'N/A')
-        : ($transmittal->party_name ?? 'N/A');
-
-    $toValue = $transmittal->mode === 'SEND'
-        ? ($transmittal->party_name ?? 'N/A')
-        : ($transmittal->office_name ?? 'N/A');
-
-    $approvedByText = ($transmittal->approved_by_name ?? 'N/A')
-        . ($transmittal->approved_position ? ' (' . $transmittal->approved_position . ')' : '');
-
-    try {
-        $pdf = Pdf::loadView('transmittal.receipt-pdf', [
-                'transmittal' => $transmittal,
-                'receipt' => $receipt,
-                'receiptDate' => $receiptDate,
-                'receivedAt' => $receivedAt,
-                'preparedAt' => $preparedAt,
-                'approvedAt' => $approvedAt,
-                'deliveryType' => $deliveryType,
-                'actions' => $actions,
-                'fromValue' => $fromValue,
-                'toValue' => $toValue,
-                'approvedByText' => $approvedByText,
-            ])
-            ->setPaper($customPaper);
-
-        return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
-    } catch (\Throwable $e) {
-        Log::error('Styled receipt PDF failed on server', [
-            'transmittal_id' => $id,
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ]);
-
-        $fallbackHtml = '
-            <html>
-            <body style="font-family: Arial, sans-serif; font-size: 12px;">
-                <h3>Styled receipt PDF failed on server.</h3>
-                <p>Error was logged. Please check Render logs.</p>
-                <p>Receipt No: ' . e($transmittal->receipt->receipt_no) . '</p>
-                <p>Ref No: ' . e($transmittal->transmittal_no) . '</p>
-            </body>
-            </html>
-        ';
-
-        $fallbackPdf = Pdf::loadHTML($fallbackHtml)->setPaper($customPaper);
-
-        return $fallbackPdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
-    }
-}
 }

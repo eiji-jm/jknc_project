@@ -198,6 +198,7 @@
         <tr><td class="label-col">Approved By</td><td>{{ $approvedByText }}</td></tr>
         <tr><td class="label-col">Delivered By</td><td>{{ $transmittal->delivered_by ?? 'N/A' }}</td></tr>
         <tr><td class="label-col">Received By</td><td>{{ $transmittal->received_by ?? 'N/A' }}</td></tr>
+        <tr><td class="label-col">Affiliated to / Company</td><td>{{ $transmittal->receiver_affiliation ?? 'N/A' }}</td></tr>
         <tr><td class="label-col">Date and Time Received</td><td>{{ $receivedAt }}</td></tr>
     </table>
 
@@ -220,6 +221,7 @@
             <td>
                 <div class="sign-label">Received by:</div>
                 <div class="sign-line">{{ $transmittal->received_by ?? ' ' }}</div>
+                <div class="sign-datetime">{{ $transmittal->receiver_affiliation ?? ' ' }}</div>
             </td>
         </tr>
     </table>

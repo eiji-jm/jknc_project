@@ -14,7 +14,7 @@
             color: #111827;
             margin: 0;
             padding: 0;
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .transmittal-doc-page {
@@ -25,23 +25,23 @@
 
         .tm-title {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .tm-title-main {
-            font-size: 16px;
+            font-size: 22px;
             font-weight: bold;
             line-height: 1.1;
         }
 
         .tm-top-block {
-            font-size: 11px;
-            margin-bottom: 10px;
+            font-size: 13px;
+            margin-bottom: 14px;
         }
 
         .tm-top-row {
             width: 100%;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             clear: both;
         }
 
@@ -54,27 +54,27 @@
 
         .tm-label {
             display: inline-block;
-            width: 60px;
+            width: 74px;
             font-weight: bold;
             vertical-align: top;
         }
 
         .tm-line {
             display: inline-block;
-            width: calc(100% - 68px);
+            width: calc(100% - 86px);
             border-bottom: 1px solid #9ca3af;
-            min-height: 14px;
-            padding-bottom: 1px;
+            min-height: 18px;
+            padding-bottom: 2px;
         }
 
         .tm-meta-grid {
             width: 100%;
-            font-size: 10px;
-            margin-bottom: 10px;
+            font-size: 12px;
+            margin-bottom: 14px;
         }
 
         .tm-meta-grid-row {
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         .tm-meta-half {
@@ -88,23 +88,23 @@
         }
 
         .tm-section-title {
-            font-size: 11px;
+            font-size: 14px;
             font-weight: bold;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
         .tm-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 8.5px;
-            margin-bottom: 10px;
+            font-size: 10.5px;
+            margin-bottom: 14px;
         }
 
         .tm-table th,
         .tm-table td {
             border: 1px solid #9ca3af;
-            padding: 4px 5px;
+            padding: 6px 7px;
             vertical-align: top;
             text-align: left;
             word-wrap: break-word;
@@ -126,8 +126,8 @@
 
         .tm-footer-code {
             width: 100%;
-            font-size: 9px;
-            margin-bottom: 12px;
+            font-size: 11px;
+            margin-bottom: 16px;
         }
 
         .tm-footer-left {
@@ -144,8 +144,8 @@
 
         .tm-signatures {
             width: 100%;
-            margin-top: 6px;
-            font-size: 10px;
+            margin-top: 10px;
+            font-size: 12px;
         }
 
         .tm-sign-col {
@@ -155,7 +155,7 @@
         }
 
         .tm-sign-block {
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .tm-sign-label {
@@ -164,14 +164,15 @@
 
         .tm-sign-line {
             border-bottom: 1px solid #9ca3af;
-            min-height: 14px;
-            padding-bottom: 1px;
+            min-height: 18px;
+            padding-bottom: 2px;
             font-weight: bold;
         }
 
         .tm-sign-sub {
-            margin-top: 2px;
-            line-height: 1.1;
+            margin-top: 3px;
+            line-height: 1.15;
+            font-size: 11px;
         }
 
         .attachment-name {
@@ -312,12 +313,18 @@
                 <div class="tm-sign-block">
                     <div class="tm-sign-label">Prepared by:</div>
                     <div class="tm-sign-line">{{ $transmittal->prepared_by_name ?? ' ' }}</div>
+                    <div class="tm-sign-sub">
+                        {{ $transmittal->prepared_at ? \Carbon\Carbon::parse($transmittal->prepared_at)->format('Y-m-d H:i:s') : '' }}
+                    </div>
                 </div>
 
                 <div class="tm-sign-block">
                     <div class="tm-sign-label">Approved by:</div>
                     <div class="tm-sign-line">{{ $transmittal->approved_by_name ?? ' ' }}</div>
                     <div class="tm-sign-sub">{{ $transmittal->approved_position ?? '' }}</div>
+                    <div class="tm-sign-sub">
+                        {{ $transmittal->approved_at ? \Carbon\Carbon::parse($transmittal->approved_at)->format('Y-m-d H:i:s') : '' }}
+                    </div>
                 </div>
 
                 <div class="tm-sign-block">
@@ -335,6 +342,11 @@
                 <div class="tm-sign-block">
                     <div class="tm-sign-label">Received by:</div>
                     <div class="tm-sign-line">{{ $transmittal->received_by ?? ' ' }}</div>
+                </div>
+
+                <div class="tm-sign-block">
+                    <div class="tm-sign-label">Affiliated to / Company:</div>
+                    <div class="tm-sign-line">{{ $transmittal->receiver_affiliation ?? ' ' }}</div>
                 </div>
 
                 <div class="tm-sign-block">

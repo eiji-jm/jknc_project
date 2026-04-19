@@ -37,6 +37,7 @@
         previewCustodian: '',
         previewDeliveredBy: 'Carmela Ortiz',
         previewReceivedBy: '',
+        previewReceiverAffiliation: '',
         previewReceivedAt: '',
 
         previewItems: [
@@ -342,6 +343,9 @@
                                     <div class="tm-sign-label tm-sign-gap">Received by:</div>
                                     <div class="tm-sign-line" x-text="previewReceivedBy || ' '"></div>
 
+                                    <div class="tm-sign-label tm-sign-gap-sm">Affiliated to / Company:</div>
+                                    <div class="tm-sign-line" x-text="previewReceiverAffiliation || ' '"></div>
+
                                     <div class="tm-sign-label tm-sign-gap">Date and Time:</div>
                                     <div class="tm-sign-line" x-text="previewReceivedAt || ' '"></div>
                                 </div>
@@ -575,6 +579,11 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-500 mb-1">Received by</label>
                                     <input type="text" x-model="previewReceivedBy" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-500 mb-1">Affiliated to / Company</label>
+                                    <input type="text" x-model="previewReceiverAffiliation" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                                 </div>
 
                                 <div>
@@ -997,6 +1006,7 @@ async function saveTransmittal() {
     formData.append('document_custodian', alpineData.previewCustodian ?? '');
     formData.append('delivered_by', alpineData.previewDeliveredBy ?? '');
     formData.append('received_by', alpineData.previewReceivedBy ?? '');
+    formData.append('receiver_affiliation', alpineData.previewReceiverAffiliation ?? '');
     formData.append('received_at', alpineData.previewReceivedAt ? alpineData.previewReceivedAt.replace('T', ' ') : '');
 
     const itemsWithoutFile = alpineData.previewItems.map((item, index) => ({

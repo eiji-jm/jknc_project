@@ -32,6 +32,7 @@ class Transmittal extends Model
         'document_custodian',
         'delivered_by',
         'received_by',
+        'receiver_affiliation',
         'received_at',
         'workflow_status',
         'approval_status',
