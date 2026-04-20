@@ -172,7 +172,8 @@
 
             @if($canSeeCrmModules && Auth::user()->hasPermission('access_contacts'))
                 <a href="{{ route('contacts.index') }}"
-                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('contacts*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-users text-base"></i>
                     <span>Contacts</span>
                 </a>
@@ -180,13 +181,14 @@
 
             @if($canSeeCrmModules && Auth::user()->hasPermission('access_company'))
                 <a href="{{ route('company.index') }}"
-                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('company*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-city text-base"></i>
                     <span>Company</span>
                 </a>
             @endif
 
-            @if(Auth::user()->hasPermission('access_company'))
+            @if(Auth::user()->hasPermission('access_transmittal'))
                 <a href="{{ route('transmittal.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('transmittal*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
@@ -195,42 +197,62 @@
                 </a>
             @endif
 
-            @if($canSeeCrmModules)
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_deals'))
                 <a href="{{ route('deals.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('deals*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-handshake text-base"></i>
                     <span>Deals</span>
                 </a>
+            @endif
 
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_services'))
                 <a href="{{ route('services.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('services*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-briefcase text-base"></i>
                     <span>Services</span>
                 </a>
+            @endif
 
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_project'))
                 <a href="{{ route('project.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('project*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-diagram-project text-base"></i>
                     <span>Project</span>
                 </a>
+            @endif
 
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_regular'))
                 <a href="{{ route('regular.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('regular*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-arrows-rotate text-base"></i>
                     <span>Regular</span>
                 </a>
+            @endif
 
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_product'))
                 <a href="{{ route('products.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('products*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-box-open text-base"></i>
                     <span>Product</span>
                 </a>
-                 <a href="{{ route('policies.index') }}"
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_sales_marketing'))
+                <a href="{{ route('sales-marketing.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('sales-marketing*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-chart-line text-base"></i>
+                    <span>Sales</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_policies'))
+                <a href="{{ route('policies.index') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('policies*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-file-contract text-base"></i>
@@ -327,6 +349,39 @@
                     </div>
                 </div>
 
+            </aside>
+
+        @elseif(
+            $canSeeCrmModules
+            && Auth::user()->hasPermission('access_sales_marketing')
+            && request()->routeIs('sales-marketing*')
+        )
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sales & Marketing</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('sales-marketing.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.index') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Dashboard
+                        </a>
+
+                        <a href="{{ route('sales-marketing.earners.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.earners.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Commission Earners
+                        </a>
+
+                        <a href="{{ route('sales-marketing.ida.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.ida.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            IDA Records
+                        </a>
+                    </div>
+                </div>
             </aside>
 
         @elseif(

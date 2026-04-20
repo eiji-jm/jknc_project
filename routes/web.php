@@ -61,6 +61,7 @@ use App\Http\Controllers\TransmittalController;
 use App\Http\Controllers\TransmittalReceiptController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SalesMarketingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -700,4 +701,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/transmittal/{transmittal}/preview', [TransmittalController::class, 'preview'])->name('transmittal.preview');
     Route::get('/transmittal/{transmittal}/preview-pdf', [TransmittalController::class, 'previewPdf'])->name('transmittal.preview.pdf');
     Route::get('/transmittal/{transmittal}/receipt-pdf', [TransmittalController::class, 'receiptPdf'])->name('transmittal.receipt.pdf');
+
+    /*
+|--------------------------------------------------------------------------
+| SALES & MARKETING MODULE
+|--------------------------------------------------------------------------
+*/
+Route::get('/sales-marketing', [SalesMarketingController::class, 'index'])->name('sales-marketing.index');
+Route::get('/sales-marketing/earners', [SalesMarketingController::class, 'earners'])->name('sales-marketing.earners.index');
+Route::get('/sales-marketing/ida', [SalesMarketingController::class, 'ida'])->name('sales-marketing.ida.index');
 });

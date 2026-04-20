@@ -83,18 +83,18 @@
                             <span>Create Town Hall</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="create_corporate" {{ $permission->create_corporate ? 'checked' : '' }}>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="create_corporate" {{ $permission->create_corporate ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
                             <span>Create Corporate</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="approve_corporate" {{ $permission->approve_corporate ? 'checked' : '' }}>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="approve_corporate" {{ $permission->approve_corporate ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
                             <span>Approve Corporate</span>
                         </label>
 
-                        <label class="flex items-center gap-3 border rounded-lg p-3">
-                            <input type="checkbox" name="access_townhall" {{ $permission->access_townhall ? 'checked' : '' }}>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_townhall" {{ $permission->access_townhall ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
                             <span>Access Town Hall</span>
                         </label>
 
@@ -116,6 +116,56 @@
                         <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
                             <input type="checkbox" name="access_company" {{ $permission->access_company ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
                             <span>Access Company</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_transmittal" {{ $permission->access_transmittal ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Transmittal</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_deals" {{ $permission->access_deals ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Deals</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_services" {{ $permission->access_services ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Services</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_project" {{ $permission->access_project ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Project</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_regular" {{ $permission->access_regular ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Regular</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_product" {{ $permission->access_product ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Product</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_policies" {{ $permission->access_policies ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Policies</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="create_sales_marketing" {{ $permission->create_sales_marketing ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Create Sales & Marketing</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="approve_sales_marketing" {{ $permission->approve_sales_marketing ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Approve Sales & Marketing</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_sales_marketing" {{ $permission->access_sales_marketing ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Sales & Marketing</span>
                         </label>
                     </div>
                 </form>
