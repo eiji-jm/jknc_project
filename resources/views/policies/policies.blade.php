@@ -50,6 +50,45 @@
             </button>
         </div>
 
+        {{-- SEARCH BAR --}}
+        <form method="GET" action="{{ route('policies.index') }}" class="mb-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div class="flex flex-col md:flex-row gap-3 md:items-center">
+                    <div class="flex-1">
+                        <input
+                            type="text"
+                            name="search"
+                            value="{{ request('search') }}"
+                            placeholder="Search code, classification, title, or policy content..."
+                            class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="submit"
+                            class="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                        >
+                            Search
+                        </button>
+
+                        <a
+                            href="{{ route('policies.index') }}"
+                            class="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                        >
+                            Reset
+                        </a>
+                    </div>
+                </div>
+
+                @if(request('search'))
+                    <p class="mt-3 text-xs text-gray-500">
+                        Search results for: <span class="font-semibold text-gray-700">{{ request('search') }}</span>
+                    </p>
+                @endif
+            </div>
+        </form>
+
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="overflow-x-auto no-scrollbar">
                 <table class="min-w-[1500px] w-full border-collapse text-sm text-gray-700">
@@ -112,18 +151,22 @@
                                 </td>
                             </tr>
                         @empty
-                            @for($i = 0; $i < 10; $i++)
-                                <tr class="border-b border-gray-50">
-                                    @for($j = 0; $j < 10; $j++)
-                                        <td class="px-4 py-4 border-r border-gray-50">&nbsp;</td>
-                                    @endfor
-                                </tr>
-                            @endfor
+                            <tr>
+                                <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                                    No policies found.
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+
+        @if(method_exists($policies, 'links'))
+            <div class="mt-4">
+                {{ $policies->links() }}
+            </div>
+        @endif
     </div>
 
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-[60] overflow-hidden">
@@ -145,7 +188,6 @@
                     <a
                         id="download-policy-pdf"
                         href="{{ route('policies.preview') }}"
-                        target="_blank"
                         class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow transition"
                     >
                         <i class="fas fa-file-pdf"></i>
@@ -155,7 +197,6 @@
 
                 <div class="max-w-[850px] mx-auto">
                     <div id="policy-preview-sheet" class="policy-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px] overflow-hidden">
-
                         <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
                             <div class="ml-auto text-right">
                                 <h1 class="text-[22px] font-bold tracking-wide text-[#2b6cb0]">John Kelly &amp; Company</h1>
@@ -200,7 +241,6 @@
                                 x-html="previewBody"
                             ></div>
                         </div>
-
                     </div>
                 </div>
             </div>

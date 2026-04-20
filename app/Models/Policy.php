@@ -19,6 +19,8 @@ class Policy extends Model
         'attachment',
         'approval_status',
         'workflow_status',
+        'is_archived',
+        'archived_at',
         'submitted_by',
         'approved_by_user_id',
         'approved_at',

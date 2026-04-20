@@ -321,6 +321,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/policies/{id}/reject', [PolicyController::class, 'reject'])->name('admin.policies.reject');
     Route::post('/admin/policies/{id}/revise', [PolicyController::class, 'revise'])->name('admin.policies.revise');
     Route::get('/admin/policies/{id}', [PolicyController::class, 'showAdmin'])->name('admin.policies.show');
+    Route::post('/admin/policies/{id}/archive', [PolicyController::class, 'archive'])->name('admin.policies.archive');
+    Route::post('/admin/policies/{id}/unarchive', [PolicyController::class, 'unarchive'])->name('admin.policies.unarchive');
     /*
     |--------------------------------------------------------------------------
     | COMPANY MODULE

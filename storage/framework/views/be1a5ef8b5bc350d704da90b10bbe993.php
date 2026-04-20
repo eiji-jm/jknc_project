@@ -11,6 +11,27 @@
     previewBody: '<p style=&quot;color:#9ca3af;&quot;>Define the policy scope and rules here...</p>'
 }">
 
+    <?php if(session('success')): ?>
+        <div class="px-6 pt-4">
+            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                <?php echo e(session('success')); ?>
+
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if($errors->any()): ?>
+        <div class="px-6 pt-4">
+            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <ul class="list-disc pl-5">
+                    <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <li><?php echo e($error); ?></li>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </ul>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="w-full px-6 py-4">
         <div class="flex items-center justify-between mb-4">
             <div>
@@ -28,9 +49,48 @@
             </button>
         </div>
 
+        
+        <form method="GET" action="<?php echo e(route('policies.index')); ?>" class="mb-4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div class="flex flex-col md:flex-row gap-3 md:items-center">
+                    <div class="flex-1">
+                        <input
+                            type="text"
+                            name="search"
+                            value="<?php echo e(request('search')); ?>"
+                            placeholder="Search code, classification, title, or policy content..."
+                            class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                        >
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="submit"
+                            class="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                        >
+                            Search
+                        </button>
+
+                        <a
+                            href="<?php echo e(route('policies.index')); ?>"
+                            class="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                        >
+                            Reset
+                        </a>
+                    </div>
+                </div>
+
+                <?php if(request('search')): ?>
+                    <p class="mt-3 text-xs text-gray-500">
+                        Search results for: <span class="font-semibold text-gray-700"><?php echo e(request('search')); ?></span>
+                    </p>
+                <?php endif; ?>
+            </div>
+        </form>
+
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="overflow-x-auto no-scrollbar">
-                <table class="min-w-[1400px] w-full border-collapse text-sm text-gray-700">
+                <table class="min-w-[1500px] w-full border-collapse text-sm text-gray-700">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
                             <th class="px-4 py-3 text-left font-semibold text-gray-600 border-r border-gray-100 w-[140px]">Status</th>
@@ -41,13 +101,14 @@
                             <th class="px-4 py-3 text-left font-semibold text-gray-600 border-r border-gray-100 w-[150px]">Reviewed by</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600 border-r border-gray-100 w-[150px]">Approved by</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-600 border-r border-gray-100 w-[160px]">Classification</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600 border-r border-gray-100 w-[130px]">Attachment</th>
                             <th class="px-4 py-3 text-center font-semibold text-gray-600 w-[120px]">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <?php $__empty_1 = true; $__currentLoopData = ($policies ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $policy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                             <tr class="hover:bg-blue-50/30 transition-colors">
-                                <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->status ?? 'Draft'); ?></td>
+                                <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->workflow_status ?? $policy->status ?? 'Draft'); ?></td>
                                 <td class="px-4 py-3 border-r border-gray-100 font-mono text-xs"><?php echo e($policy->code ?? '-'); ?></td>
                                 <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->version ?? '-'); ?></td>
                                 <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->effectivity_date ?? '-'); ?></td>
@@ -55,39 +116,57 @@
                                 <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->reviewed_by ?? '-'); ?></td>
                                 <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->approved_by ?? '-'); ?></td>
                                 <td class="px-4 py-3 border-r border-gray-100"><?php echo e($policy->classification ?? '-'); ?></td>
+                                <td class="px-4 py-3 border-r border-gray-100">
+                                    <?php if(!empty($policy->attachment)): ?>
+                                        <a
+                                            href="<?php echo e(asset('storage/' . $policy->attachment)); ?>"
+                                            target="_blank"
+                                            class="text-blue-600 hover:underline text-xs"
+                                        >
+                                            View File
+                                        </a>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-4 py-3 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <a
-                                        href="<?php echo e(route('policies.show', $policy->id)); ?>"
-                                        class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
-                                        title="View Policy"
-                                    >
-                                        <i class="far fa-eye"></i>
-                                    </a>
+                                    <div class="flex items-center justify-center gap-2">
+                                        <a
+                                            href="<?php echo e(route('policies.show', $policy->id)); ?>"
+                                            class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"
+                                            title="View Policy"
+                                        >
+                                            <i class="far fa-eye"></i>
+                                        </a>
 
-                                    <a
-                                        href="<?php echo e(route('policies.edit', $policy->id)); ?>"
-                                        class="p-1.5 text-gray-500 hover:bg-gray-100 rounded transition"
-                                        title="Edit Policy"
-                                    >
-                                        <i class="far fa-edit"></i>
-                                    </a>
-                                </div>
-                            </td>
+                                        <a
+                                            href="<?php echo e(route('policies.edit', $policy->id)); ?>"
+                                            class="p-1.5 text-gray-500 hover:bg-gray-100 rounded transition"
+                                            title="Edit Policy"
+                                        >
+                                            <i class="far fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
                             </tr>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                            <?php for($i = 0; $i < 10; $i++): ?>
-                                <tr class="border-b border-gray-50">
-                                    <?php for($j = 0; $j < 9; $j++): ?>
-                                        <td class="px-4 py-4 border-r border-gray-50">&nbsp;</td>
-                                    <?php endfor; ?>
-                                </tr>
-                            <?php endfor; ?>
+                            <tr>
+                                <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                                    No policies found.
+                                </td>
+                            </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <?php if(method_exists($policies, 'links')): ?>
+            <div class="mt-4">
+                <?php echo e($policies->links()); ?>
+
+            </div>
+        <?php endif; ?>
     </div>
 
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-[60] overflow-hidden">
@@ -109,7 +188,6 @@
                     <a
                         id="download-policy-pdf"
                         href="<?php echo e(route('policies.preview')); ?>"
-                        target="_blank"
                         class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow transition"
                     >
                         <i class="fas fa-file-pdf"></i>
@@ -119,8 +197,6 @@
 
                 <div class="max-w-[850px] mx-auto">
                     <div id="policy-preview-sheet" class="policy-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px] overflow-hidden">
-
-                        
                         <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
                             <div class="ml-auto text-right">
                                 <h1 class="text-[22px] font-bold tracking-wide text-[#2b6cb0]">John Kelly &amp; Company</h1>
@@ -128,12 +204,10 @@
                             </div>
                         </div>
 
-                        
                         <div class="text-center mb-8">
                             <h2 class="text-[20px] font-bold text-gray-900 uppercase" x-text="previewPolicy || 'NEW POLICY DOCUMENT'"></h2>
                         </div>
 
-                        
                         <div class="mb-8 overflow-hidden">
                             <table class="w-full border-collapse text-[13px] text-gray-700 table-fixed">
                                 <tr>
@@ -161,14 +235,12 @@
                             </table>
                         </div>
 
-                        
                         <div class="text-[15px] leading-8 text-gray-900 min-h-[420px] max-w-full overflow-hidden">
                             <div
                                 class="policy-preview-body prose prose-sm max-w-none w-full overflow-x-auto break-words [overflow-wrap:anywhere] [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4"
                                 x-html="previewBody"
                             ></div>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -191,7 +263,7 @@
                     </button>
                 </div>
 
-                <form id="policyFormSubmit" method="POST" action="<?php echo e(route('policies.store')); ?>" class="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+                <form id="policyFormSubmit" method="POST" action="<?php echo e(route('policies.store')); ?>" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 py-6 space-y-5">
                     <?php echo csrf_field(); ?>
 
                     <input type="hidden" name="code" value="AUTO-GENERATED">
@@ -298,6 +370,19 @@
                         <input type="hidden" name="description" id="description-input">
                     </div>
 
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Attachment</label>
+                        <input
+                            type="file"
+                            name="attachment"
+                            accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                        >
+                        <p class="mt-1 text-xs text-gray-400">
+                            Allowed: JPG, JPEG, PNG, GIF, WEBP, PDF, DOC, DOCX
+                        </p>
+                    </div>
+
                     <div class="pt-6 border-t border-gray-200 flex items-center gap-3 bg-white sticky bottom-0">
                         <button
                             type="button"
@@ -385,7 +470,6 @@
         margin: 0.75rem 0;
     }
 
-    /* PREVIEW TABLE */
     .policy-preview-body table {
         width: 100% !important;
         max-width: 100% !important;
@@ -423,7 +507,6 @@
         font-weight: 600 !important;
     }
 
-    /* EDITOR TABLE */
     .ql-editor table {
         width: 100% !important;
         max-width: 100% !important;

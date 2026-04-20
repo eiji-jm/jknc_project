@@ -20,10 +20,10 @@
         $acceptedCount = $policies->where('workflow_status', 'Accepted')->count();
         $rejectedCount = $policies->where('approval_status', 'Rejected')->count();
         $revertedCount = $policies->where('workflow_status', 'Reverted')->count();
+        $archivedCount = $policies->where('is_archived', true)->count();
     @endphp
 
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
-        {{-- HEADER --}}
         <div class="px-5 py-4 border-b border-gray-200">
             <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Policies Approval Dashboard</h1>
             <p class="text-sm text-gray-500 mt-1">Review policy submissions for approval</p>
@@ -31,8 +31,7 @@
 
         <div class="px-5 py-5 flex-1 flex flex-col gap-5">
 
-            {{-- SUMMARY CARDS --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-5">
                     <p class="text-xs font-semibold tracking-wide text-blue-600 uppercase">Submitted</p>
                     <p class="mt-2 text-[20px] font-bold text-blue-700">{{ $submittedCount }}</p>
@@ -52,9 +51,13 @@
                     <p class="text-xs font-semibold tracking-wide text-yellow-600 uppercase">Reverted</p>
                     <p class="mt-2 text-[20px] font-bold text-yellow-700">{{ $revertedCount }}</p>
                 </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-gray-100 px-4 py-5">
+                    <p class="text-xs font-semibold tracking-wide text-gray-600 uppercase">Archived</p>
+                    <p class="mt-2 text-[20px] font-bold text-gray-700">{{ $archivedCount }}</p>
+                </div>
             </div>
 
-            {{-- FILTERS --}}
             <form method="GET" action="{{ route('admin.policies.index') }}"
                   class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
@@ -110,7 +113,6 @@
                 </div>
             </form>
 
-            {{-- TABLE --}}
             <div class="border border-gray-200 rounded-xl overflow-hidden flex-1">
                 <table class="w-full text-sm text-left border-collapse">
                     <thead class="bg-gray-100 text-gray-700">
@@ -200,6 +202,30 @@
                                                     class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-white hover:bg-slate-900 transition"
                                                 >
                                                     Revise
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if(!$policy->is_archived && Auth::user()->hasPermission('approve_policies'))
+                                            <form method="POST" action="{{ route('admin.policies.archive', $policy->id) }}">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-700 text-white hover:bg-gray-800 transition"
+                                                >
+                                                    Archive
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if($policy->is_archived && Auth::user()->hasPermission('approve_policies'))
+                                            <form method="POST" action="{{ route('admin.policies.unarchive', $policy->id) }}">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                                                >
+                                                    Unarchive
                                                 </button>
                                             </form>
                                         @endif
