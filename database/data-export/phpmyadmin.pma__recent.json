@@ -1,0 +1,6 @@
+[
+    {
+        "username": "root",
+        "tables": "[{\"db\":\"jkandc\",\"table\":\"services\"},{\"db\":\"jkandc\",\"table\":\"user_permissions\"},{\"db\":\"jkandc\",\"table\":\"users\"}]"
+    }
+]

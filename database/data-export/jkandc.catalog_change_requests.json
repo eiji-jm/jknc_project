@@ -1,0 +1,18 @@
+[
+    {
+        "id": 1,
+        "module": "service",
+        "record_id": 37,
+        "record_public_id": "74894",
+        "record_name": "Test",
+        "action": "delete",
+        "payload": null,
+        "status": "Approved",
+        "submitted_by": 2,
+        "reviewed_by": 4,
+        "reviewed_at": "2026-04-12 19:22:41",
+        "rejection_notes": null,
+        "created_at": "2026-04-12 19:22:14",
+        "updated_at": "2026-04-12 19:22:41"
+    }
+]

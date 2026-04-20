@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('ultimate_beneficial_owners')) {
+            return;
+        }
+
         Schema::create('ultimate_beneficial_owners', function (Blueprint $table) {
             $table->id();
             $table->foreignId('gis_id')->constrained('gis_records')->cascadeOnDelete();

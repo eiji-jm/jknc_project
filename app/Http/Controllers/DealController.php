@@ -986,6 +986,11 @@ class DealController extends Controller
             'id' => $mockDeal['id'],
             ...$validated,
         ]);
+        $this->applyFeePersistence($createdDeal, $validated);
+        $this->syncDealNameToCode($createdDeal);
+        $createdDeal->save();
+        $this->projectProvisioner->createOrSyncFromDeal($createdDeal);
+
         $request->session()->forget('deals.preview_payload');
 
         return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
@@ -1034,6 +1039,11 @@ class DealController extends Controller
             'id' => $id,
             ...$validated,
         ]);
+        $this->applyFeePersistence($deal, $validated);
+        $this->ensureDealCodeAssigned($deal, $contact);
+        $this->syncDealNameToCode($deal);
+        $deal->save();
+        $this->projectProvisioner->createOrSyncFromDeal($deal);
 
         return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
     }
@@ -1138,7 +1148,7 @@ class DealController extends Controller
     public function show(int $id): View
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage', 'project'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'proposal'])->find($id);
             if ($storedDeal) {
                 $stages = $this->dealStages();
                 $currentStage = null;
@@ -1269,6 +1279,7 @@ class DealController extends Controller
                     'deal' => $deal,
                     'detail' => $detail,
                     'stages' => $stages,
+                    'hasSavedProposal' => $storedDeal->proposal !== null,
                     'dealFormData' => $this->storedDealFormData($storedDeal),
                     ...$this->dealPanelContext($this->storedDealFormData($storedDeal)),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
@@ -1371,6 +1382,7 @@ class DealController extends Controller
                 'deal' => $deal,
                 'detail' => $detail,
                 'stages' => $stages,
+                'hasSavedProposal' => false,
                 'dealFormData' => $this->normalizeDealFormData($mockPayload),
                 ...$this->dealPanelContext($this->normalizeDealFormData($mockPayload)),
                 'openDealModal' => (bool) request()->boolean('edit_deal'),
@@ -1532,6 +1544,7 @@ class DealController extends Controller
             'deal' => $deal,
             'detail' => $detail,
             'stages' => $stages,
+            'hasSavedProposal' => false,
             'dealFormData' => $this->normalizeDealFormData([
                 ...$deal,
                 'contact_id' => 101,
@@ -2465,9 +2478,24 @@ class DealController extends Controller
     }
 
     private function dealPersistencePayload(array $validated): array
-{
-    if (! Schema::hasTable('deals')) {
-        return [];
+    {
+        if (! Schema::hasTable('deals')) {
+            return $validated;
+        }
+
+        $dealColumns = collect(Schema::getColumnListing('deals'))
+            ->filter(fn ($column): bool => is_string($column) && $column !== '')
+            ->flip();
+
+        $validated = collect($validated)
+            ->filter(fn ($value, $key): bool => $dealColumns->has((string) $key))
+            ->all();
+
+        if (! Schema::hasColumn('deals', 'other_fees')) {
+            unset($validated['other_fees']);
+        }
+
+        return $validated;
     }
 
     $columns = array_flip(Schema::getColumnListing('deals'));

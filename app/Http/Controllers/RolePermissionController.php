@@ -27,10 +27,9 @@ class RolePermissionController extends Controller
 
                 'approve_townhall' => true,
                 'create_townhall' => true,
-
                 'create_corporate' => true,
                 'approve_corporate' => true,
-
+                'approve_policies' => true,
                 'access_townhall' => true,
                 'access_corporate' => true,
                 'access_activities' => true,
@@ -59,10 +58,9 @@ class RolePermissionController extends Controller
 
                 'approve_townhall' => true,
                 'create_townhall' => true,
-
                 'create_corporate' => true,
                 'approve_corporate' => true,
-
+                'approve_policies' => true,
                 'access_townhall' => true,
                 'access_corporate' => true,
                 'access_activities' => true,
@@ -91,10 +89,9 @@ class RolePermissionController extends Controller
 
                 'approve_townhall' => false,
                 'create_townhall' => false,
-
                 'create_corporate' => false,
                 'approve_corporate' => false,
-
+                'approve_policies' => false,
                 'access_townhall' => true,
                 'access_corporate' => true,
                 'access_activities' => false,
@@ -123,10 +120,9 @@ class RolePermissionController extends Controller
 
                 'approve_townhall' => false,
                 'create_townhall' => false,
-
                 'create_corporate' => false,
                 'approve_corporate' => false,
-
+                'approve_policies' => false,
                 'access_townhall' => true,
                 'access_corporate' => false,
                 'access_activities' => false,
@@ -187,7 +183,7 @@ class RolePermissionController extends Controller
 
                 'create_corporate',
                 'approve_corporate',
-
+                'approve_policies',
                 'access_townhall',
                 'access_corporate',
                 'access_activities',

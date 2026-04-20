@@ -1,0 +1,807 @@
+[
+    {
+        "id": 1,
+        "migration": "0001_01_01_000000_create_users_table",
+        "batch": 1
+    },
+    {
+        "id": 2,
+        "migration": "0001_01_01_000001_create_cache_table",
+        "batch": 1
+    },
+    {
+        "id": 3,
+        "migration": "0001_01_01_000002_create_jobs_table",
+        "batch": 1
+    },
+    {
+        "id": 4,
+        "migration": "2026_03_05_000003_create_contacts_table",
+        "batch": 2
+    },
+    {
+        "id": 5,
+        "migration": "2026_03_17_000001_add_intake_fields_to_contacts_table",
+        "batch": 3
+    },
+    {
+        "id": 6,
+        "migration": "2026_03_17_000002_create_deals_table",
+        "batch": 3
+    },
+    {
+        "id": 7,
+        "migration": "2026_03_18_000002_add_client_contact_form_fields_to_contacts_table",
+        "batch": 3
+    },
+    {
+        "id": 8,
+        "migration": "2026_03_22_000001_add_audit_metadata_to_contacts_table",
+        "batch": 3
+    },
+    {
+        "id": 9,
+        "migration": "2026_03_22_000002_create_specimen_signatures_table",
+        "batch": 4
+    },
+    {
+        "id": 10,
+        "migration": "2026_03_22_000003_create_products_table",
+        "batch": 5
+    },
+    {
+        "id": 11,
+        "migration": "2026_03_22_000004_create_product_custom_fields_table",
+        "batch": 5
+    },
+    {
+        "id": 12,
+        "migration": "2026_03_05_000001_create_companies_table",
+        "batch": 6
+    },
+    {
+        "id": 13,
+        "migration": "2026_03_06_000002_create_company_cifs_table",
+        "batch": 6
+    },
+    {
+        "id": 14,
+        "migration": "2026_03_07_070315_create_gis_records_table",
+        "batch": 6
+    },
+    {
+        "id": 15,
+        "migration": "2026_03_09_052940_create_calls_table",
+        "batch": 6
+    },
+    {
+        "id": 16,
+        "migration": "2026_03_09_052940_create_events_table",
+        "batch": 6
+    },
+    {
+        "id": 17,
+        "migration": "2026_03_09_052940_create_tasks_table",
+        "batch": 6
+    },
+    {
+        "id": 18,
+        "migration": "2026_03_09_052941_create_meetings_table",
+        "batch": 6
+    },
+    {
+        "id": 19,
+        "migration": "2026_03_09_104041_create_sec_coi_table",
+        "batch": 6
+    },
+    {
+        "id": 20,
+        "migration": "2026_03_10_092236_create_sec_aois_table",
+        "batch": 6
+    },
+    {
+        "id": 21,
+        "migration": "2026_03_10_104310_create_bylaws_table",
+        "batch": 6
+    },
+    {
+        "id": 22,
+        "migration": "2026_03_11_063500_create_authorized_capital_stocks_table",
+        "batch": 6
+    },
+    {
+        "id": 23,
+        "migration": "2026_03_11_063502_create_subscribed_capitals_table",
+        "batch": 6
+    },
+    {
+        "id": 24,
+        "migration": "2026_03_11_063503_create_directors_officers_table",
+        "batch": 6
+    },
+    {
+        "id": 25,
+        "migration": "2026_03_11_063503_create_paid_up_capitals_table",
+        "batch": 6
+    },
+    {
+        "id": 26,
+        "migration": "2026_03_11_063504_create_stockholders_table",
+        "batch": 6
+    },
+    {
+        "id": 27,
+        "migration": "2026_03_12_115450_add_role_to_users_table",
+        "batch": 6
+    },
+    {
+        "id": 28,
+        "migration": "2026_03_12_120500_add_missing_role_to_users_table",
+        "batch": 6
+    },
+    {
+        "id": 29,
+        "migration": "2026_03_15_222325_create_notes_table",
+        "batch": 6
+    },
+    {
+        "id": 30,
+        "migration": "2026_03_15_231800_create_settings_table",
+        "batch": 6
+    },
+    {
+        "id": 31,
+        "migration": "2026_03_16_000001_create_company_consultation_notes_table",
+        "batch": 6
+    },
+    {
+        "id": 32,
+        "migration": "2026_03_16_000002_create_company_activities_table",
+        "batch": 6
+    },
+    {
+        "id": 33,
+        "migration": "2026_03_16_000003_create_company_history_entries_table",
+        "batch": 6
+    },
+    {
+        "id": 34,
+        "migration": "2026_03_16_000004_add_company_id_to_corporate_formation_tables",
+        "batch": 6
+    },
+    {
+        "id": 35,
+        "migration": "2026_03_18_000001_refactor_company_cifs_for_client_information_form",
+        "batch": 6
+    },
+    {
+        "id": 36,
+        "migration": "2026_03_19_000001_create_company_bifs_table",
+        "batch": 6
+    },
+    {
+        "id": 37,
+        "migration": "2026_03_21_134929_add_to_from_to_calls_table",
+        "batch": 6
+    },
+    {
+        "id": 38,
+        "migration": "2026_03_21_143246_add_video_path_to_meetings_table",
+        "batch": 6
+    },
+    {
+        "id": 39,
+        "migration": "2026_03_22_120000_create_or_update_services_tables",
+        "batch": 6
+    },
+    {
+        "id": 40,
+        "migration": "2026_03_22_180000_add_repeater_json_to_company_bifs_table",
+        "batch": 6
+    },
+    {
+        "id": 41,
+        "migration": "2026_03_22_200000_add_client_portal_fields_to_company_bifs_table",
+        "batch": 6
+    },
+    {
+        "id": 42,
+        "migration": "2026_03_22_000005_add_cif_and_tin_to_contacts_table",
+        "batch": 7
+    },
+    {
+        "id": 43,
+        "migration": "2026_03_23_000001_add_unique_index_to_contacts_cif_no",
+        "batch": 7
+    },
+    {
+        "id": 44,
+        "migration": "2026_03_23_000002_add_client_portal_fields_to_contacts_table",
+        "batch": 7
+    },
+    {
+        "id": 45,
+        "migration": "2026_03_23_000003_create_company_contact_table",
+        "batch": 8
+    },
+    {
+        "id": 46,
+        "migration": "2026_03_26_000001_add_deal_code_to_deals_table",
+        "batch": 9
+    },
+    {
+        "id": 47,
+        "migration": "2026_03_12_080810_add_approval_fields_to_townhall_communications_table",
+        "batch": 10
+    },
+    {
+        "id": 48,
+        "migration": "2026_03_16_061015_create_role_permissions_table",
+        "batch": 10
+    },
+    {
+        "id": 49,
+        "migration": "2026_03_16_071001_add_create_townhall_to_role_permissions_table",
+        "batch": 10
+    },
+    {
+        "id": 50,
+        "migration": "2026_03_16_091302_create_user_permissions_table",
+        "batch": 10
+    },
+    {
+        "id": 51,
+        "migration": "2026_03_16_094226_update_user_role_enum",
+        "batch": 11
+    },
+    {
+        "id": 52,
+        "migration": "2026_03_26_000001_add_cif_status_to_contacts_table",
+        "batch": 11
+    },
+    {
+        "id": 53,
+        "migration": "2026_03_26_000002_add_primary_contact_id_to_companies_table",
+        "batch": 11
+    },
+    {
+        "id": 54,
+        "migration": "2026_03_26_000002_create_deal_stages_table",
+        "batch": 12
+    },
+    {
+        "id": 55,
+        "migration": "2026_03_26_000003_add_created_by_to_deals_table",
+        "batch": 12
+    },
+    {
+        "id": 56,
+        "migration": "2026_03_26_000003_add_deal_status_to_deals_table",
+        "batch": 12
+    },
+    {
+        "id": 57,
+        "migration": "2026_03_26_000004_add_deal_id_to_products_table",
+        "batch": 12
+    },
+    {
+        "id": 58,
+        "migration": "2026_03_26_000004_add_stage_id_to_deals_table",
+        "batch": 12
+    },
+    {
+        "id": 59,
+        "migration": "2026_03_26_000005_backfill_deal_stage_id_and_enforce_integrity",
+        "batch": 12
+    },
+    {
+        "id": 60,
+        "migration": "2026_03_26_000005_enforce_company_id_required_on_services_table",
+        "batch": 12
+    },
+    {
+        "id": 61,
+        "migration": "2026_03_26_000006_add_linked_service_foreign_key_to_products_table",
+        "batch": 12
+    },
+    {
+        "id": 62,
+        "migration": "2026_03_26_000007_add_cif_review_audit_fields_to_contacts_table",
+        "batch": 12
+    },
+    {
+        "id": 63,
+        "migration": "2026_03_27_000001_add_change_request_fields_to_company_bifs_table",
+        "batch": 12
+    },
+    {
+        "id": 64,
+        "migration": "2026_03_28_000001_add_service_and_product_totals_to_deals_table",
+        "batch": 12
+    },
+    {
+        "id": 65,
+        "migration": "2026_03_28_000002_add_missing_fee_columns_to_deals_table",
+        "batch": 12
+    },
+    {
+        "id": 66,
+        "migration": "2026_04_09_000001_add_qualification_and_approval_fields_to_deals_table",
+        "batch": 13
+    },
+    {
+        "id": 67,
+        "migration": "2026_03_11_061503_create_townhall_communications_table",
+        "batch": 14
+    },
+    {
+        "id": 68,
+        "migration": "2026_03_13_035447_add_company_fields_to_gis_records",
+        "batch": 14
+    },
+    {
+        "id": 69,
+        "migration": "2026_03_13_074706_add_intercompany_fields_to_gis_records_table",
+        "batch": 14
+    },
+    {
+        "id": 70,
+        "migration": "2026_03_16_085823_add_approval_fields_to_sec_coi_table",
+        "batch": 14
+    },
+    {
+        "id": 71,
+        "migration": "2026_03_16_085825_add_approval_fields_to_sec_aois_table",
+        "batch": 14
+    },
+    {
+        "id": 72,
+        "migration": "2026_03_16_085826_add_approval_fields_to_bylaws_table",
+        "batch": 14
+    },
+    {
+        "id": 73,
+        "migration": "2026_03_16_085826_add_approval_fields_to_gis_records_table",
+        "batch": 14
+    },
+    {
+        "id": 74,
+        "migration": "2026_04_10_000001_add_missing_approval_columns_to_townhall_communications_table",
+        "batch": 15
+    },
+    {
+        "id": 75,
+        "migration": "2026_03_16_104128_create_role_permissions_table",
+        "batch": 16
+    },
+    {
+        "id": 76,
+        "migration": "2026_03_16_114121_create_ultimate_beneficial_owners_table",
+        "batch": 16
+    },
+    {
+        "id": 77,
+        "migration": "2026_03_16_114126_create_stock_transfer_ledgers_table",
+        "batch": 16
+    },
+    {
+        "id": 78,
+        "migration": "2026_03_16_114132_create_stock_transfer_journals_table",
+        "batch": 16
+    },
+    {
+        "id": 79,
+        "migration": "2026_03_16_114135_create_stock_transfer_installments_table",
+        "batch": 16
+    },
+    {
+        "id": 80,
+        "migration": "2026_03_16_114139_create_stock_transfer_certificates_table",
+        "batch": 16
+    },
+    {
+        "id": 81,
+        "migration": "2026_03_16_114143_create_notices_table",
+        "batch": 16
+    },
+    {
+        "id": 82,
+        "migration": "2026_03_16_114147_create_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 83,
+        "migration": "2026_03_16_114150_create_resolutions_table",
+        "batch": 16
+    },
+    {
+        "id": 84,
+        "migration": "2026_03_16_114154_create_secretary_certificates_table",
+        "batch": 16
+    },
+    {
+        "id": 85,
+        "migration": "2026_03_16_114157_create_bir_taxes_table",
+        "batch": 16
+    },
+    {
+        "id": 86,
+        "migration": "2026_03_16_114202_create_nat_govs_table",
+        "batch": 16
+    },
+    {
+        "id": 87,
+        "migration": "2026_03_17_023903_create_townhall_acknowledgements_table",
+        "batch": 16
+    },
+    {
+        "id": 88,
+        "migration": "2026_03_17_072929_add_corporate_permissions_to_user_permissions_table",
+        "batch": 16
+    },
+    {
+        "id": 89,
+        "migration": "2026_03_18_060339_add_notary_file_path_to_sec_coi_table",
+        "batch": 16
+    },
+    {
+        "id": 90,
+        "migration": "2026_03_18_062849_add_notary_file_path_to_sec_aois_table",
+        "batch": 16
+    },
+    {
+        "id": 91,
+        "migration": "2026_03_18_064757_add_notary_file_path_to_bylaws_table",
+        "batch": 16
+    },
+    {
+        "id": 92,
+        "migration": "2026_03_18_070633_add_notary_file_path_to_gis_records_table",
+        "batch": 16
+    },
+    {
+        "id": 93,
+        "migration": "2026_03_18_080854_add_workflow_status_to_sec_coi_table",
+        "batch": 16
+    },
+    {
+        "id": 94,
+        "migration": "2026_03_19_053822_add_workflow_status_to_sec_aois_table",
+        "batch": 16
+    },
+    {
+        "id": 95,
+        "migration": "2026_03_19_062055_add_workflow_status_to_bylaws_table",
+        "batch": 16
+    },
+    {
+        "id": 96,
+        "migration": "2026_03_19_071349_add_workflow_status_to_gis_records_table",
+        "batch": 16
+    },
+    {
+        "id": 97,
+        "migration": "2026_03_20_000001_add_status_and_relationships_to_stock_transfer_tables",
+        "batch": 16
+    },
+    {
+        "id": 98,
+        "migration": "2026_03_20_000003_add_cancellation_fields_to_stock_transfer_installments_table",
+        "batch": 16
+    },
+    {
+        "id": 99,
+        "migration": "2026_03_20_062341_create_ultimate_beneficial_owners_table",
+        "batch": 16
+    },
+    {
+        "id": 100,
+        "migration": "2026_03_21_055239_create_stock_transfer_book_indexes_table",
+        "batch": 16
+    },
+    {
+        "id": 101,
+        "migration": "2026_03_21_120000_link_corporate_meeting_documents",
+        "batch": 16
+    },
+    {
+        "id": 102,
+        "migration": "2026_03_21_130000_add_approved_minutes_fields_to_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 103,
+        "migration": "2026_03_21_130504_add_recipient_label_to_townhall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 104,
+        "migration": "2026_03_21_170000_link_resolutions_to_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 105,
+        "migration": "2026_03_21_180000_add_workspace_files_to_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 106,
+        "migration": "2026_03_21_190000_add_recording_clips_to_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 107,
+        "migration": "2026_03_21_200000_add_script_text_to_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 108,
+        "migration": "2026_03_21_201000_expand_recording_notes_on_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 109,
+        "migration": "2026_03_21_202000_add_approved_document_fields_to_bir_taxes_and_nat_govs",
+        "batch": 16
+    },
+    {
+        "id": 110,
+        "migration": "2026_03_21_203910_create_permits_table",
+        "batch": 16
+    },
+    {
+        "id": 111,
+        "migration": "2026_03_21_205616_create_correspondences_table",
+        "batch": 16
+    },
+    {
+        "id": 112,
+        "migration": "2026_03_22_090000_add_certificate_tracking_and_create_issuance_requests_table",
+        "batch": 16
+    },
+    {
+        "id": 113,
+        "migration": "2026_03_22_092038_create_stock_transfer_book_ledgers_table",
+        "batch": 16
+    },
+    {
+        "id": 114,
+        "migration": "2026_03_22_112530_create_stock_transfer_book_journals_table",
+        "batch": 16
+    },
+    {
+        "id": 115,
+        "migration": "2026_03_22_115611_create_stock_transfer_book_certificates_table",
+        "batch": 16
+    },
+    {
+        "id": 116,
+        "migration": "2026_03_22_115816_create_stock_transfer_book_certificate_vouchers_table",
+        "batch": 16
+    },
+    {
+        "id": 117,
+        "migration": "2026_03_22_120000_add_payment_fields_to_stock_transfer_installments_table",
+        "batch": 16
+    },
+    {
+        "id": 118,
+        "migration": "2026_03_22_122929_create_stock_transfer_book_issuance_requests_table",
+        "batch": 16
+    },
+    {
+        "id": 119,
+        "migration": "2026_03_22_140444_add_status_to_stock_transfer_book_certificates_table",
+        "batch": 16
+    },
+    {
+        "id": 120,
+        "migration": "2026_03_22_140518_create_stock_transfer_book_certificate_cancellations_table",
+        "batch": 16
+    },
+    {
+        "id": 121,
+        "migration": "2026_03_22_143117_create_stock_transfer_book_installments_table",
+        "batch": 16
+    },
+    {
+        "id": 122,
+        "migration": "2026_03_22_170000_add_deadline_tracking_to_townhall_communications",
+        "batch": 16
+    },
+    {
+        "id": 123,
+        "migration": "2026_03_22_170100_add_deadline_date_to_nat_govs_table",
+        "batch": 16
+    },
+    {
+        "id": 124,
+        "migration": "2026_03_23_075228_create_accountings_table",
+        "batch": 16
+    },
+    {
+        "id": 125,
+        "migration": "2026_03_23_080651_create_bankings_table",
+        "batch": 16
+    },
+    {
+        "id": 126,
+        "migration": "2026_03_23_082209_create_operations_table",
+        "batch": 16
+    },
+    {
+        "id": 127,
+        "migration": "2026_03_23_102852_add_audio_path_to_calls_table",
+        "batch": 16
+    },
+    {
+        "id": 128,
+        "migration": "2026_03_23_115343_add_audio_path_to_meetings_table",
+        "batch": 16
+    },
+    {
+        "id": 129,
+        "migration": "2026_03_23_120000_add_par_value_to_stock_transfer_installments_table",
+        "batch": 16
+    },
+    {
+        "id": 130,
+        "migration": "2026_03_23_150000_add_minutes_link_to_secretary_certificates_table",
+        "batch": 16
+    },
+    {
+        "id": 131,
+        "migration": "2026_03_23_180000_add_notes_fields_to_bir_tax_and_natgov_tables",
+        "batch": 16
+    },
+    {
+        "id": 132,
+        "migration": "2026_03_23_190000_add_document_histories_to_bir_taxes_and_nat_govs_tables",
+        "batch": 16
+    },
+    {
+        "id": 133,
+        "migration": "2026_03_23_200000_add_document_path_to_stock_transfer_issuance_requests_table",
+        "batch": 16
+    },
+    {
+        "id": 134,
+        "migration": "2026_03_23_210000_create_authority_notes_table",
+        "batch": 16
+    },
+    {
+        "id": 135,
+        "migration": "2026_03_24_042414_add_admin_user_management_permissions_to_users_table",
+        "batch": 16
+    },
+    {
+        "id": 136,
+        "migration": "2026_03_24_120000_ensure_recording_notes_is_longtext_on_minutes_table",
+        "batch": 16
+    },
+    {
+        "id": 137,
+        "migration": "2026_03_25_025910_add_workflow_status_to_permits_table",
+        "batch": 16
+    },
+    {
+        "id": 138,
+        "migration": "2026_03_25_035545_add_approval_fields_to_permits_table",
+        "batch": 16
+    },
+    {
+        "id": 139,
+        "migration": "2026_03_25_062617_add_expiration_fields_to_town_hall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 140,
+        "migration": "2026_03_25_070530_add_archive_fields_to_townhall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 141,
+        "migration": "2026_03_25_071229_add_workflow_columns_to_accountings_table",
+        "batch": 16
+    },
+    {
+        "id": 142,
+        "migration": "2026_03_25_152600_create_legals_table",
+        "batch": 16
+    },
+    {
+        "id": 143,
+        "migration": "2026_03_25_154837_add_workflow_columns_to_bankings_table",
+        "batch": 16
+    },
+    {
+        "id": 144,
+        "migration": "2026_03_25_160931_add_workflow_columns_to_operations_table",
+        "batch": 16
+    },
+    {
+        "id": 145,
+        "migration": "2026_03_25_164559_add_workflow_columns_to_correspondences_table",
+        "batch": 16
+    },
+    {
+        "id": 146,
+        "migration": "2026_03_26_141518_add_workflow_columns_to_legals_table",
+        "batch": 16
+    },
+    {
+        "id": 147,
+        "migration": "2026_03_30_133607_add_ack_deadline_at_to_townhall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 148,
+        "migration": "2026_03_30_143448_add_priority_to_townhall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 149,
+        "migration": "2026_04_11_000002_add_missing_archive_columns_to_townhall_communications_table",
+        "batch": 16
+    },
+    {
+        "id": 150,
+        "migration": "2026_04_12_120000_make_services_global_and_seed_defaults",
+        "batch": 16
+    },
+    {
+        "id": 151,
+        "migration": "2026_04_12_150000_add_tax_type_to_services_table",
+        "batch": 16
+    },
+    {
+        "id": 152,
+        "migration": "2026_04_12_170000_add_linked_service_ids_to_products_table",
+        "batch": 17
+    },
+    {
+        "id": 153,
+        "migration": "2026_04_12_180000_add_tax_treatment_to_products_table",
+        "batch": 18
+    },
+    {
+        "id": 154,
+        "migration": "2026_04_12_190000_seed_default_deal_products_into_products_table",
+        "batch": 19
+    },
+    {
+        "id": 155,
+        "migration": "2026_04_12_210000_create_catalog_change_requests_table",
+        "batch": 20
+    },
+    {
+        "id": 156,
+        "migration": "2026_04_12_220000_add_requirement_fields_to_products_table",
+        "batch": 21
+    },
+    {
+        "id": 157,
+        "migration": "2026_04_12_230000_create_projects_table",
+        "batch": 22
+    },
+    {
+        "id": 158,
+        "migration": "2026_04_12_230100_create_project_starts_table",
+        "batch": 22
+    },
+    {
+        "id": 159,
+        "migration": "2026_04_12_230200_create_project_sows_table",
+        "batch": 22
+    },
+    {
+        "id": 160,
+        "migration": "2026_04_12_230300_create_project_sow_reports_table",
+        "batch": 22
+    },
+    {
+        "id": 161,
+        "migration": "2026_04_13_010000_create_deal_proposals_table",
+        "batch": 23
+    }
+]

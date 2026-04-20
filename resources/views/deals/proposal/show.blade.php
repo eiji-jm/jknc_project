@@ -4,9 +4,75 @@
 @section('content')
 <style>
     .proposal-workspace-card { min-height: calc(100vh - 15rem); }
-    .proposal-preview-frame { min-height: 1100px; }
+    .proposal-preview-shell { min-height: 1100px; }
+    .proposal-preview-scroll { max-height: calc(100vh - 16rem); overflow: auto; background: #eef2f7; }
+    .proposal-doc { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.55; }
+    .proposal-page {
+        width: min(100%, 820px);
+        margin: 0 auto 24px;
+        background: #fff;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        border: 1px solid #dbe2ea;
+        padding: 52px 58px;
+    }
+    .proposal-cover { min-height: 1100px; position: relative; }
+    .proposal-cover-logo-wrap { width: 100%; }
+    .proposal-brand-logo { width: 470px; max-width: 100%; height: auto; object-fit: contain; }
+    .proposal-cover-body { margin-top: 165px; color: #0031af; }
+    .proposal-cover-year { font-size: 86px; line-height: 1; font-style: italic; font-weight: 700; }
+    .proposal-cover-title { margin-top: 14px; font-size: 32px; line-height: 1.22; font-style: italic; }
+    .proposal-cover-date { margin-top: 60px; font-size: 14px; color: #111827; font-style: italic; }
+    .proposal-presented-label { margin-top: 70px; font-size: 15px; font-style: italic; }
+    .proposal-presented-name, .proposal-presented-location { margin-top: 10px; font-size: 16px; font-weight: 700; font-style: italic; }
+    .proposal-contact-strip { margin: 8px 8px 22px; }
+    .proposal-contact-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .proposal-contact-table td { border: 1px solid #c9c9c9; padding: 7px 8px; text-align: center; color: #0031af; font-size: 12px; font-style: italic; }
+    .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
+    .proposal-section-heading { margin: 18px 0 12px; font-size: 24px; line-height: 1.18; color: #0031af; font-style: italic; font-weight: 700; }
+    .proposal-section-number { display: inline-block; width: 48px; }
+    .proposal-subheading { margin: 18px 0 8px; font-size: 15px; line-height: 1.35; color: #111827; font-weight: 700; }
+    .proposal-subheading-blue { color: #0031af; font-style: italic; font-weight: 700; }
+    .proposal-subheading-tight { margin-top: 16px; }
+    .proposal-paragraph, .proposal-note, .proposal-system-note { margin: 0 0 10px; font-size: 12px; line-height: 1.58; text-align: justify; }
+    .proposal-note { color: #475569; font-style: italic; }
+    .proposal-system-note { margin-top: 24px; font-size: 10px; color: #475569; }
+    .proposal-bullet-list { margin: 0 0 10px 18px; padding: 0; font-size: 12px; line-height: 1.55; }
+    .proposal-bullet-list li { margin-bottom: 6px; }
+    .proposal-requirement-group { margin-bottom: 12px; }
+    .proposal-requirement-label { margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #0031af; }
+    .proposal-service-table, .proposal-pricing-table, .proposal-data-table { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
+    .proposal-service-table th, .proposal-service-table td, .proposal-pricing-table th, .proposal-pricing-table td, .proposal-data-table th, .proposal-data-table td {
+        border: 1px solid #111827;
+        padding: 8px 10px;
+        font-size: 11px;
+        vertical-align: top;
+    }
+    .proposal-service-table th, .proposal-pricing-table th, .proposal-data-table th { text-align: left; font-weight: 700; }
+    .proposal-service-no { width: 7%; }
+    .proposal-service-area { width: 24%; }
+    .proposal-service-scope { width: 69%; }
+    .proposal-service-area-title { font-style: italic; font-size: 12px; }
+    .proposal-service-scope-list ol { margin: 0; padding-left: 18px; }
+    .proposal-service-scope-list li { margin: 0 0 4px; }
+    .proposal-pricing-table th:last-child, .proposal-pricing-table td:last-child { text-align: center; width: 34%; }
+    .proposal-pricing-table .is-total td { font-weight: 700; color: #0031af; }
+    .proposal-term-block + .proposal-term-block { margin-top: 8px; }
+    .proposal-signature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 30px; }
+    .proposal-signature-label { font-size: 12px; font-weight: 700; margin-bottom: 50px; }
+    .proposal-signature-line { border-bottom: 1px solid #111827; padding-bottom: 6px; font-size: 12px; }
+    .proposal-signature-subline { margin-top: 8px; font-size: 12px; }
+    .proposal-footer-note { margin-top: 90px; font-size: 10px; color: #5a6470; }
+    .proposal-footer-note div { margin-bottom: 2px; }
     @media (max-width: 1279px) {
-        .proposal-preview-frame { min-height: 900px; }
+        .proposal-preview-shell { min-height: 900px; }
+    }
+    @media (max-width: 768px) {
+        .proposal-page { padding: 32px 20px; }
+        .proposal-cover { min-height: auto; }
+        .proposal-cover-body { margin-top: 72px; }
+        .proposal-cover-year { font-size: 56px; }
+        .proposal-cover-title { font-size: 26px; }
+        .proposal-signature-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -15,24 +81,17 @@
         <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
             <a href="{{ route('deals.show', $deal->id) }}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
             <div>
-                <div class="text-lg font-semibold">Create Proposal</div>
-                <div class="text-xs text-gray-500">{{ $deal->deal_code }}</div>
+                <div class="text-lg font-semibold">{{ ($readOnlyPreview ?? false) ? $deal->deal_code : 'Create Proposal' }}</div>
+                <div class="text-xs text-gray-500">{{ ($readOnlyPreview ?? false) ? ($proposal->reference_id ?: 'Saved proposal preview') : $deal->deal_code }}</div>
             </div>
             <div class="flex-1"></div>
             <span id="proposal-preview-badge" class="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                {{ $generatedPdfUrl ? 'Exact preview ready' : 'Generating preview' }}
+                {{ $generatedPdfUrl ? (($readOnlyPreview ?? false) ? 'Proposal preview ready' : 'Exact preview ready') : 'Generating preview' }}
             </span>
-            <a
-                id="proposal-docx-download"
-                href="{{ $generatedDocxDownloadUrl ?: '#' }}"
-                class="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 {{ $generatedDocxDownloadUrl ? '' : 'pointer-events-none opacity-50' }}"
-            >
-                Download DOCX
-            </a>
             <a
                 id="proposal-pdf-download"
                 href="{{ $generatedPdfDownloadUrl ?: '#' }}"
-                class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 {{ $generatedPdfDownloadUrl ? '' : 'pointer-events-none opacity-50' }}"
+                class="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 {{ $generatedPdfDownloadUrl ? '' : 'pointer-events-none opacity-50' }}"
             >
                 Download PDF
             </a>
@@ -45,11 +104,103 @@
         <div class="grid grid-cols-1 xl:grid-cols-[minmax(430px,0.95fr)_minmax(0,1.55fr)] gap-6 p-6">
             <div class="rounded-2xl border border-gray-200 bg-white overflow-hidden proposal-workspace-card">
                 <div class="border-b border-gray-100 px-5 py-4">
-                    <div class="text-sm font-semibold text-gray-900">Create Proposal Form</div>
-                    <div class="mt-1 text-xs text-gray-500">The form is auto-filled from the deal. Edit any field and the right-side preview regenerates from the exact Word template.</div>
+                    <div class="text-sm font-semibold text-gray-900">{{ ($readOnlyPreview ?? false) ? 'Saved Proposal Details' : 'Create Proposal Form' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">
+                        {{ ($readOnlyPreview ?? false)
+                            ? 'This proposal has already been prepared and is shown here as a read-only record.'
+                            : 'The form is auto-filled from the deal. Edit any field and the right-side preview regenerates for the final PDF output.' }}
+                    </div>
                 </div>
 
                 <div class="max-h-[calc(100vh-15rem)] overflow-y-auto px-5 py-5">
+                    @if ($readOnlyPreview ?? false)
+                    <div class="space-y-5 text-sm text-gray-700">
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Deal Code</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ $deal->deal_code }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Reference ID</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ $proposal->reference_id ?: '-' }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Prepared Date</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ optional($proposal->proposal_date)->format('F d, Y') ?: '-' }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Prepared By</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ $proposal->prepared_by_name ?: '-' }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 md:col-span-2">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Location</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ $proposal->location ?: '-' }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 md:col-span-2">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Service Type</div>
+                                <div class="mt-1 font-semibold text-gray-900">{{ $proposal->service_type ?: '-' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Proposal Message</div>
+                            <p class="mt-2 whitespace-pre-line leading-6 text-gray-800">{{ $proposal->our_proposal_text ?: '-' }}</p>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Scope of Service / Assistance</div>
+                            <p class="mt-2 whitespace-pre-line leading-6 text-gray-800">{{ $proposal->scope_of_service ?: '-' }}</p>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">What You Will Receive</div>
+                            <p class="mt-2 whitespace-pre-line leading-6 text-gray-800">{{ $proposal->what_you_will_receive ?: '-' }}</p>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                {{ $requirementGroup === 'sole' ? 'Requirements - Sole / Individual' : 'Requirements - Juridical' }}
+                            </div>
+                            <p class="mt-2 whitespace-pre-line leading-6 text-gray-800">{{ $requirementGroup === 'sole' ? ($proposal->requirements_sole ?: '-') : ($proposal->requirements_juridical ?: '-') }}</p>
+                        </div>
+
+                        <div class="rounded-xl border border-gray-200 bg-white px-4 py-4">
+                            <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Optional Requirements</div>
+                            <p class="mt-2 whitespace-pre-line leading-6 text-gray-800">{{ $proposal->requirements_optional ?: '-' }}</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Regular Price</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_regular, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Discount</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_discount, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Subtotal</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_subtotal, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Tax</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_tax, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Total</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_total, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Downpayment</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_down, 2) }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 md:col-span-2">
+                                <div class="text-xs font-medium uppercase tracking-wide text-gray-500">Balance</div>
+                                <div class="mt-1 font-semibold text-gray-900">P{{ number_format((float) $proposal->price_balance, 2) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    @else
                     <form method="POST" action="{{ route('deals.proposal.update', $deal) }}" id="proposal-live-form" class="space-y-4">
                         @csrf
                         @method('PUT')
@@ -149,6 +300,7 @@
                             <button type="button" id="proposal-refresh-button" class="inline-flex rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh Preview</button>
                         </div>
                     </form>
+                    @endif
                 </div>
             </div>
 
@@ -156,9 +308,11 @@
                 <div class="border-b border-gray-100 bg-white px-5 py-4">
                     <div class="flex items-start gap-3">
                         <div>
-                            <div class="text-sm font-semibold text-gray-900">Exact Proposal Preview</div>
+                            <div class="text-sm font-semibold text-gray-900">{{ ($readOnlyPreview ?? false) ? $deal->deal_code.' Preview' : 'Proposal Preview' }}</div>
                             <div id="proposal-preview-status" class="mt-1 text-xs text-gray-500">
-                                {{ $generatedPdfUrl ? 'This preview is rendered from the generated Word template output, so it should match the full proposal document instead of a rebuilt HTML copy.' : 'Generating the exact Word-template preview.' }}
+                                {{ $generatedPdfUrl
+                                    ? (($readOnlyPreview ?? false) ? 'This is the saved proposal preview aligned with the downloadable PDF output.' : 'This preview is aligned with the downloadable PDF output.')
+                                    : (($readOnlyPreview ?? false) ? 'This saved proposal preview is aligned with the PDF output while the downloadable file is generated in the background.' : 'This preview is aligned with the PDF output while the downloadable file is generated in the background.') }}
                             </div>
                         </div>
                     </div>
@@ -168,16 +322,11 @@
                 </div>
 
                 <div class="flex-1 p-5">
-                    <div id="proposal-preview-panel" class="h-full rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                        <iframe
-                            id="proposal-preview-frame"
-                            src="{{ $generatedPdfUrl ?: 'about:blank' }}"
-                            class="proposal-preview-frame h-full w-full {{ $generatedPdfUrl ? '' : 'hidden' }}"
-                            title="Exact proposal preview"
-                        ></iframe>
-
-                        <div id="proposal-preview-placeholder" class="flex h-full min-h-[420px] items-center justify-center px-8 text-center text-sm text-gray-500 {{ $generatedPdfUrl ? 'hidden' : '' }}">
-                            The exact template preview will appear here once the proposal file is generated successfully.
+                    <div id="proposal-preview-panel" class="proposal-preview-shell h-full rounded-2xl border border-gray-200 bg-white overflow-hidden">
+                        <div id="proposal-preview-scroll" class="proposal-preview-scroll h-full">
+                            <div id="proposal-preview-html">
+                                {!! $proposalDocumentHtml !!}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -186,6 +335,7 @@
     </div>
 </div>
 
+@unless ($readOnlyPreview ?? false)
 <script type="application/json" id="dealProposalPreviewData">@json([
     'previewUrl' => route('deals.proposal.preview', $deal),
 ])</script>
@@ -197,15 +347,13 @@
     const previewUrl = previewData.previewUrl || '';
     const form = document.getElementById('proposal-live-form');
     const refreshButton = document.getElementById('proposal-refresh-button');
-    const frame = document.getElementById('proposal-preview-frame');
-    const placeholder = document.getElementById('proposal-preview-placeholder');
+    const htmlPreview = document.getElementById('proposal-preview-html');
     const status = document.getElementById('proposal-preview-status');
     const errorBox = document.getElementById('proposal-preview-error');
     const badge = document.getElementById('proposal-preview-badge');
-    const docxDownload = document.getElementById('proposal-docx-download');
     const pdfDownload = document.getElementById('proposal-pdf-download');
 
-    if (!form || !refreshButton || !frame || !placeholder || !status || !errorBox || !badge || !docxDownload || !pdfDownload) {
+    if (!form || !refreshButton || !htmlPreview || !status || !errorBox || !badge || !pdfDownload) {
         return;
     }
 
@@ -232,27 +380,23 @@
     };
 
     const setReady = (payload) => {
-        badge.textContent = 'Exact preview ready';
+        badge.textContent = payload.pdf_url ? 'Preview ready' : 'HTML preview ready';
         badge.classList.remove('bg-blue-50', 'text-blue-700', 'bg-amber-50', 'text-amber-700');
         badge.classList.add('bg-emerald-50', 'text-emerald-700');
-        status.textContent = 'Preview updated from the exact Word template output.';
+        status.textContent = payload.pdf_url
+            ? 'Preview updated and downloadable PDF refreshed.'
+            : 'Preview updated from the same proposal data used for the generated PDF.';
         errorBox.classList.add('hidden');
+        htmlPreview.innerHTML = payload.html || htmlPreview.innerHTML;
 
-        setButtonState(docxDownload, payload.docx_url || null);
         setButtonState(pdfDownload, payload.pdf_download_url || null);
-
-        if (payload.pdf_url) {
-            frame.src = `${payload.pdf_url}${payload.pdf_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-            frame.classList.remove('hidden');
-            placeholder.classList.add('hidden');
-        }
     };
 
     const setError = (message) => {
         badge.textContent = 'Preview failed';
         badge.classList.remove('bg-blue-50', 'text-blue-700', 'bg-emerald-50', 'text-emerald-700');
         badge.classList.add('bg-amber-50', 'text-amber-700');
-        status.textContent = 'The exact Word-template preview could not be generated yet.';
+        status.textContent = 'The proposal preview could not be refreshed just yet.';
         errorBox.textContent = message;
         errorBox.classList.remove('hidden');
     };
@@ -263,7 +407,7 @@
         }
 
         activeController = new AbortController();
-        setBusy('Regenerating the exact proposal preview from the Word template.');
+        setBusy('Regenerating the proposal preview for the PDF output.');
 
         try {
             const formData = new FormData(form);
@@ -305,4 +449,5 @@
     refreshButton.addEventListener('click', refreshPreview);
 })();
 </script>
+@endunless
 @endsection

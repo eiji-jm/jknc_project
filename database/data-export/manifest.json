@@ -1,0 +1,466 @@
+{
+    "exported_at": "2026-04-15T15:50:36+08:00",
+    "connection": "mysql",
+    "tables": [
+        {
+            "table": "jkandc.accountings",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.authority_notes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.authorized_capital_stocks",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.bankings",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.bir_taxes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.bylaws",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.cache",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.cache_locks",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.calls",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.catalog_change_requests",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.companies",
+            "rows": 3
+        },
+        {
+            "table": "jkandc.company_activities",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.company_bifs",
+            "rows": 2
+        },
+        {
+            "table": "jkandc.company_cifs",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.company_consultation_notes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.company_contact",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.company_history_entries",
+            "rows": 6
+        },
+        {
+            "table": "jkandc.contacts",
+            "rows": 2
+        },
+        {
+            "table": "jkandc.correspondences",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.deal_proposals",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.deal_stages",
+            "rows": 9
+        },
+        {
+            "table": "jkandc.deals",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.directors_officers",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.events",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.failed_jobs",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.gis_records",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.job_batches",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.jobs",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.legals",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.meetings",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.migrations",
+            "rows": 161
+        },
+        {
+            "table": "jkandc.minutes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.nat_govs",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.notes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.notices",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.operations",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.paid_up_capitals",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.password_reset_tokens",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.permits",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.product_custom_fields",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.products",
+            "rows": 25
+        },
+        {
+            "table": "jkandc.project_sow_reports",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.project_sows",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.project_starts",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.projects",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.resolutions",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.role_permissions",
+            "rows": 4
+        },
+        {
+            "table": "jkandc.sec_aois",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.sec_coi",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.secretary_certificates",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.service_custom_fields",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.services",
+            "rows": 35
+        },
+        {
+            "table": "jkandc.sessions",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.settings",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.specimen_signatures",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.stock_transfer_book_certificate_cancellations",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_certificate_vouchers",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_certificates",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_indexes",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_installments",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_issuance_requests",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_journals",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_book_ledgers",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_certificates",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_installments",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_issuance_requests",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_journals",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stock_transfer_ledgers",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.stockholders",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.subscribed_capitals",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.tasks",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.townhall_acknowledgements",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.townhall_communications",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.ultimate_beneficial_owners",
+            "rows": 0
+        },
+        {
+            "table": "jkandc.user_permissions",
+            "rows": 1
+        },
+        {
+            "table": "jkandc.users",
+            "rows": 5
+        },
+        {
+            "table": "jknc_eos.cache",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.cache_locks",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.failed_jobs",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.job_batches",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.jobs",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.migrations",
+            "rows": 3
+        },
+        {
+            "table": "jknc_eos.password_reset_tokens",
+            "rows": 0
+        },
+        {
+            "table": "jknc_eos.sessions",
+            "rows": 5
+        },
+        {
+            "table": "jknc_eos.users",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.cache",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.cache_locks",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.failed_jobs",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.job_batches",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.jobs",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.migrations",
+            "rows": 5
+        },
+        {
+            "table": "minutes_system.minutes_sessions",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.minutes_transcripts",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.password_reset_tokens",
+            "rows": 0
+        },
+        {
+            "table": "minutes_system.sessions",
+            "rows": 9
+        },
+        {
+            "table": "minutes_system.users",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__bookmark",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__central_columns",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__column_info",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__designer_settings",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__export_templates",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__favorite",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__history",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__navigationhiding",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__pdf_pages",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__recent",
+            "rows": 1
+        },
+        {
+            "table": "phpmyadmin.pma__relation",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__savedsearches",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__table_coords",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__table_info",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__table_uiprefs",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__tracking",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__userconfig",
+            "rows": 1
+        },
+        {
+            "table": "phpmyadmin.pma__usergroups",
+            "rows": 0
+        },
+        {
+            "table": "phpmyadmin.pma__users",
+            "rows": 0
+        }
+    ]
+}

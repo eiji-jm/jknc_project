@@ -53,8 +53,13 @@
                     </a>
                 @endif
                 @if (data_get($detail, 'project.id'))
-                    <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
-                        <i class="fas fa-diagram-project mr-1"></i>Open Project
+                    @php
+                        $linkedEngagementType = strtolower(trim((string) data_get($detail, 'service.engagement_type', '')));
+                        $linkedRoute = str_contains($linkedEngagementType, 'regular') ? 'regular.show' : 'project.show';
+                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project';
+                    @endphp
+                    <a href="{{ route($linkedRoute, data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                        <i class="fas fa-diagram-project mr-1"></i>{{ $linkedLabel }}
                     </a>
                 @endif
                 <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -248,6 +253,13 @@
                             <p class="mt-1 text-xs text-gray-600"><i class="fas fa-phone mr-1"></i>{{ $detail['contact_number'] ?? '-' }}</p>
                         </div>
                     </div>
+                    @if (($hasSavedProposal ?? false) === true)
+                        <div class="mt-4 border-t border-gray-100 pt-4">
+                            <a href="{{ route('deals.proposal.preview-page', $deal['id']) }}" class="block w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium text-blue-700 hover:bg-blue-100">
+                                <i class="fas fa-eye mr-1"></i>{{ $deal['deal_code'] ?? 'Proposal Preview' }}
+                            </a>
+                        </div>
+                    @endif
                 </article>
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
