@@ -969,22 +969,43 @@ class DealController extends Controller
     }
 
     public function store(Request $request): RedirectResponse
-{
-    $validated = $this->validateDealPayload($request);
-    $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
-        ? $validated['deal_code']
-        : Deal::generateNextDealCode();
-    $validated['deal_name'] = $validated['deal_code'];
+    {
+        $validated = $this->validateDealPayload($request);
+        $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
+            ? $validated['deal_code']
+            : Deal::generateNextDealCode();
+        $validated['deal_name'] = $validated['deal_code'];
 
-    $contact = $this->resolveContact((int) $validated['contact_id']);
-    abort_unless($contact, 404);
+        $contact = $this->resolveContact((int) $validated['contact_id']);
+        abort_unless($contact, 404);
 
-    if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
-        $mockDeal = $this->buildMockSavedDeal($validated, $contact);
-        $request->session()->put('deals.mock_saved', $mockDeal);
-        $request->session()->put('deals.mock_saved_payload', [
-            'id' => $mockDeal['id'],
-            ...$validated,
+        if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
+            $mockDeal = $this->buildMockSavedDeal($validated, $contact);
+            $request->session()->put('deals.mock_saved', $mockDeal);
+            $request->session()->put('deals.mock_saved_payload', [
+                'id' => $mockDeal['id'],
+                ...$validated,
+            ]);
+            $request->session()->forget('deals.preview_payload');
+
+            return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
+        }
+
+        $createdDeal = Deal::query()->create([
+            ...$this->dealPersistencePayload($validated),
+            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
+            ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
+            'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+            'salutation' => $validated['salutation'] ?? $contact->salutation,
+            'first_name' => $validated['first_name'] ?? $contact->first_name,
+            'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
+            'last_name' => $validated['last_name'] ?? $contact->last_name,
+            'email' => $validated['email'] ?? $contact->email,
+            'mobile' => $validated['mobile'] ?? $contact->phone,
+            'address' => $validated['address'] ?? $contact->contact_address,
+            'company_name' => $validated['company_name'] ?? $contact->company_name,
+            'company_address' => $validated['company_address'] ?? $contact->company_address,
+            'position' => $validated['position'] ?? $contact->position,
         ]);
         $this->applyFeePersistence($createdDeal, $validated);
         $this->syncDealNameToCode($createdDeal);
@@ -993,51 +1014,48 @@ class DealController extends Controller
 
         $request->session()->forget('deals.preview_payload');
 
-        return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
+        return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created and submitted for approval.');
     }
 
-    $payload = [
-        ...$this->dealPersistencePayload($validated),
-        ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
-        ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
-        'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
-        'salutation' => $validated['salutation'] ?? $contact->salutation,
-        'first_name' => $validated['first_name'] ?? $contact->first_name,
-        'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
-        'last_name' => $validated['last_name'] ?? $contact->last_name,
-        'email' => $validated['email'] ?? $contact->email,
-        'mobile' => $validated['mobile'] ?? $contact->phone,
-        'address' => $validated['address'] ?? $contact->contact_address,
-        'company_name' => $validated['company_name'] ?? $contact->company_name,
-        'company_address' => $validated['company_address'] ?? $contact->company_address,
-        'position' => $validated['position'] ?? $contact->position,
-    ];
-
-    $createdDeal = Deal::query()->create(
-        $this->filterPersistableDealAttributes($payload)
-    );
-
-    $this->applyFeePersistence($createdDeal, $validated);
-    $this->syncDealNameToCode($createdDeal);
-    $createdDeal->save();
-
-    $request->session()->forget('deals.preview_payload');
-
-    return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created and submitted for approval.');
-}
-
     public function update(Request $request, int $id): RedirectResponse
-{
-    $validated = $this->validateDealPayload($request);
-    $contact = $this->resolveContact((int) $validated['contact_id']);
-    abort_unless($contact, 404);
+    {
+        $validated = $this->validateDealPayload($request);
+        $contact = $this->resolveContact((int) $validated['contact_id']);
+        abort_unless($contact, 404);
 
-    if (! Schema::hasTable('deals')) {
-        $mockSaved = $this->buildMockSavedDeal($validated, $contact) + ['id' => $id];
-        $request->session()->put('deals.mock_saved', $mockSaved);
-        $request->session()->put('deals.mock_saved_payload', [
-            'id' => $id,
-            ...$validated,
+        if (! Schema::hasTable('deals')) {
+            $mockSaved = $this->buildMockSavedDeal($validated, $contact) + ['id' => $id];
+            $request->session()->put('deals.mock_saved', $mockSaved);
+            $request->session()->put('deals.mock_saved_payload', [
+                'id' => $id,
+                ...$validated,
+            ]);
+
+            return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
+        }
+
+        $deal = Deal::query()->findOrFail($id);
+        $validated['deal_code'] = Deal::hasValidDealCode($deal->deal_code)
+            ? $deal->deal_code
+            : Deal::generateNextDealCode(
+                year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
+                ignoreDealId: $deal->id
+            );
+        $validated['deal_name'] = $validated['deal_code'];
+        $deal->fill([
+            ...$this->dealPersistencePayload($validated),
+            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
+            'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+            'salutation' => $validated['salutation'] ?? $contact->salutation,
+            'first_name' => $validated['first_name'] ?? $contact->first_name,
+            'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
+            'last_name' => $validated['last_name'] ?? $contact->last_name,
+            'email' => $validated['email'] ?? $contact->email,
+            'mobile' => $validated['mobile'] ?? $contact->phone,
+            'address' => $validated['address'] ?? $contact->contact_address,
+            'company_name' => $validated['company_name'] ?? $contact->company_name,
+            'company_address' => $validated['company_address'] ?? $contact->company_address,
+            'position' => $validated['position'] ?? $contact->position,
         ]);
         $this->applyFeePersistence($deal, $validated);
         $this->ensureDealCodeAssigned($deal, $contact);
@@ -1045,45 +1063,8 @@ class DealController extends Controller
         $deal->save();
         $this->projectProvisioner->createOrSyncFromDeal($deal);
 
-        return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
+        return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
     }
-
-    $deal = Deal::query()->findOrFail($id);
-    $validated['deal_code'] = Deal::hasValidDealCode($deal->deal_code)
-        ? $deal->deal_code
-        : Deal::generateNextDealCode(
-            year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
-            ignoreDealId: $deal->id
-        );
-    $validated['deal_name'] = $validated['deal_code'];
-
-    $payload = [
-        ...$this->dealPersistencePayload($validated),
-        ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
-        'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
-        'salutation' => $validated['salutation'] ?? $contact->salutation,
-        'first_name' => $validated['first_name'] ?? $contact->first_name,
-        'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
-        'last_name' => $validated['last_name'] ?? $contact->last_name,
-        'email' => $validated['email'] ?? $contact->email,
-        'mobile' => $validated['mobile'] ?? $contact->phone,
-        'address' => $validated['address'] ?? $contact->contact_address,
-        'company_name' => $validated['company_name'] ?? $contact->company_name,
-        'company_address' => $validated['company_address'] ?? $contact->company_address,
-        'position' => $validated['position'] ?? $contact->position,
-    ];
-
-    $deal->fill(
-        $this->filterPersistableDealAttributes($payload)
-    );
-
-    $this->applyFeePersistence($deal, $validated);
-    $this->ensureDealCodeAssigned($deal, $contact);
-    $this->syncDealNameToCode($deal);
-    $deal->save();
-
-    return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
-}
 
     public function approve(Request $request, int $id): RedirectResponse
     {
@@ -2497,30 +2478,6 @@ class DealController extends Controller
 
         return $validated;
     }
-
-    $columns = array_flip(Schema::getColumnListing('deals'));
-
-    return collect($validated)
-        ->filter(fn ($_value, $key) => isset($columns[$key]))
-        ->all();
-}
-
-private function filterPersistableDealAttributes(array $attributes): array
-{
-    static $dealColumns = null;
-
-    if (! Schema::hasTable('deals')) {
-        return [];
-    }
-
-    if ($dealColumns === null) {
-        $dealColumns = array_flip(Schema::getColumnListing('deals'));
-    }
-
-    return collect($attributes)
-        ->filter(fn ($_value, $key) => isset($dealColumns[$key]))
-        ->all();
-}
 
     private function applyFeePersistence(Deal $deal, array $validated): void
     {

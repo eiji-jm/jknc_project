@@ -24,7 +24,6 @@ class RolePermission extends Model
         'access_activities',
         'access_contacts',
         'access_company',
-<<<<<<< HEAD
 
         'access_transmittal',
         'access_deals',
@@ -37,8 +36,6 @@ class RolePermission extends Model
         'create_sales_marketing',
         'approve_sales_marketing',
         'access_sales_marketing',
-=======
         'approve_policies',
->>>>>>> origin/Admin/TownHall/CorporateActivities/Contacts
     ];
 }
