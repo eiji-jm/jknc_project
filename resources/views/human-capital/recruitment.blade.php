@@ -808,19 +808,20 @@
                 x-transition:leave-end="translate-x-full"
                 class="h-full w-full bg-white shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
                 <div class="flex items-center justify-between px-8 py-5 border-b bg-gray-50 flex-shrink-0">
-                <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
-                        <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format: A4</span>
-                    <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 active:translate-y-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Export to PDF
-                    </button>
-                    <button @click="showViewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
+                    <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
+                            <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format: A4</span>
+                        </div>
+                        <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 active:translate-y-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Export to PDF
+                        </button>
+                        <button @click="showViewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
                 </div>
-            </div>
             <div class="flex-1 overflow-y-auto bg-gray-100 py-10 px-6" x-show="viewData">
                 <template x-if="viewData">
                 <div id="mrf-doc-view" class="border border-gray-300 bg-white p-4 mx-auto w-[794px] shrink-0">
@@ -896,8 +897,12 @@
                 </div>
                 </template>
             </div>
-            <div class="flex justify-end px-10 py-6 border-t bg-white shrink-0">
-                <button @click="showViewModal = false" class="px-10 py-3 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all transform hover:scale-[1.02] active:scale-100">Close Form</button>
+            <div class="flex justify-end gap-4 px-10 py-6 border-t bg-white shrink-0">
+                <button @click="showViewModal = false" class="px-8 py-3 text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold transition-all">Cancel</button>
+                <button @click="approveMRF(viewData.id); showViewModal = false" class="px-10 py-3 text-base bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Approve
+                </button>
             </div>
             </div>
         </div>
