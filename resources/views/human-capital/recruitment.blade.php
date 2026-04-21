@@ -2000,7 +2000,8 @@
                             <div class="shrink-0">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Applicant Photo (2x2)</label>
                                 <div class="relative group">
-                                    <label class="flex flex-col items-center justify-center w-32 h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition overflow-hidden">
+                                    <label @dragover.prevent @drop.prevent="cafForm.photo = $event.dataTransfer.files[0]"
+                                        class="flex flex-col items-center justify-center w-32 h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition overflow-hidden">
                                         <template x-if="!cafForm.photo && !isEditing">
                                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                                 <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -2056,7 +2057,8 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Resume / CV</label>
-                                <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
+                                <label @dragover.prevent @drop.prevent="cafForm.cv = $event.dataTransfer.files[0]"
+                                    class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
                                     <div class="flex flex-col items-center justify-center pt-4 pb-4">
                                         <svg x-show="!cafForm.cv" class="w-7 h-7 mb-2 text-gray-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                         <svg x-show="cafForm.cv" class="w-7 h-7 mb-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -2068,7 +2070,8 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cover Letter</label>
-                                <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
+                                <label @dragover.prevent @drop.prevent="cafForm.coverLetterFile = $event.dataTransfer.files[0]"
+                                    class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
                                     <div class="flex flex-col items-center justify-center pt-4 pb-4">
                                         <svg x-show="!cafForm.coverLetterFile" class="w-7 h-7 mb-2 text-gray-400 group-hover:text-indigo-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                         <svg x-show="cafForm.coverLetterFile" class="w-7 h-7 mb-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -2271,74 +2274,152 @@
         <div @click="showCafViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
             x-show="showCafViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+        <div class="fixed inset-y-0 right-0 max-w-[90rem] w-full flex pointer-events-none">
             <div x-show="showCafViewModal" 
-                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter="transform transition ease-in-out duration-700"
                 x-transition:enter-start="translate-x-full"
                 x-transition:enter-end="translate-x-0"
-                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave="transform transition ease-in-out duration-500"
                 x-transition:leave-start="translate-x-0"
                 x-transition:leave-end="translate-x-full"
-                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                class="h-full w-full bg-gray-50 shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
                 <template x-if="viewCafData">
-                    <div class="flex flex-col h-full">
-                        <div class="h-32 bg-gradient-to-r from-teal-500 to-emerald-600 p-8 relative shrink-0">
-                            <button @click="showCafViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                            <div class="absolute -bottom-10 left-8">
-                                <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white text-teal-600 overflow-hidden">
-                                    <template x-if="viewCafData.photo_path">
-                                        <img :src="'/storage/' + viewCafData.photo_path" class="w-full h-full object-cover">
+                    <div class="flex h-full overflow-hidden">
+                        
+                        {{-- LEFT: DOCUMENT VIEW --}}
+                        <div class="flex-1 flex flex-col bg-gray-200 border-r border-gray-300 p-6 overflow-hidden" x-data="{ docTab: 'summary' }">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <div class="flex bg-white rounded-xl p-1 border border-gray-300 shadow-sm">
+                                    <button @click="docTab = 'summary'" :class="docTab === 'summary' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Summary</button>
+                                    <button x-show="viewCafData.cv_path" @click="docTab = 'resume'" :class="docTab === 'resume' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Resume / CV</button>
+                                    <button x-show="viewCafData.cover_letter_path" @click="docTab = 'coverletter'" :class="docTab === 'coverletter' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Cover Letter File</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <template x-if="viewCafData.cv_path">
+                                        <a :href="'/storage/' + viewCafData.cv_path" target="_blank" class="px-4 py-2 bg-white text-gray-700 rounded-lg text-[10px] font-bold uppercase border border-gray-300 shadow-sm hover:bg-gray-50 transition">Fullscreen</a>
                                     </template>
-                                    <template x-if="!viewCafData.photo_path">
-                                        <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 bg-white rounded-2xl shadow-inner border border-gray-300 flex flex-col overflow-hidden relative">
+                                {{-- SUMMARY TAB --}}
+                                <div x-show="docTab === 'summary'" class="flex-1 overflow-y-auto p-12 bg-gray-100/50 flex flex-col items-center">
+                                    <div class="w-full max-w-4xl bg-white shadow-2xl border border-gray-200 p-16 font-sans space-y-12 min-h-[1200px]">
+                                        <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8">
+                                            <div class="w-32 h-32 border-2 border-gray-100 rounded-2xl overflow-hidden bg-gray-50 shrink-0">
+                                                <template x-if="viewCafData.photo_path">
+                                                    <img :src="'/storage/' + viewCafData.photo_path" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!viewCafData.photo_path">
+                                                    <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                                        <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div class="flex-1 ml-10">
+                                                <h1 class="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2" x-text="viewCafData.name"></h1>
+                                                <p class="text-xl text-teal-600 font-bold uppercase tracking-widest" x-text="viewCafData.position"></p>
+                                                <div class="mt-4 space-y-1 text-xs font-bold text-gray-500">
+                                                    <p x-text="viewCafData.email"></p>
+                                                    <p x-text="viewCafData.phone"></p>
+                                                </div>
+                                            </div>
+                                            <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="Logo" class="h-16 w-auto object-contain">
+                                        </div>
+
+                                        <div class="space-y-6">
+                                            <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest border-b pb-2">Cover Letter / Statement</h3>
+                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" x-text="viewCafData.cover_letter && viewCafData.cover_letter !== 'null' ? viewCafData.cover_letter : (viewCafData.cover_letter_path ? 'See attached cover letter file.' : 'No cover letter text provided.')"></div>
+                                        </div>
+                                        
+                                        <div class="pt-20 border-t border-gray-100 flex justify-between items-center opacity-30">
+                                            <p class="text-[8px] font-black uppercase tracking-widest">Candidate Record</p>
+                                            <p class="text-[8px] font-black uppercase tracking-widest">John Kelly & Company</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- RESUME PDF TAB --}}
+                                <div x-show="docTab === 'resume'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewCafData.cv_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+
+                                {{-- COVER LETTER FILE TAB --}}
+                                <div x-show="docTab === 'coverletter'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewCafData.cover_letter_path" class="w-full h-full border-none shadow-2xl"></iframe>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex-1 overflow-y-auto px-8 pt-16 pb-8 space-y-8">
-                            <div>
-                                <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewCafData.name"></h2>
-                                <p class="text-teal-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewCafData.position"></p>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium shadow-sm">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Address</p>
-                                    <p class="text-gray-800 break-all text-sm" x-text="viewCafData.email"></p>
+                        {{-- RIGHT: CANDIDATE INFO --}}
+                        <div class="w-[450px] bg-white border-l border-gray-200 flex flex-col shrink-0">
+                            <div class="h-44 bg-gradient-to-r from-teal-500 to-emerald-600 relative shrink-0">
+                                <button @click="showCafViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md z-20">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="absolute -bottom-12 left-10 z-10 text-center">
+                                    <div class="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-4 border-white text-teal-600 overflow-hidden mx-auto">
+                                        <template x-if="viewCafData.photo_path">
+                                            <img :src="'/storage/' + viewCafData.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!viewCafData.photo_path">
+                                            <svg class="w-16 h-16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        </template>
+                                    </div>
                                 </div>
-                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium shadow-sm">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone Number</p>
-                                    <p class="text-gray-800 text-sm" x-text="viewCafData.phone"></p>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-10 pt-16 pb-8 space-y-10">
+                                <div class="text-center">
+                                    <h2 class="text-3xl font-black text-gray-900 tracking-tight capitalize" x-text="viewCafData.name"></h2>
+                                    <p class="text-teal-600 font-bold tracking-[0.2em] uppercase text-[11px] mt-1" x-text="viewCafData.position"></p>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email Address</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-teal-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 break-all text-sm font-bold" x-text="viewCafData.email"></p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Phone Number</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-teal-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v3.31A.75.75 0 019 9.31L7.15 10.63a.75.75 0 00-.2 1.05c.87 1.34 2.1 2.57 3.44 3.44a.75.75 0 001.05-.2l1.32-1.85a.75.75 0 011-.31h3.31a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75h-2.25c-7.46 0-13.5-6.04-13.5-13.5v-2.25z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 text-sm font-bold" x-text="viewCafData.phone"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-teal-50/30 p-6 rounded-[2rem] border border-teal-100 shadow-sm">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <div class="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
+                                        <p class="text-[10px] font-black text-teal-700 uppercase tracking-widest">Application Status</p>
+                                    </div>
+                                    <p class="text-sm font-bold text-teal-900" x-text="'Applied on ' + (viewCafData.created_at ? new Date(viewCafData.created_at).toLocaleDateString() : '—')"></p>
                                 </div>
                             </div>
 
-                            <div x-show="viewCafData.cover_letter" class="bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Cover Letter / Message</p>
-                                <div class="text-sm text-gray-700 leading-relaxed italic" x-text="viewCafData.cover_letter"></div>
-                            </div>
-
-                            <div class="flex gap-4">
-                                <a :href="'/storage/' + viewCafData.cv_path" target="_blank" x-show="viewCafData.cv_path" 
-                                    class="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition text-center shadow-lg shadow-teal-100 uppercase tracking-widest text-[10px] flex items-center justify-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
-                                    Resume
-                                </a>
-                                <a :href="'/storage/' + viewCafData.cover_letter_path" target="_blank" x-show="viewCafData.cover_letter_path" 
-                                    class="flex-1 py-3 bg-white hover:bg-gray-50 border border-teal-600 text-teal-600 font-bold rounded-xl transition text-center shadow-sm uppercase tracking-widest text-[10px] flex items-center justify-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                    Cover Letter
-                                </a>
+                            <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
+                                <button @click="openAssessmentFromCaf(viewCafData)" 
+                                    class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-teal-100 uppercase tracking-[0.25em] text-[11px] active:scale-95">
+                                    Proceed to Assessment
+                                </button>
+                                <button @click="showCafViewModal = false" class="w-full py-3 text-gray-500 hover:text-gray-800 font-bold uppercase tracking-widest text-[10px] transition">
+                                    Dismiss
+                                </button>
                             </div>
                         </div>
-
-                        <div class="px-8 py-6 border-t border-gray-100 flex gap-3 shrink-0">
-                            <button @click="showCafViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
-                                Close
-                            </button>
-                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
                     </div>
                 </template>
             </div>
@@ -2986,6 +3067,18 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         viewCAF(row) {
             this.viewCafData = row;
             this.showCafViewModal = true;
+        },
+
+        openAssessmentFromCaf(row) {
+            this.showCafViewModal = false;
+            this.assessmentForm = {
+                name: row.name,
+                position: row.position,
+                test: 'Technical Test',
+                date: new Date().toISOString().split('T')[0],
+                notes: ''
+            };
+            this.showAssessmentModal = true;
         },
 
         viewInterview(row) {
