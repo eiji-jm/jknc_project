@@ -26,6 +26,15 @@ class RecruitmentController extends Controller
         ));
     }
 
+    public function showPublicApplicationForm()
+    {
+        $positions = JobPosting::where('status', 'Posted')->pluck('position')->unique();
+        if ($positions->isEmpty()) {
+            $positions = JobPosting::pluck('position')->unique(); // Fallback to all if none posted
+        }
+        return view('careers.apply', compact('positions'));
+    }
+
     public function storeMRF(Request $request)
     {
         $data = [

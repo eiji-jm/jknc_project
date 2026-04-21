@@ -21,6 +21,8 @@ Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 Route::get('/register', [RegisterController::class, 'show'])->name('register');
 Route::post('/register', [RegisterController::class, 'submit'])->name('register.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::get('/careers/apply', [RecruitmentController::class, 'showPublicApplicationForm'])->name('careers.apply');
+Route::post('/careers/apply', [RecruitmentController::class, 'storeCAF'])->name('careers.apply.submit');
 
 Route::middleware('auth')->group(function () {
     Route::get('/permits', [PermitController::class, 'index']);
