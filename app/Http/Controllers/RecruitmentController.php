@@ -64,6 +64,38 @@ class RecruitmentController extends Controller
         return response()->json(['success' => true, 'data' => $mrf]);
     }
 
+    public function updateMRF(Request $request, $id)
+    {
+        $mrf = ManpowerRequest::findOrFail($id);
+        $data = [
+            'department'         => $request->department,
+            'date_requested'     => $request->dateRequested,
+            'date_required'      => $request->dateRequired,
+            'position'           => $request->position,
+            'employment_type'    => $request->employmentType,
+            'duties'             => $request->duties,
+            'nature_of_request'  => $request->natureOfRequest,
+            'age_range'          => $request->ageRange,
+            'civil_status'       => $request->civilStatus,
+            'gender'             => $request->gender,
+            'headcount'          => $request->headcount,
+            'education'          => $request->education,
+            'qualifications'     => $request->qualifications,
+            'requested_by'       => $request->requestedBy,
+            'approved_by'        => $request->approvedBy,
+            'remarks'            => $request->remarks,
+            'request_status'     => $request->requestStatus ?: $mrf->request_status,
+            'charged_to'         => $request->chargedTo,
+            'breakdown_details'  => $request->breakdownDetails,
+            'hired_personnel'    => $request->hiredPersonnel,
+            'date_hired'         => $request->dateHired,
+            'processed_by'       => $request->processedBy,
+            'checked_by'         => $request->checkedBy,
+        ];
+        $mrf->update($data);
+        return response()->json(['success' => true, 'data' => $mrf]);
+    }
+
     public function storeJPF(Request $request)
     {
         $data = [
@@ -87,6 +119,22 @@ class RecruitmentController extends Controller
         return response()->json(['success' => true, 'data' => $jpf]);
     }
 
+    public function updateJPF(Request $request, $id)
+    {
+        $jpf = JobPosting::findOrFail($id);
+        $data = [
+            'position'         => $request->position,
+            'employment_type'  => $request->employmentType,
+            'location'         => $request->location,
+            'salary_range'     => $request->salaryRange,
+            'job_description'  => $request->jobDescription,
+            'requirements'     => $request->requirements,
+            'status'           => $request->status ?: $jpf->status,
+        ];
+        $jpf->update($data);
+        return response()->json(['success' => true, 'data' => $jpf]);
+    }
+
     public function storeCAF(Request $request)
     {
         $cvPath = null;
@@ -105,6 +153,26 @@ class RecruitmentController extends Controller
             'applied_date' => date('Y-m-d')
         ]);
 
+        return response()->json(['success' => true, 'data' => $caf]);
+    }
+
+    public function updateCAF(Request $request, $id)
+    {
+        $caf = CandidateApplication::findOrFail($id);
+        $data = [
+            'name' => $request->fullName,
+            'position' => $request->positionApplied,
+            'email' => $request->email,
+            'phone' => $request->phone,
+            'cover_letter' => $request->coverLetter,
+            'status' => $request->status ?: $caf->status,
+        ];
+
+        if ($request->hasFile('cv')) {
+            $data['cv_path'] = $request->file('cv')->store('resumes', 'public');
+        }
+
+        $caf->update($data);
         return response()->json(['success' => true, 'data' => $caf]);
     }
 

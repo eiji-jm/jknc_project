@@ -665,9 +665,15 @@
                             class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Employee ID</label>
-                        <input type="text" x-model="empRegForm.employeeId" placeholder="EMP-2026-XXX"
-                            class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">
+                            Employee ID
+                            <span class="ml-1 text-[10px] font-normal text-blue-500 inline-flex items-center gap-0.5">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Auto-generated
+                            </span>
+                        </label>
+                        <input type="text" x-model="empRegForm.employeeId" readonly
+                            class="w-full text-sm px-3 py-2 border border-blue-200 rounded-lg bg-blue-50 text-blue-700 font-mono font-semibold outline-none cursor-default tracking-wide">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600 mb-1">Department</label>
@@ -862,7 +868,7 @@ function onboardingPage() {
                 this.checklistForm = { employeeName: '', checked: [] };
                 this.showChecklistModal = true;
             } else if (this.activeTab === 'Employee Registration') {
-                this.empRegForm = { fullName: '', employeeId: '', department: '', startDate: '', workEmail: '', manager: '' };
+                this.empRegForm = { fullName: '', employeeId: this.generateEmployeeId(), department: '', startDate: '', workEmail: '', manager: '' };
                 this.showEmpRegModal = true;
             } else if (this.activeTab === 'Training') {
                 this.trainingForm = { employeeName: '', program: '', startDate: '', dueDate: '', trainer: '', description: '' };
@@ -922,6 +928,13 @@ function onboardingPage() {
         deleteTraining(index) {
             if (!confirm('Delete this training record?')) return;
             this.data['Training'].splice(index, 1);
+        },
+
+        generateEmployeeId() {
+            const year = new Date().getFullYear();
+            const existing = this.data['Employee Registration'];
+            const seq = existing.length + 1;
+            return 'EMP-' + year + '-' + String(seq).padStart(3, '0');
         },
 
         downloadPdsPdf() {

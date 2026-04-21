@@ -100,6 +100,7 @@
                             <td class="px-4 py-3 text-gray-500" x-text="row.date_requested"></td>
                             <td class="px-4 py-3">
                                 <button @click="viewMRF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editMRF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
                                 <button @click="deleteMRF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
@@ -134,6 +135,7 @@
                             <td class="px-4 py-3 text-gray-500" x-text="row.posted_date"></td>
                             <td class="px-4 py-3">
                                 <button @click="viewJPF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editJPF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
                                 <button @click="deleteJPF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
@@ -168,6 +170,7 @@
                             <td class="px-4 py-3 text-gray-500" x-text="row.applied_date || row.applied"></td>
                             <td class="px-4 py-3">
                                 <button @click="viewCAF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editCAF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
                                 <button @click="deleteCAF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
@@ -390,7 +393,7 @@
         >
             {{-- Top bar --}}
             <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
-                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest">New Manpower Request</h2>
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Manpower Request' : 'New Manpower Request'"></h2>
                 <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
@@ -594,11 +597,7 @@
                     <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
                         <div class="flex items-center gap-2">
-                            <select x-model="paperSize" class="text-xs border border-gray-300 rounded px-2 py-1 text-gray-700 bg-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                                <option value="a4">A4 Size</option>
-                                <option value="letter">Letter Size</option>
-                                <option value="legal">Legal Size</option>
-                            </select>
+
                             <button type="button" @click="downloadPDF('mrf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
                                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 Download PDF
@@ -812,13 +811,7 @@
                 <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
-                        <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format:</span>
-                        <select x-model="paperSize" class="text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-gray-400 transition cursor-pointer font-medium">
-                            <option value="a4">A4 Size</option>
-                            <option value="letter">Letter Size</option>
-                            <option value="legal">Legal Size</option>
-                        </select>
-                    </div>
+                        <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format: A4</span>
                     <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 active:translate-y-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         Export to PDF
@@ -935,7 +928,7 @@
         >
             {{-- Top bar --}}
             <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
-                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Create Job Posting (JPF)</h2>
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Job Posting (JPF)' : 'Create Job Posting (JPF)'"></h2>
                 <button @click="showJpfModal = false" class="text-gray-400 hover:text-gray-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
@@ -1004,8 +997,7 @@
                                 Discard
                             </button>
                             <button type="submit"
-                                class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition">
-                                Create Job Posting
+                                class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition" x-text="isEditing ? 'Update Job Posting' : 'Create Job Posting'">
                             </button>
                         </div>
                     </form>
@@ -1016,11 +1008,7 @@
                     <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
                         <div class="flex items-center gap-2">
-                            <select x-model="paperSize" class="text-xs border border-gray-300 rounded px-2 py-1 text-gray-700 bg-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                                <option value="a4">A4 Size</option>
-                                <option value="letter">Letter Size</option>
-                                <option value="legal">Legal Size</option>
-                            </select>
+
                             <button type="button" @click="downloadPDF('jpf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
                                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 Download PDF
@@ -1174,7 +1162,7 @@
         >
             {{-- Top bar --}}
             <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
-                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Candidate Application Form (CAF)</h2>
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Application (CAF)' : 'Candidate Application Form (CAF)'"></h2>
                 <button @click="showCafModal = false" class="text-gray-400 hover:text-gray-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
@@ -1245,8 +1233,7 @@
                                 Discard
                             </button>
                             <button type="submit"
-                                class="px-6 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-100 transition-all active:scale-95">
-                                Submit Application
+                                class="px-6 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-100 transition-all active:scale-95" x-text="isEditing ? 'Update Application' : 'Submit Application'">
                             </button>
                         </div>
                     </form>
@@ -1257,11 +1244,7 @@
                     <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
                         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
                         <div class="flex items-center gap-2">
-                            <select x-model="paperSize" class="text-xs border border-gray-300 rounded px-2 py-1 text-gray-700 bg-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                                <option value="a4">A4 Size</option>
-                                <option value="letter">Letter Size</option>
-                                <option value="legal">Legal Size</option>
-                            </select>
+
                             <button type="button" @click="downloadPDF('caf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
                                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 Download PDF
@@ -1946,7 +1929,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
     return {
         activeTab: 'MRF',
         search: '',
-        paperSize: 'letter',
+        paperSize: 'a4',
         perPage: 50,
         currentPage: 1,
         showFilter: false,
@@ -1963,6 +1946,8 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         showAssessmentViewModal: false,
         showJobOfferModal: false,
         showJobOfferViewModal: false,
+        isEditing: false,
+        editingId: null,
         viewData: null,
         viewJpfData: {},
         viewCafData: null,
@@ -2180,7 +2165,70 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             this.showJobOfferViewModal = true;
         },
 
+        editMRF(row) {
+            this.isEditing = true;
+            this.editingId = row.id || row.request_id;
+            this.form = {
+                department: row.department,
+                dateRequested: row.date_requested,
+                dateRequired: row.date_required,
+                position: row.position,
+                employmentType: row.employment_type,
+                duties: row.duties,
+                natureOfRequest: row.nature_of_request,
+                ageRange: row.age_range,
+                civilStatus: row.civil_status,
+                gender: row.gender,
+                headcount: row.headcount,
+                education: row.education,
+                qualifications: row.qualifications,
+                requestedBy: row.requested_by,
+                approvedBy: row.approved_by,
+                remarks: row.remarks,
+                requestStatus: row.request_status,
+                chargedTo: row.charged_to,
+                breakdownDetails: row.breakdown_details,
+                hiredPersonnel: row.hired_personnel,
+                dateHired: row.date_hired,
+                processedBy: row.processed_by,
+                checkedBy: row.checked_by,
+            };
+            this.showModal = true;
+        },
+
+        editJPF(row) {
+            this.isEditing = true;
+            this.editingId = row.id || row.job_id;
+            this.jpfForm = {
+                position: row.position,
+                employmentType: row.employment_type,
+                location: row.location,
+                salaryRange: row.salary_range,
+                jobDescription: row.job_description,
+                requirements: row.requirements,
+                status: row.status
+            };
+            this.showJpfModal = true;
+        },
+
+        editCAF(row) {
+            this.isEditing = true;
+            this.editingId = row.id;
+            this.cafForm = {
+                fullName: row.name,
+                positionApplied: row.position,
+                email: row.email,
+                phone: row.phone,
+                cv: null,
+                coverLetter: row.cover_letter,
+                status: row.status
+            };
+            this.showCafModal = true;
+        },
+
         openModal() {
+            this.isEditing = false;
+            this.editingId = null;
             if (this.activeTab === 'MRF') {
                 // Reset form
                 this.form = {
@@ -2227,17 +2275,35 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         },
 
         submitMRF() {
-            axios.post('{{ route("human-capital.recruitment.store_mrf") }}', {
-                ...this.form,
-                request_status: this.form.requestStatus || 'Pending'
+            const url = this.isEditing ? `/human-capital/recruitment/mrf/${this.editingId}` : '{{ route("human-capital.recruitment.store_mrf") }}';
+            const method = this.isEditing ? 'put' : 'post';
+            
+            axios({
+                method: method,
+                url: url,
+                data: {
+                    ...this.form,
+                    request_status: this.form.requestStatus || 'Pending'
+                }
             })
             .then(res => {
                 const item = res.data.data;
-                this.data['MRF'].unshift({
-                    ...item,
-                    id: item.request_id,
-                    date: item.date_requested
-                });
+                if (this.isEditing) {
+                    const idx = this.data['MRF'].findIndex(m => (m.id || m.request_id) === this.editingId);
+                    if (idx !== -1) {
+                        this.data['MRF'][idx] = {
+                            ...item,
+                            id: item.request_id,
+                            date: item.date_requested
+                        };
+                    }
+                } else {
+                    this.data['MRF'].unshift({
+                        ...item,
+                        id: item.request_id,
+                        date: item.date_requested
+                    });
+                }
                 this.showModal = false;
             })
             .catch(err => {
@@ -2246,18 +2312,37 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         },
 
         submitJPF() {
-            axios.post('{{ route("human-capital.recruitment.store_jpf") }}', {
-                ...this.jpfForm,
-                posted_date: new Date().toISOString().split('T')[0]
+            const url = this.isEditing ? `/human-capital/recruitment/jpf/${this.editingId}` : '{{ route("human-capital.recruitment.store_jpf") }}';
+            const method = this.isEditing ? 'put' : 'post';
+
+            axios({
+                method: method,
+                url: url,
+                data: {
+                    ...this.jpfForm,
+                    posted_date: new Date().toISOString().split('T')[0]
+                }
             })
             .then(res => {
                 const item = res.data.data;
-                this.data['JPF'].unshift({
-                    ...item,
-                    jobId: item.job_id,
-                    type: item.employment_type,
-                    posted: item.posted_date
-                });
+                if (this.isEditing) {
+                    const idx = this.data['JPF'].findIndex(j => (j.id || j.job_id) === this.editingId);
+                    if (idx !== -1) {
+                        this.data['JPF'][idx] = {
+                            ...item,
+                            jobId: item.job_id,
+                            type: item.employment_type,
+                            posted: item.posted_date
+                        };
+                    }
+                } else {
+                    this.data['JPF'].unshift({
+                        ...item,
+                        jobId: item.job_id,
+                        type: item.employment_type,
+                        posted: item.posted_date
+                    });
+                }
                 this.showJpfModal = false;
             })
             .catch(err => {
@@ -2272,15 +2357,29 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             formData.append('email', this.cafForm.email);
             formData.append('phone', this.cafForm.phone);
             formData.append('coverLetter', this.cafForm.coverLetter);
+            if (this.isEditing) {
+                formData.append('status', this.cafForm.status);
+                formData.append('_method', 'PUT');
+            }
             if (this.cafForm.cv) {
                 formData.append('cv', this.cafForm.cv);
             }
 
-            axios.post('{{ route("human-capital.recruitment.store_caf") }}', formData, {
+            const url = this.isEditing ? `/human-capital/recruitment/caf/${this.editingId}` : '{{ route("human-capital.recruitment.store_caf") }}';
+
+            axios.post(url, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             })
             .then(res => {
-                this.data['CAF'].unshift(res.data.data);
+                const item = res.data.data;
+                if (this.isEditing) {
+                    const idx = this.data['CAF'].findIndex(c => c.id === this.editingId);
+                    if (idx !== -1) {
+                        this.data['CAF'][idx] = item;
+                    }
+                } else {
+                    this.data['CAF'].unshift(item);
+                }
                 this.showCafModal = false;
             })
             .catch(err => console.error('Error submitting CAF:', err));
@@ -2417,7 +2516,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 filename:     downloadFilename,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: this.paperSize, orientation: 'portrait' }
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
             
             html2pdf().set(opt).from(element).save();
