@@ -2270,6 +2270,10 @@
                                                         <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Date</p>
                                                         <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
                                                     </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.email || '—'"></p>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="space-y-6">
@@ -2357,6 +2361,34 @@
                                             <p class="text-gray-800 text-sm font-bold" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
                                         </div>
                                     </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Candidate Email</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <input type="email" x-model="viewAssessmentData.email" 
+                                                    placeholder="Enter candidate email..."
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 p-0 placeholder-gray-300">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md" x-show="viewAssessmentData.status === 'In Progress' || viewAssessmentData.score">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Score (%)</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <input type="number" x-model="viewAssessmentData.score_raw" 
+                                                    @input="viewAssessmentData.score = $event.target.value + '%'"
+                                                    placeholder="Enter score (0-100)"
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 p-0 placeholder-gray-300">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="bg-blue-50/30 p-6 rounded-[2rem] border border-blue-100 shadow-sm">
@@ -2372,13 +2404,21 @@
                             </div>
 
                             <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
+                                <template x-if="viewAssessmentData.status === 'In Progress'">
+                                    <button @click="submitAssessmentResult()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-emerald-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        Submit Result
+                                    </button>
+                                </template>
+
                                 <template x-if="viewAssessmentData.status === 'Pending Assessment'">
                                     <button @click="sendAssessmentTest()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-blue-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                         Send a Test
                                     </button>
                                 </template>
-                                <template x-if="viewAssessmentData.status !== 'Pending Assessment'">
+
+                                <template x-if="viewAssessmentData.status !== 'Pending Assessment' && viewAssessmentData.status !== 'In Progress'">
                                     <button @click="showAssessmentViewModal = false" class="w-full py-4 bg-gray-600 hover:bg-gray-700 text-white font-black rounded-[2rem] transition-all uppercase tracking-[0.25em] text-[11px] active:scale-95">
                                         Dismiss
                                     </button>
@@ -2865,6 +2905,12 @@
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address</label>
+                    <input type="email" x-model="assessmentForm.email" required placeholder="candidate@email.com"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                </div>
+
                 <div class="grid grid-cols-2 gap-5">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Test Type</label>
@@ -3141,7 +3187,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         },
 
         assessmentForm: {
-            name: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
+            name: '', email: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
         },
 
         interviewForm: {
@@ -3173,10 +3219,41 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
 
         viewAssessment(item) {
             this.viewAssessmentData = item;
+            if (this.viewAssessmentData.score) {
+                this.viewAssessmentData.score_raw = parseInt(this.viewAssessmentData.score);
+            }
             if (!this.viewAssessmentData.test_type && this.viewAssessmentData.test) {
                 this.viewAssessmentData.test_type = this.viewAssessmentData.test;
             }
             this.showAssessmentViewModal = true;
+        },
+
+        submitAssessmentResult() {
+            if (!this.viewAssessmentData.score_raw) {
+                alert('Please enter a score.');
+                return;
+            }
+
+            const btn = event.currentTarget;
+            btn.disabled = true;
+
+            axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/result`, {
+                score: this.viewAssessmentData.score_raw
+            })
+            .then(res => {
+                const assessment = this.data['Assessment'].find(a => a.id === this.viewAssessmentData.id);
+                if (assessment) {
+                    assessment.score = res.data.assessment.score;
+                    assessment.status = res.data.assessment.status;
+                }
+                alert(res.data.message);
+                this.showAssessmentViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error submitting result:', err);
+                alert('Failed to submit result.');
+            })
+            .finally(() => btn.disabled = false);
         },
 
         deleteAssessment(id) {
@@ -3198,17 +3275,12 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             btn.disabled = true;
 
             axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/send-test`, {
-                test_type: this.viewAssessmentData.test_type || this.viewAssessmentData.test
+                test_type: this.viewAssessmentData.test_type || this.viewAssessmentData.test,
+                email: this.viewAssessmentData.email
             })
             .then(res => {
-                alert('Assessment test has been sent to candidate email.');
-                
-                // Update local status in the data array
-                const assessment = this.data['Assessment'].find(a => a.id === this.viewAssessmentData.id);
-                if (assessment) {
-                    assessment.status = 'In Progress';
-                }
-                
+                alert('Assessment test invitation has been sent to the candidate.');
+                // Status will update to "In Progress" once the candidate clicks the link in their email.
                 this.showAssessmentViewModal = false;
             })
             .catch(err => {

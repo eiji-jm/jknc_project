@@ -461,22 +461,21 @@ class RecruitmentController extends Controller
             $assessment->update(['test_type' => $request->test_type]);
         }
 
-        $testUrls = [
-            'Technical Test' => 'https://jknc-portal.com/tests/technical-' . \Str::uuid(),
-            'Amplitude Test' => 'https://jknc-portal.com/tests/amplitude-' . \Str::uuid(),
-            'Personality Test' => 'https://jknc-portal.com/tests/personality-' . \Str::uuid(),
-        ];
+        // Update the email if provided (in case it was missing or corrected in the UI)
+        if ($request->has('email')) {
+            $assessment->update(['email' => $request->email]);
+        }
 
-        $testUrl = $testUrls[$assessment->test_type] ?? $testUrls['Technical Test'];
+        // Generate internal tracking URL
+        $testUrl = route('recruitment.assessment.start', ['uuid' => $assessment->uuid]);
 
         if ($assessment->email) {
             try {
                 Mail::to($assessment->email)->send(new AssessmentTestMail($assessment->name, $assessment->test_type, $testUrl));
                 
-                // Update status to In Progress
-                $assessment->update(['status' => 'In Progress']);
-
-                return response()->json(['success' => true, 'message' => 'Test sent successfully', 'assessment' => $assessment]);
+                // Status remains "Pending Assessment" until they click the link
+                
+                return response()->json(['success' => true, 'message' => 'Test invitation sent', 'assessment' => $assessment]);
             } catch (\Exception $e) {
                 \Log::error("Failed to send assessment test to {$assessment->email}: " . $e->getMessage());
                 return response()->json(['success' => false, 'message' => 'Failed to send email'], 500);
@@ -484,5 +483,49 @@ class RecruitmentController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Candidate email not found'], 400);
+    }
+
+    public function startAssessment($uuid)
+    {
+        $assessment = CandidateAssessment::where('uuid', $uuid)->firstOrFail();
+        
+        // Move to In Progress when applicant clicks the link
+        if ($assessment->status === 'Pending Assessment') {
+            $assessment->update(['status' => 'In Progress']);
+        }
+
+        // Redirect to a dummy test interface or the actual platform
+        $testUrls = [
+            'Technical Test' => 'https://example.com/tests/technical',
+            'Amplitude Test' => 'https://example.com/tests/amplitude',
+            'Personality Test' => 'https://example.com/tests/personality',
+        ];
+
+        $redirectUrl = $testUrls[$assessment->test_type] ?? $testUrls['Technical Test'];
+
+        return redirect()->away($redirectUrl);
+    }
+
+    public function updateAssessmentResult(Request $request, $id)
+    {
+        $assessment = CandidateAssessment::findOrFail($id);
+        $request->validate([
+            'score' => 'required|numeric|min:0|max:100'
+        ]);
+
+        $score = $request->score;
+        $status = ($score >= 75) ? 'Passed' : 'Failed';
+
+        $assessment->update([
+            'score' => $score . '%',
+            'status' => $status,
+            'assessment_date' => date('Y-m-d') // Record the date of completion
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Assessment result recorded.',
+            'assessment' => $assessment
+        ]);
     }
 }

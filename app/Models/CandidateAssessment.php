@@ -10,6 +10,16 @@ class CandidateAssessment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'position', 'photo_path', 'cv_path', 'cover_letter_path', 'test_type', 'assessment_date', 'notes', 'score', 'status'
+        'uuid', 'name', 'email', 'position', 'photo_path', 'cv_path', 'cover_letter_path', 'test_type', 'assessment_date', 'notes', 'score', 'status'
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (!$model->uuid) {
+                $model->uuid = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
 }
