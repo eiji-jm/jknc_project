@@ -10,6 +10,6 @@ class CandidateApplication extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'position', 'email', 'phone', 'cv_path', 'cover_letter', 'status', 'applied_date'
+        'name', 'position', 'email', 'phone', 'photo_path', 'cv_path', 'cover_letter_path', 'cover_letter', 'status', 'applied_date'
     ];
 }

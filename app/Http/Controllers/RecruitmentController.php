@@ -99,14 +99,52 @@ class RecruitmentController extends Controller
     public function storeJPF(Request $request)
     {
         $data = [
-            'position'         => $request->position,
-            'employment_type'  => $request->employmentType,
-            'location'         => $request->location,
-            'salary_range'     => $request->salaryRange,
-            'job_description'  => $request->jobDescription,
-            'requirements'     => $request->requirements,
-            'posted_date'      => $request->posted_date ?: date('Y-m-d'),
-            'status'           => 'Open',
+            'position'               => $request->position,
+            'employment_type'        => $request->employmentType,
+            'location'               => $request->workLocation,
+            'salary_range'           => $request->minSalary . ' - ' . $request->maxSalary,
+            'job_description'        => $request->duties,
+            'requirements'           => $request->education,
+            'posted_date'            => $request->postingStartDate ?: date('Y-m-d'),
+            'status'                 => $request->status ?: 'Draft',
+
+            'related_mrf_no'         => $request->relatedMrfNo,
+            'date_opened'            => $request->dateOpened,
+            'hiring_status'          => $request->hiringStatus,
+            'company_name'           => $request->companyName,
+            'office_branch_site'     => $request->officeBranchSite,
+            'department_unit'        => $request->departmentUnit,
+            'hiring_manager'         => $request->hiringManager,
+            'department_superior'    => $request->departmentSuperior,
+            'no_of_vacancies'        => $request->noOfVacancies,
+            'position_level'         => $request->positionLevel,
+            'reports_to'             => $request->reportsTo,
+            'min_salary_offer'       => $request->minSalary,
+            'max_salary_offer'       => $request->maxSalary,
+            'salary_grade'           => $request->salaryGrade,
+            'applicable_region'      => $request->applicableRegion ?: 'Central Visayas',
+            'applicable_area'        => $request->applicableArea,
+            'current_daily_min_wage' => $request->dailyMinWage,
+            'monthly_equivalent'     => $request->monthlyEquivalent,
+            'wage_compliance'        => $request->wageCompliance,
+            'benefits_package'       => $request->benefits,
+            'work_schedule'          => $request->workSchedule,
+            'rest_days'              => $request->restDays,
+            'education_req'          => $request->education,
+            'experience_req'         => $request->experience,
+            'skills_req'             => $request->skills,
+            'licenses_req'           => $request->licenses,
+            'preferred_qualifications'=> $request->preferredQualifications,
+            'duties_responsibilities'=> $request->duties,
+            'recruitment_channels'   => $request->channels,
+            'screening_flow'         => $request->screeningFlow,
+            'date_needed'            => $request->dateNeeded,
+            'posting_start_date'     => $request->postingStartDate,
+            'target_hire_date'       => $request->targetHireDate,
+            'human_capital_approval' => $request->humanCapitalApproval,
+            'hiring_manager_approval'=> $request->hiringManagerApproval,
+            'finance_approval'       => $request->financeApproval,
+            'president_approval'     => $request->presidentApproval,
         ];
 
         if (!isset($data['job_id'])) {
@@ -123,13 +161,51 @@ class RecruitmentController extends Controller
     {
         $jpf = JobPosting::findOrFail($id);
         $data = [
-            'position'         => $request->position,
-            'employment_type'  => $request->employmentType,
-            'location'         => $request->location,
-            'salary_range'     => $request->salaryRange,
-            'job_description'  => $request->jobDescription,
-            'requirements'     => $request->requirements,
-            'status'           => $request->status ?: $jpf->status,
+            'position'               => $request->position,
+            'employment_type'        => $request->employmentType,
+            'location'               => $request->workLocation,
+            'salary_range'           => $request->minSalary . ' - ' . $request->maxSalary,
+            'job_description'        => $request->duties,
+            'requirements'           => $request->education,
+            'status'                 => $request->status ?: $jpf->status,
+
+            'related_mrf_no'         => $request->relatedMrfNo,
+            'date_opened'            => $request->dateOpened,
+            'hiring_status'          => $request->hiringStatus,
+            'company_name'           => $request->companyName,
+            'office_branch_site'     => $request->officeBranchSite,
+            'department_unit'        => $request->departmentUnit,
+            'hiring_manager'         => $request->hiringManager,
+            'department_superior'    => $request->departmentSuperior,
+            'no_of_vacancies'        => $request->noOfVacancies,
+            'position_level'         => $request->positionLevel,
+            'reports_to'             => $request->reportsTo,
+            'min_salary_offer'       => $request->minSalary,
+            'max_salary_offer'       => $request->maxSalary,
+            'salary_grade'           => $request->salaryGrade,
+            'applicable_region'      => $request->applicableRegion,
+            'applicable_area'        => $request->applicableArea,
+            'current_daily_min_wage' => $request->dailyMinWage,
+            'monthly_equivalent'     => $request->monthlyEquivalent,
+            'wage_compliance'        => $request->wageCompliance,
+            'benefits_package'       => $request->benefits,
+            'work_schedule'          => $request->workSchedule,
+            'rest_days'              => $request->restDays,
+            'education_req'          => $request->education,
+            'experience_req'         => $request->experience,
+            'skills_req'             => $request->skills,
+            'licenses_req'           => $request->licenses,
+            'preferred_qualifications'=> $request->preferredQualifications,
+            'duties_responsibilities'=> $request->duties,
+            'recruitment_channels'   => $request->channels,
+            'screening_flow'         => $request->screeningFlow,
+            'date_needed'            => $request->dateNeeded,
+            'posting_start_date'     => $request->postingStartDate,
+            'target_hire_date'       => $request->targetHireDate,
+            'human_capital_approval' => $request->humanCapitalApproval,
+            'hiring_manager_approval'=> $request->hiringManagerApproval,
+            'finance_approval'       => $request->financeApproval,
+            'president_approval'     => $request->presidentApproval,
         ];
         $jpf->update($data);
         return response()->json(['success' => true, 'data' => $jpf]);
@@ -142,12 +218,24 @@ class RecruitmentController extends Controller
             $cvPath = $request->file('cv')->store('resumes', 'public');
         }
 
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('photos', 'public');
+        }
+
+        $coverLetterPath = null;
+        if ($request->hasFile('cover_letter_file')) {
+            $coverLetterPath = $request->file('cover_letter_file')->store('cover_letters', 'public');
+        }
+
         $caf = CandidateApplication::create([
             'name' => $request->fullName,
             'position' => $request->positionApplied,
             'email' => $request->email,
             'phone' => $request->phone,
+            'photo_path' => $photoPath,
             'cv_path' => $cvPath,
+            'cover_letter_path' => $coverLetterPath,
             'cover_letter' => $request->coverLetter,
             'status' => 'Pending',
             'applied_date' => date('Y-m-d')
@@ -170,6 +258,14 @@ class RecruitmentController extends Controller
 
         if ($request->hasFile('cv')) {
             $data['cv_path'] = $request->file('cv')->store('resumes', 'public');
+        }
+
+        if ($request->hasFile('photo')) {
+            $data['photo_path'] = $request->file('photo')->store('photos', 'public');
+        }
+
+        if ($request->hasFile('cover_letter_file')) {
+            $data['cover_letter_path'] = $request->file('cover_letter_file')->store('cover_letters', 'public');
         }
 
         $caf->update($data);
