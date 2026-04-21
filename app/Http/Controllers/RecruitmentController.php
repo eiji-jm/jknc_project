@@ -9,6 +9,9 @@ use App\Models\CandidateApplication;
 use App\Models\CandidateAssessment;
 use App\Models\CandidateInterview;
 use App\Models\JobOffer;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AssessmentProceedingMail;
+use App\Mail\AssessmentTestMail;
 
 class RecruitmentController extends Controller
 {
@@ -101,7 +104,22 @@ class RecruitmentController extends Controller
             'processed_by'       => $request->processedBy,
             'checked_by'         => $request->checkedBy,
         ];
+
         $mrf->update($data);
+        return response()->json(['success' => true, 'data' => $mrf]);
+    }
+
+    public function approveMRF($id)
+    {
+        $mrf = ManpowerRequest::findOrFail($id);
+        $mrf->update(['request_status' => 'Approved']);
+        return response()->json(['success' => true, 'data' => $mrf]);
+    }
+
+    public function cancelMRF($id)
+    {
+        $mrf = ManpowerRequest::findOrFail($id);
+        $mrf->update(['request_status' => 'Cancelled']);
         return response()->json(['success' => true, 'data' => $mrf]);
     }
 
@@ -281,16 +299,72 @@ class RecruitmentController extends Controller
         return response()->json(['success' => true, 'data' => $caf]);
     }
 
+    public function proceedToAssessment($id)
+    {
+        $caf = CandidateApplication::findOrFail($id);
+        $caf->update(['status' => 'Assessment']);
+
+        // Check if assessment already exists to avoid duplicates
+        $assessment = CandidateAssessment::where('name', $caf->name)
+            ->where('position', $caf->position)
+            ->where('status', 'Pending Assessment')
+            ->first();
+
+        if (!$assessment) {
+            $assessment = CandidateAssessment::create([
+                'name' => $caf->name,
+                'email' => $caf->email,
+                'position' => $caf->position,
+                'photo_path' => $caf->photo_path,
+                'cv_path' => $caf->cv_path,
+                'cover_letter_path' => $caf->cover_letter_path,
+                'test_type' => 'Technical Test', // Default
+                'assessment_date' => date('Y-m-d'),
+                'notes' => 'Automatically created from CAF',
+                'status' => 'Pending Assessment'
+            ]);
+        }
+
+        if ($caf->email) {
+            try {
+                Mail::to($caf->email)->send(new AssessmentProceedingMail($caf->name, $caf->position));
+            } catch (\Exception $e) {
+                \Log::error("Failed to send assessment mail to {$caf->email}: " . $e->getMessage());
+            }
+        }
+
+        return response()->json(['success' => true, 'assessment' => $assessment]);
+    }
+
     public function storeAssessment(Request $request)
     {
         $assessment = CandidateAssessment::create([
             'name' => $request->name,
+            'email' => $request->email,
             'position' => $request->position,
             'test_type' => $request->test,
             'assessment_date' => $request->date,
             'notes' => $request->notes,
             'status' => 'Pending Assessment'
         ]);
+
+        // Update Candidate Application status if ID is provided
+        if ($request->caf_id) {
+            $caf = CandidateApplication::find($request->caf_id);
+            if ($caf) {
+                $caf->update(['status' => 'Assessment']);
+                
+                // Send email to the applicant
+                if ($caf->email) {
+                    try {
+                        Mail::to($caf->email)->send(new AssessmentProceedingMail($caf->name, $caf->position));
+                    } catch (\Exception $e) {
+                        // Log error but don't fail the request
+                        \Log::error("Failed to send assessment mail to {$caf->email}: " . $e->getMessage());
+                    }
+                }
+            }
+        }
 
         return response()->json(['success' => true, 'data' => $assessment]);
     }
@@ -376,5 +450,39 @@ class RecruitmentController extends Controller
     {
         JobOffer::findOrFail($id)->delete();
         return response()->json(['success' => true]);
+    }
+
+    public function sendAssessmentTest(Request $request, $id)
+    {
+        $assessment = CandidateAssessment::findOrFail($id);
+        
+        // Update the test type if provided
+        if ($request->has('test_type')) {
+            $assessment->update(['test_type' => $request->test_type]);
+        }
+
+        $testUrls = [
+            'Technical Test' => 'https://jknc-portal.com/tests/technical-' . \Str::uuid(),
+            'Amplitude Test' => 'https://jknc-portal.com/tests/amplitude-' . \Str::uuid(),
+            'Personality Test' => 'https://jknc-portal.com/tests/personality-' . \Str::uuid(),
+        ];
+
+        $testUrl = $testUrls[$assessment->test_type] ?? $testUrls['Technical Test'];
+
+        if ($assessment->email) {
+            try {
+                Mail::to($assessment->email)->send(new AssessmentTestMail($assessment->name, $assessment->test_type, $testUrl));
+                
+                // Update status to In Progress
+                $assessment->update(['status' => 'In Progress']);
+
+                return response()->json(['success' => true, 'message' => 'Test sent successfully', 'assessment' => $assessment]);
+            } catch (\Exception $e) {
+                \Log::error("Failed to send assessment test to {$assessment->email}: " . $e->getMessage());
+                return response()->json(['success' => false, 'message' => 'Failed to send email'], 500);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'Candidate email not found'], 400);
     }
 }

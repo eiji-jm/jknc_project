@@ -116,7 +116,7 @@
                             <td class="px-4 py-3">
                                 <button @click="viewMRF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
                                 <button @click="editMRF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
-                                <button @click="deleteMRF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
+                                <button @click="deleteMRF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
                     </template>
@@ -151,7 +151,7 @@
                             <td class="px-4 py-3">
                                 <button @click="viewJPF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
                                 <button @click="editJPF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
-                                <button @click="deleteJPF(i)" class="text-xs text-red-500 hover:underline">Delete</button>
+                                <button @click="deleteJPF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
                             </td>
                         </tr>
                     </template>
@@ -912,9 +912,19 @@
                 </div>
                 </template>
             </div>
-            <div class="flex justify-end gap-4 px-10 py-6 border-t bg-white shrink-0">
-                <button @click="showViewModal = false" class="px-8 py-3 text-base border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-bold transition-all">Cancel</button>
-                <button @click="approveMRF(viewData.id); showViewModal = false" class="px-10 py-3 text-base bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
+            <div class="flex justify-end gap-3 px-10 py-6 border-t bg-white shrink-0">
+                <button @click="showViewModal = false" class="px-6 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 font-bold transition-all mr-auto">Close</button>
+                
+                <button @click="cancelMRF(viewData.id)" 
+                    x-show="viewData.request_status !== 'Approved' && viewData.request_status !== 'Cancelled' && viewData.request_status !== 'Disapproved'"
+                    class="px-8 py-3 text-base border-2 border-red-100 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-bold transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Cancel Request
+                </button>
+
+                <button @click="approveMRF(viewData.id); showViewModal = false" 
+                    x-show="viewData.request_status !== 'Approved' && viewData.request_status !== 'Cancelled' && viewData.request_status !== 'Disapproved'"
+                    class="px-10 py-3 text-base bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     Approve
                 </button>
@@ -2195,73 +2205,185 @@
         <div @click="showAssessmentViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
             x-show="showAssessmentViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+        <div class="fixed inset-y-0 right-0 max-w-[90rem] w-full flex pointer-events-none">
             <div x-show="showAssessmentViewModal" 
-                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter="transform transition ease-in-out duration-700"
                 x-transition:enter-start="translate-x-full"
                 x-transition:enter-end="translate-x-0"
-                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave="transform transition ease-in-out duration-500"
                 x-transition:leave-start="translate-x-0"
                 x-transition:leave-end="translate-x-full"
-                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                class="h-full w-full bg-gray-50 shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
                 <template x-if="viewAssessmentData">
-                    <div class="flex flex-col h-full">
-                        {{-- Header Banner --}}
-                        <div class="h-32 bg-gradient-to-r from-blue-600 to-indigo-700 p-8 relative shrink-0">
-                            <button @click="showAssessmentViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                            <div class="absolute -bottom-10 left-8">
-                                <div class="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white">
-                                    <svg class="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <div class="flex h-full overflow-hidden">
+                        
+                        {{-- LEFT: DOCUMENT VIEW --}}
+                        <div class="flex-1 flex flex-col bg-gray-200 border-r border-gray-300 p-6 overflow-hidden" x-data="{ docTab: 'summary' }">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <div class="flex bg-white rounded-xl p-1 border border-gray-300 shadow-sm">
+                                    <button @click="docTab = 'summary'" :class="docTab === 'summary' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Summary</button>
+                                    <button x-show="viewAssessmentData.cv_path" @click="docTab = 'resume'" :class="docTab === 'resume' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Resume / CV</button>
+                                    <button x-show="viewAssessmentData.cover_letter_path" @click="docTab = 'coverletter'" :class="docTab === 'coverletter' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Cover Letter File</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <template x-if="viewAssessmentData.cv_path">
+                                        <a :href="'/storage/' + viewAssessmentData.cv_path" target="_blank" class="px-4 py-2 bg-white text-gray-700 rounded-lg text-[10px] font-bold uppercase border border-gray-300 shadow-sm hover:bg-gray-50 transition">Fullscreen</a>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 bg-white rounded-2xl shadow-inner border border-gray-300 flex flex-col overflow-hidden relative">
+                                {{-- SUMMARY TAB --}}
+                                <div x-show="docTab === 'summary'" class="flex-1 overflow-y-auto p-12 bg-gray-100/50 flex flex-col items-center">
+                                    <div class="w-full max-w-4xl bg-white shadow-2xl border border-gray-200 p-16 font-sans space-y-12 min-h-[800px]">
+                                        <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8">
+                                            <div class="w-32 h-32 border-2 border-gray-100 rounded-2xl overflow-hidden bg-gray-50 shrink-0">
+                                                <template x-if="viewAssessmentData.photo_path">
+                                                    <img :src="'/storage/' + viewAssessmentData.photo_path" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!viewAssessmentData.photo_path">
+                                                    <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                                        <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div class="flex-1 ml-10">
+                                                <h1 class="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2" x-text="viewAssessmentData.name"></h1>
+                                                <p class="text-xl text-blue-600 font-bold uppercase tracking-widest" x-text="viewAssessmentData.position"></p>
+                                                <div class="mt-4 space-y-1 text-xs font-bold text-gray-500">
+                                                    <p class="uppercase">Candidate Assessment Record</p>
+                                                    <p x-text="'Result: ' + (viewAssessmentData.score || 'In Progress')"></p>
+                                                </div>
+                                            </div>
+                                            <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="Logo" class="h-16 w-auto object-contain">
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-10">
+                                            <div class="space-y-6">
+                                                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Assessment Details</h3>
+                                                <div class="space-y-4">
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Test Type</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.test_type || viewAssessmentData.test"></p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Date</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="space-y-6">
+                                                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Current Status</h3>
+                                                <div class="space-y-4">
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</p>
+                                                        <span :class="statusClass(viewAssessmentData.status)" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" x-text="viewAssessmentData.status"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="space-y-6">
+                                            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Evaluator Notes</h3>
+                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap italic" x-text="viewAssessmentData.notes || 'No notes available for this assessment.'"></div>
+                                        </div>
+                                        
+                                        <div class="pt-20 border-t border-gray-100 flex justify-between items-center opacity-30">
+                                            <p class="text-[8px] font-black uppercase tracking-widest">Assessment Record</p>
+                                            <p class="text-[8px] font-black uppercase tracking-widest">John Kelly & Company</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- RESUME PDF TAB --}}
+                                <div x-show="docTab === 'resume'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewAssessmentData.cv_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+
+                                {{-- COVER LETTER FILE TAB --}}
+                                <div x-show="docTab === 'coverletter'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewAssessmentData.cover_letter_path" class="w-full h-full border-none shadow-2xl"></iframe>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Body --}}
-                        <div class="flex-1 overflow-y-auto px-8 pt-16 pb-8 space-y-8">
-                            <div>
-                                <h2 class="text-2xl font-black text-gray-900 tracking-tight" x-text="viewAssessmentData.name"></h2>
-                                <p class="text-blue-600 font-bold tracking-widest uppercase text-xs mt-1" x-text="viewAssessmentData.position"></p>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Assessment Type</p>
-                                    <p class="font-bold text-gray-800" x-text="viewAssessmentData.test"></p>
-                                </div>
-                                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
-                                    <p class="font-bold uppercase text-[11px]" :class="statusClass(viewAssessmentData.status)" x-text="viewAssessmentData.status"></p>
-                                </div>
-                            </div>
-
-                            <div class="space-y-4 pt-2">
-                                <div class="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Assessment Date</p>
-                                            <p class="font-bold text-gray-800" x-text="viewAssessmentData.date"></p>
-                                        </div>
-                                    </div>
-                                    <div x-show="viewAssessmentData.score" class="text-right">
-                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Calculated Score</p>
-                                        <p class="text-xl font-black text-indigo-600" x-text="viewAssessmentData.score"></p>
+                        {{-- RIGHT: ASSESSMENT INFO --}}
+                        <div class="w-[450px] bg-white border-l border-gray-200 flex flex-col shrink-0">
+                            <div class="h-44 bg-gradient-to-r from-blue-600 to-indigo-700 relative shrink-0">
+                                <button @click="showAssessmentViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md z-20">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="absolute -bottom-12 left-10 z-10 text-center">
+                                    <div class="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-4 border-white text-blue-600 overflow-hidden mx-auto">
+                                        <template x-if="viewAssessmentData.photo_path">
+                                            <img :src="'/storage/' + viewAssessmentData.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!viewAssessmentData.photo_path">
+                                            <svg class="w-16 h-16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="px-8 py-6 border-t border-gray-100 flex gap-3 shrink-0">
-                            <button @click="showAssessmentViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
-                                Close
-                            </button>
-                            <button class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-200 uppercase tracking-widest text-[11px]">
-                                Print Results
-                            </button>
+                            <div class="flex-1 overflow-y-auto px-10 pt-16 pb-8 space-y-10">
+                                <div class="text-center">
+                                    <h2 class="text-3xl font-black text-gray-900 tracking-tight capitalize" x-text="viewAssessmentData.name"></h2>
+                                    <p class="text-blue-600 font-bold tracking-[0.2em] uppercase text-[11px] mt-1" x-text="viewAssessmentData.position"></p>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Type</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <select x-model="viewAssessmentData.test_type" 
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 cursor-pointer p-0">
+                                                    <option value="Technical Test">Technical Test</option>
+                                                    <option value="Amplitude Test">Amplitude Test</option>
+                                                    <option value="Personality Test">Personality Test</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Date</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 text-sm font-bold" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-blue-50/30 p-6 rounded-[2rem] border border-blue-100 shadow-sm">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                            <p class="text-[10px] font-black text-blue-700 uppercase tracking-widest">Current Status</p>
+                                        </div>
+                                        <span x-text="viewAssessmentData.score" x-show="viewAssessmentData.score" class="text-xl font-black text-blue-600"></span>
+                                    </div>
+                                    <p class="text-sm font-bold text-blue-900 uppercase tracking-widest" x-text="viewAssessmentData.status"></p>
+                                </div>
+                            </div>
+
+                            <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
+                                <template x-if="viewAssessmentData.status === 'Pending Assessment'">
+                                    <button @click="sendAssessmentTest()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-blue-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                        Send a Test
+                                    </button>
+                                </template>
+                                <template x-if="viewAssessmentData.status !== 'Pending Assessment'">
+                                    <button @click="showAssessmentViewModal = false" class="w-full py-4 bg-gray-600 hover:bg-gray-700 text-white font-black rounded-[2rem] transition-all uppercase tracking-[0.25em] text-[11px] active:scale-95">
+                                        Dismiss
+                                    </button>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -3019,7 +3141,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
         },
 
         assessmentForm: {
-            name: '', position: '', test: 'Technical Test', date: '', notes: ''
+            name: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
         },
 
         interviewForm: {
@@ -3051,6 +3173,9 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
 
         viewAssessment(item) {
             this.viewAssessmentData = item;
+            if (!this.viewAssessmentData.test_type && this.viewAssessmentData.test) {
+                this.viewAssessmentData.test_type = this.viewAssessmentData.test;
+            }
             this.showAssessmentViewModal = true;
         },
 
@@ -3064,6 +3189,38 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             .catch(err => console.error('Error deleting assessment:', err));
         },
 
+        sendAssessmentTest() {
+            if (!this.viewAssessmentData) return;
+            
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            btn.disabled = true;
+
+            axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/send-test`, {
+                test_type: this.viewAssessmentData.test_type || this.viewAssessmentData.test
+            })
+            .then(res => {
+                alert('Assessment test has been sent to candidate email.');
+                
+                // Update local status in the data array
+                const assessment = this.data['Assessment'].find(a => a.id === this.viewAssessmentData.id);
+                if (assessment) {
+                    assessment.status = 'In Progress';
+                }
+                
+                this.showAssessmentViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error sending test:', err);
+                alert('Failed to send test: ' + (err.response?.data?.message || err.message));
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        },
+
         viewCAF(row) {
             this.viewCafData = row;
             this.showCafViewModal = true;
@@ -3071,14 +3228,28 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
 
         openAssessmentFromCaf(row) {
             this.showCafViewModal = false;
-            this.assessmentForm = {
-                name: row.name,
-                position: row.position,
-                test: 'Technical Test',
-                date: new Date().toISOString().split('T')[0],
-                notes: ''
-            };
-            this.showAssessmentModal = true;
+            
+            // Notify candidate and update status via backend
+            axios.post(`/human-capital/recruitment/caf/${row.id}/proceed`)
+            .then(res => {
+                const caf = this.data['CAF'].find(c => c.id === row.id);
+                if (caf) caf.status = 'Assessment';
+
+                if (res.data.assessment) {
+                    // Add to assessment list if not already there
+                    const exists = this.data['Assessment'].some(a => a.id === res.data.assessment.id);
+                    if (!exists) {
+                        this.data['Assessment'].unshift(res.data.assessment);
+                    }
+                }
+                
+                // Switch to Assessment tab to show the candidate in Kanban
+                this.activeTab = 'Assessment';
+            })
+            .catch(err => {
+                console.error('Error proceeding to assessment:', err);
+                alert('Candidate status could not be updated.');
+            });
         },
 
         viewInterview(row) {
@@ -3100,6 +3271,13 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             axios.post('{{ route("human-capital.recruitment.store_assessment") }}', this.assessmentForm)
             .then(res => {
                 this.data['Assessment'].unshift(res.data.data);
+                
+                // Update local CAF status if it was from a CAF
+                if (this.assessmentForm.caf_id) {
+                    const caf = this.data['CAF'].find(c => c.id === this.assessmentForm.caf_id);
+                    if (caf) caf.status = 'Assessment';
+                }
+                
                 this.showAssessmentModal = false;
             })
             .catch(err => console.error('Error submitting assessment:', err));
@@ -3359,7 +3537,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 this.showInterviewModal = true;
             } else if (this.activeTab === 'Assessment') {
                 this.assessmentForm = {
-                    name: '', position: '', test: 'Technical Test', date: '', notes: ''
+                    name: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
                 };
                 this.showAssessmentModal = true;
             } else if (this.activeTab === 'Job Offer') {
@@ -3384,20 +3562,12 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             .then(res => {
                 const item = res.data.data;
                 if (this.isEditing) {
-                    const idx = this.data['MRF'].findIndex(m => (m.id || m.request_id) === this.editingId);
+                    const idx = this.data['MRF'].findIndex(m => m.id === this.editingId);
                     if (idx !== -1) {
-                        this.data['MRF'][idx] = {
-                            ...item,
-                            id: item.request_id,
-                            date: item.date_requested
-                        };
+                        this.data['MRF'][idx] = item;
                     }
                 } else {
-                    this.data['MRF'].unshift({
-                        ...item,
-                        id: item.request_id,
-                        date: item.date_requested
-                    });
+                    this.data['MRF'].unshift(item);
                 }
                 this.showModal = false;
             })
@@ -3575,12 +3745,52 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             this.showViewModal = true;
         },
 
-        deleteMRF(index) {
+        approveMRF(id) {
+            axios.post(`/human-capital/recruitment/mrf/${id}/approve`)
+            .then(res => {
+                const item = res.data.data;
+                const idx = this.data['MRF'].findIndex(m => m.id === id);
+                if (idx !== -1) {
+                    this.data['MRF'][idx].request_status = 'Approved';
+                    // If viewData is currently showing this MRF, update it too
+                    if (this.viewData && this.viewData.id === id) {
+                        this.viewData.request_status = 'Approved';
+                    }
+                }
+                this.showViewModal = false;
+                // Optional: Show a success notification if implemented
+            })
+            .catch(err => {
+                console.error('Error approving MRF:', err);
+                alert('Failed to approve MRF. Please try again.');
+            });
+        },
+
+        cancelMRF(id) {
+            if (!confirm('Are you sure you want to cancel this manpower request?')) return;
+            
+            axios.post(`/human-capital/recruitment/mrf/${id}/cancel`)
+            .then(res => {
+                const idx = this.data['MRF'].findIndex(m => m.id === id);
+                if (idx !== -1) {
+                    this.data['MRF'][idx].request_status = 'Cancelled';
+                    if (this.viewData && this.viewData.id === id) {
+                        this.viewData.request_status = 'Cancelled';
+                    }
+                }
+                this.showViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error cancelling MRF:', err);
+                alert('Failed to cancel MRF. Please try again.');
+            });
+        },
+
+        deleteMRF(id) {
             if (confirm('Delete this MRF record?')) {
-                const item = this.data['MRF'][index];
-                axios.delete('/human-capital/recruitment/mrf/' + item.id)
+                axios.delete('/human-capital/recruitment/mrf/' + id)
                 .then(() => {
-                    this.data['MRF'].splice(index, 1);
+                    this.data['MRF'] = this.data['MRF'].filter(m => m.id !== id);
                 })
                 .catch(err => {
                     alert('Error deleting MRF: ' + (err.response?.data?.message || err.message));
@@ -3588,12 +3798,11 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             }
         },
 
-        deleteJPF(index) {
+        deleteJPF(id) {
             if (confirm('Delete this Job Posting?')) {
-                const item = this.data['JPF'][index];
-                axios.delete('/human-capital/recruitment/jpf/' + item.id)
+                axios.delete('/human-capital/recruitment/jpf/' + id)
                 .then(() => {
-                    this.data['JPF'].splice(index, 1);
+                    this.data['JPF'] = this.data['JPF'].filter(j => j.id !== id);
                 })
                 .catch(err => {
                     alert('Error deleting JPF: ' + (err.response?.data?.message || err.message));
@@ -3637,6 +3846,7 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 'Posted':        'bg-blue-100 text-blue-700',
                 'In Progress':   'bg-blue-100 text-blue-700',
                 'Screening':     'bg-blue-100 text-blue-700',
+                'Assessment':    'bg-purple-100 text-purple-700',
 
                 'Interviewing':  'bg-purple-100 text-purple-700',
                 'Offer Stage':   'bg-indigo-100 text-indigo-700',

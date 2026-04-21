@@ -96,12 +96,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment');
         Route::post('/recruitment/mrf', [RecruitmentController::class, 'storeMRF'])->name('recruitment.store_mrf');
         Route::put('/recruitment/mrf/{id}', [RecruitmentController::class, 'updateMRF'])->name('recruitment.update_mrf');
+        Route::post('/recruitment/mrf/{id}/approve', [RecruitmentController::class, 'approveMRF'])->name('recruitment.approve_mrf');
+        Route::post('/recruitment/mrf/{id}/cancel', [RecruitmentController::class, 'cancelMRF'])->name('recruitment.cancel_mrf');
         Route::post('/recruitment/jpf', [RecruitmentController::class, 'storeJPF'])->name('recruitment.store_jpf');
         Route::put('/recruitment/jpf/{id}', [RecruitmentController::class, 'updateJPF'])->name('recruitment.update_jpf');
         Route::post('/recruitment/caf', [RecruitmentController::class, 'storeCAF'])->name('recruitment.store_caf');
         Route::put('/recruitment/caf/{id}', [RecruitmentController::class, 'updateCAF'])->name('recruitment.update_caf');
+        Route::post('/recruitment/caf/{id}/proceed', [RecruitmentController::class, 'proceedToAssessment'])->name('recruitment.proceed_to_assessment');
         Route::post('/recruitment/assessment', [RecruitmentController::class, 'storeAssessment'])->name('recruitment.store_assessment');
         Route::post('/recruitment/assessment/{id}/status', [RecruitmentController::class, 'updateAssessmentStatus'])->name('recruitment.update_assessment_status');
+        Route::post('/recruitment/assessment/{id}/send-test', [RecruitmentController::class, 'sendAssessmentTest'])->name('recruitment.send_assessment_test');
         Route::delete('/recruitment/assessment/{id}', [RecruitmentController::class, 'deleteAssessment'])->name('recruitment.delete_assessment');
         Route::post('/recruitment/interview', [RecruitmentController::class, 'storeInterview'])->name('recruitment.store_interview');
         Route::delete('/recruitment/interview/{id}', [RecruitmentController::class, 'deleteInterview'])->name('recruitment.delete_interview');

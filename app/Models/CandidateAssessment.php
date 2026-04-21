@@ -10,6 +10,6 @@ class CandidateAssessment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'position', 'test_type', 'assessment_date', 'notes', 'score', 'status'
+        'name', 'email', 'position', 'photo_path', 'cv_path', 'cover_letter_path', 'test_type', 'assessment_date', 'notes', 'score', 'status'
     ];
 }
