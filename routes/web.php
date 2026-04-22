@@ -23,6 +23,8 @@ Route::post('/register', [RegisterController::class, 'submit'])->name('register.
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/careers/apply', [RecruitmentController::class, 'showPublicApplicationForm'])->name('careers.apply');
 Route::post('/careers/apply', [RecruitmentController::class, 'storeCAF'])->name('careers.apply.submit');
+Route::get('/careers/pds', [RecruitmentController::class, 'showPublicPDSForm'])->name('careers.pds');
+Route::post('/careers/pds', [RecruitmentController::class, 'storePDS'])->name('careers.pds.submit');
 Route::get('/assessment/start/{uuid}', [RecruitmentController::class, 'startAssessment'])->name('recruitment.assessment.start');
 
 Route::middleware('auth')->group(function () {
@@ -116,7 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/recruitment/caf/{id}', [RecruitmentController::class, 'deleteCAF'])->name('recruitment.delete_caf');
         Route::delete('/recruitment/mrf/{id}', [RecruitmentController::class, 'deleteMRF'])->name('recruitment.delete_mrf');
         Route::delete('/recruitment/jpf/{id}', [RecruitmentController::class, 'deleteJPF'])->name('recruitment.delete_jpf');
-        Route::view('/onboarding', 'human-capital.onboarding')->name('onboarding');
+        Route::get('/onboarding', [RecruitmentController::class, 'onboarding'])->name('onboarding');
         Route::view('/deployment', 'human-capital.deployment')->name('deployment');
         Route::view('/attendance', 'human-capital.attendance')->name('attendance');
         Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');

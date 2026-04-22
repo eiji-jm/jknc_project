@@ -38,6 +38,41 @@ class RecruitmentController extends Controller
         return view('careers.apply', compact('positions'));
     }
 
+    public function onboarding()
+    {
+        $pdsData = \App\Models\PersonalDataSheet::latest()->get()->map(function($pds) {
+            return array_merge([
+                'db_id' => $pds->id,
+                'status' => $pds->status,
+                'submittedDate' => $pds->created_at->format('Y-m-d')
+            ], is_array($pds->data) ? $pds->data : json_decode($pds->data, true));
+        });
+        
+        return view('human-capital.onboarding', compact('pdsData'));
+    }
+
+    public function showPublicPDSForm()
+    {
+        return view('careers.pds');
+    }
+
+    public function storePDS(Request $request)
+    {
+        try {
+            $pds = \App\Models\PersonalDataSheet::create([
+                'full_name' => $request->fullName,
+                'position' => $request->position,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'data' => $request->all(),
+                'status' => 'Submitted'
+            ]);
+            return response()->json(['success' => true, 'message' => 'PDS Submitted Successfully', 'data' => $pds]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function storeMRF(Request $request)
     {
         $data = [

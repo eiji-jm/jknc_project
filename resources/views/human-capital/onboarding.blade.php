@@ -39,6 +39,18 @@
             Download CSV
         </button>
 
+        <div x-show="activeTab === 'PDS'" class="flex items-center border border-blue-200 rounded-lg bg-blue-50/50">
+            <a href="{{ route('careers.pds') }}" target="_blank" class="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 font-semibold hover:bg-blue-100 transition rounded-l-lg shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                Open Careers Page
+            </a>
+            <div class="w-px h-4 bg-blue-200"></div>
+            <button type="button" @click="navigator.clipboard.writeText(window.location.protocol + '//' + window.location.host + '/careers/pds'); alert('Careers public link copied to clipboard!');" class="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 font-semibold hover:bg-blue-100 transition rounded-r-lg shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                Copy Link
+            </button>
+        </div>
+
         <button type="button" @click="openModal()"
             class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -212,379 +224,430 @@
             <div class="flex flex-1 overflow-hidden gap-4 p-4">
 
                 {{-- RIGHT: INPUT FORM --}}
-                <div class="w-[42%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
-                    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
-                        <p class="text-xs font-bold text-white uppercase tracking-wider">Fill Up Form</p>
-                    </div>
-                    <form @submit.prevent="submitPds()" class="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+<div class="w-[48%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
+    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
+        <p class="text-xs font-bold text-white uppercase tracking-wider">Fill Up Form</p>
+    </div>
+    <form @submit.prevent="submitPds()" class="flex-1 overflow-y-auto px-5 py-4 space-y-5">
 
-                        {{-- Personal Information --}}
-                        <div>
-                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">Personal Information</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Full Name <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="pdsForm.fullName" required placeholder="e.g. Juan Dela Cruz"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Position <span class="text-red-500">*</span></label>
-                                    <input type="text" x-model="pdsForm.position" required placeholder="e.g. Engineer"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Email</label>
-                                    <input type="email" x-model="pdsForm.email" placeholder="email@example.com"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
-                                    <input type="text" x-model="pdsForm.phone" placeholder="+63 9xx xxx xxxx"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Date of Birth</label>
-                                    <input type="date" x-model="pdsForm.dob"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
-                                    <select x-model="pdsForm.gender"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none bg-white">
-                                        <option value="">Select...</option>
-                                        <option>Male</option>
-                                        <option>Female</option>
-                                        <option>Prefer not to say</option>
-                                    </select>
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Address</label>
-                                    <textarea x-model="pdsForm.address" rows="2" placeholder="Street, Barangay, City, Province"
-                                        class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Emergency Contact Name</label>
-                                    <input type="text" x-model="pdsForm.emergencyName" placeholder="Full name"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Emergency Contact Phone</label>
-                                    <input type="text" x-model="pdsForm.emergencyPhone" placeholder="+63 9xx xxx xxxx"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Educational Background --}}
-                        <div>
-                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">Educational Background</p>
-
-                            <p class="text-xs font-bold text-gray-500 mb-2">Secondary School</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">School Name</label>
-                                    <input type="text" x-model="pdsForm.secSchool"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Year Graduated</label>
-                                    <input type="text" x-model="pdsForm.secYear" placeholder="YYYY"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Honors/Achievements</label>
-                                    <input type="text" x-model="pdsForm.secHonors"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                            </div>
-
-                            <p class="text-xs font-bold text-gray-500 mt-4 mb-2">Tertiary Education</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Institution Name</label>
-                                    <input type="text" x-model="pdsForm.tertInstitution"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Degree</label>
-                                    <input type="text" x-model="pdsForm.tertDegree" placeholder="e.g., Bachelor of Science"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Major/Field of Study</label>
-                                    <input type="text" x-model="pdsForm.tertMajor"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Year Graduated</label>
-                                    <input type="text" x-model="pdsForm.tertYear" placeholder="YYYY"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Honors/Awards</label>
-                                    <input type="text" x-model="pdsForm.tertHonors"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Work Experience --}}
-                        <div>
-                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">Work Experience</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Company Name</label>
-                                    <input type="text" x-model="pdsForm.workCompany"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Job Position</label>
-                                    <input type="text" x-model="pdsForm.workPosition"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Start Date</label>
-                                    <input type="date" x-model="pdsForm.workStart"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">End Date</label>
-                                    <input type="date" x-model="pdsForm.workEnd"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Key Responsibilities</label>
-                                    <textarea x-model="pdsForm.workResponsibilities" rows="3" placeholder="Describe your main responsibilities and achievements..."
-                                        class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Reference --}}
-                        <div>
-                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">Reference</p>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Reference Name</label>
-                                    <input type="text" x-model="pdsForm.refName"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Position/Title</label>
-                                    <input type="text" x-model="pdsForm.refTitle"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Company/Organization</label>
-                                    <input type="text" x-model="pdsForm.refCompany"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Contact Number</label>
-                                    <input type="text" x-model="pdsForm.refContact"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Email Address</label>
-                                    <input type="email" x-model="pdsForm.refEmail"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Relationship</label>
-                                    <input type="text" x-model="pdsForm.refRelationship" placeholder="e.g., Former Manager, Colleague"
-                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Signature --}}
-                        <div>
-                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">Signature</p>
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">Signature</label>
-                            <div class="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-2 bg-gray-50">
-                                <input type="file" accept="image/*" @change="handleSignature($event)" class="hidden" id="sig-upload">
-                                <label for="sig-upload" class="cursor-pointer flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                    Choose file
-                                </label>
-                                <p class="text-xs text-gray-400" x-text="pdsForm.signatureName || 'No file chosen'"></p>
-                                <img x-show="pdsForm.signaturePreview" :src="pdsForm.signaturePreview" class="max-h-16 mt-1 rounded border border-gray-200">
-                            </div>
-                        </div>
-
-                        {{-- Submit --}}
-                        <div class="flex justify-end gap-3 pt-2 pb-1">
-                            <button type="button" @click="showPdsModal = false"
-                                class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
-                                Cancel
-                            </button>
-                            <button type="submit"
-                                class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition">
-                                Submit PDS
-                            </button>
-                        </div>
-
-                    </form>
+        <div>
+            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">I. Personal Information</p>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Surname</label><input type="text" x-model="pdsForm.surname" @input="pdsForm.fullName = pdsForm.surname + ', ' + pdsForm.firstName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input type="text" x-model="pdsForm.firstName" @input="pdsForm.fullName = pdsForm.surname + ', ' + pdsForm.firstName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Middle Name</label><input type="text" x-model="pdsForm.middleName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Name Extension</label><input type="text" x-model="pdsForm.nameExt" placeholder="Jr., Sr., III, etc." class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-3">
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Date of Birth</label><input type="date" x-model="pdsForm.dob" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Place of Birth</label><input type="text" x-model="pdsForm.pob" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Citizenship</label><input type="text" x-model="pdsForm.citizenship" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sex</label><select x-model="pdsForm.sex" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Civil Status</label><select x-model="pdsForm.civilStatus" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none bg-white"><option value="">Select</option><option>Single</option><option>Married</option><option>Widowed</option><option>Legally Separated</option></select></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Height (meters)</label><input type="text" x-model="pdsForm.height" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Weight (kilograms)</label><input type="text" x-model="pdsForm.weight" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Blood Type</label><input type="text" x-model="pdsForm.bloodType" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">SSS Number</label><input type="text" x-model="pdsForm.sss" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">PhilHealth Number</label><input type="text" x-model="pdsForm.philhealth" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Pag-IBIG ID Number</label><input type="text" x-model="pdsForm.pagibig" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">TIN Number</label><input type="text" x-model="pdsForm.tin" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="col-span-2"><label class="block text-xs font-bold text-gray-600">Residential Address</label></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">House / Block / Lot No.</label><input type="text" x-model="pdsForm.resHouse" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Street</label><input type="text" x-model="pdsForm.resStreet" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Subdivision / Village</label><input type="text" x-model="pdsForm.resSubdiv" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Barangay</label><input type="text" x-model="pdsForm.resBrgy" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">City / Municipality</label><input type="text" x-model="pdsForm.resCity" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province</label><input type="text" x-model="pdsForm.resProv" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">ZIP Code</label><input type="text" x-model="pdsForm.resZip" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="col-span-2 flex items-center justify-between">
+                    <label class="block text-xs font-bold text-gray-600">Permanent Address</label>
+                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" x-model="pdsForm.permSameAsRes" @change="if(pdsForm.permSameAsRes){ pdsForm.permHouse=pdsForm.resHouse; pdsForm.permStreet=pdsForm.resStreet; pdsForm.permSubdiv=pdsForm.resSubdiv; pdsForm.permBrgy=pdsForm.resBrgy; pdsForm.permCity=pdsForm.resCity; pdsForm.permProv=pdsForm.resProv; pdsForm.permZip=pdsForm.resZip; }"><span class="text-[10px] text-gray-500">Same as residential</span></label>
                 </div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">House / Block / Lot No.</label><input type="text" x-model="pdsForm.permHouse" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Street</label><input type="text" x-model="pdsForm.permStreet" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Subdivision / Village</label><input type="text" x-model="pdsForm.permSubdiv" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Barangay</label><input type="text" x-model="pdsForm.permBrgy" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">City / Municipality</label><input type="text" x-model="pdsForm.permCity" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province</label><input type="text" x-model="pdsForm.permProv" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">ZIP Code</label><input type="text" x-model="pdsForm.permZip" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="col-span-2"><label class="block text-xs font-bold text-gray-600">Contact Information</label></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Telephone Number</label><input type="text" x-model="pdsForm.telNo" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Mobile Number</label><input type="text" x-model="pdsForm.mobileNo" @input="pdsForm.phone = pdsForm.mobileNo" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Email</label><input type="email" x-model="pdsForm.email" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"></div>
+            </div>
+        </div>
+
+        <div>
+            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">II. Family Background</p>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Spouse's Surname</label><input type="text" x-model="pdsForm.spouseSurname" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Spouse's First Name</label><input type="text" x-model="pdsForm.spouseFirstName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Spouse's Middle Name</label><input type="text" x-model="pdsForm.spouseMiddleName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Spouse's Name Ext.</label><input type="text" x-model="pdsForm.spouseNameExt" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Spouse's Occupation</label><input type="text" x-model="pdsForm.spouseOccupation" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Employer / Business</label><input type="text" x-model="pdsForm.spouseEmployer" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Business Address</label><input type="text" x-model="pdsForm.spouseBusinessAddress" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Telephone Number</label><input type="text" x-model="pdsForm.spouseTelNo" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-600 mb-2">Children</label>
+                <template x-for="(child, idx) in pdsForm.children" :key="idx">
+                    <div class="grid grid-cols-3 gap-2 mb-2">
+                        <input type="text" x-model="child.name" placeholder="Full Name" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded">
+                        <select x-model="child.gender" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded bg-white"><option value="">Gender</option><option>Male</option><option>Female</option></select>
+                        <input type="date" x-model="child.dob" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded bg-white">
+                    </div>
+                </template>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="col-span-2"><label class="block text-xs font-bold text-gray-600">Father's Name</label></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Surname</label><input type="text" x-model="pdsForm.fatherSurname" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input type="text" x-model="pdsForm.fatherFirstName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Middle Name</label><input type="text" x-model="pdsForm.fatherMiddleName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Name Extension</label><input type="text" x-model="pdsForm.fatherNameExt" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                
+                <div class="col-span-2"><label class="block text-xs font-bold text-gray-600 mt-2">Mother's Maiden Name</label></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">Surname</label><input type="text" x-model="pdsForm.motherMaidenSurname" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div><label class="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input type="text" x-model="pdsForm.motherFirstName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+                <div class="col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Middle Name</label><input type="text" x-model="pdsForm.motherMiddleName" class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded"></div>
+            </div>
+        </div>
+
+        <div>
+            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">III. Educational Background</p>
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-600 mb-2">A. Formal Education</label>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <div class="text-xs pt-2 font-bold text-gray-500">Elementary</div>
+                    <input type="text" x-model="pdsForm.educElemSchool" placeholder="School" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educElemFrom" placeholder="From" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educElemTo" placeholder="To" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <div class="text-xs pt-2 font-bold text-gray-500">Secondary</div>
+                    <input type="text" x-model="pdsForm.educSecSchool" placeholder="School" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educSecFrom" placeholder="From" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educSecTo" placeholder="To" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <div class="text-xs pt-2 font-bold text-gray-500">College</div>
+                    <input type="text" x-model="pdsForm.educCollSchool" placeholder="School" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educCollDegree" placeholder="Degree" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <div class="flex gap-1">
+                        <input type="text" x-model="pdsForm.educCollFrom" placeholder="Fr" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                        <input type="text" x-model="pdsForm.educCollTo" placeholder="To" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                    </div>
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <div class="text-xs pt-2 font-bold text-gray-500">Masters</div>
+                    <input type="text" x-model="pdsForm.educMastSchool" placeholder="School" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educMastDegree" placeholder="Degree" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <div class="flex gap-1">
+                        <input type="text" x-model="pdsForm.educMastFrom" placeholder="Fr" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                        <input type="text" x-model="pdsForm.educMastTo" placeholder="To" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                    </div>
+                </div>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <div class="text-xs pt-2 font-bold text-gray-500">Doctorate</div>
+                    <input type="text" x-model="pdsForm.educDoctSchool" placeholder="School" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <input type="text" x-model="pdsForm.educDoctDegree" placeholder="Degree" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                    <div class="flex gap-1">
+                        <input type="text" x-model="pdsForm.educDoctFrom" placeholder="Fr" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                        <input type="text" x-model="pdsForm.educDoctTo" placeholder="To" class="w-1/2 text-sm px-1 py-1.5 border border-gray-300 rounded">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3 mt-4">
+                <label class="block text-xs font-bold text-gray-600 mb-2">B. Learning & Development</label>
+                <template x-for="(l, idx) in pdsForm.lnd" :key="idx">
+                    <div class="grid grid-cols-4 gap-2 mb-2">
+                        <input type="text" x-model="l.title" placeholder="Title" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                        <input type="text" x-model="l.conductedBy" placeholder="Conducted By" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded">
+                        <input type="text" x-model="l.date" placeholder="Date" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded bg-white">
+                        <select x-model="l.cert" class="w-full text-sm px-2 py-1.5 border border-gray-300 rounded bg-white"><option value="">Cert?</option><option>Yes</option><option>No</option></select>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div>
+            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 pb-1 border-b border-blue-100">IV. Declaration</p>
+            <label class="flex items-start gap-2 cursor-pointer mt-2 border rounded p-3 bg-gray-50 border-gray-200">
+                <input type="checkbox" x-model="pdsForm.consent" required class="mt-1 w-4 h-4 text-blue-600 rounded cursor-pointer">
+                <span class="text-xs text-gray-700 leading-tight">I certify that the information provided herein is true, complete, and accurate. I understand and consent to the data privacy policy. *</span>
+            </label>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-2 pb-1">
+            <button type="button" @click="showPdsModal = false" class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+            <button type="submit" class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition">Submit PDS</button>
+        </div>
+    </form>
+</div>
+
 
                 {{-- LEFT: LIVE PDS DOCUMENT PREVIEW --}}
-                <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
-                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
-                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview — Personal Data Sheet</p>
-                        <button type="button" @click="downloadPdsPdf()" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
-                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                            Download PDF
-                        </button>
+<div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
+    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+        <button type="button" @click="downloadPdsPdf()" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download PDF
+        </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-5 bg-gray-100" id="pdf-container">
+        <div id="pds-doc-preview" class="bg-white mx-auto shadow-md" style="width: 210mm; min-height: 297mm; padding: 15mm; font-family: sans-serif;">
+            
+            <!-- Header -->
+            <div class="flex items-start justify-between border-b pb-2 mb-4 border-gray-200">
+                <div class="flex items-center gap-2">
+                    <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" class="h-10">
+                    <div class="leading-tight text-blue-900 font-serif">
+                        <span class="text-xl font-bold">John Kelly</span><br>
+                        <span class="text-sm italic">&amp; Company</span>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-5">
-                        <div id="pds-doc-preview" class="border border-gray-400 text-xs text-gray-800 font-sans w-[794px] shrink-0 leading-[1.3] mx-auto shadow-sm bg-white">
-
-                            {{-- Header --}}
-                            <div class="flex items-center justify-center py-4 border-b border-gray-400 px-6">
-                                <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
-                            </div>
-                            <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-b border-gray-400">
-                                Personal Data Sheet
-                            </div>
-
-                            {{-- Section 1: Personal Information --}}
-                            <div class="bg-blue-50 px-4 py-1.5 border-b border-gray-400">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-blue-800">I. Personal Information</span>
-                            </div>
-                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
-                                <div class="p-3">
-                                    <span class="text-gray-500">Full Name:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.fullName || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Position:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.position || '—'"></p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
-                                <div class="p-3">
-                                    <span class="text-gray-500">Email:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.email || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Phone:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.phone || '—'"></p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 border-b border-gray-400 divide-x divide-gray-400">
-                                <div class="p-3">
-                                    <span class="text-gray-500">Date of Birth:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.dob || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Gender:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.gender || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Emergency Contact:</span>
-                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="(pdsForm.emergencyName || '—') + (pdsForm.emergencyPhone ? ' · ' + pdsForm.emergencyPhone : '')"></p>
-                                </div>
-                            </div>
-                            <div class="border-b border-gray-400 p-3">
-                                <span class="text-gray-500">Address:</span>
-                                <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="pdsForm.address || '—'"></p>
-                            </div>
-
-                            {{-- Section 2: Educational Background --}}
-                            <div class="bg-blue-50 px-4 py-1.5 border-b border-gray-400">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-blue-800">II. Educational Background</span>
-                            </div>
-                            <div class="border-b border-gray-400">
-                                <div class="grid grid-cols-4 bg-gray-100 border-b border-gray-300 text-[10px] font-black text-gray-600 uppercase">
-                                    <div class="p-2 border-r border-gray-300">Level</div>
-                                    <div class="p-2 border-r border-gray-300">School / Institution</div>
-                                    <div class="p-2 border-r border-gray-300">Year Graduated</div>
-                                    <div class="p-2">Honors / Awards</div>
-                                </div>
-                                <div class="grid grid-cols-4 border-b border-gray-200 divide-x divide-gray-200">
-                                    <div class="p-2 font-semibold text-gray-600">Secondary</div>
-                                    <div class="p-2" x-text="pdsForm.secSchool || '—'"></div>
-                                    <div class="p-2" x-text="pdsForm.secYear || '—'"></div>
-                                    <div class="p-2" x-text="pdsForm.secHonors || '—'"></div>
-                                </div>
-                                <div class="grid grid-cols-4 divide-x divide-gray-200">
-                                    <div class="p-2 font-semibold text-gray-600">Tertiary</div>
-                                    <div class="p-2">
-                                        <span x-text="pdsForm.tertInstitution || '—'"></span>
-                                        <span x-show="pdsForm.tertDegree" class="block text-gray-500 text-[10px]" x-text="pdsForm.tertDegree + (pdsForm.tertMajor ? ' – ' + pdsForm.tertMajor : '')"></span>
-                                    </div>
-                                    <div class="p-2" x-text="pdsForm.tertYear || '—'"></div>
-                                    <div class="p-2" x-text="pdsForm.tertHonors || '—'"></div>
-                                </div>
-                            </div>
-
-                            {{-- Section 3: Work Experience --}}
-                            <div class="bg-blue-50 px-4 py-1.5 border-b border-gray-400">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-blue-800">III. Work Experience</span>
-                            </div>
-                            <div class="border-b border-gray-400">
-                                <div class="grid grid-cols-4 bg-gray-100 border-b border-gray-300 text-[10px] font-black text-gray-600 uppercase">
-                                    <div class="p-2 border-r border-gray-300">Company</div>
-                                    <div class="p-2 border-r border-gray-300">Position</div>
-                                    <div class="p-2 border-r border-gray-300">Duration</div>
-                                    <div class="p-2">Key Responsibilities</div>
-                                </div>
-                                <div class="grid grid-cols-4 divide-x divide-gray-200">
-                                    <div class="p-2" x-text="pdsForm.workCompany || '—'"></div>
-                                    <div class="p-2" x-text="pdsForm.workPosition || '—'"></div>
-                                    <div class="p-2">
-                                        <span x-text="pdsForm.workStart || '—'"></span>
-                                        <span x-show="pdsForm.workEnd"> – <span x-text="pdsForm.workEnd"></span></span>
-                                    </div>
-                                    <div class="p-2 whitespace-pre-wrap" x-text="pdsForm.workResponsibilities || '—'"></div>
-                                </div>
-                            </div>
-
-                            {{-- Section 4: Reference --}}
-                            <div class="bg-blue-50 px-4 py-1.5 border-b border-gray-400">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-blue-800">IV. Reference</span>
-                            </div>
-                            <div class="grid grid-cols-3 border-b border-gray-400 divide-x divide-gray-400">
-                                <div class="p-3">
-                                    <span class="text-gray-500">Name:</span>
-                                    <p class="font-semibold mt-0.5" x-text="pdsForm.refName || '—'"></p>
-                                    <span class="text-gray-500 block mt-1">Position/Title:</span>
-                                    <p class="font-semibold" x-text="pdsForm.refTitle || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Company:</span>
-                                    <p class="font-semibold mt-0.5" x-text="pdsForm.refCompany || '—'"></p>
-                                    <span class="text-gray-500 block mt-1">Relationship:</span>
-                                    <p class="font-semibold" x-text="pdsForm.refRelationship || '—'"></p>
-                                </div>
-                                <div class="p-3">
-                                    <span class="text-gray-500">Contact:</span>
-                                    <p class="font-semibold mt-0.5" x-text="pdsForm.refContact || '—'"></p>
-                                    <span class="text-gray-500 block mt-1">Email:</span>
-                                    <p class="font-semibold" x-text="pdsForm.refEmail || '—'"></p>
-                                </div>
-                            </div>
-
-                            {{-- Section 5: Signature --}}
-                            <div class="bg-blue-50 px-4 py-1.5 border-b border-gray-400">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-blue-800">V. Signature</span>
-                            </div>
-                            <div class="p-4 flex flex-col items-center gap-2 min-h-[80px] border-b border-gray-400">
-                                <img x-show="pdsForm.signaturePreview" :src="pdsForm.signaturePreview" class="max-h-16">
-                                <p x-show="!pdsForm.signaturePreview" class="text-gray-300 italic text-xs">No signature uploaded</p>
-                                <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1 mt-2" x-text="pdsForm.fullName || 'Signature Over Printed Name'"></p>
-                            </div>
-
-                            {{-- Footer --}}
-                            <div class="bg-gray-50 px-4 py-2 text-[9px] text-gray-400 text-right">
-                                John Kelly & Company — Personal Data Sheet &nbsp;|&nbsp; Date Submitted: <span x-text="new Date().toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})"></span>
-                            </div>
-
-                        </div>{{-- end pds-doc-preview --}}
+                </div>
+                <div class="text-[8px] text-gray-600 text-right leading-tight max-w-[200mm]">
+                    <p class="font-bold">Atty. Jose B. Ogang, CPA, MMPSM • Jose Tomayo Rio, MM-BA, CPA • Lyndon Earl P. Rio, RN, CB • John Kelly Abalde, CLSSBB, CPM</p>
+                    <p>3F, Cebu Holdings Center, Cebu Business Park, Cebu City, Philippines 6000</p>
+                    <p>Email: start@jknc.io Website: https://jknc.io/ Phone Number: 0995-535-8729</p>
+                    <p class="font-bold text-[7px] mt-1 text-gray-500">Form Code: PDS-001 Version: 1.0 Effective Date: December 1, 2025 Issued By: Office of the President</p>
+                </div>
+            </div>
+            
+            <h1 class="text-center text-blue-800 font-bold text-lg mb-4">Personal Data Sheet</h1>
+            
+            <!-- PAGE 1 -->
+            <div class="border border-gray-200 rounded-lg mb-4 text-[10px] pb-2">
+                <div class="px-4 py-1.5 mb-2 -mt-2 bg-white inline-block text-blue-800 font-bold uppercase tracking-wider text-xs ml-4">I. PERSONAL INFORMATION</div>
+                
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">A. Identification</div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div><label class="text-gray-600 block mb-0.5">Surname:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.surname"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">First Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.firstName"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Middle Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.middleName"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Name Extension:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white text-gray-400"><span x-show="pdsForm.nameExt" x-text="pdsForm.nameExt" class="text-black"></span><span x-show="!pdsForm.nameExt">Jr., Sr., III, etc.</span></div></div>
                     </div>
-                </div>{{-- end live preview --}}
+                </div>
 
-            </div>{{-- end split body --}}
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">B. Birth &amp; Citizenship</div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="text-gray-600 block mb-0.5">Date of Birth:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white"><span x-text="pdsForm.dob || 'dd/mm/yyyy'" :class="pdsForm.dob ? 'text-black' : 'text-gray-400'"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Place of Birth:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.pob"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Citizenship:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.citizenship"></div></div>
+                    </div>
+                </div>
+
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">C. Personal Details</div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div><label class="text-gray-600 block mb-0.5">Sex:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white"><span x-text="pdsForm.sex || 'Select'" :class="pdsForm.sex ? 'text-black' : 'text-gray-400'"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Civil Status:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white"><span x-text="pdsForm.civilStatus || 'Select'" :class="pdsForm.civilStatus ? 'text-black' : 'text-gray-400'"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Height (meters):</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.height"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Weight (kilograms):</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.weight"></div></div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="text-gray-600 block mb-0.5">Blood Type:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.bloodType"></div>
+                    </div>
+                </div>
+                
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">D. Government Identification Numbers</div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div><label class="text-gray-600 block mb-0.5">SSS Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.sss"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">PhilHealth Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.philhealth"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Pag-IBIG ID Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.pagibig"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">TIN Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.tin"></div></div>
+                    </div>
+                </div>
+
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">E. Residential Address</div>
+                    <div class="grid grid-cols-4 gap-2 mb-2">
+                        <div><label class="text-gray-600 block mb-0.5">House / Block / Lot No.:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resHouse"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Street:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resStreet"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Subdivision / Village:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resSubdiv"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Barangay:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resBrgy"></div></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div class="col-span-2"><label class="text-gray-600 block mb-0.5">City / Municipality:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resCity"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Province:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resProv"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">ZIP Code:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.resZip"></div></div>
+                    </div>
+                </div>
+
+                <div class="px-4 mb-2 relative">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="font-bold">F. Permanent Address</div>
+                        <div class="flex items-center gap-1 text-gray-500"><div class="w-3 h-3 border border-gray-400 rounded-sm flex items-center justify-center"><svg x-show="pdsForm.permSameAsRes" class="w-2 h-2 text-black" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg></div><span class="text-[9px]">Same as residential address</span></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2 mb-2">
+                        <div><label class="text-gray-600 block mb-0.5">House / Block / Lot No.:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permHouse"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Street:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permStreet"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Subdivision / Village:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permSubdiv"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Barangay:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permBrgy"></div></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div class="col-span-2"><label class="text-gray-600 block mb-0.5">City / Municipality:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permCity"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Province:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permProv"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">ZIP Code:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.permZip"></div></div>
+                    </div>
+                </div>
+                
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">G. Contact Information</div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div><label class="text-gray-600 block mb-0.5">Telephone Number (if any):</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.telNo"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Mobile Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.mobileNo"></div></div>
+                        <div><label class="text-gray-600 block mb-0.5">Email Address:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.email"></div></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PAGE 2 equivalent -->
+            <div class="border border-gray-200 rounded-lg mb-4 text-[10px] pb-2 mt-4" style="page-break-before: always;">
+                <div class="px-4 py-1.5 mb-2 -mt-2 bg-white inline-block text-blue-800 font-bold uppercase tracking-wider text-xs ml-4">II. FAMILY BACKGROUND</div>
+                
+                <div class="px-4 mb-2 grid grid-cols-4 gap-2">
+                    <div><label class="text-gray-600 block mb-0.5">Spouse's Surname:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseSurname"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Spouse's First Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseFirstName"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Spouse's Middle Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseMiddleName"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Spouse's Name Extension:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseNameExt"></div></div>
+                </div>
+                <div class="px-4 mb-3 grid grid-cols-4 gap-2">
+                    <div><label class="text-gray-600 block mb-0.5">Spouse's Occupation:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseOccupation"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Employer / Business Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseEmployer"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Business Address:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseBusinessAddress"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Telephone Number:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.spouseTelNo"></div></div>
+                </div>
+
+                <div class="px-4 mb-3">
+                    <div class="font-bold mb-1">Children</div>
+                    <div class="border border-blue-200 rounded overflow-hidden">
+                        <div class="grid grid-cols-3 bg-blue-50 text-blue-900 font-bold p-1 text-center divide-x divide-blue-200 border-b border-blue-200 bg-opacity-50">
+                            <div>Full Name</div><div>Gender</div><div>Date of Birth</div>
+                        </div>
+                        <template x-for="(child, idx) in pdsForm.children" :key="'c'+idx">
+                            <div class="grid grid-cols-3 p-1 gap-1 border-b border-blue-100 last:border-b-0">
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white text-gray-500"><span x-show="!child.name" class="text-gray-300">Full Name</span><span x-show="child.name" x-text="child.name" class="text-black"></span></div>
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white text-gray-500"><span x-show="!child.gender" class="text-gray-300">Select</span><span x-show="child.gender" x-text="child.gender" class="text-black"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg></div>
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white text-gray-500"><span x-show="!child.dob" class="text-gray-300">dd/mm/yyyy</span><span x-show="child.dob" x-text="child.dob" class="text-black"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="px-4 mb-2 grid grid-cols-4 gap-2">
+                    <div><label class="text-gray-600 block mb-0.5">Father's Surname:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.fatherSurname"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Father's First Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.fatherFirstName"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Father's Middle Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.fatherMiddleName"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Father's Name Extension:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.fatherNameExt"></div></div>
+                </div>
+                <div class="px-4 mb-2 grid grid-cols-4 gap-2">
+                    <div class="col-span-2"><label class="text-gray-600 block mb-0.5">Mother's Maiden Surname:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.motherMaidenSurname"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Mother's First Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.motherFirstName"></div></div>
+                    <div><label class="text-gray-600 block mb-0.5">Mother's Middle Name:</label><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.motherMiddleName"></div></div>
+                </div>
+            </div>
+
+            <!-- PAGE 3 equivalent -->
+            <div class="border border-gray-200 rounded-lg mb-4 text-[10px] pb-2 mt-4" style="page-break-before: always;">
+                <div class="px-4 py-1.5 mb-2 -mt-2 bg-white inline-block text-blue-800 font-bold uppercase tracking-wider text-xs ml-4">III. EDUCATIONAL BACKGROUND</div>
+                
+                <div class="px-4 mb-3">
+                    <div class="font-bold mb-1 mt-1">A. Formal Education</div>
+                    <div class="border border-blue-200 rounded overflow-hidden">
+                        <div class="grid grid-cols-5 bg-blue-50 text-blue-900 font-bold p-1 text-center divide-x divide-blue-200 border-b border-blue-200 bg-opacity-50 text-[9px] uppercase">
+                            <div>Level</div><div class="col-span-2">School / Basic Education/Degree/Course</div><div>From</div><div>To</div>
+                        </div>
+                        <!-- Elem -->
+                        <div class="grid grid-cols-5 p-1 gap-1 border-b border-blue-100 items-center">
+                            <div class="uppercase text-gray-500 font-semibold px-2">Elementary</div>
+                            <div class="col-span-2"><div class="border border-gray-300 rounded h-7 px-2 w-full flex items-center bg-white" x-text="pdsForm.educElemSchool + (pdsForm.educElemDegree ? ' - ' + pdsForm.educElemDegree : '')"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educElemFrom"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educElemTo"></div></div>
+                        </div>
+                        <!-- Sec -->
+                        <div class="grid grid-cols-5 p-1 gap-1 border-b border-blue-100 items-center">
+                            <div class="uppercase text-gray-500 font-semibold px-2">Secondary</div>
+                            <div class="col-span-2"><div class="border border-gray-300 rounded h-7 px-2 w-full flex items-center bg-white" x-text="pdsForm.educSecSchool + (pdsForm.educSecDegree ? ' - ' + pdsForm.educSecDegree : '')"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educSecFrom"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educSecTo"></div></div>
+                        </div>
+                        <!-- College -->
+                        <div class="grid grid-cols-5 p-1 gap-1 border-b border-blue-100 items-center">
+                            <div class="uppercase text-gray-500 font-semibold px-2">College</div>
+                            <div class="col-span-2"><div class="border border-gray-300 rounded h-7 px-2 w-full flex items-center bg-white" x-text="pdsForm.educCollSchool + (pdsForm.educCollDegree ? ' - ' + pdsForm.educCollDegree : '')"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educCollFrom"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educCollTo"></div></div>
+                        </div>
+                        <!-- Masters -->
+                        <div class="grid grid-cols-5 p-1 gap-1 border-b border-blue-100 items-center">
+                            <div class="uppercase text-gray-500 font-semibold px-2">Masters</div>
+                            <div class="col-span-2"><div class="border border-gray-300 rounded h-7 px-2 w-full flex items-center bg-white" x-text="pdsForm.educMastSchool + (pdsForm.educMastDegree ? ' - ' + pdsForm.educMastDegree : '')"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educMastFrom"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educMastTo"></div></div>
+                        </div>
+                        <!-- Doct -->
+                        <div class="grid grid-cols-5 p-1 gap-1 items-center">
+                            <div class="uppercase text-gray-500 font-semibold px-2">Doctorate</div>
+                            <div class="col-span-2"><div class="border border-gray-300 rounded h-7 px-2 w-full flex items-center bg-white" x-text="pdsForm.educDoctSchool + (pdsForm.educDoctDegree ? ' - ' + pdsForm.educDoctDegree : '')"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educDoctFrom"></div></div>
+                            <div><div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white" x-text="pdsForm.educDoctTo"></div></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="px-4 mb-2">
+                    <div class="font-bold mb-1">B. Learning &amp; Development</div>
+                    <div class="border border-blue-200 rounded overflow-hidden">
+                        <div class="grid grid-cols-4 bg-blue-50 text-blue-900 font-bold p-1 text-center divide-x divide-blue-200 border-b border-blue-200 bg-opacity-50 text-[9px]">
+                            <div>Training / Seminar / Workshop Title</div><div>Conducted By</div><div>Date / Period</div><div>Certificate Received</div>
+                        </div>
+                        <template x-for="(l, idx) in pdsForm.lnd" :key="'l'+idx">
+                            <div class="grid grid-cols-4 p-1 gap-1 border-b border-blue-100 last:border-b-0">
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white text-gray-500"><span x-show="!l.title" class="text-gray-300">Title</span><span x-show="l.title" x-text="l.title" class="text-black"></span></div>
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white text-gray-500"><span x-show="!l.conductedBy" class="text-gray-300">Conducted By</span><span x-show="l.conductedBy" x-text="l.conductedBy" class="text-black"></span></div>
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center bg-white text-gray-500"><span x-show="!l.date" class="text-gray-300">Date</span><span x-show="l.date" x-text="l.date" class="text-black"></span></div>
+                                <div class="border border-gray-300 rounded h-7 px-2 flex items-center justify-between bg-white text-gray-500"><span x-show="!l.cert" class="text-gray-300">Select</span><span x-show="l.cert" x-text="l.cert" class="text-black"></span><svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"></path></svg></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border border-gray-200 rounded-lg mb-4 text-[10px] pb-4 mt-4 bg-gray-50 px-4 pt-3">
+                <div class="text-blue-800 font-bold uppercase tracking-wider text-xs mb-2">IV. DECLARATION AND DATA PRIVACY CONSENT</div>
+                <p class="mb-2 text-gray-600">I certify that the information provided herein is true, complete, and accurate to the best of my knowledge.</p>
+                <p class="mb-3 text-gray-600">I understand and consent that pursuant to Republic Act No. 10173 (Data Privacy Act of 2012), the information provided in this Personal Data Sheet will be collected, processed, and retained by John Kelly & Company and its authorized representatives for lawful employment and compliance purposes.</p>
+                
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 border border-gray-400 rounded-sm flex items-center justify-center bg-white">
+                        <svg x-show="pdsForm.consent" class="w-2 h-2 text-black" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg>
+                    </div>
+                    <span class="text-gray-700">I have read and agree to the Data Privacy Consent above. <span class="text-red-500">*</span></span>
+                </div>
+            </div>
+
+        </div>{{-- end pds-doc-preview --}}
+    </div>
+</div>{{-- end live preview --}}
+
+
+            {{-- end split body --}}
         </div>
     </div>
 
@@ -810,7 +873,7 @@ function onboardingPage() {
             { key: 'Training',             label: 'Training' },
         ],
         data: {
-            'PDS': [],
+            'PDS': @json($pdsData ?? []),
             'Checklist Submission': [],
             'Employee Registration': [],
             'Training': [],
@@ -829,14 +892,27 @@ function onboardingPage() {
         ],
         pdsForm: {
             fullName: '', position: '', email: '', phone: '',
-            dob: '', gender: '', address: '',
-            emergencyName: '', emergencyPhone: '',
-            secSchool: '', secYear: '', secHonors: '',
-            tertInstitution: '', tertDegree: '', tertMajor: '', tertYear: '', tertHonors: '',
-            workCompany: '', workPosition: '', workStart: '', workEnd: '', workResponsibilities: '',
-            refName: '', refTitle: '', refCompany: '', refContact: '', refEmail: '', refRelationship: '',
-            signaturePreview: '', signatureName: '',
-            submittedDate: '',
+            surname: '', firstName: '', middleName: '', nameExt: '',
+            dob: '', pob: '', citizenship: '',
+            sex: '', civilStatus: '', height: '', weight: '', bloodType: '',
+            sss: '', philhealth: '', pagibig: '', tin: '',
+            resHouse: '', resStreet: '', resSubdiv: '', resBrgy: '', resCity: '', resProv: '', resZip: '',
+            permSameAsRes: false,
+            permHouse: '', permStreet: '', permSubdiv: '', permBrgy: '', permCity: '', permProv: '', permZip: '',
+            telNo: '', mobileNo: '',
+            spouseSurname: '', spouseFirstName: '', spouseMiddleName: '', spouseNameExt: '',
+            spouseOccupation: '', spouseEmployer: '', spouseBusinessAddress: '', spouseTelNo: '',
+            children: [ {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''} ],
+            fatherSurname: '', fatherFirstName: '', fatherMiddleName: '', fatherNameExt: '',
+            motherMaidenSurname: '', motherFirstName: '', motherMiddleName: '',
+            educElemSchool: '', educElemDegree: '', educElemFrom: '', educElemTo: '',
+            educSecSchool: '', educSecDegree: '', educSecFrom: '', educSecTo: '',
+            educCollSchool: '', educCollDegree: '', educCollFrom: '', educCollTo: '',
+            educMastSchool: '', educMastDegree: '', educMastFrom: '', educMastTo: '',
+            educDoctSchool: '', educDoctDegree: '', educDoctFrom: '', educDoctTo: '',
+            lnd: [ {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''} ],
+            consent: false,
+            signaturePreview: '', signatureName: '', submittedDate: ''
         },
         checklistForm: { employeeName: '', checked: [] },
         empRegForm: { fullName: '', employeeId: '', department: '', startDate: '', workEmail: '', manager: '' },
@@ -855,12 +931,26 @@ function onboardingPage() {
             if (this.activeTab === 'PDS') {
                 this.pdsForm = {
                     fullName: '', position: '', email: '', phone: '',
-                    dob: '', gender: '', address: '',
-                    emergencyName: '', emergencyPhone: '',
-                    secSchool: '', secYear: '', secHonors: '',
-                    tertInstitution: '', tertDegree: '', tertMajor: '', tertYear: '', tertHonors: '',
-                    workCompany: '', workPosition: '', workStart: '', workEnd: '', workResponsibilities: '',
-                    refName: '', refTitle: '', refCompany: '', refContact: '', refEmail: '', refRelationship: '',
+                    surname: '', firstName: '', middleName: '', nameExt: '',
+                    dob: '', pob: '', citizenship: '',
+                    sex: '', civilStatus: '', height: '', weight: '', bloodType: '',
+                    sss: '', philhealth: '', pagibig: '', tin: '',
+                    resHouse: '', resStreet: '', resSubdiv: '', resBrgy: '', resCity: '', resProv: '', resZip: '',
+                    permSameAsRes: false,
+                    permHouse: '', permStreet: '', permSubdiv: '', permBrgy: '', permCity: '', permProv: '', permZip: '',
+                    telNo: '', mobileNo: '',
+                    spouseSurname: '', spouseFirstName: '', spouseMiddleName: '', spouseNameExt: '',
+                    spouseOccupation: '', spouseEmployer: '', spouseBusinessAddress: '', spouseTelNo: '',
+                    children: [ {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''} ],
+                    fatherSurname: '', fatherFirstName: '', fatherMiddleName: '', fatherNameExt: '',
+                    motherMaidenSurname: '', motherFirstName: '', motherMiddleName: '',
+                    educElemSchool: '', educElemDegree: '', educElemFrom: '', educElemTo: '',
+                    educSecSchool: '', educSecDegree: '', educSecFrom: '', educSecTo: '',
+                    educCollSchool: '', educCollDegree: '', educCollFrom: '', educCollTo: '',
+                    educMastSchool: '', educMastDegree: '', educMastFrom: '', educMastTo: '',
+                    educDoctSchool: '', educDoctDegree: '', educDoctFrom: '', educDoctTo: '',
+                    lnd: [ {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''} ],
+                    consent: false,
                     signaturePreview: '', signatureName: '', submittedDate: '',
                 };
                 this.showPdsModal = true;
@@ -886,9 +976,11 @@ function onboardingPage() {
         },
 
         submitPds() {
-            const record = { ...this.pdsForm, submittedDate: new Date().toLocaleDateString('en-PH') };
-            this.data['PDS'].unshift(record);
-            this.showPdsModal = false;
+            fetch('{{ route("careers.pds.submit") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify(this.pdsForm)
+            }).then(() => window.location.reload());
         },
         deletePds(index) {
             if (!confirm('Delete this PDS record?')) return;
