@@ -34,10 +34,13 @@
                 type="button"
                 @click="showSlideOver = true"
                 onclick="openAddSection()"
-                class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-full transition"
+                class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0"
             >
-                <i class="fas fa-plus mr-1"></i> Add
+                + Add
             </button>
+
+
+
         </div>
 
         <div class="px-5 pt-4 bg-white border-b border-gray-100">

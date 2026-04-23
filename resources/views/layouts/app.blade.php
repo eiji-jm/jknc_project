@@ -9,6 +9,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
     <style>
         [x-cloak] { display: none !important; }
@@ -61,6 +62,10 @@
         } elseif ($user->hasPermission('access_admin_dashboard') || $user->hasPermission('approve_townhall')) {
             $adminLandingRoute = route('admin.dashboard');
         }
+
+        $isHumanCapitalSection =
+            request()->is('human-capital') ||
+            request()->is('human-capital/*');
     @endphp
 
     <!-- HEADER -->
@@ -158,6 +163,15 @@
                    {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') || request()->routeIs('corporate.sec_aoi') || request()->routeIs('corporate.bylaws') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
                     <i class="fas fa-building text-base"></i>
                     <span>Corporate</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_human_capital'))
+                <a href="{{ route('human-capital.dashboard') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ $isHumanCapitalSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-user-tie text-base"></i>
+                    <span>Human Capital</span>
                 </a>
             @endif
 
@@ -347,14 +361,90 @@
                         @endif
 
                         <a href="{{ route('admin.policies.index') }}"
-   class="flex items-center px-4 py-2 rounded-lg text-sm font-medium
-          {{ request()->routeIs('admin.policies.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100' }}">
-    Policies
-</a>
+                           class="flex items-center px-4 py-2 rounded-lg text-sm font-medium
+                           {{ request()->routeIs('admin.policies.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100' }}">
+                            Policies
+                        </a>
 
                     </div>
                 </div>
 
+            </aside>
+
+        @elseif($isHumanCapitalSection && Auth::user()->hasPermission('access_human_capital'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Human Capital</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('human-capital.dashboard') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Dashboard
+                        </a>
+
+                        <a href="{{ route('human-capital.organizational') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/organizational') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Organizational
+                        </a>
+
+                        <a href="{{ route('human-capital.payroll') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/payroll') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Payroll
+                        </a>
+
+                        <a href="{{ route('human-capital.employee-profile') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-profile') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Profile
+                        </a>
+
+                        <a href="{{ route('human-capital.recruitment') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/recruitment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Recruitment
+                        </a>
+
+                        <a href="{{ route('human-capital.onboarding') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/onboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            On Boarding
+                        </a>
+
+                        <a href="{{ route('human-capital.deployment') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/deployment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Deployment
+                        </a>
+
+                        <a href="{{ route('human-capital.attendance') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/attendance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Attendance
+                        </a>
+
+                        <a href="{{ route('human-capital.employee-requests') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-requests') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Requests
+                        </a>
+
+                        <a href="{{ route('human-capital.employee-relations') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-relations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Relations
+                        </a>
+
+                        <a href="{{ route('human-capital.training') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/training') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Training
+                        </a>
+
+                        <a href="{{ route('human-capital.performance') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/performance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Performance
+                        </a>
+
+                        <a href="{{ route('human-capital.offboarding') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/offboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            OffBoarding
+                        </a>
+                    </div>
+                </div>
             </aside>
 
         @elseif(
@@ -525,6 +615,7 @@
                     </div>
                 </div>
             </aside>
+
         @elseif(
             Auth::user()->hasPermission('access_corporate')
             && (
@@ -661,6 +752,7 @@
     </div>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     @stack('scripts')
 </body>
 </html>

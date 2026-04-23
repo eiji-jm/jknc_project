@@ -1,0 +1,3988 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="w-full px-6 mt-4 h-[calc(100vh-100px)] flex flex-col" x-data="recruitmentPage({{ $mrfData->toJson() }}, {{ $jpfData->toJson() }}, {{ $cafData->toJson() }}, {{ $assessmentData->toJson() }}, {{ $interviewData->toJson() }}, {{ $jobOfferData->toJson() }})">
+
+    {{-- TABS --}}
+    <div class="flex items-center border-b border-gray-200 mb-4 gap-1">
+        <template x-for="tab in tabs" :key="tab.key">
+            <button
+                type="button"
+                @click="activeTab = tab.key"
+                :class="activeTab === tab.key
+                    ? 'border-b-2 border-blue-600 text-blue-600 font-semibold'
+                    : 'text-gray-500 hover:text-gray-700'"
+                class="px-4 py-2 text-sm transition-colors -mb-px focus:outline-none"
+                x-text="tab.label"
+            ></button>
+        </template>
+    </div>
+
+    {{-- TOOLBAR --}}
+    <div class="flex items-center gap-3 mb-4">
+        <div class="relative flex-1 max-w-md">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" x-model="search" :placeholder="'Search ' + activeTab + '...'"
+                class="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white">
+        </div>
+        <div class="relative" @click.away="showFilter = false">
+            <button type="button" @click="showFilter = !showFilter" 
+                class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition"
+                :class="filterStatus !== 'All' ? 'border-blue-500 bg-blue-50' : ''">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                Filter <span x-show="filterStatus !== 'All'" class="ml-1 text-blue-600 font-bold" x-text="'('+filterStatus+')'"></span>
+            </button>
+            
+            <div x-show="showFilter" x-transition class="absolute left-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-30 p-2">
+                <p class="px-2 py-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-wider">Filter by Status</p>
+                <div class="space-y-1">
+                    <template x-for="st in ['All', 'Pending', 'Open', 'Filled', 'Hold', 'Cancelled', 'Disapproved']">
+                        <button @click="filterStatus = st; showFilter = false" 
+                            class="w-full text-left px-3 py-2 rounded-lg text-sm transition font-medium"
+                            :class="filterStatus === st ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'"
+                            x-text="st"></button>
+                    </template>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-100">
+                    <button @click="filterStatus = 'All'; showFilter = false" class="w-full text-center text-xs text-gray-400 hover:text-gray-600 font-medium">Clear all filters</button>
+                </div>
+            </div>
+        </div>
+        <button type="button" @click="downloadCSV()" x-show="activeTab !== 'Assessment'"
+            class="flex items-center gap-2 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition">
+            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/></svg>
+            Download CSV
+        </button>
+        <div x-show="activeTab === 'CAF'" class="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg p-0.5">
+            <a href="{{ route('careers.apply') }}" target="_blank" 
+                class="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100/50 rounded-md transition font-bold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Open Careers Page
+            </a>
+            <div class="w-px h-6 bg-blue-200 mx-0.5"></div>
+            <button type="button" 
+                @click="navigator.clipboard.writeText('{{ route('careers.apply') }}'); linkCopied = true; setTimeout(() => linkCopied = false, 2000)"
+                class="flex items-center gap-2 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100/50 rounded-md transition font-bold relative">
+                <svg x-show="!linkCopied" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                <svg x-show="linkCopied" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                <span x-text="linkCopied ? 'Copied!' : 'Copy Link'"></span>
+            </button>
+        </div>
+        <button type="button" @click="openModal()"
+            class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add New
+        </button>
+    </div>
+
+    {{-- TABLE --}}
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0 overflow-hidden">
+        <div class="overflow-auto flex-grow">
+
+            {{-- MRF TABLE --}}
+            <table class="w-full text-sm border-collapse" x-show="activeTab === 'MRF'">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
+                    <tr class="border-b border-gray-200">
+                        <th class="px-4 py-3 text-left font-semibold">Request ID</th>
+                        <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Department</th>
+                        <th class="px-4 py-3 text-left font-semibold">Headcount</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Date</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredRows.length === 0">
+                        <tr><td colspan="7" class="px-4 py-16 text-center text-gray-400">
+                            <div class="flex flex-col items-center gap-2">
+                                <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                                <span class="text-sm">No MRF records found. Click <strong>+ Add New</strong> to create one.</span>
+                            </div>
+                        </td></tr>
+                    </template>
+                    <template x-for="(row, i) in paginatedRows" :key="i">
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.request_id"></td>
+                            <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.department"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.headcount"></td>
+                            <td class="px-4 py-3">
+                                <span x-text="row.request_status" :class="statusClass(row.request_status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span>
+                            </td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.date_requested"></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewMRF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editMRF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
+                                <button @click="deleteMRF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            {{-- JPF TABLE --}}
+            <table class="w-full text-sm border-collapse" x-show="activeTab === 'JPF'">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
+                    <tr class="border-b border-gray-200">
+                        <th class="px-4 py-3 text-left font-semibold">Job ID</th>
+                        <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Type</th>
+                        <th class="px-4 py-3 text-left font-semibold">Location</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Posted</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredRows.length === 0">
+                        <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
+                    </template>
+                    <template x-for="(row, i) in paginatedRows" :key="i">
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-blue-600 font-medium" x-text="row.job_id"></td>
+                            <td class="px-4 py-3 text-gray-800" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.employment_type"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.location"></td>
+                            <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.posted_date"></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewJPF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editJPF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
+                                <button @click="deleteJPF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            {{-- CAF TABLE --}}
+            <table class="w-full text-sm border-collapse" x-show="activeTab === 'CAF'">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
+                    <tr class="border-b border-gray-200">
+                        <th class="px-4 py-3 text-left font-semibold">Name</th>
+                        <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Email</th>
+                        <th class="px-4 py-3 text-left font-semibold">Phone</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Applied</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredRows.length === 0">
+                        <tr><td colspan="6" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
+                    </template>
+                    <template x-for="(row, i) in paginatedRows" :key="i">
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.email"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.phone"></td>
+                            <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.applied_date || row.applied"></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewCAF(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="editCAF(row)" class="text-xs text-amber-600 hover:underline mr-2">Edit</button>
+                                <button @click="deleteCAF(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            {{-- ASSESSMENT TABLE --}}
+            {{-- ASSESSMENT KANBAN --}}
+            <div x-show="activeTab === 'Assessment'" class="flex-1 overflow-x-auto p-4 bg-gray-50/50">
+                <div class="flex gap-4 h-full min-w-max">
+                    <template x-for="col in [
+                        { label: 'Pending Assessment', key: 'Pending Assessment', bg: 'bg-yellow-50', border: 'border-yellow-100', text: 'text-yellow-800' },
+                        { label: 'In Progress', key: 'In Progress', bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-800' },
+                        { label: 'Passed', key: 'Passed', bg: 'bg-green-50', border: 'border-green-100', text: 'text-green-800' },
+                        { label: 'Failed', key: 'Failed', bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-800' }
+                    ]" :key="col.key">
+                        <div class="w-80 flex flex-col shrink-0">
+                            {{-- Column Header --}}
+                            <div :class="col.bg + ' ' + col.border" class="px-4 py-3 border rounded-t-xl flex items-center justify-between shrink-0 mb-2">
+                                <h3 :class="col.text" class="font-bold text-[13px] uppercase tracking-wider" x-text="col.label"></h3>
+                                <span class="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-black text-gray-500 shadow-sm border border-gray-100" x-text="data['Assessment'].filter(a => a.status === col.key).length"></span>
+                            </div>
+                            
+                            {{-- Column Body --}}
+                            <div 
+                                class="flex-1 p-1 space-y-3 overflow-y-auto rounded-b-xl min-h-[500px] transition-colors"
+                                :class="draggedItem ? 'bg-blue-50/30 border-2 border-dashed border-blue-200' : ''"
+                                @dragover.prevent
+                                @drop="onDrop(col.key)"
+                            >
+                                <template x-for="item in data['Assessment'].filter(a => a.status === col.key)" :key="item.name">
+                                    <div 
+                                        class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition group relative cursor-move"
+                                        draggable="true"
+                                        @dragstart="onDragStart(item)"
+                                    >
+                                        <div 
+                                            class="absolute top-5 right-5 flex flex-col gap-0.5 opacity-20 group-hover:opacity-60 transition cursor-pointer hover:scale-110 active:scale-95 z-20 bg-gray-100 p-1 rounded-md"
+                                            @click.stop="viewAssessment(item)"
+                                        >
+                                            <div class="flex gap-0.5"><span class="w-1 h-1 bg-gray-900 rounded-full"></span><span class="w-1 h-1 bg-gray-900 rounded-full"></span></div>
+                                            <div class="flex gap-0.5"><span class="w-1 h-1 bg-gray-900 rounded-full"></span><span class="w-1 h-1 bg-gray-900 rounded-full"></span></div>
+                                            <div class="flex gap-0.5"><span class="w-1 h-1 bg-gray-900 rounded-full"></span><span class="w-1 h-1 bg-gray-900 rounded-full"></span></div>
+                                        </div>
+
+                                        <button 
+                                            class="absolute top-5 right-12 opacity-0 group-hover:opacity-100 transition-all hover:text-red-600 text-gray-400 p-1 z-20"
+                                            @click.stop="deleteAssessment(item.id)"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 shrink-0">
+                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                </div>
+                                                <h4 class="font-bold text-gray-900 text-[15px] tracking-tight truncate pr-6" x-text="item.name"></h4>
+                                            </div>
+
+                                            <div class="space-y-2.5 ml-1">
+                                                <div class="flex items-center gap-3 text-gray-500">
+                                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                                    <span class="text-[12px] font-medium" x-text="item.position"></span>
+                                                </div>
+                                                <div class="flex items-center gap-3 text-gray-500">
+                                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+                                                    <span class="text-[12px] font-medium" x-text="item.test_type || item.test"></span>
+                                                </div>
+                                                <div class="flex items-center gap-3 text-gray-500">
+                                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z"/></svg>
+                                                    <span class="text-[12px] font-medium" x-text="item.assessment_date || item.date"></span>
+                                                </div>
+                                                <div x-show="item.score" class="flex items-center gap-2.5 bg-gray-50 px-2.5 py-1.5 rounded-lg w-fit border border-gray-100">
+                                                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                                                    <span class="text-[12px] font-black text-gray-700 uppercase" x-text="'Score: ' + item.score"></span>
+                                                </div>
+                                        </div>
+
+                                        <div x-show="item.status === 'Passed'" class="mt-4 pt-4 border-t border-gray-50 flex justify-end">
+                                            <button @click.stop="scheduleInterviewFromAssessment(item)" 
+                                                class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold px-4 py-2 rounded-xl transition active:scale-95 shadow-lg shadow-blue-100 uppercase tracking-[0.1em] flex items-center gap-2">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                                                Interview
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            {{-- INTERVIEW TABLE --}}
+            <table class="w-full text-sm border-collapse" x-show="activeTab === 'Interview'">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
+                    <tr class="border-b border-gray-200">
+                        <th class="px-4 py-3 text-left font-semibold">Name</th>
+                        <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Type</th>
+                        <th class="px-4 py-3 text-left font-semibold">Interviewer</th>
+                        <th class="px-4 py-3 text-left font-semibold">Date & Time</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredRows.length === 0">
+                        <tr><td colspan="7" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
+                    </template>
+                    <template x-for="(row, i) in paginatedRows" :key="i">
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.type || row.round"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.interviewer"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.interview_date || row.date"></td>
+                            <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3">
+                                <button @click="viewInterview(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="deleteInterview(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            {{-- JOB OFFER TABLE --}}
+            <table class="w-full text-sm border-collapse" x-show="activeTab === 'Job Offer'">
+                <thead class="bg-white text-gray-600 sticky top-0 z-10">
+                    <tr class="border-b border-gray-200">
+                        <th class="px-4 py-3 text-left font-semibold">Name</th>
+                        <th class="px-4 py-3 text-left font-semibold">Position</th>
+                        <th class="px-4 py-3 text-left font-semibold">Salary</th>
+                        <th class="px-4 py-3 text-left font-semibold">Start Date</th>
+                        <th class="px-4 py-3 text-left font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-if="filteredRows.length === 0">
+                        <tr><td colspan="5" class="px-4 py-16 text-center text-gray-400"><div class="flex flex-col items-center gap-2"><svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg><span class="text-sm" x-text="'No ' + activeTab + ' records found.'"></span></div></td></tr>
+                    </template>
+                    <template x-for="(row, i) in paginatedRows" :key="i">
+                        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+                            <td class="px-4 py-3 text-gray-800 font-medium" x-text="row.name"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.position"></td>
+                            <td class="px-4 py-3 text-gray-600" x-text="row.salary"></td>
+                            <td class="px-4 py-3 text-gray-500" x-text="row.startDate || row.start_date"></td>
+                            <td class="px-4 py-3"><span x-text="row.status" :class="statusClass(row.status)" class="px-2 py-0.5 rounded-full text-xs font-medium"></span></td>
+                            <td class="px-4 py-3 text-left whitespace-nowrap">
+                                <button @click="viewJobOffer(row)" class="text-xs text-blue-600 hover:underline mr-2">View</button>
+                                <button @click="deleteJobOffer(row.id)" class="text-xs text-red-500 hover:underline">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+        </div>
+
+        {{-- PAGINATION FOOTER --}}
+        <div class="px-4 py-2 border-t border-gray-100 bg-blue-50/30 flex items-center justify-end text-[13px] font-semibold text-blue-600 gap-4" x-show="activeTab !== 'Assessment'">
+            <div class="flex items-center gap-2">
+                <span>Records per page</span>
+                <div class="relative">
+                    <select x-model="perPage" @change="currentPage = 1"
+                        class="bg-transparent border-none focus:ring-0 cursor-pointer pr-5 appearance-none">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <svg class="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+            </div>
+            
+            <div class="h-4 w-px bg-blue-200"></div>
+
+            <div class="flex items-center gap-4">
+                <span x-text="`${startRange} - ${endRange} of ${filteredRows.length}`"></span>
+                <div class="flex items-center gap-1">
+                    <button @click="prevPage()" :disabled="currentPage === 1" 
+                        class="p-1 hover:bg-blue-100 rounded transition disabled:opacity-30 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="m15 19-7-7 7-7"/></svg>
+                    </button>
+                    <button @click="nextPage()" :disabled="currentPage === totalPages"
+                        class="p-1 hover:bg-blue-100 rounded transition disabled:opacity-30 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== MRF MODAL (SPLIT PANEL) ===================== --}}
+    <div
+        x-show="showModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showModal = false"
+    >
+        <div
+            x-show="showModal"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-gray-100 shadow-2xl w-[95vw] h-full flex flex-col overflow-hidden"
+        >
+            {{-- Top bar --}}
+            <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Manpower Request' : 'New Manpower Request'"></h2>
+                <button @click="showModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Split body --}}
+            <div class="flex flex-1 overflow-hidden gap-4 p-4">
+
+                {{-- RIGHT: INPUT FORM --}}
+                <div class="w-[42%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
+                    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
+                        <p class="text-xs font-bold text-white uppercase tracking-wider">Fill Up Form</p>
+                    </div>
+                    <form @submit.prevent="submitMRF()" class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Requesting Department <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="form.department" required placeholder="e.g. Human Resources"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Position / Title <span class="text-red-500">*</span></label>
+                                <input type="text" x-model="form.position" required placeholder="e.g. Engineer"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Date Requested <span class="text-red-500">*</span></label>
+                                <input type="date" x-model="form.dateRequested" required
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Date Required</label>
+                                <input type="date" x-model="form.dateRequired"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Employment Type</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <template x-for="et in ['Student Trainee','Project Hire','Contractual','Regular']" :key="et">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:bg-blue-50 hover:border-blue-300 transition"
+                                        :class="form.employmentType === et ? 'bg-blue-50 border-blue-400 text-blue-700 font-semibold' : ''">
+                                        <input type="radio" x-model="form.employmentType" :value="et" class="accent-blue-600">
+                                        <span x-text="et"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Brief Description of Duties</label>
+                            <textarea x-model="form.duties" rows="3" placeholder="Describe duties and responsibilities..."
+                                class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Nature of Request</label>
+                                <template x-for="n in ['New / Addition','Replacement']" :key="n">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.natureOfRequest" :value="n" class="accent-blue-600">
+                                        <span x-text="n"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Civil Status</label>
+                                <template x-for="s in ['Single','Married','No Preference']" :key="s">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.civilStatus" :value="s" class="accent-blue-600">
+                                        <span x-text="s"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
+                                <template x-for="g in ['Male','Female','No Preference']" :key="g">
+                                    <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer mb-1">
+                                        <input type="radio" x-model="form.gender" :value="g" class="accent-blue-600">
+                                        <span x-text="g"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Age Range</label>
+                                <input type="text" x-model="form.ageRange" placeholder="e.g. 20-35"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Headcount <span class="text-red-500">*</span></label>
+                                <input type="number" x-model="form.headcount" min="1" required placeholder="e.g. 2"
+                                    class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Educational Requirement</label>
+                            <input type="text" x-model="form.education" placeholder="e.g. Bachelor's Degree in IT"
+                                class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Preferred Qualifications / Experience</label>
+                            <textarea x-model="form.qualifications" rows="2" placeholder="List preferred skills or experience..."
+                                class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Approvals</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Requested by</label>
+                                    <input type="text" x-model="form.requestedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Approved by</label>
+                                    <input type="text" x-model="form.approvedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-3">
+                            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">For HRS Use Only</p>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Additional Remarks</label>
+                                <textarea x-model="form.remarks" rows="2" placeholder="Reason for request..."
+                                    class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none resize-none bg-gray-50"></textarea>
+                            </div>
+                            <div class="mt-3">
+                                <label class="block text-xs font-semibold text-gray-600 mb-2">Request Status</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <template x-for="rs in ['Filled','Cancelled','Hold','Disapproved']" :key="rs">
+                                        <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                            <input type="radio" x-model="form.requestStatus" :value="rs" class="accent-blue-600">
+                                            <span x-text="rs"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 mt-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Charged to (Dept)</label>
+                                    <input type="text" x-model="form.chargedTo" placeholder="Department"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Breakdown Details</label>
+                                    <input type="text" x-model="form.breakdownDetails" placeholder="Details"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Name of Hired Personnel</label>
+                                    <input type="text" x-model="form.hiredPersonnel" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Date Hired</label>
+                                    <input type="date" x-model="form.dateHired"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Processed by</label>
+                                    <input type="text" x-model="form.processedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-600 mb-1">Checked / Approved by</label>
+                                    <input type="text" x-model="form.checkedBy" placeholder="Full name"
+                                        class="w-full text-sm px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Submit --}}
+                        <div class="flex justify-end gap-3 pt-2 pb-1">
+                            <button type="button" @click="showModal = false"
+                                class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                class="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition">
+                                Submit Request
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+
+                {{-- LEFT: LIVE MRF DOCUMENT PREVIEW --}}
+                <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+                        <div class="flex items-center gap-2">
+
+                            <button type="button" @click="downloadPDF('mrf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                Download PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-5">
+                        <div id="mrf-doc-create" class="border border-gray-400 text-xs text-gray-800 font-sans w-[794px] shrink-0 leading-[1.2] mx-auto shadow-sm bg-white p-4">
+
+                            {{-- Form Header with Logo --}}
+                            <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-400">
+                                <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                            </div>
+
+                            {{-- Title --}}
+                            <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-b border-gray-400">
+                                Manpower Request Form
+                            </div>
+
+                            {{-- Row 1 --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Requesting Department:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.department || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Date Requested:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.dateRequested || ''"></p>
+                                    <span class="text-gray-500 block mt-2">Date Required:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.dateRequired || ''"></p>
+                                </div>
+                            </div>
+
+                            {{-- Row 2 --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Position / Title:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.position || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Employment Type:</span>
+                                    <div class="grid grid-cols-2 gap-x-2 mt-1">
+                                        <template x-for="et in ['Student Trainee','Project Hire','Contractual','Regular']" :key="et">
+                                            <div class="flex items-center gap-1">
+                                                <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                    :class="form.employmentType === et ? 'bg-blue-600 border-blue-600' : ''">
+                                                    <svg x-show="form.employmentType === et" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                                </span>
+                                                <span x-text="et"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Row 3: Duties --}}
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Brief Description of Duties <em>(or attach the Job Description)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[3rem]" x-text="form.duties || ''"></p>
+                            </div>
+
+                            {{-- Row 4: Nature / Age / Status / Gender --}}
+                            <div class="grid grid-cols-4 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Nature of Request:</span>
+                                    <template x-for="n in ['New / Addition','Replacement']" :key="n">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.natureOfRequest === n ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.natureOfRequest === n" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="n"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Age Range:</span>
+                                    <p class="font-semibold mt-1 min-h-[1rem]" x-text="form.ageRange || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Status:</span>
+                                    <template x-for="s in ['Single','Married','No Preference']" :key="s">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.civilStatus === s ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.civilStatus === s" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="s"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Gender:</span>
+                                    <template x-for="g in ['Male','Female','No Preference']" :key="g">
+                                        <div class="flex items-center gap-1 mt-1">
+                                            <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                :class="form.gender === g ? 'bg-blue-600 border-blue-600' : ''">
+                                                <svg x-show="form.gender === g" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                            </span>
+                                            <span x-text="g"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            {{-- Row 5: Education / Headcount --}}
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Educational Requirement:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.education || ''"></p>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500">Headcount Requested:</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.headcount || ''"></p>
+                                </div>
+                            </div>
+
+                            {{-- Row 6: Qualifications --}}
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Preferred Qualifications / Experience <em>(not mentioned above or in the JD)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[2.5rem]" x-text="form.qualifications || ''"></p>
+                            </div>
+
+                            {{-- APPROVALS header --}}
+                            <div class="bg-blue-700 text-white text-center font-bold py-1.5 text-xs tracking-widest uppercase border-b border-gray-400">
+                                Approvals
+                            </div>
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2 flex flex-col items-center">
+                                    <span class="text-gray-500 self-start text-[10px] uppercase">Requested by:</span>
+                                    <p class="font-bold text-gray-800 mt-4 text-xs" x-text="form.requestedBy || ''"></p>
+                                    <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                </div>
+                                <div class="p-2 flex flex-col items-center">
+                                    <span class="text-gray-500 self-start text-[10px] uppercase">Approved by:</span>
+                                    <p class="font-bold text-gray-800 mt-4 text-xs" x-text="form.approvedBy || ''"></p>
+                                    <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                </div>
+                            </div>
+
+                            {{-- FOR HRS USE ONLY --}}
+                            <div class="bg-gray-200 text-center font-bold py-1.5 text-xs tracking-widest uppercase border-b border-gray-400 text-gray-700">
+                                For HRS Use Only
+                            </div>
+                            <div class="border-b border-gray-400 p-2">
+                                <span class="text-gray-500">Additional Remarks <em>(Reason for Request)</em>:</span>
+                                <p class="mt-1 whitespace-pre-wrap min-h-[2rem]" x-text="form.remarks || ''"></p>
+                            </div>
+                            <div class="grid grid-cols-2 border-b border-gray-400 divide-x divide-gray-400">
+                                <div class="p-2">
+                                    <span class="text-gray-500">Request Status:</span>
+                                    <div class="grid grid-cols-2 gap-x-2 mt-1">
+                                        <template x-for="rs in ['Filled','Cancelled','Hold','Disapproved']" :key="rs">
+                                            <div class="flex items-center gap-1 mt-0.5">
+                                                <span class="inline-flex items-center justify-center w-3 h-3 border border-gray-400 rounded-sm shrink-0"
+                                                    :class="form.requestStatus === rs ? 'bg-blue-600 border-blue-600' : ''">
+                                                    <svg x-show="form.requestStatus === rs" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 12 12"><path d="M10 3L5 8.5 2 5.5"/></svg>
+                                                </span>
+                                                <span x-text="rs"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p class="mt-2 text-gray-500">Name of Hired Personnel:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.hiredPersonnel || ''"></p>
+                                    <p class="mt-2 text-gray-500">Date Hired:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.dateHired || ''"></p>
+                                    <p class="text-gray-500 mt-2 text-[10px] uppercase">Processed by:</p>
+                                    <div class="flex flex-col items-center mt-2">
+                                        <p class="font-bold text-gray-800 text-xs" x-text="form.processedBy || ''"></p>
+                                        <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <span class="text-gray-500 text-[10px] uppercase">Charged to (Department):</span>
+                                    <p class="font-semibold mt-0.5 min-h-[1rem]" x-text="form.chargedTo || ''"></p>
+                                    <p class="mt-2 text-gray-500 text-[10px] uppercase">Breakdown Details:</p>
+                                    <p class="font-semibold min-h-[1rem]" x-text="form.breakdownDetails || ''"></p>
+                                    <p class="mt-4 text-gray-500 text-[10px] uppercase">Checked / Approved by:</p>
+                                    <div class="flex flex-col items-center mt-2">
+                                        <p class="font-bold text-gray-800 text-xs" x-text="form.checkedBy || ''"></p>
+                                        <p class="text-gray-400 italic text-[9px] border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>{{-- end form doc --}}
+                    </div>
+                </div>{{-- end right panel --}}
+
+            </div>{{-- end split body --}}
+        </div>
+    </div>
+
+    {{-- ===================== MRF VIEW MODAL ===================== --}}
+
+    {{-- ===================== MRF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 w-[95vw] flex pointer-events-none">
+            <div x-show="showViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+                <div class="flex items-center justify-between px-8 py-5 border-b bg-gray-50 flex-shrink-0">
+                    <h2 class="text-lg font-bold text-gray-800 tracking-widest uppercase">Manpower Request Form Details</h2>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 pr-6 border-r border-gray-300">
+                            <span class="text-xs text-gray-500 font-bold uppercase tracking-widest">Document Format: A4</span>
+                        </div>
+                        <button type="button" @click="downloadPDF('mrf-doc-view')" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 transform hover:-translate-y-0.5 active:translate-y-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Export to PDF
+                        </button>
+                        <button @click="showViewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            <div class="flex-1 overflow-y-auto bg-gray-100 py-10 px-6" x-show="viewData">
+                <template x-if="viewData">
+                <div id="mrf-doc-view" class="border border-gray-300 bg-white p-4 mx-auto w-[794px] shrink-0">
+                    <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-300">
+                        <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                    </div>
+                    <div class="bg-blue-700 text-white text-center font-bold py-2 text-sm tracking-widest uppercase border-gray-300">Manpower Request Form</div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Requesting Department:</span><p class="font-medium mt-1" x-text="viewData.department"></p></div>
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500">Date Requested:</span><p class="font-medium mt-1" x-text="viewData.dateRequested"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Date Required:</span><p class="font-medium mt-1" x-text="viewData.dateRequired || '—'"></p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Position / Title:</span><p class="font-medium mt-1" x-text="viewData.position"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Employment Type:</span><p class="font-medium mt-1" x-text="viewData.employmentType || '—'"></p></div>
+                    </div>
+                    <div class="border-b border-gray-300 p-3">
+                        <span class="text-xs text-gray-500">Brief Description of Duties:</span>
+                        <p class="mt-1 whitespace-pre-wrap" x-text="viewData.duties || '—'"></p>
+                    </div>
+                    <div class="grid grid-cols-4 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Nature of Request:</span><p class="font-medium mt-1" x-text="viewData.natureOfRequest || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Age Range:</span><p class="font-medium mt-1" x-text="viewData.ageRange || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Civil Status:</span><p class="font-medium mt-1" x-text="viewData.civilStatus || '—'"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Gender:</span><p class="font-medium mt-1" x-text="viewData.gender || '—'"></p></div>
+                    </div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3"><span class="text-xs text-gray-500">Headcount:</span><p class="font-medium mt-1" x-text="viewData.headcount"></p></div>
+                        <div class="p-3"><span class="text-xs text-gray-500">Educational Requirement:</span><p class="font-medium mt-1" x-text="viewData.education || '—'"></p></div>
+                    </div>
+                    <div class="border-b border-gray-300 p-3">
+                        <span class="text-xs text-gray-500">Preferred Qualifications / Experience:</span>
+                        <p class="mt-1 whitespace-pre-wrap" x-text="viewData.qualifications || '—'"></p>
+                    </div>
+                    <div class="bg-blue-700 text-white text-center text-xs font-bold py-1.5 tracking-widest uppercase">Approvals</div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3 flex flex-col items-center">
+                            <span class="text-xs text-gray-500 self-start uppercase">Requested by:</span>
+                            <p class="font-bold text-gray-800 mt-6 text-sm" x-text="viewData.requestedBy"></p>
+                            <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                        </div>
+                        <div class="p-3 flex flex-col items-center">
+                            <span class="text-xs text-gray-500 self-start uppercase">Approved by:</span>
+                            <p class="font-bold text-gray-800 mt-6 text-sm" x-text="viewData.approvedBy"></p>
+                            <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-100 text-center text-xs font-bold py-1.5 tracking-widest uppercase text-gray-700">For HRS Use Only</div>
+                    <div class="border-b border-gray-300 p-3"><span class="text-xs text-gray-500">Additional Remarks:</span><p class="mt-1" x-text="viewData.remarks || '—'"></p></div>
+                    <div class="grid grid-cols-2 border-b border-gray-300 divide-x divide-gray-300">
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500">Request Status:</span><p class="font-medium mt-1 text-gray-800" x-text="viewData.requestStatus || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Name of Hired Personnel:</span><p class="font-medium mt-1" x-text="viewData.hiredPersonnel || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-2">Date Hired:</span><p class="font-medium mt-1" x-text="viewData.dateHired || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Processed by:</span>
+                            <div class="flex flex-col items-center mt-4">
+                                <p class="font-bold text-gray-800 text-sm" x-text="viewData.processedBy"></p>
+                                <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <span class="text-xs text-gray-500 block uppercase">Charged to (Department):</span><p class="font-medium mt-1" x-text="viewData.chargedTo || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Breakdown Details:</span><p class="font-medium mt-1" x-text="viewData.breakdownDetails || '—'"></p>
+                            <span class="text-xs text-gray-500 block mt-3 uppercase">Checked / Approved by:</span>
+                            <div class="flex flex-col items-center mt-4">
+                                <p class="font-bold text-gray-800 text-sm" x-text="viewData.checkedBy"></p>
+                                <p class="text-[10px] text-gray-400 italic border-t border-gray-300 w-full text-center pt-1">Signature Over Printed Name</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </template>
+            </div>
+            <div class="flex justify-end gap-3 px-10 py-6 border-t bg-white shrink-0">
+                <button @click="showViewModal = false" class="px-6 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 font-bold transition-all mr-auto">Close</button>
+                
+                <button @click="cancelMRF(viewData.id)" 
+                    x-show="viewData.request_status !== 'Approved' && viewData.request_status !== 'Cancelled' && viewData.request_status !== 'Disapproved'"
+                    class="px-8 py-3 text-base border-2 border-red-100 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-bold transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Cancel Request
+                </button>
+
+                <button @click="approveMRF(viewData.id); showViewModal = false" 
+                    x-show="viewData.request_status !== 'Approved' && viewData.request_status !== 'Cancelled' && viewData.request_status !== 'Disapproved'"
+                    class="px-10 py-3 text-base bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-lg shadow-green-200 transition-all transform hover:scale-[1.02] active:scale-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Approve
+                </button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== JPF MODAL ===================== --}}
+    <div
+        x-show="showJpfModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showJpfModal = false"
+    >
+        <div
+            x-show="showJpfModal"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-gray-100 shadow-2xl w-[95vw] h-full flex flex-col overflow-hidden"
+        >
+            {{-- Top bar --}}
+            <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Job Posting (JPF)' : 'Create Job Posting (JPF)'"></h2>
+                <button @click="showJpfModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Split body --}}
+            <div class="flex flex-1 overflow-hidden gap-4 p-4">
+
+                {{-- RIGHT: INPUT FORM --}}
+                <div class="w-[42%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
+                    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
+                        <p class="text-xs font-bold text-white uppercase tracking-wider">Fill Up Form</p>
+                    </div>
+                    <form @submit.prevent="submitJPF()" class="flex-1 overflow-y-auto px-5 py-6 space-y-8 bg-white">
+                        
+                        {{-- REQUISITION DETAILS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Requisition Details</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Job Placement No.</label>
+                                    <input type="text" x-model="jpfForm.jobId" placeholder="Auto-generated" readonly class="w-full text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Related MRF No.</label>
+                                    <input type="text" x-model="jpfForm.relatedMrfNo" placeholder="Enter MRF No." class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date Opened</label>
+                                    <input type="date" x-model="jpfForm.dateOpened" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Hiring Status</label>
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        <template x-for="st in ['Open', 'Urgent', 'Confidential', 'Closed']" :key="st">
+                                            <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-[11px] font-bold cursor-pointer transition"
+                                                :class="jpfForm.hiringStatus === st ? 'bg-blue-600 border-blue-600 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'">
+                                                <input type="radio" x-model="jpfForm.hiringStatus" :value="st" class="hidden">
+                                                <span x-text="st"></span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- COMPANY DETAILS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Company Details</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Company Name</label>
+                                    <input type="text" x-model="jpfForm.companyName" placeholder="John Kelly & Company" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Office / Branch / Site</label>
+                                    <input type="text" x-model="jpfForm.officeBranchSite" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Department / Unit</label>
+                                    <input type="text" x-model="jpfForm.departmentUnit" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Hiring Manager</label>
+                                    <input type="text" x-model="jpfForm.hiringManager" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Department Superior</label>
+                                    <input type="text" x-model="jpfForm.departmentSuperior" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- POSITION DETAILS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Position Details</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Position Title</label>
+                                    <select x-model="jpfForm.position" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white outline-none">
+                                        <option value="">Select Position...</option>
+                                        <template x-for="pos in uniqueMrfPositions" :key="pos">
+                                            <option :value="pos" x-text="pos"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">No. of Vacancies</label>
+                                    <input type="number" x-model="jpfForm.noOfVacancies" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Position Level</label>
+                                    <select x-model="jpfForm.positionLevel" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white outline-none">
+                                        <option value="">Select Level...</option>
+                                        <template x-for="lv in ['Rank & File', 'Staff', 'Senior Staff', 'Supervisor', 'Manager', 'Executive']" :key="lv">
+                                            <option :value="lv" x-text="lv"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Employment Type</label>
+                                    <select x-model="jpfForm.employmentType" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white outline-none">
+                                        <option value="">Select Type...</option>
+                                        <template x-for="et in ['Regular', 'Probationary', 'Project-Based', 'Fixed-Term', 'Part-Time', 'OJT / Intern']" :key="et">
+                                            <option :value="et" x-text="et"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Reports To</label>
+                                    <input type="text" x-model="jpfForm.reportsTo" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Work Location</label>
+                                    <input type="text" x-model="jpfForm.workLocation" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- SALARY OFFER --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Salary Offer</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Minimum Salary Offer (₱)</label>
+                                    <input type="number" x-model="jpfForm.minSalary" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Maximum Salary Offer (₱)</label>
+                                    <input type="number" x-model="jpfForm.maxSalary" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Salary Grade</label>
+                                    <input type="text" x-model="jpfForm.salaryGrade" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- WAGE COMPLIANCE --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Philippine Minimum Wage Compliance</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Applicable Region</label>
+                                    <input type="text" x-model="jpfForm.applicableRegion" class="w-full text-sm px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-500" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Applicable Area</label>
+                                    <input type="text" x-model="jpfForm.applicableArea" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Current Daily Min Wage (₱)</label>
+                                    <input type="number" x-model="jpfForm.dailyMinWage" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Monthly Equivalent (₱)</label>
+                                    <input type="number" x-model="jpfForm.monthlyEquivalent" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-4 mt-2">
+                                <template x-for="wc in ['Confirmed compliant with applicable wage order', 'Above minimum wage', 'With allowances / premiums']" :key="wc">
+                                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
+                                        <input type="checkbox" x-model="jpfForm.wageCompliance" :value="wc" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <span x-text="wc"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        {{-- BENEFITS PACKAGE --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Benefits Package</h3>
+                            <div class="grid grid-cols-2 gap-y-3">
+                                <template x-for="bf in ['SSS', 'PhilHealth', 'Pag-IBIG', '13th Month Pay', 'Service Incentive Leave', 'HMO', 'Incentives / Commission', 'Overtime Pay', 'Holiday Pay']" :key="bf">
+                                    <label class="flex items-center gap-3 text-xs font-bold text-gray-700 group cursor-pointer">
+                                        <div class="relative w-5 h-5 flex items-center justify-center border-2 rounded transition-colors group-hover:border-blue-400"
+                                            :class="jpfForm.benefits.includes(bf) ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'">
+                                            <input type="checkbox" x-model="jpfForm.benefits" :value="bf" class="hidden">
+                                            <svg x-show="jpfForm.benefits.includes(bf)" class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                                        </div>
+                                        <span x-text="bf"></span>
+                                    </label>
+                                </template>
+                                <div class="col-span-2 flex items-center gap-3 mt-2">
+                                    <span class="text-xs font-bold text-gray-400 uppercase">Others:</span>
+                                    <input type="text" x-model="jpfForm.otherBenefits" class="flex-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- WORK SCHEDULE --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Work Schedule</h3>
+                            <div class="grid grid-cols-2 gap-3">
+                                <template x-for="ws in ['Monday to Friday – 8:00 AM to 5:00 PM', 'Monday to Saturday – 8:00 AM to 5:00 PM', 'Shifting Schedule', 'Night Shift', 'Hybrid', 'Work From Home', 'Flexible']" :key="ws">
+                                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer p-2 rounded-lg border border-gray-100 hover:bg-gray-50 transition"
+                                        :class="jpfForm.workSchedule.includes(ws) ? 'bg-blue-50 border-blue-200' : ''">
+                                        <input type="checkbox" x-model="jpfForm.workSchedule" :value="ws" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <span x-text="ws"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2">
+                                <label class="text-[10px] font-bold text-gray-400 uppercase">Rest Day/s:</label>
+                                <input type="text" x-model="jpfForm.restDays" placeholder="e.g. Sunday" class="flex-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1">
+                            </div>
+                        </div>
+
+                        {{-- JOB REQUIREMENTS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Job Requirements</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Education</label>
+                                    <input type="text" x-model="jpfForm.education" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Experience</label>
+                                    <input type="text" x-model="jpfForm.experience" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Skills</label>
+                                    <input type="text" x-model="jpfForm.skills" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Licenses / Certifications</label>
+                                    <input type="text" x-model="jpfForm.licenses" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Preferred Qualifications</label>
+                                    <textarea x-model="jpfForm.preferredQualifications" rows="2" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none bg-gray-50/50 resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- DUTIES & RESPONSIBILITIES --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Duties & Responsibilities</h3>
+                            <textarea x-model="jpfForm.duties" rows="6" placeholder="Outline the key responsibilities..." class="w-full text-sm px-4 py-3 border border-gray-300 rounded-xl outline-none bg-gray-50/50 resize-none"></textarea>
+                        </div>
+
+                        {{-- RECRUITMENT CHANNELS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Recruitment Channels</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <template x-for="ch in ['JobStreet', 'Indeed', 'Facebook', 'Referral', 'Walk-in', 'School / Campus Hiring', 'Internal Posting', 'Agency']" :key="ch">
+                                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
+                                        <input type="checkbox" x-model="jpfForm.channels" :value="ch" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        <span x-text="ch"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-bold text-gray-400 uppercase">Others:</span>
+                                <input type="text" x-model="jpfForm.otherChannel" class="flex-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm py-1">
+                            </div>
+                        </div>
+
+                        {{-- SCREENING FLOW --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Screening Flow</h3>
+                            <div class="grid grid-cols-2 gap-y-3 px-2">
+                                <template x-for="(sf, index) in ['Resume Screening', 'Initial Interview', 'Assessment Exam', 'Final Interview', 'Reference Check', 'Job Offer', 'Pre-employment Requirements', 'Deployment']" :key="sf">
+                                    <label class="flex items-center gap-3 text-xs font-bold text-gray-700 group cursor-pointer">
+                                        <div class="relative w-5 h-5 flex items-center justify-center border-2 rounded-full transition-colors"
+                                            :class="jpfForm.screeningFlow.includes(sf) ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'">
+                                            <input type="checkbox" x-model="jpfForm.screeningFlow" :value="sf" class="hidden">
+                                            <span x-show="jpfForm.screeningFlow.includes(sf)" class="text-white text-[10px]" x-text="jpfForm.screeningFlow.indexOf(sf) + 1"></span>
+                                        </div>
+                                        <span x-text="sf"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        {{-- TARGET TIMELINE --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Target Timeline</h3>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date Needed</label>
+                                    <input type="date" x-model="jpfForm.dateNeeded" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Posting Start</label>
+                                    <input type="date" x-model="jpfForm.postingStartDate" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Hire Date</label>
+                                    <input type="date" x-model="jpfForm.targetHireDate" class="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- APPROVALS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Approvals</h3>
+                            <div class="grid grid-cols-2 gap-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                <div class="space-y-3">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase border-b w-fit pb-0.5">Human Capital</p>
+                                    <input type="text" x-model="jpfForm.humanCapitalApproval.name" placeholder="Name" class="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1">
+                                    <input type="date" x-model="jpfForm.humanCapitalApproval.date" class="w-full text-[11px] bg-white border border-gray-200 rounded px-2 py-1">
+                                </div>
+                                <div class="space-y-3">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase border-b w-fit pb-0.5">Hiring Manager</p>
+                                    <input type="text" x-model="jpfForm.hiringManagerApproval.name" placeholder="Name" class="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1">
+                                    <input type="date" x-model="jpfForm.hiringManagerApproval.date" class="w-full text-[11px] bg-white border border-gray-200 rounded px-2 py-1">
+                                </div>
+                                <div class="space-y-3">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase border-b w-fit pb-0.5">Finance</p>
+                                    <input type="text" x-model="jpfForm.financeApproval.name" placeholder="Name" class="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1">
+                                    <input type="date" x-model="jpfForm.financeApproval.date" class="w-full text-[11px] bg-white border border-gray-200 rounded px-2 py-1">
+                                </div>
+                                <div class="space-y-3">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase border-b w-fit pb-0.5">President / Final</p>
+                                    <div class="flex gap-2">
+                                        <template x-for="ps in ['Approved', 'Hold', 'Cancelled']" :key="ps">
+                                            <button type="button" @click="jpfForm.presidentApproval.status = ps"
+                                                :class="jpfForm.presidentApproval.status === ps ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'"
+                                                class="flex-1 text-[9px] font-black border py-1 rounded-full uppercase" x-text="ps"></button>
+                                        </template>
+                                    </div>
+                                    <input type="text" x-model="jpfForm.presidentApproval.name" placeholder="Name" class="w-full text-sm bg-white border border-gray-200 rounded px-2 py-1">
+                                    <input type="date" x-model="jpfForm.presidentApproval.date" class="w-full text-[11px] bg-white border border-gray-200 rounded px-2 py-1">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- STATUS --}}
+                        <div class="space-y-4">
+                            <h3 class="text-xs font-black text-blue-700 uppercase tracking-[0.2em] border-b pb-2">Status</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="st in ['Draft', 'Posted', 'Screening', 'Interviewing', 'Offer Stage', 'Filled', 'Closed', 'Cancelled']" :key="st">
+                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] font-bold cursor-pointer transition"
+                                        :class="jpfForm.status === st ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'">
+                                        <input type="radio" x-model="jpfForm.status" :value="st" class="hidden">
+                                        <span x-text="st"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-8 pb-4 border-t border-gray-100">
+                            <button type="button" @click="showJpfModal = false"
+                                class="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition">
+                                Discard
+                            </button>
+                            <button type="submit"
+                                class="px-8 py-2.5 text-sm bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black shadow-lg shadow-blue-100 transition active:scale-95 uppercase tracking-widest">
+                                <span x-text="isEditing ? 'Update JPF Record' : 'Save JPF Record'"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                {{-- LEFT: LIVE JPF DOCUMENT PREVIEW --}}
+                <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+                        <div class="flex items-center gap-2">
+
+                            <button type="button" @click="downloadPDF('jpf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                Download PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-5 bg-gray-100">
+                        <div id="jpf-doc-create" class="border border-gray-400 text-[10px] text-gray-800 font-sans w-[794px] shrink-0 leading-tight mx-auto shadow-sm bg-white p-6 min-h-[1000px]">
+                            {{-- Form Header with Logo --}}
+                            <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-400">
+                                <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                            </div>
+
+                            {{-- Title --}}
+                            <div class="bg-gray-800 text-white text-center font-black py-2 text-sm tracking-widest uppercase mb-4">
+                                Job Placement Form (JPF)
+                            </div>
+
+                            <div class="space-y-4">
+                                {{-- REQUISITION DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Requisition Details</div>
+                                    <div class="p-3 grid grid-cols-2 gap-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Job Placement No.:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem] italic" x-text="jpfForm.jobId"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Related MRF No.:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem] italic" x-text="jpfForm.relatedMrfNo"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Date Opened:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.dateOpened"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Hiring Status:</span>
+                                            <div class="flex gap-3">
+                                                <template x-for="st in ['Open', 'Urgent', 'Confidential', 'Closed']" :key="st">
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="jpfForm.hiringStatus === st ? 'bg-gray-800' : ''">
+                                                            <svg x-show="jpfForm.hiringStatus === st" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                        </span>
+                                                        <span x-text="st"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- COMPANY DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Company Details</div>
+                                    <div class="p-3 grid grid-cols-1 gap-y-2 text-[11px]">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Company Name:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.companyName"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Office / Branch / Site:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.officeBranchSite"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Department / Unit:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.departmentUnit"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Hiring Manager:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.hiringManager"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Department Superior:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.departmentSuperior"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- POSITION DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Position Details</div>
+                                    <div class="p-3 space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Position Title:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1.2rem] text-sm font-black" x-text="jpfForm.position"></span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">No. of Vacancies:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.noOfVacancies"></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Reports To:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.reportsTo"></span>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4 pt-2">
+                                            <div>
+                                                <p class="font-bold mb-2">Position Level:</p>
+                                                <div class="grid grid-cols-2 gap-y-1">
+                                                    <template x-for="lv in ['Rank & File', 'Staff', 'Senior Staff', 'Supervisor', 'Manager', 'Executive']" :key="lv">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="jpfForm.positionLevel === lv ? 'bg-gray-800' : ''">
+                                                                <svg x-show="jpfForm.positionLevel === lv" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                            </span>
+                                                            <span x-text="lv"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold mb-2">Employment Type:</p>
+                                                <div class="grid grid-cols-2 gap-y-1">
+                                                    <template x-for="et in ['Regular', 'Probationary', 'Project-Based', 'Fixed-Term', 'Part-Time', 'OJT / Intern']" :key="et">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="jpfForm.employmentType === et ? 'bg-gray-800' : ''">
+                                                                <svg x-show="jpfForm.employmentType === et" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                            </span>
+                                                            <span x-text="et"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 pt-2">
+                                            <span class="font-bold w-32 shrink-0">Work Location:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.workLocation"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- SALARY OFFER --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Salary Offer / Compliance</div>
+                                    <div class="p-3 grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Minimum Offer:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(jpfForm.minSalary || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Maximum Offer:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(jpfForm.maxSalary || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Salary Grade:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="jpfForm.salaryGrade"></span>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-2 border-l border-gray-200 pl-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0 text-[8px] uppercase">Daily Min Wage:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(jpfForm.dailyMinWage || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0 text-[8px] uppercase">Monthly Equiv:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(jpfForm.monthlyEquivalent || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="space-y-1 pt-1">
+                                                <template x-for="wc in ['Confirmed compliant with applicable wage order', 'Above minimum wage', 'With allowances / premiums']" :key="wc">
+                                                    <div class="flex items-center gap-1 text-[8px]">
+                                                        <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="jpfForm.wageCompliance.includes(wc) ? 'bg-gray-800' : ''">
+                                                            <svg x-show="jpfForm.wageCompliance.includes(wc)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                        </span>
+                                                        <span x-text="wc"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- BENEFITS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Benefits Package</div>
+                                    <div class="p-3 grid grid-cols-3 gap-y-1">
+                                        <template x-for="bf in ['SSS', 'PhilHealth', 'Pag-IBIG', '13th Month Pay', 'Service Incentive Leave', 'HMO', 'Incentives / Commission', 'Overtime Pay', 'Holiday Pay']" :key="bf">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="jpfForm.benefits.includes(bf) ? 'bg-gray-800' : ''">
+                                                    <svg x-show="jpfForm.benefits.includes(bf)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                </span>
+                                                <span x-text="bf"></span>
+                                            </div>
+                                        </template>
+                                        <div class="col-span-3 pt-2 italic text-gray-500" x-show="jpfForm.otherBenefits">
+                                            Others: <span x-text="jpfForm.otherBenefits"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- WORK SCHEDULE --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Work Schedule</div>
+                                    <div class="p-3 grid grid-cols-2 gap-y-1">
+                                        <template x-for="ws in ['Monday to Friday – 8:00 AM to 5:00 PM', 'Monday to Saturday – 8:00 AM to 5:00 PM', 'Shifting Schedule', 'Night Shift', 'Hybrid', 'Work From Home', 'Flexible']" :key="ws">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="jpfForm.workSchedule.includes(ws) ? 'bg-gray-800' : ''">
+                                                    <svg x-show="jpfForm.workSchedule.includes(ws)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                </span>
+                                                <span x-text="ws"></span>
+                                            </div>
+                                        </template>
+                                        <div class="col-span-2 pt-2 border-t mt-2">
+                                            <span class="font-bold">Rest Day/s:</span> <span x-text="jpfForm.restDays"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- JOB REQUIREMENTS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Job Requirements & Duties</div>
+                                    <div class="p-3 grid grid-cols-2 gap-x-6 gap-y-3">
+                                        <div class="space-y-2">
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5">Education:</p><p x-text="jpfForm.education" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5">Experience:</p><p x-text="jpfForm.experience" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5">Skills:</p><p x-text="jpfForm.skills" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5">Licenses:</p><p x-text="jpfForm.licenses" class="pl-2"></p></div>
+                                        </div>
+                                        <div class="border-l pl-4 border-gray-200">
+                                            <p class="font-bold underline uppercase text-[8px] mb-1">Duties & Responsibilities:</p>
+                                            <div class="whitespace-pre-wrap text-[9px] leading-relaxed" x-text="jpfForm.duties"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- FLOW & CHANNELS --}}
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="border border-gray-400 h-full">
+                                        <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Recruitment Channels</div>
+                                        <div class="p-3 grid grid-cols-1 gap-y-1">
+                                            <template x-for="ch in ['JobStreet', 'Indeed', 'Facebook', 'Referral', 'Walk-in', 'School / Campus Hiring', 'Internal Posting', 'Agency']" :key="ch">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-2.5 h-2.5 border border-gray-400 flex items-center justify-center shrink-0" :class="jpfForm.channels.includes(ch) ? 'bg-gray-800' : ''"></span>
+                                                    <span x-text="ch"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="border border-gray-400 h-full">
+                                        <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Screening Flow</div>
+                                        <div class="p-3 space-y-1">
+                                            <template x-for="sf in ['Resume Screening', 'Initial Interview', 'Assessment Exam', 'Final Interview', 'Reference Check', 'Job Offer', 'Pre-employment Requirements', 'Deployment']" :key="sf">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0 rounded-full text-[7px]" :class="jpfForm.screeningFlow.includes(sf) ? 'bg-gray-800 text-white' : ''" x-text="jpfForm.screeningFlow.includes(sf) ? (jpfForm.screeningFlow.indexOf(sf) + 1) : ''"></span>
+                                                    <span x-text="sf"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- TIMELINE --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Target Timeline</div>
+                                    <div class="p-3 grid grid-cols-3 divide-x divide-gray-200 text-center">
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Date Needed</p><p class="font-black" x-text="jpfForm.dateNeeded"></p></div>
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Posting Start</p><p class="font-black" x-text="jpfForm.postingStartDate"></p></div>
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Target Hire Date</p><p class="font-black" x-text="jpfForm.targetHireDate"></p></div>
+                                    </div>
+                                </div>
+
+                                {{-- APPROVALS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Approvals</div>
+                                    <div class="p-3 grid grid-cols-4 gap-4 text-center">
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Human Capital</p>
+                                            <p class="font-bold border-b border-gray-200" x-text="jpfForm.humanCapitalApproval.name"></p>
+                                            <p class="text-[8px]" x-text="jpfForm.humanCapitalApproval.date"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Hiring Manager</p>
+                                            <p class="font-bold border-b border-gray-200" x-text="jpfForm.hiringManagerApproval.name"></p>
+                                            <p class="text-[8px]" x-text="jpfForm.hiringManagerApproval.date"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Finance</p>
+                                            <p class="font-bold border-b border-gray-200" x-text="jpfForm.financeApproval.name"></p>
+                                            <p class="text-[8px]" x-text="jpfForm.financeApproval.date"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-2">Presidential Approval</p>
+                                            <div class="flex justify-center gap-1 mb-1">
+                                                <template x-for="st in ['Approved', 'Hold', 'Cancelled']" :key="st">
+                                                    <div class="flex items-center gap-0.5 text-[6px]">
+                                                        <span class="w-2 h-2 border border-gray-400 rounded-full" :class="jpfForm.presidentApproval.status === st ? 'bg-gray-800' : ''"></span>
+                                                        <span x-text="st"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <p class="font-bold border-b border-gray-200" x-text="jpfForm.presidentApproval.name"></p>
+                                            <p class="text-[8px]" x-text="jpfForm.presidentApproval.date"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>{{-- end split body --}}
+        </div>
+    </div>
+
+    {{-- ===================== JPF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showJpfViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showJpfViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showJpfViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 w-[95vw] flex pointer-events-none">
+            <div x-show="showJpfViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+            {{-- Toolbar --}}
+            <div class="h-16 px-8 border-b border-gray-100 flex items-center justify-between bg-white shadow-sm shrink-0">
+                <div class="flex items-center gap-4">
+                    <button @click="showJpfViewModal = false" class="p-2 hover:bg-gray-100 rounded-full transition text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800" x-text="viewJpfData.job_id"></h2>
+                        <p class="text-xs text-gray-500 uppercase tracking-widest font-semibold" x-text="viewJpfData.position"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="downloadPDF('jpf-doc-view')" class="px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download PDF
+                    </button>
+                    <button @click="window.print()" class="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print Details
+                    </button>
+                    <button @click="showJpfViewModal = false" class="px-6 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-md shadow-blue-100 uppercase tracking-wide">Close</button>
+                </div>
+            </div>
+
+            <div class="flex-grow overflow-auto bg-gray-50/50 p-8 shadow-inner">
+                <div id="jpf-doc-view" class="border border-gray-400 text-[10px] text-gray-800 font-sans w-[794px] shrink-0 leading-tight mx-auto shadow-sm bg-white p-6 min-h-[1000px]">
+                    <template x-if="viewJpfData">
+                        <div class="flex flex-col h-full">
+                            {{-- Form Header with Logo --}}
+                            <div class="flex items-center justify-center pb-4 pt-2 border-b border-gray-400">
+                                <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="John Kelly & Company" class="h-14 w-auto object-contain mix-blend-multiply">
+                            </div>
+
+                            {{-- Title --}}
+                            <div class="bg-gray-800 text-white text-center font-black py-2 text-sm tracking-widest uppercase mb-4">
+                                Job Placement Form (JPF)
+                            </div>
+
+                            <div class="space-y-4">
+                                {{-- REQUISITION DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Requisition Details</div>
+                                    <div class="p-3 grid grid-cols-2 gap-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Job Placement No.:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem] italic" x-text="viewJpfData.job_id"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Related MRF No.:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem] italic" x-text="viewJpfData.related_mrf_no || '—'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Date Opened:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.date_opened || '—'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Hiring Status:</span>
+                                            <div class="flex gap-3">
+                                                <template x-for="st in ['Open', 'Urgent', 'Confidential', 'Closed']" :key="st">
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="viewJpfData.hiring_status === st ? 'bg-gray-800' : ''">
+                                                            <svg x-show="viewJpfData.hiring_status === st" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                        </span>
+                                                        <span x-text="st"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- COMPANY DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Company Details</div>
+                                    <div class="p-3 grid grid-cols-1 gap-y-2 text-[11px]">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Company Name:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.company_name || 'John Kelly & Company'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Office / Branch / Site:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.office_branch_site || '—'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Department / Unit:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.department_unit || '—'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Hiring Manager:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.hiring_manager || '—'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-40 shrink-0">Department Superior:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.department_superior || '—'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- POSITION DETAILS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Position Details</div>
+                                    <div class="p-3 space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold w-32 shrink-0">Position Title:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1.2rem] text-sm font-black" x-text="viewJpfData.position"></span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">No. of Vacancies:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.no_of_vacancies || '—'"></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Reports To:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.reports_to || '—'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4 pt-2">
+                                            <div>
+                                                <p class="font-bold mb-2">Position Level:</p>
+                                                <div class="grid grid-cols-2 gap-y-1">
+                                                    <template x-for="lv in ['Rank & File', 'Staff', 'Senior Staff', 'Supervisor', 'Manager', 'Executive']" :key="lv">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="viewJpfData.position_level === lv ? 'bg-gray-800' : ''">
+                                                                <svg x-show="viewJpfData.position_level === lv" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                            </span>
+                                                            <span x-text="lv"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold mb-2">Employment Type:</p>
+                                                <div class="grid grid-cols-2 gap-y-1">
+                                                    <template x-for="et in ['Regular', 'Probationary', 'Project-Based', 'Fixed-Term', 'Part-Time', 'OJT / Intern']" :key="et">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="w-3 h-3 border border-gray-400 flex items-center justify-center" :class="viewJpfData.employment_type === et ? 'bg-gray-800' : ''">
+                                                                <svg x-show="viewJpfData.employment_type === et" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                            </span>
+                                                            <span x-text="et"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 pt-2">
+                                            <span class="font-bold w-32 shrink-0">Work Location:</span>
+                                            <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.location || '—'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- SALARY OFFER --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Salary Offer / Compliance</div>
+                                    <div class="p-3 grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Minimum Offer:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(viewJpfData.min_salary_offer || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Maximum Offer:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(viewJpfData.max_salary_offer || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0">Salary Grade:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]" x-text="viewJpfData.salary_grade || '—'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-2 border-l border-gray-200 pl-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0 text-[8px] uppercase">Daily Min Wage:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(viewJpfData.current_daily_min_wage || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold w-32 shrink-0 text-[8px] uppercase">Monthly Equiv:</span>
+                                                <span class="border-b border-gray-300 flex-1 min-h-[1rem]">₱ <span x-text="parseFloat(viewJpfData.monthly_equivalent || 0).toLocaleString()"></span></span>
+                                            </div>
+                                            <div class="space-y-1 pt-1">
+                                                <template x-for="wc in ['Confirmed compliant with applicable wage order', 'Above minimum wage', 'With allowances / premiums']" :key="wc">
+                                                    <div class="flex items-center gap-1 text-[8px]">
+                                                        <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="(viewJpfData.wage_compliance || []).includes(wc) ? 'bg-gray-800' : ''">
+                                                            <svg x-show="(viewJpfData.wage_compliance || []).includes(wc)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                        </span>
+                                                        <span x-text="wc"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- BENEFITS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Benefits Package</div>
+                                    <div class="p-3 grid grid-cols-3 gap-y-1">
+                                        <template x-for="bf in ['SSS', 'PhilHealth', 'Pag-IBIG', '13th Month Pay', 'Service Incentive Leave', 'HMO', 'Incentives / Commission', 'Overtime Pay', 'Holiday Pay']" :key="bf">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="(viewJpfData.benefits_package || []).includes(bf) ? 'bg-gray-800' : ''">
+                                                    <svg x-show="(viewJpfData.benefits_package || []).includes(bf)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                </span>
+                                                <span x-text="bf"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- WORK SCHEDULE --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Work Schedule</div>
+                                    <div class="p-3 grid grid-cols-2 gap-y-1">
+                                        <template x-for="ws in ['Monday to Friday – 8:00 AM to 5:00 PM', 'Monday to Saturday – 8:00 AM to 5:00 PM', 'Shifting Schedule', 'Night Shift', 'Hybrid', 'Work From Home', 'Flexible']" :key="ws">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0" :class="(viewJpfData.work_schedule || []).includes(ws) ? 'bg-gray-800' : ''">
+                                                    <svg x-show="(viewJpfData.work_schedule || []).includes(ws)" class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                                                </span>
+                                                <span x-text="ws"></span>
+                                            </div>
+                                        </template>
+                                        <div class="col-span-2 pt-2 border-t mt-2">
+                                            <span class="font-bold">Rest Day/s:</span> <span x-text="viewJpfData.rest_days || '—'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- JOB REQUIREMENTS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Job Requirements & Duties</div>
+                                    <div class="p-3 grid grid-cols-2 gap-x-6 gap-y-3">
+                                        <div class="space-y-2 text-[9px]">
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5 text-blue-600">Education:</p><p x-text="viewJpfData.education_req || viewJpfData.requirements" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5 text-blue-600">Experience:</p><p x-text="viewJpfData.experience_req || '—'" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5 text-blue-600">Skills:</p><p x-text="viewJpfData.skills_req || '—'" class="pl-2"></p></div>
+                                            <div><p class="font-bold underline uppercase text-[8px] mb-0.5 text-blue-600">Licenses:</p><p x-text="viewJpfData.licenses_req || '—'" class="pl-2"></p></div>
+                                            <div class="pt-2"><p class="font-bold underline uppercase text-[8px] mb-0.5 text-blue-600">Preferred Qualifications:</p><p x-text="viewJpfData.preferred_qualifications || '—'" class="pl-2 whitespace-pre-wrap"></p></div>
+                                        </div>
+                                        <div class="border-l pl-4 border-gray-200">
+                                            <p class="font-bold underline uppercase text-[8px] mb-1 text-blue-600">Duties & Responsibilities:</p>
+                                            <div class="whitespace-pre-wrap text-[9px] leading-relaxed" x-text="viewJpfData.duties_responsibilities || viewJpfData.job_description"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- FLOW & CHANNELS --}}
+                                <div class="grid grid-cols-2 gap-4 text-[9px]">
+                                    <div class="border border-gray-400 h-full">
+                                        <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Recruitment Channels</div>
+                                        <div class="p-3 grid grid-cols-1 gap-y-1">
+                                            <template x-for="ch in ['JobStreet', 'Indeed', 'Facebook', 'Referral', 'Walk-in', 'School / Campus Hiring', 'Internal Posting', 'Agency']" :key="ch">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="w-2.5 h-2.5 border border-gray-400 flex items-center justify-center shrink-0" :class="(viewJpfData.recruitment_channels || []).includes(ch) ? 'bg-gray-800' : ''"></span>
+                                                    <span x-text="ch"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="border border-gray-400 h-full">
+                                        <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Screening Flow</div>
+                                        <div class="p-3 space-y-1">
+                                            <template x-for="sf in ['Resume Screening', 'Initial Interview', 'Assessment Exam', 'Final Interview', 'Reference Check', 'Job Offer', 'Pre-employment Requirements', 'Deployment']" :key="sf">
+                                                <div class="flex items-center gap-2 text-[9px]">
+                                                    <span class="w-3 h-3 border border-gray-400 flex items-center justify-center shrink-0 rounded-full text-[7px]" 
+                                                        :class="(viewJpfData.screening_flow || []).includes(sf) ? 'bg-gray-800 text-white border-gray-800' : ''" 
+                                                        x-text="(viewJpfData.screening_flow || []).includes(sf) ? ((viewJpfData.screening_flow || []).indexOf(sf) + 1) : ''"></span>
+                                                    <span x-text="sf"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- TIMELINE --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Target Timeline</div>
+                                    <div class="p-3 grid grid-cols-3 divide-x divide-gray-200 text-center">
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Date Needed</p><p class="font-black" x-text="viewJpfData.date_needed || '—'"></p></div>
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Posting Start</p><p class="font-black" x-text="viewJpfData.posting_start_date || '—'"></p></div>
+                                        <div><p class="font-bold uppercase text-[7px] text-gray-400 mb-1">Target Hire Date</p><p class="font-black" x-text="viewJpfData.target_hire_date || '—'"></p></div>
+                                    </div>
+                                </div>
+
+                                {{-- APPROVALS --}}
+                                <div class="border border-gray-400">
+                                    <div class="bg-gray-100 px-3 py-1 border-b border-gray-400 font-black uppercase text-[9px]">Approvals</div>
+                                    <div class="p-3 grid grid-cols-4 gap-4 text-center">
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Human Capital</p>
+                                            <p class="font-bold border-b border-gray-200 min-h-[1.2rem]" x-text="(viewJpfData.human_capital_approval || {}).name || '—'"></p>
+                                            <p class="text-[8px] mt-1" x-text="(viewJpfData.human_capital_approval || {}).date || '—'"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Hiring Manager</p>
+                                            <p class="font-bold border-b border-gray-200 min-h-[1.2rem]" x-text="(viewJpfData.hiring_manager_approval || {}).name || '—'"></p>
+                                            <p class="text-[8px] mt-1" x-text="(viewJpfData.hiring_manager_approval || {}).date || '—'"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-4">Finance</p>
+                                            <p class="font-bold border-b border-gray-200 min-h-[1.2rem]" x-text="(viewJpfData.finance_approval || {}).name || '—'"></p>
+                                            <p class="text-[8px] mt-1" x-text="(viewJpfData.finance_approval || {}).date || '—'"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[7px] text-gray-400 uppercase mb-2">Presidential Approval</p>
+                                            <div class="flex justify-center gap-1 mb-1">
+                                                <template x-for="st in ['Approved', 'Hold', 'Cancelled']" :key="st">
+                                                    <div class="flex items-center gap-0.5 text-[6px]">
+                                                        <span class="w-2 h-2 border border-gray-400 rounded-full" :class="(viewJpfData.president_approval || {}).status === st ? 'bg-gray-800' : ''"></span>
+                                                        <span x-text="st"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <p class="font-bold border-b border-gray-200 min-h-[1.2rem]" x-text="(viewJpfData.president_approval || {}).name || '—'"></p>
+                                            <p class="text-[8px] mt-1" x-text="(viewJpfData.president_approval || {}).date || '—'"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== CAF MODAL ===================== --}}
+    <div
+        x-show="showCafModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showCafModal = false"
+    >
+        <div
+            x-show="showCafModal"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            class="bg-gray-100 shadow-2xl w-[95vw] h-full flex flex-col overflow-hidden"
+        >
+            {{-- Top bar --}}
+            <div class="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
+                <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest" x-text="isEditing ? 'Edit Application (CAF)' : 'Candidate Application Form (CAF)'"></h2>
+                <button @click="showCafModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Split body --}}
+            <div class="flex flex-1 overflow-hidden gap-4 p-4">
+
+                {{-- RIGHT: INPUT FORM --}}
+                <div class="w-[42%] bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden shrink-0 order-last">
+                    <div class="px-5 py-3 border-b bg-blue-700 rounded-t-xl">
+                        <p class="text-xs font-bold text-white uppercase tracking-wider">Applicant Information</p>
+                    </div>
+                    <form @submit.prevent="submitCAF()" class="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+                        <div class="flex gap-6 items-start">
+                            {{-- 2x2 Photo Upload --}}
+                            <div class="shrink-0">
+                                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2">Applicant Photo (2x2)</label>
+                                <div class="relative group">
+                                    <label @dragover.prevent @drop.prevent="cafForm.photo = $event.dataTransfer.files[0]"
+                                        class="flex flex-col items-center justify-center w-32 h-32 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition overflow-hidden">
+                                        <template x-if="!cafForm.photo && !isEditing">
+                                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                                <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                <p class="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">Upload Photo</p>
+                                            </div>
+                                        </template>
+                                        <template x-if="cafForm.photo">
+                                            <img :src="URL.createObjectURL(cafForm.photo)" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!cafForm.photo && isEditing && cafForm.photo_path">
+                                            <img :src="'/storage/' + cafForm.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <input type="file" class="hidden" accept="image/*" @change="cafForm.photo = $event.target.files[0]" />
+                                    </label>
+                                    <div x-show="cafForm.photo" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg cursor-pointer hover:bg-red-600 transition" @click="cafForm.photo = null">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-1 space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Full Name</label>
+                                    <input type="text" x-model="cafForm.fullName" required placeholder="Enter full name"
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all shadow-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Position Applied</label>
+                                    <select x-model="cafForm.positionApplied" required
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-white cursor-pointer shadow-sm">
+                                        <option value="">Select Position</option>
+                                        <template x-for="pos in uniqueJpfPositions" :key="pos">
+                                            <option :value="pos" x-text="pos"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Email Address</label>
+                                <input type="email" x-model="cafForm.email" required placeholder="email@example.com"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Phone Number</label>
+                                <input type="text" x-model="cafForm.phone" required placeholder="+63 9xx xxx xxxx"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all shadow-sm">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Resume / CV</label>
+                                <label @dragover.prevent @drop.prevent="cafForm.cv = $event.dataTransfer.files[0]"
+                                    class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
+                                    <div class="flex flex-col items-center justify-center pt-4 pb-4">
+                                        <svg x-show="!cafForm.cv" class="w-7 h-7 mb-2 text-gray-400 group-hover:text-blue-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                        <svg x-show="cafForm.cv" class="w-7 h-7 mb-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <p class="text-[10px] font-bold text-gray-500 uppercase text-center px-2 line-clamp-1" x-text="cafForm.cv ? cafForm.cv.name : 'Drag Resume'"></p>
+                                        <p class="text-[8px] text-gray-400 mt-0.5 uppercase" x-show="!cafForm.cv">PDF, DOCX up to 10MB</p>
+                                    </div>
+                                    <input type="file" class="hidden" @change="cafForm.cv = $event.target.files[0]" />
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cover Letter</label>
+                                <label @dragover.prevent @drop.prevent="cafForm.coverLetterFile = $event.dataTransfer.files[0]"
+                                    class="flex flex-col items-center justify-center w-full h-28 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition shadow-sm group">
+                                    <div class="flex flex-col items-center justify-center pt-4 pb-4">
+                                        <svg x-show="!cafForm.coverLetterFile" class="w-7 h-7 mb-2 text-gray-400 group-hover:text-indigo-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                        <svg x-show="cafForm.coverLetterFile" class="w-7 h-7 mb-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <p class="text-[10px] font-bold text-gray-500 uppercase text-center px-2 line-clamp-1" x-text="cafForm.coverLetterFile ? cafForm.coverLetterFile.name : 'Drag Cover Letter'"></p>
+                                        <p class="text-[8px] text-gray-400 mt-0.5 uppercase" x-show="!cafForm.coverLetterFile">PDF, DOCX up to 10MB</p>
+                                    </div>
+                                    <input type="file" class="hidden" @change="cafForm.coverLetterFile = $event.target.files[0]" />
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Or Paste Cover Letter Text (Optional)</label>
+                            <textarea x-model="cafForm.coverLetter" rows="4" placeholder="If not uploading a file, you can paste the text here..."
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 resize-none bg-gray-50 text-xs shadow-inner"></textarea>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 pt-5 border-t border-gray-100">
+                            <button type="button" @click="showCafModal = false"
+                                class="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                                Discard
+                            </button>
+                            <button type="submit"
+                                class="px-6 py-2.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md shadow-blue-100 transition-all active:scale-95" x-text="isEditing ? 'Update Application' : 'Submit Application'">
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+
+                {{-- LEFT: LIVE CAF DOCUMENT PREVIEW --}}
+                <div class="flex-1 bg-white rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 border-b bg-gray-50 rounded-t-xl shrink-0 flex items-center justify-between">
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Preview</p>
+                        <div class="flex items-center gap-2">
+
+                            <button type="button" @click="downloadPDF('caf-doc-create')" class="text-xs px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-300 rounded text-gray-700 font-semibold flex items-center gap-1 transition shadow-sm">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                Download PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-8 bg-gray-100/50">
+                        <div id="caf-doc-create" class="border border-gray-200 bg-white shadow-xl p-12 mx-auto w-[794px] shrink-0 font-sans min-h-[1000px]">
+                            <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8 mb-8 gap-8">
+                                <div class="shrink-0">
+                                    <div class="w-32 h-32 border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center relative">
+                                        <template x-if="!cafForm.photo && !cafForm.photo_path">
+                                            <svg class="w-12 h-12 text-gray-200" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                        </template>
+                                        <template x-if="cafForm.photo">
+                                            <img :src="URL.createObjectURL(cafForm.photo)" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!cafForm.photo && cafForm.photo_path">
+                                            <img :src="'/storage/' + cafForm.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <div class="absolute bottom-0 inset-x-0 bg-gray-800/50 text-[8px] text-white text-center py-1 font-bold uppercase tracking-widest">2x2 Photo</div>
+                                    </div>
+                                </div>
+                                <div class="flex-1">
+                                    <h1 class="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2" x-text="cafForm.fullName || 'Candidate Name'"></h1>
+                                    <p class="text-xl text-blue-600 font-bold uppercase tracking-widest" x-text="cafForm.positionApplied || 'Position Title'"></p>
+                                    <div class="mt-4 text-xs font-bold text-gray-500 space-y-1">
+                                        <p x-text="cafForm.email || 'email@example.com'"></p>
+                                        <p x-text="cafForm.phone || '+63 9xx xxx xxxx'"></p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="Logo" class="h-16 w-auto object-contain ml-auto mb-4">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Candidate Application</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-10">
+                                <div>
+                                    <div class="flex items-center gap-3 mb-6">
+                                        <div class="h-0.5 flex-1 bg-gray-200"></div>
+                                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-[0.2em]">Application Details</h3>
+                                        <div class="h-0.5 flex-1 bg-gray-200"></div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-2 gap-8 text-sm px-4">
+                                        <div class="space-y-1">
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase">Application Date</p>
+                                            <p class="font-bold text-gray-800" x-text="new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })"></p>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase">Resume Attachment</p>
+                                            <p class="font-bold" :class="cafForm.cv ? 'text-green-600' : 'text-red-500'" x-text="cafForm.cv ? cafForm.cv.name : 'No file uploaded'"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center gap-3 mb-6">
+                                        <div class="h-0.5 flex-1 bg-gray-200"></div>
+                                        <h3 class="text-sm font-black text-gray-800 uppercase tracking-[0.2em]">Cover Letter</h3>
+                                        <div class="h-0.5 flex-1 bg-gray-200"></div>
+                                    </div>
+                                    
+                                    <div class="bg-gray-50/50 p-6 rounded-xl border border-gray-100 min-h-[400px]">
+                                        <p class="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm" x-text="cafForm.coverLetter || 'Your cover letter content will appear here...'"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-20 pt-8 border-t border-gray-100 flex justify-between items-center opacity-50">
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Internal Candidate Record</p>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">John Kelly & Company</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>{{-- end split body --}}
+        </div>
+    </div>
+
+    {{-- ===================== ASSESSMENT VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showAssessmentViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showAssessmentViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showAssessmentViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-[90rem] w-full flex pointer-events-none">
+            <div x-show="showAssessmentViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-700"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-500"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-gray-50 shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+                <template x-if="viewAssessmentData">
+                    <div class="flex h-full overflow-hidden">
+                        
+                        {{-- LEFT: DOCUMENT VIEW --}}
+                        <div class="flex-1 flex flex-col bg-gray-200 border-r border-gray-300 p-6 overflow-hidden" x-data="{ docTab: 'summary' }">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <div class="flex bg-white rounded-xl p-1 border border-gray-300 shadow-sm">
+                                    <button @click="docTab = 'summary'" :class="docTab === 'summary' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Summary</button>
+                                    <button x-show="viewAssessmentData.cv_path" @click="docTab = 'resume'" :class="docTab === 'resume' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Resume / CV</button>
+                                    <button x-show="viewAssessmentData.cover_letter_path" @click="docTab = 'coverletter'" :class="docTab === 'coverletter' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Cover Letter File</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <template x-if="viewAssessmentData.cv_path">
+                                        <a :href="'/storage/' + viewAssessmentData.cv_path" target="_blank" class="px-4 py-2 bg-white text-gray-700 rounded-lg text-[10px] font-bold uppercase border border-gray-300 shadow-sm hover:bg-gray-50 transition">Fullscreen</a>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 bg-white rounded-2xl shadow-inner border border-gray-300 flex flex-col overflow-hidden relative">
+                                {{-- SUMMARY TAB --}}
+                                <div x-show="docTab === 'summary'" class="flex-1 overflow-y-auto p-12 bg-gray-100/50 flex flex-col items-center">
+                                    <div class="w-full max-w-4xl bg-white shadow-2xl border border-gray-200 p-16 font-sans space-y-12 min-h-[800px]">
+                                        <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8">
+                                            <div class="w-32 h-32 border-2 border-gray-100 rounded-2xl overflow-hidden bg-gray-50 shrink-0">
+                                                <template x-if="viewAssessmentData.photo_path">
+                                                    <img :src="'/storage/' + viewAssessmentData.photo_path" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!viewAssessmentData.photo_path">
+                                                    <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                                        <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div class="flex-1 ml-10">
+                                                <h1 class="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2" x-text="viewAssessmentData.name"></h1>
+                                                <p class="text-xl text-blue-600 font-bold uppercase tracking-widest" x-text="viewAssessmentData.position"></p>
+                                                <div class="mt-4 space-y-1 text-xs font-bold text-gray-500">
+                                                    <p class="uppercase">Candidate Assessment Record</p>
+                                                    <p x-text="'Result: ' + (viewAssessmentData.score || 'In Progress')"></p>
+                                                </div>
+                                            </div>
+                                            <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="Logo" class="h-16 w-auto object-contain">
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-10">
+                                            <div class="space-y-6">
+                                                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Assessment Details</h3>
+                                                <div class="space-y-4">
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Test Type</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.test_type || viewAssessmentData.test"></p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Date</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email</p>
+                                                        <p class="text-sm font-bold text-gray-800" x-text="viewAssessmentData.email || '—'"></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="space-y-6">
+                                                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Current Status</h3>
+                                                <div class="space-y-4">
+                                                    <div>
+                                                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</p>
+                                                        <span :class="statusClass(viewAssessmentData.status)" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" x-text="viewAssessmentData.status"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="space-y-6">
+                                            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Evaluator Notes</h3>
+                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap italic" x-text="viewAssessmentData.notes || 'No notes available for this assessment.'"></div>
+                                        </div>
+                                        
+                                        <div class="pt-20 border-t border-gray-100 flex justify-between items-center opacity-30">
+                                            <p class="text-[8px] font-black uppercase tracking-widest">Assessment Record</p>
+                                            <p class="text-[8px] font-black uppercase tracking-widest">John Kelly & Company</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- RESUME PDF TAB --}}
+                                <div x-show="docTab === 'resume'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewAssessmentData.cv_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+
+                                {{-- COVER LETTER FILE TAB --}}
+                                <div x-show="docTab === 'coverletter'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewAssessmentData.cover_letter_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- RIGHT: ASSESSMENT INFO --}}
+                        <div class="w-[450px] bg-white border-l border-gray-200 flex flex-col shrink-0">
+                            <div class="h-44 bg-gradient-to-r from-blue-600 to-indigo-700 relative shrink-0">
+                                <button @click="showAssessmentViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md z-20">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="absolute -bottom-12 left-10 z-10 text-center">
+                                    <div class="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-4 border-white text-blue-600 overflow-hidden mx-auto">
+                                        <template x-if="viewAssessmentData.photo_path">
+                                            <img :src="'/storage/' + viewAssessmentData.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!viewAssessmentData.photo_path">
+                                            <svg class="w-16 h-16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-10 pt-16 pb-8 space-y-10">
+                                <div class="text-center">
+                                    <h2 class="text-3xl font-black text-gray-900 tracking-tight capitalize" x-text="viewAssessmentData.name"></h2>
+                                    <p class="text-blue-600 font-bold tracking-[0.2em] uppercase text-[11px] mt-1" x-text="viewAssessmentData.position"></p>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Type</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <select x-model="viewAssessmentData.test_type" 
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 cursor-pointer p-0">
+                                                    <option value="Technical Test">Technical Test</option>
+                                                    <option value="Amplitude Test">Amplitude Test</option>
+                                                    <option value="Personality Test">Personality Test</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Date</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 text-sm font-bold" x-text="viewAssessmentData.assessment_date || viewAssessmentData.date"></p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Candidate Email</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <input type="email" x-model="viewAssessmentData.email" 
+                                                    placeholder="Enter candidate email..."
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 p-0 placeholder-gray-300">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md" x-show="viewAssessmentData.status === 'In Progress' || viewAssessmentData.score">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Assessment Score (%)</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <input type="number" x-model="viewAssessmentData.score_raw" 
+                                                    @input="viewAssessmentData.score = $event.target.value + '%'"
+                                                    placeholder="Enter score (0-100)"
+                                                    class="w-full bg-transparent border-none text-gray-800 text-sm font-bold focus:ring-0 p-0 placeholder-gray-300">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-blue-50/30 p-6 rounded-[2rem] border border-blue-100 shadow-sm">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                            <p class="text-[10px] font-black text-blue-700 uppercase tracking-widest">Current Status</p>
+                                        </div>
+                                        <span x-text="viewAssessmentData.score" x-show="viewAssessmentData.score" class="text-xl font-black text-blue-600"></span>
+                                    </div>
+                                    <p class="text-sm font-bold text-blue-900 uppercase tracking-widest" x-text="viewAssessmentData.status"></p>
+                                </div>
+                            </div>
+
+                            <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
+                                <template x-if="viewAssessmentData.status === 'In Progress'">
+                                    <button @click="submitAssessmentResult()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-emerald-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        Submit Result
+                                    </button>
+                                </template>
+
+                                <template x-if="viewAssessmentData.status === 'Pending Assessment'">
+                                    <button @click="sendAssessmentTest()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-blue-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                        Send a Test
+                                    </button>
+                                </template>
+
+                                <template x-if="viewAssessmentData.status !== 'Pending Assessment' && viewAssessmentData.status !== 'In Progress'">
+                                    <button @click="showAssessmentViewModal = false" class="w-full py-4 bg-gray-600 hover:bg-gray-700 text-white font-black rounded-[2rem] transition-all uppercase tracking-[0.25em] text-[11px] active:scale-95">
+                                        Dismiss
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== CAF VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showCafViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showCafViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showCafViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-[90rem] w-full flex pointer-events-none">
+            <div x-show="showCafViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-700"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-500"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-gray-50 shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+                <template x-if="viewCafData">
+                    <div class="flex h-full overflow-hidden">
+                        
+                        {{-- LEFT: DOCUMENT VIEW --}}
+                        <div class="flex-1 flex flex-col bg-gray-200 border-r border-gray-300 p-6 overflow-hidden" x-data="{ docTab: 'summary' }">
+                            <div class="flex items-center justify-between mb-4 shrink-0">
+                                <div class="flex bg-white rounded-xl p-1 border border-gray-300 shadow-sm">
+                                    <button @click="docTab = 'summary'" :class="docTab === 'summary' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Summary</button>
+                                    <button x-show="viewCafData.cv_path" @click="docTab = 'resume'" :class="docTab === 'resume' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Resume / CV</button>
+                                    <button x-show="viewCafData.cover_letter_path" @click="docTab = 'coverletter'" :class="docTab === 'coverletter' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'" class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">Cover Letter File</button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <template x-if="viewCafData.cv_path">
+                                        <a :href="'/storage/' + viewCafData.cv_path" target="_blank" class="px-4 py-2 bg-white text-gray-700 rounded-lg text-[10px] font-bold uppercase border border-gray-300 shadow-sm hover:bg-gray-50 transition">Fullscreen</a>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="flex-1 bg-white rounded-2xl shadow-inner border border-gray-300 flex flex-col overflow-hidden relative">
+                                {{-- SUMMARY TAB --}}
+                                <div x-show="docTab === 'summary'" class="flex-1 overflow-y-auto p-12 bg-gray-100/50 flex flex-col items-center">
+                                    <div class="w-full max-w-4xl bg-white shadow-2xl border border-gray-200 p-16 font-sans space-y-12 min-h-[1200px]">
+                                        <div class="flex justify-between items-start border-b-2 border-gray-800 pb-8">
+                                            <div class="w-32 h-32 border-2 border-gray-100 rounded-2xl overflow-hidden bg-gray-50 shrink-0">
+                                                <template x-if="viewCafData.photo_path">
+                                                    <img :src="'/storage/' + viewCafData.photo_path" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!viewCafData.photo_path">
+                                                    <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                                        <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            <div class="flex-1 ml-10">
+                                                <h1 class="text-4xl font-black text-gray-900 tracking-tighter uppercase mb-2" x-text="viewCafData.name"></h1>
+                                                <p class="text-xl text-teal-600 font-bold uppercase tracking-widest" x-text="viewCafData.position"></p>
+                                                <div class="mt-4 space-y-1 text-xs font-bold text-gray-500">
+                                                    <p x-text="viewCafData.email"></p>
+                                                    <p x-text="viewCafData.phone"></p>
+                                                </div>
+                                            </div>
+                                            <img src="{{ asset('images/imaglogo.png') }}" onerror="this.src='{{ asset('images/imag1logo.jpg') }}'" alt="Logo" class="h-16 w-auto object-contain">
+                                        </div>
+
+                                        <div class="space-y-6">
+                                            <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest border-b pb-2">Cover Letter / Statement</h3>
+                                            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" x-text="viewCafData.cover_letter && viewCafData.cover_letter !== 'null' ? viewCafData.cover_letter : (viewCafData.cover_letter_path ? 'See attached cover letter file.' : 'No cover letter text provided.')"></div>
+                                        </div>
+                                        
+                                        <div class="pt-20 border-t border-gray-100 flex justify-between items-center opacity-30">
+                                            <p class="text-[8px] font-black uppercase tracking-widest">Candidate Record</p>
+                                            <p class="text-[8px] font-black uppercase tracking-widest">John Kelly & Company</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- RESUME PDF TAB --}}
+                                <div x-show="docTab === 'resume'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewCafData.cv_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+
+                                {{-- COVER LETTER FILE TAB --}}
+                                <div x-show="docTab === 'coverletter'" class="flex-1 bg-gray-800">
+                                    <iframe :src="'/storage/' + viewCafData.cover_letter_path" class="w-full h-full border-none shadow-2xl"></iframe>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- RIGHT: CANDIDATE INFO --}}
+                        <div class="w-[450px] bg-white border-l border-gray-200 flex flex-col shrink-0">
+                            <div class="h-44 bg-gradient-to-r from-teal-500 to-emerald-600 relative shrink-0">
+                                <button @click="showCafViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md z-20">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                                <div class="absolute -bottom-12 left-10 z-10 text-center">
+                                    <div class="w-32 h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border-4 border-white text-teal-600 overflow-hidden mx-auto">
+                                        <template x-if="viewCafData.photo_path">
+                                            <img :src="'/storage/' + viewCafData.photo_path" class="w-full h-full object-cover">
+                                        </template>
+                                        <template x-if="!viewCafData.photo_path">
+                                            <svg class="w-16 h-16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-10 pt-16 pb-8 space-y-10">
+                                <div class="text-center">
+                                    <h2 class="text-3xl font-black text-gray-900 tracking-tight capitalize" x-text="viewCafData.name"></h2>
+                                    <p class="text-teal-600 font-bold tracking-[0.2em] uppercase text-[11px] mt-1" x-text="viewCafData.position"></p>
+                                </div>
+
+                                <div class="grid grid-cols-1 gap-5">
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email Address</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-teal-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 break-all text-sm font-bold" x-text="viewCafData.email"></p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 font-medium shadow-sm transition hover:shadow-md">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Phone Number</p>
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-teal-600 shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v3.31A.75.75 0 019 9.31L7.15 10.63a.75.75 0 00-.2 1.05c.87 1.34 2.1 2.57 3.44 3.44a.75.75 0 001.05-.2l1.32-1.85a.75.75 0 011-.31h3.31a.75.75 0 01.75.75v5.25a.75.75 0 01-.75.75h-2.25c-7.46 0-13.5-6.04-13.5-13.5v-2.25z"/></svg>
+                                            </div>
+                                            <p class="text-gray-800 text-sm font-bold" x-text="viewCafData.phone"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="bg-teal-50/30 p-6 rounded-[2rem] border border-teal-100 shadow-sm">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <div class="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></div>
+                                        <p class="text-[10px] font-black text-teal-700 uppercase tracking-widest">Application Status</p>
+                                    </div>
+                                    <p class="text-sm font-bold text-teal-900" x-text="'Applied on ' + (viewCafData.created_at ? new Date(viewCafData.created_at).toLocaleDateString() : '—')"></p>
+                                </div>
+                            </div>
+
+                            <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
+                                <button @click="openAssessmentFromCaf(viewCafData)" 
+                                    class="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-teal-100 uppercase tracking-[0.25em] text-[11px] active:scale-95">
+                                    Proceed to Assessment
+                                </button>
+                                <button @click="showCafViewModal = false" class="w-full py-3 text-gray-500 hover:text-gray-800 font-bold uppercase tracking-widest text-[10px] transition">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== INTERVIEW VIEW SLIDE-OVER ===================== --}}
+    <div x-show="showInterviewViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showInterviewViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showInterviewViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showInterviewViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewInterviewData">
+                    <div class="flex flex-col h-full">
+                        {{-- Aesthetic Header --}}
+                        <div class="h-32 bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center overflow-hidden shrink-0 relative">
+                            <div class="absolute inset-0 opacity-10">
+                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path></svg>
+                            </div>
+                            <div class="relative text-center">
+                                <div class="inline-flex p-3 bg-white/20 backdrop-blur-md rounded-2xl mb-2 border border-white/30">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </div>
+                                <h3 class="text-white font-black text-xl tracking-tight uppercase">Interview Details</h3>
+                            </div>
+                            <button @click="showInterviewViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-8 space-y-8 bg-white">
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Candidate Name</p>
+                                    <p class="text-gray-900 font-bold text-lg" x-text="viewInterviewData.name"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</p>
+                                    <p class="text-purple-600 font-bold text-lg" x-text="viewInterviewData.position"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interview Type</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewInterviewData.type || viewInterviewData.round"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+                                    <p class="font-bold uppercase text-[11px]" :class="statusClass(viewInterviewData.status)" x-text="viewInterviewData.status"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interviewer</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewInterviewData.interviewer"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Duration</p>
+                                    <p class="text-gray-700 font-medium" x-text="(viewInterviewData.duration || '60') + ' minutes'"></p>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 font-medium">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Date & Time</p>
+                                <p class="text-gray-800 text-sm" x-text="viewInterviewData.interview_date || viewInterviewData.date"></p>
+                            </div>
+
+                            <div x-show="viewInterviewData.meeting_link" class="space-y-2 pt-6 border-t border-gray-50">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Meeting Link</p>
+                                <a :href="viewInterviewData.meeting_link" target="_blank" class="text-blue-600 hover:underline font-medium break-all text-sm block bg-blue-50/50 p-4 rounded-2xl border border-blue-100" x-text="viewInterviewData.meeting_link"></a>
+                            </div>
+                        </div>
+
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-4 shrink-0">
+                            <button @click="showInterviewViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
+                                Close
+                            </button>
+                            <button @click="openJobOfferModal(viewInterviewData)" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-purple-200 uppercase tracking-widest text-[11px]"
+                                x-text="isDatePassed(viewInterviewData.interview_date || viewInterviewData.date) ? 'Send a Job Offer' : 'Send Reminder'">
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== ADD NEW JOB OFFER MODAL ===================== --}}
+    <div
+        x-show="showJobOfferModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[70] flex justify-center items-center bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showJobOfferModal = false"
+    >
+        <div 
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all"
+            x-show="showJobOfferModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        >
+            <div class="px-6 py-4 border-b flex items-center justify-between bg-white text-gray-800">
+                <h3 class="font-bold text-lg tracking-tight">Add New Job Offer</h3>
+                <button @click="showJobOfferModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitJobOffer()" class="p-6 space-y-5 bg-white">
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Candidate Name</label>
+                        <input type="text" x-model="jobOfferForm.name" required placeholder="Enter name"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
+                        <input type="text" x-model="jobOfferForm.position" required placeholder="Position title"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Salary</label>
+                        <input type="text" x-model="jobOfferForm.salary" placeholder="$100,000"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Start Date</label>
+                        <input type="date" x-model="jobOfferForm.startDate" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Employment Type</label>
+                        <select x-model="jobOfferForm.employmentType" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all cursor-pointer appearance-none">
+                            <option value="Full-time">Full-time</option>
+                            <option value="Part-time">Part-time</option>
+                            <option value="Contract">Contract</option>
+                            <option value="Project-based">Project-based</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Department</label>
+                        <input type="text" x-model="jobOfferForm.department" placeholder="e.g. Engineering"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Benefits</label>
+                    <textarea x-model="jobOfferForm.benefits" rows="4" placeholder="Health insurance, 401k, etc..."
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 resize-none"></textarea>
+                </div>
+
+                <div class="pt-4 border-t flex justify-end gap-3">
+                    <button type="button" @click="showJobOfferModal = false"
+                        class="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition active:scale-95">
+                        Create Job Offer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ===================== VIEW JOB OFFER SLIDE-OVER ===================== --}}
+    <div x-show="showJobOfferViewModal" class="fixed inset-0 overflow-hidden z-[9999]" style="display:none;">
+        <div @click="showJobOfferViewModal = false" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            x-show="showJobOfferViewModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="fixed inset-y-0 right-0 max-w-xl w-full flex pointer-events-none">
+            <div x-show="showJobOfferViewModal" 
+                x-transition:enter="transform transition ease-in-out duration-500"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in-out duration-300"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full"
+                class="h-full w-full bg-white shadow-2xl flex flex-col pointer-events-auto">
+                <template x-if="viewJobOfferData">
+                    <div class="flex flex-col h-full">
+                        {{-- Aesthetic Header --}}
+                        <div class="h-32 bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center overflow-hidden shrink-0 relative">
+                            <div class="absolute inset-0 opacity-10">
+                                <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 100 C 20 0 50 0 100 100 Z" fill="white"></path></svg>
+                            </div>
+                            <div class="relative text-center">
+                                <div class="inline-flex p-3 bg-white/20 backdrop-blur-md rounded-2xl mb-2 border border-white/30">
+                                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <h3 class="text-white font-black text-xl tracking-tight uppercase">Job Offer Details</h3>
+                            </div>
+                            <button @click="showJobOfferViewModal = false" class="absolute top-6 right-6 text-white/50 hover:text-white transition group bg-white/10 p-2 rounded-full backdrop-blur-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto px-8 pt-8 pb-8 space-y-8 bg-white">
+                            <div class="grid grid-cols-2 gap-8">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Candidate Name</p>
+                                    <p class="text-gray-900 font-bold text-lg" x-text="viewJobOfferData.name"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Position</p>
+                                    <p class="text-blue-600 font-bold text-lg" x-text="viewJobOfferData.position"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Salary</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.salary"></p>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.startDate || viewJobOfferData.start_date"></p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 text-sm">
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Employment Type</p>
+                                    <span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg font-bold text-[11px] uppercase tracking-wider border border-blue-100 w-fit" x-text="viewJobOfferData.employment_type || viewJobOfferData.employmentType"></span>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Department</p>
+                                    <p class="text-gray-700 font-medium" x-text="viewJobOfferData.department || 'N/A'"></p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-6 border-t border-gray-50">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Benefits</p>
+                                <div class="bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                                    <p class="text-gray-600 text-[13px] leading-relaxed italic" x-text="viewJobOfferData.benefits || 'No benefits listed.'"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="px-8 py-6 border-t border-gray-100 flex gap-4 shrink-0">
+                            <button @click="showJobOfferViewModal = false" class="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition uppercase tracking-widest text-[11px]">
+                                Close
+                            </button>
+                            <button class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-200 uppercase tracking-widest text-[11px]">
+                                Send Email
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== ADD NEW ASSESSMENT MODAL ===================== --}}
+    <div
+        x-show="showAssessmentModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[70] flex justify-center items-center bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showAssessmentModal = false"
+    >
+        <div 
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all"
+            x-show="showAssessmentModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        >
+            <div class="px-6 py-4 border-b flex items-center justify-between bg-white text-gray-800">
+                <h3 class="font-bold text-lg tracking-tight">Add New Assessment</h3>
+                <button @click="showAssessmentModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitAssessment()" class="p-6 space-y-5 bg-white">
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Candidate Name</label>
+                        <input type="text" x-model="assessmentForm.name" required placeholder="Enter name"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
+                        <select x-model="assessmentForm.position" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50 cursor-pointer appearance-none">
+                            <option value="">Select Position</option>
+                            <template x-for="pos in uniqueCafPositions" :key="pos">
+                                <option :value="pos" x-text="pos"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address</label>
+                    <input type="email" x-model="assessmentForm.email" required placeholder="candidate@email.com"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Test Type</label>
+                        <select x-model="assessmentForm.test" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all cursor-pointer appearance-none">
+                            <option value="Technical Test">Technical Test</option>
+                            <option value="Amplitude Test">Amplitude Test</option>
+                            <option value="Personality Test">Personality Test</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Assessment Date</label>
+                        <input type="date" x-model="assessmentForm.date" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Notes</label>
+                    <textarea x-model="assessmentForm.notes" rows="4" placeholder="Assessment notes..."
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 resize-none"></textarea>
+                </div>
+
+                <div class="pt-4 border-t flex justify-end gap-3">
+                    <button type="button" @click="showAssessmentModal = false"
+                        class="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                        Discard
+                    </button>
+                    <button type="submit"
+                        class="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition active:scale-95">
+                        Create Assessment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- ===================== ADD NEW INTERVIEW MODAL ===================== --}}
+    <div
+        x-show="showInterviewModal"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-[70] flex justify-center items-center bg-black/50 backdrop-blur-sm"
+        style="display:none;"
+        @click.self="showInterviewModal = false"
+    >
+        <div 
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all"
+            x-show="showInterviewModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        >
+            <div class="px-6 py-4 border-b flex items-center justify-between bg-white text-gray-800">
+                <h3 class="font-bold text-lg tracking-tight">Add New Interview</h3>
+                <button @click="showInterviewModal = false" class="text-gray-400 hover:text-gray-600 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form @submit.prevent="submitInterview()" class="p-6 space-y-5 bg-white">
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Candidate Name</label>
+                        <select x-model="interviewForm.name" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50 cursor-pointer appearance-none">
+                            <option value="">Select Candidate</option>
+                            <template x-for="name in uniqueCafNames" :key="name">
+                                <option :value="name" x-text="name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
+                        <select x-model="interviewForm.position" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm transition-all bg-gray-50/50 cursor-pointer appearance-none">
+                            <option value="">Select Position</option>
+                            <template x-for="pos in uniqueCafPositions" :key="pos">
+                                <option :value="pos" x-text="pos"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Type of Interview</label>
+                        <select x-model="interviewForm.type" required
+                            @change="interviewForm.type === 'Online' ? generateMeetingLink() : interviewForm.meeting_link = ''"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all cursor-pointer appearance-none">
+                            <option value="Online">Online</option>
+                            <option value="In Person">In Person</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Interviewer</label>
+                        <input type="text" x-model="interviewForm.interviewer" required placeholder="Name of interviewer"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Date & Time</label>
+                        <input type="datetime-local" x-model="interviewForm.interview_date" required
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Duration (minutes)</label>
+                        <input type="number" x-model="interviewForm.duration" required placeholder="60"
+                            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 transition-all">
+                    </div>
+                </div>
+
+                <div x-show="interviewForm.type === 'Online'">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Meeting Link</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="url" x-model="interviewForm.meeting_link" placeholder="https://meet.jit.si/..."
+                            class="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 text-gray-700 text-sm bg-gray-50/50 font-mono text-xs" readonly>
+                        <button type="button" @click="generateMeetingLink()"
+                            class="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-blue-200 whitespace-nowrap">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Generate
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1.5">Mock link — replace with a real meeting URL before sending.</p>
+                </div>
+
+                <div class="pt-4 border-t flex justify-end gap-3">
+                    <button type="button" @click="showInterviewModal = false"
+                        class="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition active:scale-95">
+                        Schedule Interview
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], initialAssessment = [], initialInterview = [], initialJobOffer = []) {
+    return {
+        activeTab: 'MRF',
+        search: '',
+        paperSize: 'a4',
+        perPage: 50,
+        currentPage: 1,
+        showFilter: false,
+        filterStatus: 'All',
+        showModal: false,
+        showViewModal: false,
+        showJpfModal: false,
+        showJpfViewModal: false,
+        showCafModal: false,
+        showCafViewModal: false,
+        showInterviewModal: false,
+        showInterviewViewModal: false,
+        showAssessmentModal: false,
+        showAssessmentViewModal: false,
+        showJobOfferModal: false,
+        showJobOfferViewModal: false,
+        linkCopied: false,
+        isEditing: false,
+        editingId: null,
+        viewData: null,
+        viewJpfData: {},
+        viewCafData: null,
+        viewAssessmentData: null,
+        viewInterviewData: null,
+        viewJobOfferData: null,
+
+        tabs: [
+            { key: 'MRF',        label: 'MRF' },
+            { key: 'JPF',        label: 'JPF' },
+            { key: 'CAF',        label: 'CAF' },
+            { key: 'Assessment', label: 'Assessment' },
+            { key: 'Interview',  label: 'Interview' },
+            { key: 'Job Offer',  label: 'Job Offer' },
+        ],
+
+        data: {
+            'MRF': initialMRF.map(item => ({
+                ...item,
+                req_id_display: item.request_id, 
+                date_display: item.date_requested
+            })),
+            'JPF': initialJPF.map(item => ({
+                ...item,
+                job_id_display: item.job_id,
+                posted_display: item.posted_date
+            })),
+            'CAF':        initialCAF,
+            'Assessment': initialAssessment,
+            'Interview':  initialInterview,
+            'Job Offer':  initialJobOffer,
+        },
+
+        form: {
+            department: '', dateRequested: '', dateRequired: '',
+            position: '', employmentType: '',
+            duties: '', natureOfRequest: '', ageRange: '',
+            civilStatus: 'No Preference', gender: 'No Preference',
+            headcount: '', education: '', qualifications: '',
+            requestedBy: '', approvedBy: '',
+            remarks: '', requestStatus: '',
+            chargedTo: '', breakdownDetails: '',
+            hiredPersonnel: '', dateHired: '',
+            processedBy: '', checkedBy: '',
+        },
+
+        jpfForm: {
+            // REQUISITION DETAILS
+            jobId: '', relatedMrfNo: '', dateOpened: '', hiringStatus: 'Open',
+
+            // COMPANY DETAILS
+            companyName: '', officeBranchSite: '', departmentUnit: '', hiringManager: '', departmentSuperior: '',
+
+            // POSITION DETAILS
+            position: '', noOfVacancies: '', positionLevel: '', employmentType: '', reportsTo: '', workLocation: '',
+
+            // SALARY OFFER
+            minSalary: '', maxSalary: '', salaryGrade: '',
+
+            // WAGE COMPLIANCE
+            applicableRegion: 'Central Visayas', applicableArea: '', dailyMinWage: '', monthlyEquivalent: '',
+            wageCompliance: [], // confirmed, above, allowances
+
+            // BENEFITS PACKAGE
+            benefits: ['SSS', 'PhilHealth', 'Pag-IBIG'],
+
+            // WORK SCHEDULE
+            workSchedule: [], // Mon-Fri, Mon-Sat, etc.
+            restDays: '',
+
+            // JOB REQUIREMENTS
+            education: '', experience: '', skills: '', licenses: '', preferredQualifications: '',
+
+            // DUTIES
+            duties: '',
+
+            // CHANNELS
+            channels: [], // JobStreet, Indeed, etc.
+
+            // SCREENING FLOW
+            screeningFlow: [], // Resume Screening, etc.
+
+            // TARGET TIMELINE
+            dateNeeded: '', postingStartDate: '', targetHireDate: '',
+
+            // APPROVALS
+            humanCapitalApproval: { name: '', date: '' },
+            hiringManagerApproval: { name: '', date: '' },
+            financeApproval: { name: '', date: '' },
+            presidentApproval: { status: '', name: '', date: '' },
+
+            // STATUS
+            status: 'Draft'
+        },
+
+        cafForm: {
+            fullName: '', positionApplied: '', email: '', phone: '', 
+            photo: null, cv: null, coverLetterFile: null, coverLetter: ''
+        },
+
+        assessmentForm: {
+            name: '', email: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
+        },
+
+        interviewForm: {
+            name: '', position: '', type: 'Online', interviewer: '', 
+            interview_date: '', duration: '60', meeting_link: ''
+        },
+
+        jobOfferForm: {
+            name: '', position: '', salary: '', startDate: '',
+            employmentType: 'Full-time', department: '', benefits: ''
+        },
+
+        draggedItem: null,
+        onDragStart(item) { this.draggedItem = item; },
+        onDrop(status) {
+            if (this.draggedItem) {
+                const oldStatus = this.draggedItem.status;
+                this.draggedItem.status = status;
+                
+                axios.post(`/human-capital/recruitment/assessment/${this.draggedItem.id}/status`, { status: status })
+                .catch(err => {
+                    this.draggedItem.status = oldStatus;
+                    console.error('Failed to update status:', err);
+                });
+                
+                this.draggedItem = null;
+            }
+        },
+
+        viewAssessment(item) {
+            this.viewAssessmentData = item;
+            if (this.viewAssessmentData.score) {
+                this.viewAssessmentData.score_raw = parseInt(this.viewAssessmentData.score);
+            }
+            if (!this.viewAssessmentData.test_type && this.viewAssessmentData.test) {
+                this.viewAssessmentData.test_type = this.viewAssessmentData.test;
+            }
+            this.showAssessmentViewModal = true;
+        },
+
+        submitAssessmentResult() {
+            if (!this.viewAssessmentData.score_raw) {
+                alert('Please enter a score.');
+                return;
+            }
+
+            const btn = event.currentTarget;
+            btn.disabled = true;
+
+            axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/result`, {
+                score: this.viewAssessmentData.score_raw
+            })
+            .then(res => {
+                const assessment = this.data['Assessment'].find(a => a.id === this.viewAssessmentData.id);
+                if (assessment) {
+                    assessment.score = res.data.assessment.score;
+                    assessment.status = res.data.assessment.status;
+                }
+                alert(res.data.message);
+                this.showAssessmentViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error submitting result:', err);
+                alert('Failed to submit result.');
+            })
+            .finally(() => btn.disabled = false);
+        },
+
+        deleteAssessment(id) {
+            if (!confirm('Are you sure you want to delete this assessment?')) return;
+            
+            axios.delete(`/human-capital/recruitment/assessment/${id}`)
+            .then(() => {
+                this.data['Assessment'] = this.data['Assessment'].filter(a => a.id !== id);
+            })
+            .catch(err => console.error('Error deleting assessment:', err));
+        },
+
+        sendAssessmentTest() {
+            if (!this.viewAssessmentData) return;
+            
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-4 h-4 animate-spin mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            btn.disabled = true;
+
+            axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/send-test`, {
+                test_type: this.viewAssessmentData.test_type || this.viewAssessmentData.test,
+                email: this.viewAssessmentData.email
+            })
+            .then(res => {
+                alert('Assessment test invitation has been sent to the candidate.');
+                // Status will update to "In Progress" once the candidate clicks the link in their email.
+                this.showAssessmentViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error sending test:', err);
+                alert('Failed to send test: ' + (err.response?.data?.message || err.message));
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        },
+
+        viewCAF(row) {
+            this.viewCafData = row;
+            this.showCafViewModal = true;
+        },
+
+        openAssessmentFromCaf(row) {
+            this.showCafViewModal = false;
+            
+            // Notify candidate and update status via backend
+            axios.post(`/human-capital/recruitment/caf/${row.id}/proceed`)
+            .then(res => {
+                const caf = this.data['CAF'].find(c => c.id === row.id);
+                if (caf) caf.status = 'Assessment';
+
+                if (res.data.assessment) {
+                    // Add to assessment list if not already there
+                    const exists = this.data['Assessment'].some(a => a.id === res.data.assessment.id);
+                    if (!exists) {
+                        this.data['Assessment'].unshift(res.data.assessment);
+                    }
+                }
+                
+                // Switch to Assessment tab to show the candidate in Kanban
+                this.activeTab = 'Assessment';
+            })
+            .catch(err => {
+                console.error('Error proceeding to assessment:', err);
+                alert('Candidate status could not be updated.');
+            });
+        },
+
+        viewInterview(row) {
+            this.viewInterviewData = row;
+            this.showInterviewViewModal = true;
+        },
+
+        deleteCAF(id) {
+            if (!confirm('Are you sure you want to delete this application?')) return;
+            
+            axios.delete(`/human-capital/recruitment/caf/${id}`)
+            .then(() => {
+                this.data['CAF'] = this.data['CAF'].filter(c => c.id !== id);
+            })
+            .catch(err => console.error('Error deleting CAF:', err));
+        },
+
+        submitAssessment() {
+            axios.post('{{ route("human-capital.recruitment.store_assessment") }}', this.assessmentForm)
+            .then(res => {
+                this.data['Assessment'].unshift(res.data.data);
+                
+                // Update local CAF status if it was from a CAF
+                if (this.assessmentForm.caf_id) {
+                    const caf = this.data['CAF'].find(c => c.id === this.assessmentForm.caf_id);
+                    if (caf) caf.status = 'Assessment';
+                }
+                
+                this.showAssessmentModal = false;
+            })
+            .catch(err => console.error('Error submitting assessment:', err));
+        },
+
+        scheduleInterviewFromAssessment(item) {
+            // Pre-fill interview form and switch to Interview tab
+            this.interviewForm = {
+                name: item.name,
+                position: item.position,
+                type: 'Online',
+                interviewer: '', 
+                interview_date: '',
+                duration: '60',
+                meeting_link: ''
+            };
+            this.generateMeetingLink();
+            this.activeTab = 'Interview';
+            this.showInterviewModal = true;
+        },
+
+        generateMeetingLink() {
+            const seg = (len) => Array.from({length: len}, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+            this.interviewForm.meeting_link = `https://meet.google.com/${seg(3)}-${seg(4)}-${seg(3)}`;
+        },
+
+        submitInterview() {
+            axios.post('{{ route("human-capital.recruitment.store_interview") }}', this.interviewForm)
+            .then(res => {
+                this.data['Interview'].unshift(res.data.data);
+                this.showInterviewModal = false;
+            })
+            .catch(err => {
+                alert('Error scheduling interview: ' + (err.response?.data?.message || err.message));
+            });
+        },
+
+        deleteInterview(id) {
+            if (!confirm('Are you sure you want to delete this interview record?')) return;
+            
+            axios.delete(`/human-capital/recruitment/interview/${id}`)
+            .then(() => {
+                this.data['Interview'] = this.data['Interview'].filter(i => i.id !== id);
+            })
+            .catch(err => console.error('Error deleting interview:', err));
+        },
+
+        submitJobOffer() {
+            axios.post('{{ route("human-capital.recruitment.store_job_offer") }}', this.jobOfferForm)
+            .then(res => {
+                this.data['Job Offer'].unshift(res.data.data);
+                this.showJobOfferModal = false;
+            })
+            .catch(err => {
+                alert('Error saving Job Offer: ' + (err.response?.data?.message || err.message));
+            });
+        },
+
+        deleteJobOffer(id) {
+            if (!confirm('Are you sure you want to delete this job offer?')) return;
+            axios.delete(`/human-capital/recruitment/job-offer/${id}`)
+            .then(() => {
+                this.data['Job Offer'] = this.data['Job Offer'].filter(j => j.id !== id);
+            })
+            .catch(err => console.error('Error deleting job offer:', err));
+        },
+
+        openJobOfferModal(interviewData = null) {
+            if (interviewData) {
+                this.jobOfferForm = {
+                    name: interviewData.name,
+                    position: interviewData.position,
+                    salary: '',
+                    startDate: '',
+                    employmentType: 'Full-time',
+                    department: '',
+                    benefits: ''
+                };
+            } else {
+                this.jobOfferForm = {
+                    name: '', position: '', salary: '', startDate: '',
+                    employmentType: 'Full-time', department: '', benefits: ''
+                };
+            }
+            this.showJobOfferModal = true;
+        },
+
+        viewJobOffer(offer) {
+            this.viewJobOfferData = offer;
+            this.showJobOfferViewModal = true;
+        },
+
+        editMRF(row) {
+            this.isEditing = true;
+            this.editingId = row.id || row.request_id;
+            this.form = {
+                department: row.department,
+                dateRequested: row.date_requested,
+                dateRequired: row.date_required,
+                position: row.position,
+                employmentType: row.employment_type,
+                duties: row.duties,
+                natureOfRequest: row.nature_of_request,
+                ageRange: row.age_range,
+                civilStatus: row.civil_status,
+                gender: row.gender,
+                headcount: row.headcount,
+                education: row.education,
+                qualifications: row.qualifications,
+                requestedBy: row.requested_by,
+                approvedBy: row.approved_by,
+                remarks: row.remarks,
+                requestStatus: row.request_status,
+                chargedTo: row.charged_to,
+                breakdownDetails: row.breakdown_details,
+                hiredPersonnel: row.hired_personnel,
+                dateHired: row.date_hired,
+                processedBy: row.processed_by,
+                checkedBy: row.checked_by,
+            };
+            this.showModal = true;
+        },
+
+        editJPF(row) {
+            this.isEditing = true;
+            this.editingId = row.id || row.job_id;
+            this.jpfForm = {
+                jobId: row.job_id,
+                relatedMrfNo: row.related_mrf_no,
+                dateOpened: row.date_opened,
+                hiringStatus: row.hiring_status || 'Open',
+
+                companyName: row.company_name,
+                officeBranchSite: row.office_branch_site,
+                departmentUnit: row.department_unit,
+                hiringManager: row.hiring_manager,
+                departmentSuperior: row.department_superior,
+
+                position: row.position,
+                noOfVacancies: row.no_of_vacancies,
+                positionLevel: row.position_level,
+                employmentType: row.employment_type,
+                reportsTo: row.reports_to,
+                workLocation: row.location,
+
+                minSalary: row.min_salary_offer,
+                maxSalary: row.max_salary_offer,
+                salaryGrade: row.salary_grade,
+
+                applicableRegion: row.applicable_region || 'Central Visayas',
+                applicableArea: row.applicable_area,
+                dailyMinWage: row.current_daily_min_wage,
+                monthlyEquivalent: row.monthly_equivalent,
+                wageCompliance: row.wage_compliance || [],
+
+                benefits: row.benefits_package || ['SSS', 'PhilHealth', 'Pag-IBIG'],
+
+                workSchedule: row.work_schedule || [],
+                restDays: row.rest_days,
+
+                education: row.education_req || row.requirements,
+                experience: row.experience_req,
+                skills: row.skills_req,
+                licenses: row.licenses_req,
+                preferredQualifications: row.preferred_qualifications,
+
+                duties: row.duties_responsibilities || row.job_description,
+
+                channels: row.recruitment_channels || [],
+                screeningFlow: row.screening_flow || [],
+
+                dateNeeded: row.date_needed,
+                postingStartDate: row.posting_start_date,
+                targetHireDate: row.target_hire_date,
+
+                humanCapitalApproval: row.human_capital_approval || { name: '', date: '' },
+                hiringManagerApproval: row.hiring_manager_approval || { name: '', date: '' },
+                financeApproval: row.finance_approval || { name: '', date: '' },
+                presidentApproval: row.president_approval || { status: '', name: '', date: '' },
+
+                status: row.status
+            };
+            this.showJpfModal = true;
+        },
+
+        editCAF(row) {
+            this.isEditing = true;
+            this.editingId = row.id;
+            this.cafForm = {
+                fullName: row.name,
+                positionApplied: row.position,
+                email: row.email,
+                phone: row.phone,
+                photo: null,
+                photo_path: row.photo_path,
+                cv: null,
+                coverLetterFile: null,
+                coverLetter: row.cover_letter,
+                status: row.status
+            };
+            this.showCafModal = true;
+        },
+
+        openModal() {
+            this.isEditing = false;
+            this.editingId = null;
+            if (this.activeTab === 'MRF') {
+                // Reset form
+                this.form = {
+                    department: '', dateRequested: '', dateRequired: '',
+                    position: '', employmentType: '',
+                    duties: '', natureOfRequest: '', ageRange: '',
+                    civilStatus: 'No Preference', gender: 'No Preference',
+                    headcount: '', education: '', qualifications: '',
+                    requestedBy: '', approvedBy: '',
+                    remarks: '', requestStatus: '',
+                    chargedTo: '', breakdownDetails: '',
+                    hiredPersonnel: '', dateHired: '',
+                    processedBy: '', checkedBy: '',
+                };
+                this.showModal = true;
+            } else if (this.activeTab === 'JPF') {
+                this.jpfForm = {
+                    jobId: '', relatedMrfNo: '', dateOpened: '', hiringStatus: 'Open',
+                    companyName: '', officeBranchSite: '', departmentUnit: '', hiringManager: '', departmentSuperior: '',
+                    position: '', noOfVacancies: '', positionLevel: '', employmentType: '', reportsTo: '', workLocation: '',
+                    minSalary: '', maxSalary: '', salaryGrade: '',
+                    applicableRegion: 'Central Visayas', applicableArea: '', dailyMinWage: '', monthlyEquivalent: '',
+                    wageCompliance: [],
+                    benefits: ['SSS', 'PhilHealth', 'Pag-IBIG'],
+                    workSchedule: [],
+                    restDays: '',
+                    education: '', experience: '', skills: '', licenses: '', preferredQualifications: '',
+                    duties: '',
+                    channels: [],
+                    screeningFlow: [],
+                    dateNeeded: '', postingStartDate: '', targetHireDate: '',
+                    humanCapitalApproval: { name: '', date: '' },
+                    hiringManagerApproval: { name: '', date: '' },
+                    financeApproval: { name: '', date: '' },
+                    presidentApproval: { status: '', name: '', date: '' },
+                    status: 'Draft'
+                };
+                this.showJpfModal = true;
+            } else if (this.activeTab === 'CAF') {
+                this.cafForm = {
+                    fullName: '', positionApplied: '', email: '', phone: '', 
+                    photo: null, photo_path: null, cv: null, coverLetterFile: null, coverLetter: ''
+                };
+                this.showCafModal = true;
+            } else if (this.activeTab === 'Interview') {
+                this.interviewForm = {
+                    name: '', position: '', type: 'Online', interviewer: '', 
+                    interview_date: '', duration: '60', meeting_link: ''
+                };
+                this.generateMeetingLink();
+                this.showInterviewModal = true;
+            } else if (this.activeTab === 'Assessment') {
+                this.assessmentForm = {
+                    name: '', position: '', test: 'Technical Test', date: '', notes: '', caf_id: null
+                };
+                this.showAssessmentModal = true;
+            } else if (this.activeTab === 'Job Offer') {
+                this.openJobOfferModal();
+            } else {
+                alert('Add New functionality for ' + this.activeTab + ' is not yet implemented.');
+            }
+        },
+
+        submitMRF() {
+            const url = this.isEditing ? `/human-capital/recruitment/mrf/${this.editingId}` : '{{ route("human-capital.recruitment.store_mrf") }}';
+            const method = this.isEditing ? 'put' : 'post';
+            
+            axios({
+                method: method,
+                url: url,
+                data: {
+                    ...this.form,
+                    request_status: this.form.requestStatus || 'Pending'
+                }
+            })
+            .then(res => {
+                const item = res.data.data;
+                if (this.isEditing) {
+                    const idx = this.data['MRF'].findIndex(m => m.id === this.editingId);
+                    if (idx !== -1) {
+                        this.data['MRF'][idx] = item;
+                    }
+                } else {
+                    this.data['MRF'].unshift(item);
+                }
+                this.showModal = false;
+            })
+            .catch(err => {
+                alert('Error saving MRF: ' + (err.response?.data?.message || err.message));
+            });
+        },
+
+        submitJPF() {
+            const url = this.isEditing ? `/human-capital/recruitment/jpf/${this.editingId}` : '{{ route("human-capital.recruitment.store_jpf") }}';
+            const method = this.isEditing ? 'put' : 'post';
+
+            axios({
+                method: method,
+                url: url,
+                data: {
+                    ...this.jpfForm,
+                    posted_date: new Date().toISOString().split('T')[0]
+                }
+            })
+            .then(res => {
+                const item = res.data.data;
+                if (this.isEditing) {
+                    const idx = this.data['JPF'].findIndex(j => (j.id || j.job_id) === this.editingId);
+                    if (idx !== -1) {
+                        this.data['JPF'][idx] = {
+                            ...item,
+                            jobId: item.job_id,
+                            type: item.employment_type,
+                            posted: item.posted_date
+                        };
+                    }
+                } else {
+                    this.data['JPF'].unshift({
+                        ...item,
+                        jobId: item.job_id,
+                        type: item.employment_type,
+                        posted: item.posted_date
+                    });
+                }
+                this.showJpfModal = false;
+            })
+            .catch(err => {
+                alert('Error saving JPF: ' + (err.response?.data?.message || err.message));
+            });
+        },
+
+        submitCAF() {
+            let formData = new FormData();
+            formData.append('fullName', this.cafForm.fullName);
+            formData.append('positionApplied', this.cafForm.positionApplied);
+            formData.append('email', this.cafForm.email);
+            formData.append('phone', this.cafForm.phone);
+            formData.append('coverLetter', this.cafForm.coverLetter);
+            if (this.isEditing) {
+                formData.append('status', this.cafForm.status);
+                formData.append('_method', 'PUT');
+            }
+            if (this.cafForm.cv) {
+                formData.append('cv', this.cafForm.cv);
+            }
+            if (this.cafForm.photo) {
+                formData.append('photo', this.cafForm.photo);
+            }
+            if (this.cafForm.coverLetterFile) {
+                formData.append('cover_letter_file', this.cafForm.coverLetterFile);
+            }
+
+            const url = this.isEditing ? `/human-capital/recruitment/caf/${this.editingId}` : '{{ route("human-capital.recruitment.store_caf") }}';
+
+            axios.post(url, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            .then(res => {
+                const item = res.data.data;
+                if (this.isEditing) {
+                    const idx = this.data['CAF'].findIndex(c => c.id === this.editingId);
+                    if (idx !== -1) {
+                        this.data['CAF'][idx] = item;
+                    }
+                } else {
+                    this.data['CAF'].unshift(item);
+                }
+                this.showCafModal = false;
+            })
+            .catch(err => console.error('Error submitting CAF:', err));
+        },
+
+        viewJPF(row) {
+            this.viewJpfData = { ...row };
+            this.showJpfViewModal = true;
+        },
+
+        downloadCSV() {
+            const rows = this.filteredRows;
+            if (rows.length === 0) {
+                alert('No data available to download.');
+                return;
+            }
+
+            // Get headers from the first object
+            const headers = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object');
+            
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => headers.map(h => {
+                    let val = row[h] === null || row[h] === undefined ? '' : String(row[h]);
+                    // Escape commas and quotes
+                    if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+                        val = `"${val.replace(/"/g, '""')}"`;
+                    }
+                    return val;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${this.activeTab}_list_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        },
+
+        prevPage() {
+            if (this.currentPage > 1) this.currentPage--;
+        },
+
+        nextPage() {
+            if (this.currentPage < this.totalPages) this.currentPage++;
+        },
+
+        get paginatedRows() {
+            const start = (this.currentPage - 1) * this.perPage;
+            return this.filteredRows.slice(start, start + parseInt(this.perPage));
+        },
+
+        get totalPages() {
+            return Math.ceil(this.filteredRows.length / this.perPage) || 1;
+        },
+
+        get startRange() {
+            if (this.filteredRows.length === 0) return 0;
+            return (this.currentPage - 1) * this.perPage + 1;
+        },
+
+        get endRange() {
+            return Math.min(this.currentPage * this.perPage, this.filteredRows.length);
+        },
+
+        get uniqueMrfPositions() {
+            const positions = this.data['MRF'].map(mrf => mrf.position).filter(p => p && p.trim() !== '');
+            return [...new Set(positions)];
+        },
+
+        get uniqueJpfPositions() {
+            const positions = this.data['JPF'].map(jpf => jpf.position).filter(p => p && p.trim() !== '');
+            return [...new Set(positions)];
+        },
+
+        get uniqueCafPositions() {
+            const positions = this.data['CAF'].map(caf => caf.position).filter(p => p && p.trim() !== '');
+            return [...new Set(positions)];
+        },
+
+        get uniqueCafNames() {
+            const names = this.data['CAF'].map(caf => caf.name).filter(n => n && n.trim() !== '');
+            return [...new Set(names)];
+        },
+
+        viewMRF(row) {
+            this.viewData = row;
+            this.showViewModal = true;
+        },
+
+        approveMRF(id) {
+            axios.post(`/human-capital/recruitment/mrf/${id}/approve`)
+            .then(res => {
+                const item = res.data.data;
+                const idx = this.data['MRF'].findIndex(m => m.id === id);
+                if (idx !== -1) {
+                    this.data['MRF'][idx].request_status = 'Approved';
+                    // If viewData is currently showing this MRF, update it too
+                    if (this.viewData && this.viewData.id === id) {
+                        this.viewData.request_status = 'Approved';
+                    }
+                }
+                this.showViewModal = false;
+                // Optional: Show a success notification if implemented
+            })
+            .catch(err => {
+                console.error('Error approving MRF:', err);
+                alert('Failed to approve MRF. Please try again.');
+            });
+        },
+
+        cancelMRF(id) {
+            if (!confirm('Are you sure you want to cancel this manpower request?')) return;
+            
+            axios.post(`/human-capital/recruitment/mrf/${id}/cancel`)
+            .then(res => {
+                const idx = this.data['MRF'].findIndex(m => m.id === id);
+                if (idx !== -1) {
+                    this.data['MRF'][idx].request_status = 'Cancelled';
+                    if (this.viewData && this.viewData.id === id) {
+                        this.viewData.request_status = 'Cancelled';
+                    }
+                }
+                this.showViewModal = false;
+            })
+            .catch(err => {
+                console.error('Error cancelling MRF:', err);
+                alert('Failed to cancel MRF. Please try again.');
+            });
+        },
+
+        deleteMRF(id) {
+            if (confirm('Delete this MRF record?')) {
+                axios.delete('/human-capital/recruitment/mrf/' + id)
+                .then(() => {
+                    this.data['MRF'] = this.data['MRF'].filter(m => m.id !== id);
+                })
+                .catch(err => {
+                    alert('Error deleting MRF: ' + (err.response?.data?.message || err.message));
+                });
+            }
+        },
+
+        deleteJPF(id) {
+            if (confirm('Delete this Job Posting?')) {
+                axios.delete('/human-capital/recruitment/jpf/' + id)
+                .then(() => {
+                    this.data['JPF'] = this.data['JPF'].filter(j => j.id !== id);
+                })
+                .catch(err => {
+                    alert('Error deleting JPF: ' + (err.response?.data?.message || err.message));
+                });
+            }
+        },
+
+        downloadPDF(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            let downloadFilename = 'Manpower_Request_Form.pdf';
+            if (elementId.includes('jpf')) {
+                downloadFilename = 'Job Placement form.pdf';
+            } else if (elementId.includes('caf')) {
+                downloadFilename = 'Candidate Application Form.pdf';
+            }
+            
+            const opt = {
+                margin:       0.3,
+                filename:     downloadFilename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(element).save();
+        },
+
+        statusClass(status) {
+            const map = {
+                'Approved':      'bg-green-100 text-green-700',
+                'Completed':     'bg-green-100 text-green-700',
+                'Passed':        'bg-green-100 text-green-700',
+                'Accepted':      'bg-green-100 text-green-700',
+                'Filled':        'bg-green-100 text-green-700',
+                'Deployment':    'bg-green-100 text-green-700',
+
+                'Open':          'bg-blue-100 text-blue-700',
+                'Active':        'bg-blue-100 text-blue-700',
+                'Posted':        'bg-blue-100 text-blue-700',
+                'In Progress':   'bg-blue-100 text-blue-700',
+                'Screening':     'bg-blue-100 text-blue-700',
+                'Assessment':    'bg-purple-100 text-purple-700',
+
+                'Interviewing':  'bg-purple-100 text-purple-700',
+                'Offer Stage':   'bg-indigo-100 text-indigo-700',
+
+                'Pending':       'bg-yellow-100 text-yellow-700',
+                'For Review':    'bg-yellow-100 text-yellow-700',
+                'Hold':          'bg-yellow-100 text-yellow-700',
+                'Urgent':        'bg-orange-100 text-orange-700 border border-orange-200',
+
+                'Draft':         'bg-gray-100 text-gray-500 border border-gray-200',
+                'Confidential':  'bg-gray-800 text-white',
+                'Closed':        'bg-gray-500 text-white',
+
+                'Rejected':      'bg-red-100 text-red-700',
+                'Failed':        'bg-red-100 text-red-700',
+                'Declined':      'bg-red-100 text-red-700',
+                'Cancelled':     'bg-red-100 text-red-700',
+                'Disapproved':   'bg-red-100 text-red-700',
+            };
+            return map[status] ?? 'bg-gray-100 text-gray-600';
+        },
+
+        isDatePassed(dateStr) {
+            if (!dateStr) return false;
+            try {
+                // Ensure date string is compatible (replace space with T for YYYY-MM-DD HH:MM:SS)
+                const normalized = String(dateStr).trim().replace(' ', 'T');
+                const interviewDate = new Date(normalized);
+                
+                if (isNaN(interviewDate.getTime())) {
+                    console.warn('Invalid date format:', dateStr);
+                    return false;
+                }
+
+                const now = new Date();
+                const passed = interviewDate < now;
+                
+                // Debug log to help identify why it might not be changing
+                console.log(`Checking Date: ${normalized} | Current: ${now.toISOString()} | Passed: ${passed}`);
+                
+                return passed;
+            } catch (e) {
+                console.error('Error in isDatePassed:', e);
+                return false;
+            }
+        },
+
+        get filteredRows() {
+            let rows = this.data[this.activeTab] ?? [];
+            
+            // Apply Status Filter
+            if (this.filterStatus !== 'All') {
+                rows = rows.filter(r => r.status === this.filterStatus);
+            }
+
+            // Apply Search Filter
+            if (!this.search.trim()) return rows;
+            const q = this.search.toLowerCase();
+            return rows.filter(r =>
+                Object.values(r).some(v => String(v).toLowerCase().includes(q))
+            );
+        },
+    };
+}
+</script>
+@endpush
+@endsection

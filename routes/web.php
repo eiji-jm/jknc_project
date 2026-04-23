@@ -61,11 +61,13 @@ use App\Http\Controllers\ResolutionController;
 use App\Http\Controllers\SecretaryCertificateController;
 use App\Http\Controllers\TransmittalController;
 use App\Http\Controllers\TransmittalReceiptController;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SalesMarketingController;
 use App\Http\Controllers\SalesMarketingEarnerController;
 use App\Http\Controllers\SalesMarketingIdaController;
+use App\Http\Controllers\OrganizationalController;
+use App\Http\Controllers\RecruitmentController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -155,6 +157,18 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| HUMAN CAPITAL PUBLIC ROUTES
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/careers/apply', [RecruitmentController::class, 'showPublicApplicationForm'])->name('careers.apply');
+Route::post('/careers/apply', [RecruitmentController::class, 'storeCAF'])->name('careers.apply.submit');
+Route::get('/careers/pds', [RecruitmentController::class, 'showPublicPDSForm'])->name('careers.pds');
+Route::post('/careers/pds', [RecruitmentController::class, 'storePDS'])->name('careers.pds.submit');
+Route::get('/assessment/start/{uuid}', [RecruitmentController::class, 'startAssessment'])->name('recruitment.assessment.start');
 
 /*
 |--------------------------------------------------------------------------
@@ -326,6 +340,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/policies/{id}', [PolicyController::class, 'showAdmin'])->name('admin.policies.show');
     Route::post('/admin/policies/{id}/archive', [PolicyController::class, 'archive'])->name('admin.policies.archive');
     Route::post('/admin/policies/{id}/unarchive', [PolicyController::class, 'unarchive'])->name('admin.policies.unarchive');
+
     /*
     |--------------------------------------------------------------------------
     | COMPANY MODULE
@@ -716,19 +731,59 @@ Route::middleware('auth')->group(function () {
     Route::get('/transmittal/{transmittal}/receipt-pdf', [TransmittalController::class, 'receiptPdf'])->name('transmittal.receipt.pdf');
 
     /*
-|--------------------------------------------------------------------------
-| SALES & MARKETING MODULE
-|--------------------------------------------------------------------------
-*/
-Route::get('/sales-marketing', [SalesMarketingController::class, 'index'])->name('sales-marketing.index');
+    |--------------------------------------------------------------------------
+    | SALES & MARKETING MODULE
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/sales-marketing', [SalesMarketingController::class, 'index'])->name('sales-marketing.index');
 
-Route::get('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'index'])->name('sales-marketing.earners.index');
-Route::post('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'store'])->name('sales-marketing.earners.store');
-Route::get('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'show'])->name('sales-marketing.earners.show');
-Route::put('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'update'])->name('sales-marketing.earners.update');
-Route::delete('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'destroy'])->name('sales-marketing.earners.destroy');
+    Route::get('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'index'])->name('sales-marketing.earners.index');
+    Route::post('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'store'])->name('sales-marketing.earners.store');
+    Route::get('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'show'])->name('sales-marketing.earners.show');
+    Route::put('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'update'])->name('sales-marketing.earners.update');
+    Route::delete('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'destroy'])->name('sales-marketing.earners.destroy');
 
-Route::get('/sales-marketing/ida', [SalesMarketingIdaController::class, 'index'])->name('sales-marketing.ida.index');
-Route::post('/sales-marketing/ida', [SalesMarketingIdaController::class, 'store'])->name('sales-marketing.ida.store');
-Route::get('/sales-marketing/ida/{ida}', [SalesMarketingIdaController::class, 'show'])->name('sales-marketing.ida.show');
+    Route::get('/sales-marketing/ida', [SalesMarketingIdaController::class, 'index'])->name('sales-marketing.ida.index');
+    Route::post('/sales-marketing/ida', [SalesMarketingIdaController::class, 'store'])->name('sales-marketing.ida.store');
+    Route::get('/sales-marketing/ida/{ida}', [SalesMarketingIdaController::class, 'show'])->name('sales-marketing.ida.show');
+
+    /*
+    |--------------------------------------------------------------------------
+    | HUMAN CAPITAL MODULE
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('human-capital')->name('human-capital.')->group(function () {
+        Route::view('/', 'human-capital')->name('dashboard');
+
+        Route::get('/organizational', [OrganizationalController::class, 'index'])->name('organizational');
+        Route::post('/organizational', [OrganizationalController::class, 'store'])->name('organizational.store');
+
+        Route::view('/payroll', 'human-capital.payroll')->name('payroll');
+        Route::view('/employee-profile', 'human-capital.employee-profile')->name('employee-profile');
+
+        Route::get('/recruitment', [RecruitmentController::class, 'index'])->name('recruitment');
+        Route::post('/recruitment/mrf', [RecruitmentController::class, 'storeMRF'])->name('recruitment.store_mrf');
+        Route::put('/recruitment/mrf/{id}', [RecruitmentController::class, 'updateMRF'])->name('recruitment.update_mrf');
+        Route::post('/recruitment/mrf/{id}/approve', [RecruitmentController::class, 'approveMRF'])->name('recruitment.approve_mrf');
+        Route::post('/recruitment/mrf/{id}/cancel', [RecruitmentController::class, 'cancelMRF'])->name('recruitment.cancel_mrf');
+
+        Route::post('/recruitment/jpf', [RecruitmentController::class, 'storeJPF'])->name('recruitment.store_jpf');
+        Route::put('/recruitment/jpf/{id}', [RecruitmentController::class, 'updateJPF'])->name('recruitment.update_jpf');
+
+        Route::post('/recruitment/caf', [RecruitmentController::class, 'storeCAF'])->name('recruitment.store_caf');
+        Route::put('/recruitment/caf/{id}', [RecruitmentController::class, 'updateCAF'])->name('recruitment.update_caf');
+        Route::post('/recruitment/caf/{id}/proceed', [RecruitmentController::class, 'proceedToAssessment'])->name('recruitment.proceed_to_assessment');
+
+        Route::post('/recruitment/assessment', [RecruitmentController::class, 'storeAssessment'])->name('recruitment.store_assessment');
+        Route::post('/recruitment/assessment/{id}/status', [RecruitmentController::class, 'updateAssessmentStatus'])->name('recruitment.update_assessment_status');
+
+        Route::view('/onboarding', 'human-capital.onboarding')->name('onboarding');
+        Route::view('/deployment', 'human-capital.deployment')->name('deployment');
+        Route::view('/attendance', 'human-capital.attendance')->name('attendance');
+        Route::view('/employee-requests', 'human-capital.employee-requests')->name('employee-requests');
+        Route::view('/employee-relations', 'human-capital.employee-relations')->name('employee-relations');
+        Route::view('/training', 'human-capital.training')->name('training');
+        Route::view('/performance', 'human-capital.performance')->name('performance');
+        Route::view('/offboarding', 'human-capital.offboarding')->name('offboarding');
+    });
 });
