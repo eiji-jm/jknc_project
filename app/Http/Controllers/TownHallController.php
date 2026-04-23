@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\TownHallCommunication;
 use Illuminate\Support\Facades\Storage;
 use App\Models\TownHallAcknowledgement;
+use App\Models\Contact;
 use Carbon\Carbon;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -419,5 +420,87 @@ class TownHallController extends Controller
         $pdf = Pdf::loadView('townhall.show-pdf', compact('communication'));
 
         return $pdf->download($communication->ref_no . '.pdf');
+    }
+
+    public function searchRecipients(Request $request)
+    {
+        if (!Auth::user()->hasPermission('create_townhall')) {
+            abort(403, 'Unauthorized');
+        }
+
+        $search = trim((string) $request->get('q', ''));
+        $limit = (int) $request->get('limit', 8);
+        $limit = $limit > 0 ? min($limit, 15) : 8;
+
+        $contactsQuery = \App\Models\Contact::query();
+        $usersQuery = \App\Models\User::query();
+
+        if ($search !== '') {
+            $contactsQuery->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', $search . '%')
+                    ->orWhere('middle_name', 'like', $search . '%')
+                    ->orWhere('last_name', 'like', $search . '%')
+                    ->orWhere('company_name', 'like', $search . '%')
+                    ->orWhere('email', 'like', $search . '%')
+                    ->orWhereRaw(
+                        "CONCAT_WS(' ', first_name, middle_name, last_name, name_extension) LIKE ?",
+                        [$search . '%']
+                    )
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%");
+            });
+
+            $usersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', $search . '%')
+                    ->orWhere('email', 'like', $search . '%')
+                    ->orWhere('role', 'like', $search . '%')
+                    ->orWhere('name', 'like', "%{$search}%");
+            });
+        }
+
+        $contacts = $contactsQuery
+            ->limit($limit)
+            ->get()
+            ->map(function ($contact) {
+                $fullName = trim(collect([
+                    $contact->first_name,
+                    $contact->middle_name,
+                    $contact->last_name,
+                    $contact->name_extension,
+                ])->filter()->implode(' '));
+
+                return [
+                    'id' => $contact->id,
+                    'type' => 'contact',
+                    'role' => 'Client',
+                    'name' => $fullName,
+                    'email' => $contact->email,
+                    'company_name' => $contact->company_name,
+                    'display' => $fullName . ' — Client' . ($contact->company_name ? ' • ' . $contact->company_name : ''),
+                ];
+            });
+
+        $users = $usersQuery
+            ->whereIn('role', ['Employee', 'Admin', 'SuperAdmin'])
+            ->limit($limit)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'type' => 'user',
+                    'role' => $user->role,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'company_name' => null,
+                    'display' => $user->name . ' — ' . $user->role,
+                ];
+            });
+
+        $results = $contacts
+            ->concat($users)
+            ->take($limit)
+            ->values();
+
+        return response()->json($results);
     }
 }

@@ -118,19 +118,43 @@
                     <?php if(($policy->workflow_status ?? null) === 'Submitted' && Auth::user()->hasPermission('approve_policies')): ?>
                         <form method="POST" action="<?php echo e(route('admin.policies.approve', $policy->id)); ?>">
                             <?php echo csrf_field(); ?>
-                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">Approve</button>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
+                                Approve
+                            </button>
                         </form>
 
                         <form method="POST" action="<?php echo e(route('admin.policies.reject', $policy->id)); ?>">
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="review_note" value="Rejected by admin">
-                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">Reject</button>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
+                                Reject
+                            </button>
                         </form>
 
                         <form method="POST" action="<?php echo e(route('admin.policies.revise', $policy->id)); ?>">
                             <?php echo csrf_field(); ?>
                             <input type="hidden" name="review_note" value="Needs revision">
-                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white hover:bg-slate-900 transition">Revise</button>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white hover:bg-slate-900 transition">
+                                Revise
+                            </button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if(!$policy->is_archived && Auth::user()->hasPermission('approve_policies')): ?>
+                        <form method="POST" action="<?php echo e(route('admin.policies.archive', $policy->id)); ?>">
+                            <?php echo csrf_field(); ?>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-700 text-white hover:bg-gray-800 transition">
+                                Archive
+                            </button>
+                        </form>
+                    <?php endif; ?>
+
+                    <?php if($policy->is_archived && Auth::user()->hasPermission('approve_policies')): ?>
+                        <form method="POST" action="<?php echo e(route('admin.policies.unarchive', $policy->id)); ?>">
+                            <?php echo csrf_field(); ?>
+                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                                Unarchive
+                            </button>
                         </form>
                     <?php endif; ?>
                 </div>
@@ -146,7 +170,6 @@
                         'classification' => $policy->classification,
                         'description' => $policy->description,
                     ])); ?>"
-                   target="_blank"
                    class="block text-center bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition">
                     Download PDF
                 </a>

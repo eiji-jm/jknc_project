@@ -211,7 +211,7 @@
             <table class="header-table">
     <tr>
         <td class="logo-cell">
-            <img src="{{ public_path('images/jk-logo.png') }}" alt="JK Logo" class="logo">
+            <img src="<?php echo e(public_path('images/jk-logo.png')); ?>" alt="JK Logo" class="logo">
         </td>
         <td class="partners">
             Atty. Jose B. Ogang, CPA, MMPSM · Jose Tamayo Rio,<br>
@@ -225,26 +225,29 @@
         <div class="title">MEMORANDUM</div>
 
         <div class="meta content-inset">
-            <p><strong>Memo NO.:</strong> {{ $communication->ref_no }}</p>
+            <p><strong>Memo NO.:</strong> <?php echo e($communication->ref_no); ?></p>
             <p><strong>Date:</strong>
-                {{ $communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('F d, Y') : '—' }}
+                <?php echo e($communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('F d, Y') : '—'); ?>
+
             </p>
-            <p><strong>{{ $communication->recipient_label ?? 'To' }}:</strong> {{ $communication->to_for ?: '—' }}</p>
-            <p><strong>From:</strong> {{ $communication->from_name ?: '—' }}</p>
-            <p><strong>SUBJECT:</strong> {{ $communication->subject ?: '—' }}</p>
+            <p><strong><?php echo e($communication->recipient_label ?? 'To'); ?>:</strong> <?php echo e($communication->to_for ?: '—'); ?></p>
+            <p><strong>From:</strong> <?php echo e($communication->from_name ?: '—'); ?></p>
+            <p><strong>SUBJECT:</strong> <?php echo e($communication->subject ?: '—'); ?></p>
         </div>
 
         <div class="divider content-inset"></div>
 
         <div class="body-content content-inset">
-            {!! $communication->message ?: '<p>No memorandum body provided.</p>' !!}
+            <?php echo $communication->message ?: '<p>No memorandum body provided.</p>'; ?>
+
         </div>
 
         <div class="closing-section content-inset">
             <div class="issued">
                 Issued this
                 <strong>
-                    {{ $communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('jS \\d\\a\\y \\o\\f F, Y') : '______________' }}
+                    <?php echo e($communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('jS \\d\\a\\y \\o\\f F, Y') : '______________'); ?>
+
                 </strong>
                 in Cebu City, Philippines.
             </div>
@@ -253,7 +256,7 @@
 
             <div class="signature-block">
                 <div class="signature-line"></div>
-                <div><strong>{{ $communication->from_name ?: '—' }}</strong></div>
+                <div><strong><?php echo e($communication->from_name ?: '—'); ?></strong></div>
                 <div>President/CEO</div>
             </div>
         </div>
@@ -261,3 +264,4 @@
 
 </body>
 </html>
+<?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/townhall/show-pdf.blade.php ENDPATH**/ ?>

@@ -1,30 +1,29 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div id="townhall-page" class="w-full h-full px-6 py-5" x-data="townhallContactSuggest()">
 
-    @if(session('success'))
+    <?php if(session('success')): ?>
         <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            {{ session('success') }}
-        </div>
-    @endif
+            <?php echo e(session('success')); ?>
 
-    @if($errors->any())
+        </div>
+    <?php endif; ?>
+
+    <?php if($errors->any()): ?>
         <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <ul class="list-disc pl-5">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
+                <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <li><?php echo e($error); ?></li>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </ul>
         </div>
-    @endif
+    <?php endif; ?>
 
-    @if(Auth::user()->hasPermission('create_townhall'))
+    <?php if(Auth::user()->hasPermission('create_townhall')): ?>
     <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
         <div class="absolute inset-0 bg-black/40" @click="showSlideOver = false"></div>
 
         <div class="absolute inset-0 flex">
-            {{-- LEFT PREVIEW PANEL --}}
+            
             <div
                 x-show="showSlideOver"
                 x-transition:enter="transform transition ease-in-out duration-300"
@@ -51,7 +50,7 @@
                 </div>
             </div>
 
-            {{-- RIGHT FORM PANEL --}}
+            
             <div
                 x-show="showSlideOver"
                 x-transition:enter="transform transition ease-in-out duration-300"
@@ -74,8 +73,8 @@
                     </button>
                 </div>
 
-                <form id="townhall-form" action="{{ route('townhall.store') }}" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-                    @csrf
+                <form id="townhall-form" action="<?php echo e(route('townhall.store')); ?>" method="POST" enctype="multipart/form-data" class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                    <?php echo csrf_field(); ?>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -94,7 +93,7 @@
                                 type="date"
                                 name="communication_date"
                                 x-model="previewDate"
-                                value="{{ old('communication_date') }}"
+                                value="<?php echo e(old('communication_date')); ?>"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                             >
                         </div>
@@ -105,7 +104,7 @@
                             <label class="block text-xs font-semibold text-gray-500 mb-1">From</label>
                             <input
                                 type="text"
-                                value="{{ Auth::user()->name }}"
+                                value="<?php echo e(Auth::user()->name); ?>"
                                 x-model="previewFrom"
                                 readonly
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
@@ -119,7 +118,7 @@
                                 type="text"
                                 name="department_stakeholder"
                                 x-model="previewDepartment"
-                                value="{{ old('department_stakeholder') }}"
+                                value="<?php echo e(old('department_stakeholder')); ?>"
                                 placeholder="Enter department or stakeholder"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                             >
@@ -150,7 +149,7 @@
                                     @keydown.enter.prevent="selectHighlighted('to')"
                                     @keydown.escape="closeSuggestions('to')"
                                     autocomplete="off"
-                                    value="{{ old('to_for') }}"
+                                    value="<?php echo e(old('to_for')); ?>"
                                     placeholder="Add one or more recipients separated by comma"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                                 >
@@ -197,7 +196,7 @@
                             type="text"
                             name="subject"
                             x-model="previewSubject"
-                            value="{{ old('subject') }}"
+                            value="<?php echo e(old('subject')); ?>"
                             placeholder="Enter subject"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                         >
@@ -237,7 +236,7 @@
                                     @keydown.enter.prevent="selectHighlighted('cc')"
                                     @keydown.escape="closeSuggestions('cc')"
                                     autocomplete="off"
-                                    value="{{ old('cc') }}"
+                                    value="<?php echo e(old('cc')); ?>"
                                     placeholder="Enter CC recipients"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                                 >
@@ -277,7 +276,7 @@
                                     @keydown.enter.prevent="selectHighlighted('additional')"
                                     @keydown.escape="closeSuggestions('additional')"
                                     autocomplete="off"
-                                    value="{{ old('additional') }}"
+                                    value="<?php echo e(old('additional')); ?>"
                                     placeholder="Optional"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                                 >
@@ -323,7 +322,7 @@
                             type="datetime-local"
                             name="expires_at"
                             x-model="previewExpiry"
-                            value="{{ old('expires_at') }}"
+                            value="<?php echo e(old('expires_at')); ?>"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                         >
                         <p class="mt-1 text-xs text-gray-400">
@@ -351,9 +350,9 @@
             </div>
         </div>
     </div>
-    @endif
+    <?php endif; ?>
 
-    {{-- MAIN CARD --}}
+    
     <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
         <div class="px-5 py-4 flex items-center justify-between">
             <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Town Hall</h1>
@@ -367,14 +366,14 @@
                     <i class="far fa-rectangle-list text-xs"></i>
                 </button>
 
-                @if(Auth::user()->hasPermission('create_townhall'))
+                <?php if(Auth::user()->hasPermission('create_townhall')): ?>
                     <button
                         @click="showSlideOver = true"
                         class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-full transition"
                     >
                         <i class="fas fa-plus mr-1"></i> Add Communication
                     </button>
-                @endif
+                <?php endif; ?>
 
                 <button class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center">
                     <i class="fas fa-ellipsis-v text-xs"></i>
@@ -402,57 +401,61 @@
                     </thead>
 
                     <tbody class="bg-white text-gray-700">
-                        @forelse($communications as $communication)
+                        <?php $__empty_1 = true; $__currentLoopData = $communications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $communication): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                             <tr
                                 class="border-t border-gray-200 hover:bg-gray-50 cursor-pointer transition"
-                                onclick="window.location='{{ route('townhall.show', $communication->id) }}'"
+                                onclick="window.location='<?php echo e(route('townhall.show', $communication->id)); ?>'"
                             >
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
+                                <td class="px-3 py-3 border-r border-gray-200"><?php echo e($communication->ref_no); ?></td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    {{ $communication->communication_date
+                                    <?php echo e($communication->communication_date
                                         ? \Carbon\Carbon::parse($communication->communication_date)->format('M d, Y')
-                                        : '—' }}
+                                        : '—'); ?>
+
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @if($communication->expires_at)
-                                        <div>{{ \Carbon\Carbon::parse($communication->expires_at)->format('M d, Y') }}</div>
+                                    <?php if($communication->expires_at): ?>
+                                        <div><?php echo e(\Carbon\Carbon::parse($communication->expires_at)->format('M d, Y')); ?></div>
                                         <div class="text-[11px] text-gray-400">
-                                            {{ \Carbon\Carbon::parse($communication->expires_at)->format('h:i A') }}
+                                            <?php echo e(\Carbon\Carbon::parse($communication->expires_at)->format('h:i A')); ?>
+
                                         </div>
-                                    @else
+                                    <?php else: ?>
                                         —
-                                    @endif
+                                    <?php endif; ?>
                                 </td>
 
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->department_stakeholder }}</td>
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->from_name }}</td>
-                                <td class="px-3 py-3 border-r border-gray-200">{{ $communication->subject }}</td>
+                                <td class="px-3 py-3 border-r border-gray-200"><?php echo e($communication->department_stakeholder); ?></td>
+                                <td class="px-3 py-3 border-r border-gray-200"><?php echo e($communication->from_name); ?></td>
+                                <td class="px-3 py-3 border-r border-gray-200"><?php echo e($communication->subject); ?></td>
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    {{ ($communication->recipient_label ?? 'To') . ': ' . ($communication->to_for ?? '') }}
+                                    <?php echo e(($communication->recipient_label ?? 'To') . ': ' . ($communication->to_for ?? '')); ?>
+
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @php
+                                    <?php
                                         $priority = $communication->priority ?? 'Low';
                                         $classes = $priority === 'High'
                                             ? 'bg-red-50 text-red-700'
                                             : 'bg-green-50 text-green-700';
-                                    @endphp
+                                    ?>
 
-                                    <span class="px-2 py-1 text-xs rounded-full font-medium {{ $classes }}">
-                                        {{ $priority }}
+                                    <span class="px-2 py-1 text-xs rounded-full font-medium <?php echo e($classes); ?>">
+                                        <?php echo e($priority); ?>
+
                                     </span>
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @if($communication->is_archived)
+                                    <?php if($communication->is_archived): ?>
                                         <span class="px-2 py-1 text-xs rounded-full font-medium bg-gray-200 text-gray-700">
                                             Expired
                                         </span>
-                                    @else
-                                        @php
+                                    <?php else: ?>
+                                        <?php
                                             $approval = $communication->approval_status ?? 'Pending';
                                             $approvalClasses = match($approval) {
                                                 'Approved' => 'bg-green-50 text-green-700',
@@ -460,45 +463,46 @@
                                                 'Needs Revision' => 'bg-blue-50 text-blue-700',
                                                 default => 'bg-yellow-50 text-yellow-700',
                                             };
-                                        @endphp
-                                        <span class="px-2 py-1 text-xs rounded-full font-medium {{ $approvalClasses }}">
-                                            {{ $approval }}
+                                        ?>
+                                        <span class="px-2 py-1 text-xs rounded-full font-medium <?php echo e($approvalClasses); ?>">
+                                            <?php echo e($approval); ?>
+
                                         </span>
-                                    @endif
+                                    <?php endif; ?>
                                 </td>
 
                                 <td class="px-3 py-3 border-r border-gray-200">
-                                    @if($communication->attachment)
+                                    <?php if($communication->attachment): ?>
                                         <a
-                                            href="{{ asset('storage/' . $communication->attachment) }}"
+                                            href="<?php echo e(asset('storage/' . $communication->attachment)); ?>"
                                             target="_blank"
                                             class="text-blue-600 hover:underline"
                                             onclick="event.stopPropagation()"
                                         >
                                             View
                                         </a>
-                                    @else
+                                    <?php else: ?>
                                         —
-                                    @endif
+                                    <?php endif; ?>
                                 </td>
 
                                 <td class="px-3 py-3 text-center text-gray-400">
                                     <button
                                         type="button"
                                         class="hover:text-gray-600"
-                                        onclick="event.stopPropagation(); window.location='{{ route('townhall.show', $communication->id) }}'"
+                                        onclick="event.stopPropagation(); window.location='<?php echo e(route('townhall.show', $communication->id)); ?>'"
                                     >
                                         …
                                     </button>
                                 </td>
                             </tr>
-                        @empty
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                             <tr>
                                 <td colspan="11" class="px-3 py-8 text-center text-gray-500">
                                     No Town Hall communications found.
                                 </td>
                             </tr>
-                        @endforelse
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -507,23 +511,23 @@
                 <div class="flex items-center gap-6">
                     <span class="flex items-center gap-1">
                         Total Task
-                        <span class="text-black font-medium">{{ $communications->total() }}</span>
+                        <span class="text-black font-medium"><?php echo e($communications->total()); ?></span>
                     </span>
                     <span class="flex items-center gap-1">
                         Pending
-                        <span class="text-yellow-600 font-medium">{{ $communications->where('approval_status', 'Pending')->count() }}</span>
+                        <span class="text-yellow-600 font-medium"><?php echo e($communications->where('approval_status', 'Pending')->count()); ?></span>
                     </span>
                     <span class="flex items-center gap-1">
                         Approved
-                        <span class="text-green-600 font-medium">{{ $communications->where('approval_status', 'Approved')->count() }}</span>
+                        <span class="text-green-600 font-medium"><?php echo e($communications->where('approval_status', 'Approved')->count()); ?></span>
                     </span>
                     <span class="flex items-center gap-1">
                         Needs Revision
-                        <span class="text-blue-600 font-medium">{{ $communications->where('approval_status', 'Needs Revision')->count() }}</span>
+                        <span class="text-blue-600 font-medium"><?php echo e($communications->where('approval_status', 'Needs Revision')->count()); ?></span>
                     </span>
                     <span class="flex items-center gap-1">
                         Rejected
-                        <span class="text-red-600 font-medium">{{ $communications->where('approval_status', 'Rejected')->count() }}</span>
+                        <span class="text-red-600 font-medium"><?php echo e($communications->where('approval_status', 'Rejected')->count()); ?></span>
                     </span>
                 </div>
 
@@ -536,22 +540,24 @@
                     </span>
 
                     <span>
-                        {{ $communications->firstItem() ?? 0 }} to {{ $communications->lastItem() ?? 0 }}
+                        <?php echo e($communications->firstItem() ?? 0); ?> to <?php echo e($communications->lastItem() ?? 0); ?>
+
                     </span>
                 </div>
             </div>
 
-            @if(method_exists($communications, 'links'))
+            <?php if(method_exists($communications, 'links')): ?>
                 <div class="mt-3">
-                    {{ $communications->links() }}
+                    <?php echo e($communications->links()); ?>
+
                 </div>
-            @endif
+            <?php endif; ?>
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@push('styles')
+<?php $__env->startPush('styles'); ?>
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css" rel="stylesheet">
 
@@ -811,9 +817,9 @@
         font-family: "Times New Roman", Georgia, serif !important;
     }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1010,17 +1016,17 @@ function townhallContactSuggest() {
     return {
         showSlideOver: false,
         previewRef: 'AUTO-INCREMENT',
-        previewDate: @js(old('communication_date', '')),
-        previewFrom: @js(Auth::user()->name),
-        previewDepartment: @js(old('department_stakeholder', '')),
-        previewRecipientLabel: @js(old('recipient_label', 'To')),
-        previewTo: @js(old('to_for', '')),
-        previewPriority: @js(old('priority', 'Low')),
-        previewSubject: @js(old('subject', '')),
-        previewBody: @js(old('message', '<p style="color:#9ca3af;">Write the formal communication here...</p>')),
-        previewCc: @js(old('cc', '')),
-        previewAdditional: @js(old('additional', '')),
-        previewExpiry: @js(old('expires_at', '')),
+        previewDate: <?php echo \Illuminate\Support\Js::from(old('communication_date', ''))->toHtml() ?>,
+        previewFrom: <?php echo \Illuminate\Support\Js::from(Auth::user()->name)->toHtml() ?>,
+        previewDepartment: <?php echo \Illuminate\Support\Js::from(old('department_stakeholder', ''))->toHtml() ?>,
+        previewRecipientLabel: <?php echo \Illuminate\Support\Js::from(old('recipient_label', 'To'))->toHtml() ?>,
+        previewTo: <?php echo \Illuminate\Support\Js::from(old('to_for', ''))->toHtml() ?>,
+        previewPriority: <?php echo \Illuminate\Support\Js::from(old('priority', 'Low'))->toHtml() ?>,
+        previewSubject: <?php echo \Illuminate\Support\Js::from(old('subject', ''))->toHtml() ?>,
+        previewBody: <?php echo \Illuminate\Support\Js::from(old('message', '<p style="color:#9ca3af;">Write the formal communication here...</p>'))->toHtml() ?>,
+        previewCc: <?php echo \Illuminate\Support\Js::from(old('cc', ''))->toHtml() ?>,
+        previewAdditional: <?php echo \Illuminate\Support\Js::from(old('additional', ''))->toHtml() ?>,
+        previewExpiry: <?php echo \Illuminate\Support\Js::from(old('expires_at', ''))->toHtml() ?>,
 
         dropdowns: {
             to: { items: [], show: false, highlighted: -1 },
@@ -1059,7 +1065,7 @@ function townhallContactSuggest() {
 
         async fetchSuggestions(field, query = '', limit = 8) {
             try {
-                const response = await fetch(`{{ route('townhall.recipients.search') }}?q=${encodeURIComponent(query)}&limit=${limit}`, {
+                const response = await fetch(`<?php echo e(route('townhall.recipients.search')); ?>?q=${encodeURIComponent(query)}&limit=${limit}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
@@ -1167,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!alpineData) return;
 
         paginateMemoPreview({
-            logoUrl: `{{ asset('images/jk-logo.png') }}`,
+            logoUrl: `<?php echo e(asset('images/jk-logo.png')); ?>`,
             ref: alpineData.previewRef || 'AUTO-INCREMENT',
             date: alpineData.previewDate || '______________',
             recipientLabel: alpineData.previewRecipientLabel || 'To',
@@ -1215,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        const oldMessage = {!! json_encode(old('message')) !!};
+        const oldMessage = <?php echo json_encode(old('message')); ?>;
 
         function updatePreview() {
             const html = quill.root.innerHTML;
@@ -1300,4 +1306,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/townhall/townhall.blade.php ENDPATH**/ ?>

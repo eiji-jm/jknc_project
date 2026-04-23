@@ -12,7 +12,8 @@ class PolicyController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Policy::where('workflow_status', 'Accepted');
+        $query = Policy::where('workflow_status', 'Accepted')
+            ->where('is_archived', false);
 
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -63,7 +64,7 @@ class PolicyController extends Controller
             'effectivity_date' => $validated['effectivity_date'] ?? null,
             'prepared_by' => $validated['prepared_by'] ?? (Auth::user()->name ?? 'System Admin'),
             'reviewed_by' => $validated['reviewed_by'] ?? null,
-            'approved_by' => $validated['approved_by'] ?? null,
+            'approved_by' => null,
             'classification' => $validated['classification'] ?? 'Internal Use',
             'description' => $validated['description'] ?? null,
             'attachment' => $validated['attachment'] ?? null,
@@ -141,11 +142,13 @@ class PolicyController extends Controller
         $query = Policy::query();
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
+
             $query->where(function ($q) use ($search) {
                 $q->where('policy', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%")
-                    ->orWhere('prepared_by', 'like', "%{$search}%");
+                    ->orWhere('prepared_by', 'like', "%{$search}%")
+                    ->orWhere('classification', 'like', "%{$search}%");
             });
         }
 
@@ -173,10 +176,11 @@ class PolicyController extends Controller
         $policy->update([
             'approval_status' => 'Approved',
             'workflow_status' => 'Accepted',
+            'approved_by_user_id' => Auth::id(),
+            'approved_by' => Auth::user()->name,
+            'approved_at' => now(),
             'is_archived' => false,
             'archived_at' => null,
-            'approved_by_user_id' => Auth::id(),
-            'approved_at' => Carbon::now(),
         ]);
 
         return redirect()->back()->with('success', 'Policy approved successfully.');
@@ -193,11 +197,12 @@ class PolicyController extends Controller
         $policy->update([
             'approval_status' => 'Rejected',
             'workflow_status' => 'Reverted',
+            'approved_by_user_id' => Auth::id(),
+            'approved_by' => Auth::user()->name,
+            'approved_at' => now(),
+            'review_note' => $request->input('review_note'),
             'is_archived' => false,
             'archived_at' => null,
-            'approved_by_user_id' => Auth::id(),
-            'approved_at' => Carbon::now(),
-            'review_note' => $request->input('review_note'),
         ]);
 
         return redirect()->back()->with('success', 'Policy rejected successfully.');
@@ -214,11 +219,12 @@ class PolicyController extends Controller
         $policy->update([
             'approval_status' => 'Needs Revision',
             'workflow_status' => 'Reverted',
+            'approved_by_user_id' => Auth::id(),
+            'approved_by' => Auth::user()->name,
+            'approved_at' => now(),
+            'review_note' => $request->input('review_note'),
             'is_archived' => false,
             'archived_at' => null,
-            'approved_by_user_id' => Auth::id(),
-            'approved_at' => Carbon::now(),
-            'review_note' => $request->input('review_note'),
         ]);
 
         return redirect()->back()->with('success', 'Policy marked for revision.');
