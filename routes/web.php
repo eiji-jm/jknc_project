@@ -64,6 +64,8 @@ use App\Http\Controllers\TransmittalReceiptController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SalesMarketingController;
+use App\Http\Controllers\SalesMarketingEarnerController;
+use App\Http\Controllers\SalesMarketingIdaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -719,6 +721,14 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::get('/sales-marketing', [SalesMarketingController::class, 'index'])->name('sales-marketing.index');
-Route::get('/sales-marketing/earners', [SalesMarketingController::class, 'earners'])->name('sales-marketing.earners.index');
-Route::get('/sales-marketing/ida', [SalesMarketingController::class, 'ida'])->name('sales-marketing.ida.index');
+
+Route::get('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'index'])->name('sales-marketing.earners.index');
+Route::post('/sales-marketing/earners', [SalesMarketingEarnerController::class, 'store'])->name('sales-marketing.earners.store');
+Route::get('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'show'])->name('sales-marketing.earners.show');
+Route::put('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'update'])->name('sales-marketing.earners.update');
+Route::delete('/sales-marketing/earners/{earner}', [SalesMarketingEarnerController::class, 'destroy'])->name('sales-marketing.earners.destroy');
+
+Route::get('/sales-marketing/ida', [SalesMarketingIdaController::class, 'index'])->name('sales-marketing.ida.index');
+Route::post('/sales-marketing/ida', [SalesMarketingIdaController::class, 'store'])->name('sales-marketing.ida.store');
+Route::get('/sales-marketing/ida/{ida}', [SalesMarketingIdaController::class, 'show'])->name('sales-marketing.ida.show');
 });
