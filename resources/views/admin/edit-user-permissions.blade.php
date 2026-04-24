@@ -93,6 +93,61 @@
                         <input type="checkbox" name="approve_policies" {{ $permission->approve_policies ? 'checked' : '' }}>
                         <span>Approve Policies</span>
                     </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_transmittal" {{ $permission->access_transmittal ? 'checked' : '' }}>
+                        <span>Access Transmittal</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_deals" {{ $permission->access_deals ? 'checked' : '' }}>
+                        <span>Access Deals</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_services" {{ $permission->access_services ? 'checked' : '' }}>
+                        <span>Access Services</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_project" {{ $permission->access_project ? 'checked' : '' }}>
+                        <span>Access Project</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_regular" {{ $permission->access_regular ? 'checked' : '' }}>
+                        <span>Access Regular</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_product" {{ $permission->access_product ? 'checked' : '' }}>
+                        <span>Access Product</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_policies" {{ $permission->access_policies ? 'checked' : '' }}>
+                        <span>Access Policies</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_sales_marketing" {{ $permission->create_sales_marketing ? 'checked' : '' }}>
+                        <span>Create Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_sales_marketing" {{ $permission->approve_sales_marketing ? 'checked' : '' }}>
+                        <span>Approve Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_sales_marketing" {{ $permission->access_sales_marketing ? 'checked' : '' }}>
+                        <span>Access Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_human_capital" {{ $permission->access_human_capital ? 'checked' : '' }}>
+                        <span>Access Human Capital</span>
+                    </label>
                 </div>
 
                 <div class="mt-5">

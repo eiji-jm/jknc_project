@@ -540,6 +540,23 @@ class RecruitmentController extends Controller
 
         return redirect()->away($redirectUrl);
     }
+    public function deletePDS($id)
+{
+    try {
+        $pds = \App\Models\PersonalDataSheet::findOrFail($id);
+        $pds->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PDS deleted successfully.'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function updateAssessmentResult(Request $request, $id)
     {

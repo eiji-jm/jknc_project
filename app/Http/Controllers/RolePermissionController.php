@@ -15,7 +15,7 @@ class RolePermissionController extends Controller
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (!$user || !$user->hasPermission('manage_users')) {
+        if (! $user || ! $user->hasPermission('manage_users')) {
             abort(403, 'Unauthorized');
         }
 
@@ -47,6 +47,8 @@ class RolePermissionController extends Controller
                 'create_sales_marketing' => true,
                 'approve_sales_marketing' => true,
                 'access_sales_marketing' => true,
+
+                'access_human_capital' => true,
             ]
         );
 
@@ -78,6 +80,8 @@ class RolePermissionController extends Controller
                 'create_sales_marketing' => true,
                 'approve_sales_marketing' => true,
                 'access_sales_marketing' => true,
+
+                'access_human_capital' => true,
             ]
         );
 
@@ -109,6 +113,8 @@ class RolePermissionController extends Controller
                 'create_sales_marketing' => true,
                 'approve_sales_marketing' => false,
                 'access_sales_marketing' => true,
+
+                'access_human_capital' => false,
             ]
         );
 
@@ -140,6 +146,8 @@ class RolePermissionController extends Controller
                 'create_sales_marketing' => false,
                 'approve_sales_marketing' => false,
                 'access_sales_marketing' => false,
+
+                'access_human_capital' => false,
             ]
         );
 
@@ -161,7 +169,7 @@ class RolePermissionController extends Controller
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (!$user || !$user->hasPermission('manage_users')) {
+        if (! $user || ! $user->hasPermission('manage_users')) {
             abort(403, 'Unauthorized');
         }
 
@@ -201,6 +209,8 @@ class RolePermissionController extends Controller
                 'create_sales_marketing',
                 'approve_sales_marketing',
                 'access_sales_marketing',
+
+                'access_human_capital',
             ] as $column
         ) {
             if (Schema::hasColumn('role_permissions', $column)) {

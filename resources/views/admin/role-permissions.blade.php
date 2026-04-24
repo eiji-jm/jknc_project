@@ -171,6 +171,10 @@
                             <input type="checkbox" name="approve_policies" {{ $permission->approve_policies ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
                             <span>Approve Policies</span>
                         </label>
+                        <label class="flex items-center gap-3 border rounded-lg p-3 {{ $isProtected ? 'bg-gray-50' : '' }}">
+                            <input type="checkbox" name="access_human_capital" {{ $permission->access_human_capital ? 'checked' : '' }} {{ $isProtected ? 'disabled' : '' }}>
+                            <span>Access Human Capital</span>
+                        </label>
                     </div>
                 </form>
             @endforeach

@@ -50,6 +50,20 @@ class AdminUserPermissionController extends Controller
                 'access_activities' => false,
                 'access_contacts' => false,
                 'access_company' => false,
+
+                'access_transmittal' => false,
+                'access_deals' => false,
+                'access_services' => false,
+                'access_project' => false,
+                'access_regular' => false,
+                'access_product' => false,
+                'access_policies' => false,
+
+                'create_sales_marketing' => false,
+                'approve_sales_marketing' => false,
+                'access_sales_marketing' => false,
+
+                'access_human_capital' => false,
             ]
         );
 
@@ -92,6 +106,20 @@ class AdminUserPermissionController extends Controller
                 'access_activities',
                 'access_contacts',
                 'access_company',
+
+                'access_transmittal',
+                'access_deals',
+                'access_services',
+                'access_project',
+                'access_regular',
+                'access_product',
+                'access_policies',
+
+                'create_sales_marketing',
+                'approve_sales_marketing',
+                'access_sales_marketing',
+
+                'access_human_capital',
             ] as $column
         ) {
             if (Schema::hasColumn('user_permissions', $column)) {

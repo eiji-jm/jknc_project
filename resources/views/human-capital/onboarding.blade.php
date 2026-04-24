@@ -8,7 +8,7 @@
         <template x-for="tab in tabs" :key="tab.key">
             <button
                 type="button"
-                @click="activeTab = tab.key"
+                @click="activeTab = tab.key; closeAllModals()"
                 :class="activeTab === tab.key
                     ? 'border-b-2 border-blue-600 text-blue-600 font-semibold'
                     : 'text-gray-500 hover:text-gray-700'"
@@ -51,11 +51,92 @@
             </button>
         </div>
 
-        <button type="button" @click="openModal()"
-            class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            Add New
-        </button>
+        {{-- ADD NEW - PDS --}}
+<button
+    x-show="activeTab === 'PDS'"
+    type="button"
+    @click="openModal()"
+    class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm"
+>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add New
+</button>
+
+{{-- ADD NEW - CHECKLIST --}}
+<button
+    x-show="activeTab === 'Checklist Submission'"
+    type="button"
+    @click="
+        showPdsModal = false;
+        showEmpRegModal = false;
+        showTrainingModal = false;
+        checklistForm = {
+            employeeName: '',
+            checked: []
+        };
+        showChecklistModal = true;
+    "
+    class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm"
+>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add New
+</button>
+
+{{-- ADD NEW - EMPLOYEE REGISTRATION --}}
+<button
+    x-show="activeTab === 'Employee Registration'"
+    type="button"
+    @click="
+        showPdsModal = false;
+        showChecklistModal = false;
+        showTrainingModal = false;
+        empRegForm = {
+            fullName: '',
+            employeeId: generateEmployeeId(),
+            department: '',
+            startDate: '',
+            workEmail: '',
+            manager: ''
+        };
+        showEmpRegModal = true;
+    "
+    class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm"
+>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add New
+</button>
+
+{{-- ADD NEW - TRAINING --}}
+<button
+    x-show="activeTab === 'Training'"
+    type="button"
+    @click="
+        showPdsModal = false;
+        showChecklistModal = false;
+        showEmpRegModal = false;
+        trainingForm = {
+            employeeName: '',
+            program: '',
+            startDate: '',
+            dueDate: '',
+            trainer: '',
+            description: ''
+        };
+        showTrainingModal = true;
+    "
+    class="flex items-center gap-2 px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium shadow-sm"
+>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add New
+</button>
     </div>
 
     {{-- TABLE --}}
@@ -87,7 +168,11 @@
                             <td class="px-4 py-3 text-gray-600" x-text="row.phone"></td>
                             <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Submitted</span></td>
                             <td class="px-4 py-3 text-gray-500" x-text="row.submittedDate"></td>
-                            <td class="px-4 py-3"><button @click="deletePds(i)" class="text-xs text-red-500 hover:underline">Delete</button></td>
+                            <td class="px-4 py-3">
+    <button @click="deletePds(row.db_id)" class="text-xs text-red-500 hover:underline">
+        Delete
+    </button>
+</td>
                         </tr>
                     </template>
                 </tbody>
@@ -650,6 +735,7 @@
             {{-- end split body --}}
         </div>
     </div>
+</div>{{-- end PDS outer overlay --}}
 
     {{-- ===================== CHECKLIST SUBMISSION SLIDE-OVER ===================== --}}
     <div
@@ -857,229 +943,663 @@
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
 function onboardingPage() {
     return {
         activeTab: 'PDS',
         search: '',
+
         showPdsModal: false,
         showChecklistModal: false,
         showEmpRegModal: false,
         showTrainingModal: false,
+
         tabs: [
-            { key: 'PDS',                  label: 'PDS' },
+            { key: 'PDS', label: 'PDS' },
             { key: 'Checklist Submission', label: 'Checklist Submission' },
-            { key: 'Employee Registration',label: 'Employee Registration' },
-            { key: 'Training',             label: 'Training' },
+            { key: 'Employee Registration', label: 'Employee Registration' },
+            { key: 'Training', label: 'Training' },
         ],
+
         data: {
             'PDS': @json($pdsData ?? []),
             'Checklist Submission': [],
             'Employee Registration': [],
             'Training': [],
         },
+
         checklistDocs: [
-            { key: 'valid_id',       label: 'Valid ID (Government-issued)' },
-            { key: 'birth_cert',     label: 'Birth Certificate' },
-            { key: 'ssn_tax',        label: 'SSN / Tax ID' },
-            { key: 'edu_certs',      label: 'Educational Certificates' },
-            { key: 'prev_employ',    label: 'Previous Employment Records' },
-            { key: 'med_cert',       label: 'Medical Certificate' },
-            { key: 'nbi',            label: 'NBI Clearance' },
-            { key: 'bank',           label: 'Bank Account Details' },
-            { key: 'id_photos',      label: '2x2 ID Photos' },
-            { key: 'covid_vax',      label: 'COVID-19 Vaccination Card' },
+            { key: 'valid_id', label: 'Valid ID (Government-issued)' },
+            { key: 'birth_cert', label: 'Birth Certificate' },
+            { key: 'ssn_tax', label: 'SSN / Tax ID' },
+            { key: 'edu_certs', label: 'Educational Certificates' },
+            { key: 'prev_employ', label: 'Previous Employment Records' },
+            { key: 'med_cert', label: 'Medical Certificate' },
+            { key: 'nbi', label: 'NBI Clearance' },
+            { key: 'bank', label: 'Bank Account Details' },
+            { key: 'id_photos', label: '2x2 ID Photos' },
+            { key: 'covid_vax', label: 'COVID-19 Vaccination Card' },
         ],
-        pdsForm: {
-            fullName: '', position: '', email: '', phone: '',
-            surname: '', firstName: '', middleName: '', nameExt: '',
-            dob: '', pob: '', citizenship: '',
-            sex: '', civilStatus: '', height: '', weight: '', bloodType: '',
-            sss: '', philhealth: '', pagibig: '', tin: '',
-            resHouse: '', resStreet: '', resSubdiv: '', resBrgy: '', resCity: '', resProv: '', resZip: '',
-            permSameAsRes: false,
-            permHouse: '', permStreet: '', permSubdiv: '', permBrgy: '', permCity: '', permProv: '', permZip: '',
-            telNo: '', mobileNo: '',
-            spouseSurname: '', spouseFirstName: '', spouseMiddleName: '', spouseNameExt: '',
-            spouseOccupation: '', spouseEmployer: '', spouseBusinessAddress: '', spouseTelNo: '',
-            children: [ {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''} ],
-            fatherSurname: '', fatherFirstName: '', fatherMiddleName: '', fatherNameExt: '',
-            motherMaidenSurname: '', motherFirstName: '', motherMiddleName: '',
-            educElemSchool: '', educElemDegree: '', educElemFrom: '', educElemTo: '',
-            educSecSchool: '', educSecDegree: '', educSecFrom: '', educSecTo: '',
-            educCollSchool: '', educCollDegree: '', educCollFrom: '', educCollTo: '',
-            educMastSchool: '', educMastDegree: '', educMastFrom: '', educMastTo: '',
-            educDoctSchool: '', educDoctDegree: '', educDoctFrom: '', educDoctTo: '',
-            lnd: [ {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''} ],
-            consent: false,
-            signaturePreview: '', signatureName: '', submittedDate: ''
+
+        pdsForm: {},
+
+        checklistForm: {
+            employeeName: '',
+            checked: [],
         },
-        checklistForm: { employeeName: '', checked: [] },
-        empRegForm: { fullName: '', employeeId: '', department: '', startDate: '', workEmail: '', manager: '' },
-        trainingForm: { employeeName: '', program: '', startDate: '', dueDate: '', trainer: '', description: '' },
+
+        empRegForm: {
+            fullName: '',
+            employeeId: '',
+            department: '',
+            startDate: '',
+            workEmail: '',
+            manager: '',
+        },
+
+        trainingForm: {
+            employeeName: '',
+            program: '',
+            startDate: '',
+            dueDate: '',
+            trainer: '',
+            description: '',
+        },
+
+        init() {
+            this.loadLocalOnboardingData();
+            this.resetPdsForm();
+        },
+
+        loadLocalOnboardingData() {
+            this.fetchOnboardingRecords();
+        },
+
+        saveLocalOnboardingData() {
+            // Database saving is now handled by Laravel routes.
+            // No localStorage needed anymore.
+        },
+
+        async fetchOnboardingRecords() {
+            try {
+                const response = await fetch('{{ route("human-capital.onboarding.records") }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unable to load onboarding records.');
+                }
+
+                const result = await response.json();
+
+                this.data['Checklist Submission'] = result.checklists ?? [];
+                this.data['Employee Registration'] = result.employees ?? [];
+                this.data['Training'] = result.trainings ?? [];
+            } catch (error) {
+                console.error(error);
+                alert('Unable to load onboarding records from database. Please check your routes/controller/migrations.');
+            }
+        },
+
+        closeAllModals() {
+            this.showPdsModal = false;
+            this.showChecklistModal = false;
+            this.showEmpRegModal = false;
+            this.showTrainingModal = false;
+        },
 
         get filteredRows() {
             const rows = this.data[this.activeTab] ?? [];
-            if (!this.search.trim()) return rows;
+
+            if (!this.search.trim()) {
+                return rows;
+            }
+
             const q = this.search.toLowerCase();
-            return rows.filter(r =>
-                Object.values(r).some(v => String(v).toLowerCase().includes(q))
+
+            return rows.filter(row =>
+                Object.values(row).some(value =>
+                    String(value ?? '').toLowerCase().includes(q)
+                )
             );
         },
 
         openModal() {
-            if (this.activeTab === 'PDS') {
-                this.pdsForm = {
-                    fullName: '', position: '', email: '', phone: '',
-                    surname: '', firstName: '', middleName: '', nameExt: '',
-                    dob: '', pob: '', citizenship: '',
-                    sex: '', civilStatus: '', height: '', weight: '', bloodType: '',
-                    sss: '', philhealth: '', pagibig: '', tin: '',
-                    resHouse: '', resStreet: '', resSubdiv: '', resBrgy: '', resCity: '', resProv: '', resZip: '',
-                    permSameAsRes: false,
-                    permHouse: '', permStreet: '', permSubdiv: '', permBrgy: '', permCity: '', permProv: '', permZip: '',
-                    telNo: '', mobileNo: '',
-                    spouseSurname: '', spouseFirstName: '', spouseMiddleName: '', spouseNameExt: '',
-                    spouseOccupation: '', spouseEmployer: '', spouseBusinessAddress: '', spouseTelNo: '',
-                    children: [ {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''}, {name: '', gender: '', dob: ''} ],
-                    fatherSurname: '', fatherFirstName: '', fatherMiddleName: '', fatherNameExt: '',
-                    motherMaidenSurname: '', motherFirstName: '', motherMiddleName: '',
-                    educElemSchool: '', educElemDegree: '', educElemFrom: '', educElemTo: '',
-                    educSecSchool: '', educSecDegree: '', educSecFrom: '', educSecTo: '',
-                    educCollSchool: '', educCollDegree: '', educCollFrom: '', educCollTo: '',
-                    educMastSchool: '', educMastDegree: '', educMastFrom: '', educMastTo: '',
-                    educDoctSchool: '', educDoctDegree: '', educDoctFrom: '', educDoctTo: '',
-                    lnd: [ {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''}, {title: '', conductedBy: '', date: '', cert: ''} ],
-                    consent: false,
-                    signaturePreview: '', signatureName: '', submittedDate: '',
-                };
+            this.closeAllModals();
+
+            const tab = String(this.activeTab).trim();
+
+            if (tab === 'PDS') {
+                this.resetPdsForm();
                 this.showPdsModal = true;
-            } else if (this.activeTab === 'Checklist Submission') {
-                this.checklistForm = { employeeName: '', checked: [] };
-                this.showChecklistModal = true;
-            } else if (this.activeTab === 'Employee Registration') {
-                this.empRegForm = { fullName: '', employeeId: this.generateEmployeeId(), department: '', startDate: '', workEmail: '', manager: '' };
-                this.showEmpRegModal = true;
-            } else if (this.activeTab === 'Training') {
-                this.trainingForm = { employeeName: '', program: '', startDate: '', dueDate: '', trainer: '', description: '' };
-                this.showTrainingModal = true;
+                return;
             }
+
+            if (tab === 'Checklist Submission') {
+                this.checklistForm = {
+                    employeeName: '',
+                    checked: [],
+                };
+                this.showChecklistModal = true;
+                return;
+            }
+
+            if (tab === 'Employee Registration') {
+                this.empRegForm = {
+                    fullName: '',
+                    employeeId: this.generateEmployeeId(),
+                    department: '',
+                    startDate: '',
+                    workEmail: '',
+                    manager: '',
+                };
+                this.showEmpRegModal = true;
+                return;
+            }
+
+            if (tab === 'Training') {
+                this.trainingForm = {
+                    employeeName: '',
+                    program: '',
+                    startDate: '',
+                    dueDate: '',
+                    trainer: '',
+                    description: '',
+                };
+                this.showTrainingModal = true;
+                return;
+            }
+
+            alert('No form found for this tab.');
+        },
+
+        resetPdsForm() {
+            this.pdsForm = {
+                fullName: '',
+                position: '',
+                email: '',
+                phone: '',
+
+                surname: '',
+                firstName: '',
+                middleName: '',
+                nameExt: '',
+
+                dob: '',
+                pob: '',
+                citizenship: '',
+                sex: '',
+                civilStatus: '',
+                height: '',
+                weight: '',
+                bloodType: '',
+
+                sss: '',
+                philhealth: '',
+                pagibig: '',
+                tin: '',
+
+                resHouse: '',
+                resStreet: '',
+                resSubdiv: '',
+                resBrgy: '',
+                resCity: '',
+                resProv: '',
+                resZip: '',
+
+                permSameAsRes: false,
+                permHouse: '',
+                permStreet: '',
+                permSubdiv: '',
+                permBrgy: '',
+                permCity: '',
+                permProv: '',
+                permZip: '',
+
+                telNo: '',
+                mobileNo: '',
+
+                spouseSurname: '',
+                spouseFirstName: '',
+                spouseMiddleName: '',
+                spouseNameExt: '',
+                spouseOccupation: '',
+                spouseEmployer: '',
+                spouseBusinessAddress: '',
+                spouseTelNo: '',
+
+                children: [
+                    { name: '', gender: '', dob: '' },
+                    { name: '', gender: '', dob: '' },
+                    { name: '', gender: '', dob: '' },
+                ],
+
+                fatherSurname: '',
+                fatherFirstName: '',
+                fatherMiddleName: '',
+                fatherNameExt: '',
+
+                motherMaidenSurname: '',
+                motherFirstName: '',
+                motherMiddleName: '',
+
+                educElemSchool: '',
+                educElemDegree: '',
+                educElemFrom: '',
+                educElemTo: '',
+
+                educSecSchool: '',
+                educSecDegree: '',
+                educSecFrom: '',
+                educSecTo: '',
+
+                educCollSchool: '',
+                educCollDegree: '',
+                educCollFrom: '',
+                educCollTo: '',
+
+                educMastSchool: '',
+                educMastDegree: '',
+                educMastFrom: '',
+                educMastTo: '',
+
+                educDoctSchool: '',
+                educDoctDegree: '',
+                educDoctFrom: '',
+                educDoctTo: '',
+
+                lnd: [
+                    { title: '', conductedBy: '', date: '', cert: '' },
+                    { title: '', conductedBy: '', date: '', cert: '' },
+                    { title: '', conductedBy: '', date: '', cert: '' },
+                ],
+
+                consent: false,
+                signaturePreview: '',
+                signatureName: '',
+                submittedDate: '',
+            };
         },
 
         handleSignature(event) {
             const file = event.target.files[0];
-            if (!file) return;
+
+            if (!file) {
+                return;
+            }
+
             this.pdsForm.signatureName = file.name;
+
             const reader = new FileReader();
-            reader.onload = (e) => { this.pdsForm.signaturePreview = e.target.result; };
+
+            reader.onload = (e) => {
+                this.pdsForm.signaturePreview = e.target.result;
+            };
+
             reader.readAsDataURL(file);
         },
 
         submitPds() {
+            this.pdsForm.fullName = `${this.pdsForm.surname || ''}, ${this.pdsForm.firstName || ''}`.trim();
+            this.pdsForm.phone = this.pdsForm.mobileNo || this.pdsForm.phone;
+            this.pdsForm.submittedDate = new Date().toLocaleDateString('en-PH');
+
             fetch('{{ route("careers.pds.submit") }}', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
                 body: JSON.stringify(this.pdsForm)
-            }).then(() => window.location.reload());
-        },
-        deletePds(index) {
-            if (!confirm('Delete this PDS record?')) return;
-            this.data['PDS'].splice(index, 1);
-        },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to save PDS.');
+                }
 
-        submitChecklist() {
-            const total = this.checklistDocs.length;
-            const submitted = this.checklistForm.checked.length;
-            this.data['Checklist Submission'].unshift({
-                employeeName: this.checklistForm.employeeName,
-                docsSubmitted: submitted,
-                totalDocs: total,
-                checked: [...this.checklistForm.checked],
-                submittedDate: new Date().toLocaleDateString('en-PH'),
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error(error);
+                alert('PDS was not saved. Please check your route/controller.');
             });
-            this.showChecklistModal = false;
-        },
-        deleteChecklist(index) {
-            if (!confirm('Delete this checklist record?')) return;
-            this.data['Checklist Submission'].splice(index, 1);
         },
 
-        submitEmpReg() {
-            this.data['Employee Registration'].unshift({ ...this.empRegForm });
-            this.showEmpRegModal = false;
-        },
-        deleteEmpReg(index) {
-            if (!confirm('Delete this employee registration?')) return;
-            this.data['Employee Registration'].splice(index, 1);
+        async deletePds(id) {
+    if (!id) {
+        alert('This PDS record has no database ID.');
+        return;
+    }
+
+    if (!confirm('Delete this PDS record permanently?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/human-capital/onboarding/pds/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete PDS.');
+        }
+
+        this.data['PDS'] = this.data['PDS'].filter(item => item.db_id !== id);
+    } catch (error) {
+        console.error(error);
+        alert('PDS was not deleted from database.');
+    }
+},
+
+        async submitChecklist() {
+            const total = this.checklistDocs.length;
+
+            try {
+                const response = await fetch('{{ route("human-capital.onboarding.checklists.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        employeeName: this.checklistForm.employeeName,
+                        checked: this.checklistForm.checked,
+                        totalDocs: total,
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to save checklist.');
+                }
+
+                const result = await response.json();
+
+                this.data['Checklist Submission'].unshift(result.record);
+                this.showChecklistModal = false;
+            } catch (error) {
+                console.error(error);
+                alert('Checklist was not saved. Please check controller, routes, and migration.');
+            }
         },
 
-        submitTraining() {
-            this.data['Training'].unshift({ ...this.trainingForm });
-            this.showTrainingModal = false;
+        async deleteChecklist(index) {
+            const row = this.filteredRows[index];
+
+            if (!row || !row.id) {
+                alert('Unable to delete this checklist record. Missing database ID.');
+                return;
+            }
+
+            if (!confirm('Delete this checklist record?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/human-capital/onboarding/checklists/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to delete checklist.');
+                }
+
+                this.data['Checklist Submission'] = this.data['Checklist Submission'].filter(item => item.id !== row.id);
+            } catch (error) {
+                console.error(error);
+                alert('Checklist was not deleted.');
+            }
         },
-        deleteTraining(index) {
-            if (!confirm('Delete this training record?')) return;
-            this.data['Training'].splice(index, 1);
+
+        async submitEmpReg() {
+            try {
+                const response = await fetch('{{ route("human-capital.onboarding.employees.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(this.empRegForm)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to save employee registration.');
+                }
+
+                const result = await response.json();
+
+                this.data['Employee Registration'].unshift(result.record);
+                this.showEmpRegModal = false;
+            } catch (error) {
+                console.error(error);
+                alert('Employee registration was not saved. Check if Employee ID is already used, or check controller/routes/migration.');
+            }
+        },
+
+        async deleteEmpReg(index) {
+            const row = this.filteredRows[index];
+
+            if (!row || !row.id) {
+                alert('Unable to delete this employee registration. Missing database ID.');
+                return;
+            }
+
+            if (!confirm('Delete this employee registration?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/human-capital/onboarding/employees/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to delete employee registration.');
+                }
+
+                this.data['Employee Registration'] = this.data['Employee Registration'].filter(item => item.id !== row.id);
+            } catch (error) {
+                console.error(error);
+                alert('Employee registration was not deleted.');
+            }
+        },
+
+        async submitTraining() {
+            try {
+                const response = await fetch('{{ route("human-capital.onboarding.trainings.store") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(this.trainingForm)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to save training.');
+                }
+
+                const result = await response.json();
+
+                this.data['Training'].unshift(result.record);
+                this.showTrainingModal = false;
+            } catch (error) {
+                console.error(error);
+                alert('Training assignment was not saved. Please check controller, routes, and migration.');
+            }
+        },
+
+        async deleteTraining(index) {
+            const row = this.filteredRows[index];
+
+            if (!row || !row.id) {
+                alert('Unable to delete this training record. Missing database ID.');
+                return;
+            }
+
+            if (!confirm('Delete this training record?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/human-capital/onboarding/trainings/${row.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(errorText);
+                    throw new Error('Failed to delete training.');
+                }
+
+                this.data['Training'] = this.data['Training'].filter(item => item.id !== row.id);
+            } catch (error) {
+                console.error(error);
+                alert('Training assignment was not deleted.');
+            }
         },
 
         generateEmployeeId() {
             const year = new Date().getFullYear();
-            const existing = this.data['Employee Registration'];
+            const existing = this.data['Employee Registration'] ?? [];
             const seq = existing.length + 1;
+
             return 'EMP-' + year + '-' + String(seq).padStart(3, '0');
         },
 
         downloadPdsPdf() {
             const el = document.getElementById('pds-doc-preview');
-            const name = this.pdsForm.fullName ? this.pdsForm.fullName.replace(/\s+/g, '_') : 'PDS';
+
+            if (!el) {
+                alert('PDS preview not found.');
+                return;
+            }
+
+            const name = this.pdsForm.fullName
+                ? this.pdsForm.fullName.replace(/\s+/g, '_')
+                : 'PDS';
+
             html2pdf().set({
                 margin: 0,
                 filename: `PDS_${name}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                image: {
+                    type: 'jpeg',
+                    quality: 0.98
+                },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait'
+                }
             }).from(el).save();
         },
 
         downloadCSV() {
             const tab = this.activeTab;
             const rows = this.data[tab] ?? [];
-            if (rows.length === 0) { alert('No records to export for "' + tab + '".'); return; }
+
+            if (rows.length === 0) {
+                alert('No records to export for "' + tab + '".');
+                return;
+            }
 
             const csvHeaders = {
-                'PDS': ['Full Name','Position','Email','Phone','Date of Birth','Gender','Address','Emergency Name','Emergency Phone',
-                    'Secondary School','Sec Year','Sec Honors','Tertiary Institution','Degree','Major','Tert Year','Tert Honors',
-                    'Work Company','Work Position','Work Start','Work End','Responsibilities',
-                    'Reference Name','Ref Title','Ref Company','Ref Contact','Ref Email','Ref Relationship','Date Submitted'],
-                'Checklist Submission': ['Employee Name','Docs Submitted','Total Docs','Checked Documents','Date Submitted'],
-                'Employee Registration': ['Full Name','Employee ID','Department','Start Date','Work Email','Reporting Manager'],
-                'Training': ['Employee Name','Training Program','Start Date','Due Date','Trainer','Description'],
+                'PDS': ['Full Name', 'Position', 'Email', 'Phone', 'Date Submitted'],
+                'Checklist Submission': ['Employee Name', 'Docs Submitted', 'Total Docs', 'Checked Documents', 'Date Submitted'],
+                'Employee Registration': ['Full Name', 'Employee ID', 'Department', 'Start Date', 'Work Email', 'Reporting Manager'],
+                'Training': ['Employee Name', 'Training Program', 'Start Date', 'Due Date', 'Trainer', 'Description'],
             };
 
             const csvRows = {
-                'PDS': rows.map(r => [r.fullName,r.position,r.email,r.phone,r.dob,r.gender,r.address,
-                    r.emergencyName,r.emergencyPhone,r.secSchool,r.secYear,r.secHonors,
-                    r.tertInstitution,r.tertDegree,r.tertMajor,r.tertYear,r.tertHonors,
-                    r.workCompany,r.workPosition,r.workStart,r.workEnd,r.workResponsibilities,
-                    r.refName,r.refTitle,r.refCompany,r.refContact,r.refEmail,r.refRelationship,r.submittedDate]),
+                'PDS': rows.map(r => [
+                    r.fullName,
+                    r.position,
+                    r.email,
+                    r.phone,
+                    r.submittedDate
+                ]),
+
                 'Checklist Submission': rows.map(r => [
-                    r.employeeName, r.docsSubmitted, r.totalDocs,
-                    (r.checked || []).map(k => this.checklistDocs.find(d=>d.key===k)?.label || k).join('; '),
-                    r.submittedDate]),
-                'Employee Registration': rows.map(r => [r.fullName,r.employeeId,r.department,r.startDate,r.workEmail,r.manager]),
-                'Training': rows.map(r => [r.employeeName,r.program,r.startDate,r.dueDate,r.trainer,r.description]),
+                    r.employeeName,
+                    r.docsSubmitted,
+                    r.totalDocs,
+                    (r.checked || []).map(k => this.checklistDocs.find(d => d.key === k)?.label || k).join('; '),
+                    r.submittedDate
+                ]),
+
+                'Employee Registration': rows.map(r => [
+                    r.fullName,
+                    r.employeeId,
+                    r.department,
+                    r.startDate,
+                    r.workEmail,
+                    r.manager
+                ]),
+
+                'Training': rows.map(r => [
+                    r.employeeName,
+                    r.program,
+                    r.startDate,
+                    r.dueDate,
+                    r.trainer,
+                    r.description
+                ]),
             };
 
-            const escape = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-            const csvContent = [csvHeaders[tab].map(escape).join(','),
-                ...csvRows[tab].map(row => row.map(escape).join(','))].join('\n');
+            const escape = value => '"' + String(value ?? '').replace(/"/g, '""') + '"';
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const csvContent = [
+                csvHeaders[tab].map(escape).join(','),
+                ...csvRows[tab].map(row => row.map(escape).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], {
+                type: 'text/csv;charset=utf-8;'
+            });
+
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+
             a.href = url;
-            a.download = tab.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.download = tab.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.csv';
             a.click();
+
             URL.revokeObjectURL(url);
         },
     };

@@ -19,6 +19,17 @@ class UserPermission extends Model
         'access_activities',
         'access_contacts',
         'access_company',
+        'access_transmittal',
+        'access_deals',
+        'access_services',
+        'access_project',
+        'access_regular',
+        'access_product',
+        'access_policies',
+        'create_sales_marketing',
+        'approve_sales_marketing',
+        'access_sales_marketing',
         'approve_policies',
+        'access_human_capital',
     ];
 }

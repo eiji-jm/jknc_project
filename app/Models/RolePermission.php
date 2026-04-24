@@ -37,5 +37,7 @@ class RolePermission extends Model
         'approve_sales_marketing',
         'access_sales_marketing',
         'approve_policies',
+
+        'access_human_capital',
     ];
 }
