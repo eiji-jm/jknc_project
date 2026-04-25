@@ -2405,14 +2405,14 @@
 
                             <div class="px-10 py-8 border-t border-gray-100 bg-gray-50 flex flex-col gap-3 shrink-0">
                                 <template x-if="viewAssessmentData.status === 'In Progress'">
-                                    <button @click="submitAssessmentResult()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-emerald-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                    <button @click="submitAssessmentResult($event)" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-emerald-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         Submit Result
                                     </button>
                                 </template>
 
                                 <template x-if="viewAssessmentData.status === 'Pending Assessment'">
-                                    <button @click="sendAssessmentTest()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-blue-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
+                                    <button @click="sendAssessmentTest($event)" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[2rem] transition-all shadow-xl shadow-blue-100 uppercase tracking-[0.25em] text-[11px] active:scale-95 flex items-center justify-center gap-3">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                         Send a Test
                                     </button>
@@ -3228,17 +3228,18 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             this.showAssessmentViewModal = true;
         },
 
-        submitAssessmentResult() {
-            if (!this.viewAssessmentData.score_raw) {
-                alert('Please enter a score.');
+        submitAssessmentResult(event) {
+            const score = Number(this.viewAssessmentData.score_raw);
+            if (!Number.isFinite(score) || score < 0 || score > 100) {
+                alert('Please enter a valid score between 0 and 100.');
                 return;
             }
 
-            const btn = event.currentTarget;
-            btn.disabled = true;
+            const btn = event?.currentTarget;
+            if (btn) btn.disabled = true;
 
             axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/result`, {
-                score: this.viewAssessmentData.score_raw
+                score: score
             })
             .then(res => {
                 const assessment = this.data['Assessment'].find(a => a.id === this.viewAssessmentData.id);
@@ -3253,7 +3254,9 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 console.error('Error submitting result:', err);
                 alert('Failed to submit result.');
             })
-            .finally(() => btn.disabled = false);
+            .finally(() => {
+                if (btn) btn.disabled = false;
+            });
         },
 
         deleteAssessment(id) {
@@ -3266,13 +3269,19 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
             .catch(err => console.error('Error deleting assessment:', err));
         },
 
-        sendAssessmentTest() {
+        sendAssessmentTest(event) {
             if (!this.viewAssessmentData) return;
-            
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<svg class="w-4 h-4 animate-spin mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
-            btn.disabled = true;
+            if (!this.viewAssessmentData.email) {
+                alert('Please enter a candidate email before sending the test.');
+                return;
+            }
+
+            const btn = event?.currentTarget;
+            const originalText = btn?.innerHTML || '';
+            if (btn) {
+                btn.innerHTML = '<svg class="w-4 h-4 animate-spin mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+                btn.disabled = true;
+            }
 
             axios.post(`/human-capital/recruitment/assessment/${this.viewAssessmentData.id}/send-test`, {
                 test_type: this.viewAssessmentData.test_type || this.viewAssessmentData.test,
@@ -3288,8 +3297,10 @@ function recruitmentPage(initialMRF = [], initialJPF = [], initialCAF = [], init
                 alert('Failed to send test: ' + (err.response?.data?.message || err.message));
             })
             .finally(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
             });
         },
 
