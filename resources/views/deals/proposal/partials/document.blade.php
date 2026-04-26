@@ -52,7 +52,7 @@
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
 
-    $totalPages = 6;
+    $totalPages = 8;
     $renderPageFooter = function (int $pageNumber) use ($d, $totalPages) {
         return '
             <div class="proposal-page-footer">
@@ -96,8 +96,9 @@
         </div>
     </section>
 
-    <section class="proposal-page">
-        @foreach ($sections as $index => $section)
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        @foreach (collect($sections)->take(2) as $index => $section)
             <h2 class="proposal-section-heading">
                 <span class="proposal-section-number">{{ $toRoman($index + 1) }}.</span>
                 <span>{{ $section['title'] }}</span>
@@ -106,6 +107,21 @@
             @foreach (($d[$section['content']] ?? []) as $item)
                 <p class="proposal-paragraph">{!! nl2br(e($item)) !!}</p>
             @endforeach
+        @endforeach
+        </div>
+        {!! $renderPageFooter(2) !!}
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        @php($thirdSection = $sections[2])
+        <h2 class="proposal-section-heading">
+            <span class="proposal-section-number">{{ $toRoman(3) }}.</span>
+            <span>{{ $thirdSection['title'] }}</span>
+        </h2>
+
+        @foreach (($d[$thirdSection['content']] ?? []) as $item)
+            <p class="proposal-paragraph">{!! nl2br(e($item)) !!}</p>
         @endforeach
 
         <table class="proposal-service-table">
@@ -132,10 +148,12 @@
                 @endforeach
             </tbody>
         </table>
-        {!! $renderPageFooter(2) !!}
+        </div>
+        {!! $renderPageFooter(3) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(4) }}.</span>
             <span>{{ $d['proposal_intro'] ?? 'Our Proposal' }}</span>
@@ -189,10 +207,12 @@
             </tbody>
         </table>
         <p class="proposal-note">{{ $d['supplemental_fee_note'] ?? '' }}</p>
-        {!! $renderPageFooter(3) !!}
+        </div>
+        {!! $renderPageFooter(4) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
             <span>Proposal Highlights</span>
@@ -246,17 +266,22 @@
                 @endforeach
             </tbody>
         </table>
-        {!! $renderPageFooter(4) !!}
+        </div>
+        {!! $renderPageFooter(5) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(8) }}.</span>
             <span>Terms and Conditions</span>
         </h2>
-        @foreach (($d['terms_and_conditions'] ?? []) as $term)
+        @foreach (($d['terms_and_conditions'] ?? []) as $termIndex => $term)
             <div class="proposal-term-block">
-                <h3 class="proposal-subheading proposal-subheading-tight">{{ $term['title'] ?? '' }}</h3>
+                <h3 class="proposal-subheading proposal-subheading-tight">
+                    <span class="proposal-term-number">{{ $termIndex + 1 }}.</span>
+                    <span>{{ $term['title'] ?? '' }}</span>
+                </h3>
 
                 @if (!empty($term['intro']))
                     <p class="proposal-paragraph">{{ $term['intro'] }}</p>
@@ -267,11 +292,11 @@
                 @endforeach
 
                 @if (!empty($term['items']))
-                    <ul class="proposal-bullet-list">
+                    <ol class="proposal-numbered-list">
                         @foreach ($term['items'] as $item)
                             <li>{{ $item }}</li>
                         @endforeach
-                    </ul>
+                    </ol>
                 @endif
 
                 @if (!empty($term['outro']))
@@ -279,7 +304,12 @@
                 @endif
             </div>
         @endforeach
+        </div>
+        {!! $renderPageFooter(6) !!}
+    </section>
 
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(9) }}.</span>
             <span>Client Engagement Team</span>
@@ -306,11 +336,14 @@
             </tbody>
         </table>
 
+        <p class="proposal-end-note">-End-</p>
         <p class="proposal-system-note">{{ $d['system_note'] ?? '' }}</p>
-        {!! $renderPageFooter(5) !!}
+        </div>
+        {!! $renderPageFooter(7) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(10) }}.</span>
             <span>Conforme and Acceptance</span>
@@ -335,6 +368,7 @@
             <div>{{ $d['company_address'] ?? '' }}</div>
             <div>Email: {{ $d['company_email'] ?? '' }} &bull; Website: {{ $d['company_website'] ?? '' }} &bull; Phone: {{ $d['company_phone'] ?? '' }}</div>
         </div>
-        {!! $renderPageFooter(6) !!}
+        </div>
+        {!! $renderPageFooter(8) !!}
     </section>
 </div>

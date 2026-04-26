@@ -5,14 +5,16 @@
     .proposal-preview-scroll { max-height: calc(100vh - 16rem); overflow: auto; background: #eef2f7; }
     .proposal-doc { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.58; }
     .proposal-page {
-        width: min(100%, 820px);
+        width: min(100%, 760px);
         margin: 0 auto 24px;
         background: #fff;
         box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
         border: 1px solid #dbe2ea;
-        padding: 52px 58px 84px;
+        padding: 56px 64px 84px;
         position: relative;
     }
+    .proposal-inner-page { min-height: 1020px; padding-top: 62px; }
+    .proposal-page-body { width: 100%; }
     .proposal-cover { min-height: 1100px; position: relative; }
     .proposal-cover-logo-wrap { width: 100%; }
     .proposal-brand-logo { width: 470px; max-width: 100%; height: auto; object-fit: contain; }
@@ -26,18 +28,20 @@
     .proposal-contact-strip { margin: 0; text-align: center; color: #0031af; font-style: italic; }
     .proposal-contact-inline { display: flex; justify-content: center; flex-wrap: nowrap; gap: 26px; font-size: 12px; }
     .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
-    .proposal-page-footer { position: absolute; left: 58px; right: 58px; bottom: 24px; font-size: 10px; line-height: 1.25; color: #111827; }
+    .proposal-page-footer { position: absolute; left: 64px; right: 64px; bottom: 22px; font-size: 10px; line-height: 1.2; color: #111827; }
     .proposal-page-footer div { margin: 0; }
-    .proposal-section-heading { margin: 18px 0 12px; font-size: 23px; line-height: 1.2; color: #0031af; font-style: italic; font-weight: 700; letter-spacing: 0.01em; }
-    .proposal-section-number { display: inline-block; min-width: 40px; margin-right: 10px; }
-    .proposal-subheading { margin: 18px 0 8px; font-size: 15px; line-height: 1.35; color: #111827; font-weight: 700; }
+    .proposal-section-heading { margin: 10px 0 18px; font-size: 18px; line-height: 1.22; color: #0031af; font-style: italic; font-weight: 700; letter-spacing: 0.01em; }
+    .proposal-section-number { display: inline-block; min-width: 34px; margin-right: 8px; }
+    .proposal-subheading { margin: 18px 0 8px; font-size: 13px; line-height: 1.35; color: #111827; font-weight: 700; }
     .proposal-subheading-blue { color: #0031af; font-style: italic; font-weight: 700; }
     .proposal-subheading-tight { margin-top: 16px; }
-    .proposal-paragraph, .proposal-note, .proposal-system-note { margin: 0 0 10px; font-size: 12px; line-height: 1.62; text-align: justify; }
+    .proposal-term-number { display: inline-block; min-width: 18px; }
+    .proposal-paragraph, .proposal-note, .proposal-system-note { margin: 0 0 12px; font-size: 11.5px; line-height: 1.7; text-align: justify; }
     .proposal-note { color: #475569; font-style: italic; }
-    .proposal-system-note { margin-top: 24px; font-size: 10px; color: #475569; }
-    .proposal-bullet-list { margin: 0 0 10px 18px; padding: 0; font-size: 12px; line-height: 1.58; }
+    .proposal-system-note { margin-top: 18px; font-size: 10px; color: #475569; }
+    .proposal-bullet-list, .proposal-numbered-list { margin: 0 0 10px 18px; padding: 0; font-size: 11.5px; line-height: 1.7; }
     .proposal-bullet-list li { margin-bottom: 6px; }
+    .proposal-numbered-list li { margin-bottom: 6px; }
     .proposal-requirement-group { margin-bottom: 12px; }
     .proposal-requirement-label { margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #0031af; }
     .proposal-term-block { margin-bottom: 16px; }
@@ -45,7 +49,7 @@
     .proposal-service-table th, .proposal-service-table td, .proposal-pricing-table th, .proposal-pricing-table td, .proposal-data-table th, .proposal-data-table td {
         border: 1px solid #111827;
         padding: 8px 10px;
-        font-size: 10.75px;
+        font-size: 10.5px;
         vertical-align: top;
     }
     .proposal-service-table th, .proposal-pricing-table th, .proposal-data-table th { text-align: left; font-weight: 700; background: #f8fafc; }
@@ -56,9 +60,12 @@
     .proposal-service-scope-list ol { margin: 0; padding-left: 18px; }
     .proposal-service-scope-list li { margin: 0 0 4px; }
     .proposal-service-scope-list ol[type="a"] { list-style-type: lower-alpha; }
+    .proposal-service-table { margin-top: 22px; }
+    .proposal-pricing-table, .proposal-data-table { margin-top: 16px; }
     .proposal-pricing-table th:last-child, .proposal-pricing-table td:last-child { text-align: center; width: 34%; }
     .proposal-pricing-table .is-total td { font-weight: 700; color: #0031af; }
     .proposal-term-block + .proposal-term-block { margin-top: 8px; }
+    .proposal-end-note { margin: 18px 0 10px; font-size: 11px; font-style: italic; }
     .proposal-signature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 30px; }
     .proposal-signature-label { font-size: 12px; font-weight: 700; margin-bottom: 50px; }
     .proposal-signature-line { border-bottom: 1px solid #111827; padding-bottom: 6px; font-size: 12px; }

@@ -52,7 +52,7 @@
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
 
-    $totalPages = 6;
+    $totalPages = 8;
     $renderPageFooter = function (int $pageNumber) use ($d, $totalPages) {
         return '
             <div class="proposal-page-footer">
@@ -96,8 +96,9 @@
         </div>
     </section>
 
-    <section class="proposal-page">
-        <?php $__currentLoopData = $sections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $section): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        <?php $__currentLoopData = collect($sections)->take(2); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $section): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <h2 class="proposal-section-heading">
                 <span class="proposal-section-number"><?php echo e($toRoman($index + 1)); ?>.</span>
                 <span><?php echo e($section['title']); ?></span>
@@ -106,6 +107,22 @@
             <?php $__currentLoopData = ($d[$section['content']] ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <p class="proposal-paragraph"><?php echo nl2br(e($item)); ?></p>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        </div>
+        <?php echo $renderPageFooter(2); ?>
+
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        <?php ($thirdSection = $sections[2]); ?>
+        <h2 class="proposal-section-heading">
+            <span class="proposal-section-number"><?php echo e($toRoman(3)); ?>.</span>
+            <span><?php echo e($thirdSection['title']); ?></span>
+        </h2>
+
+        <?php $__currentLoopData = ($d[$thirdSection['content']] ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <p class="proposal-paragraph"><?php echo nl2br(e($item)); ?></p>
         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
         <table class="proposal-service-table">
@@ -132,11 +149,13 @@
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </tbody>
         </table>
-        <?php echo $renderPageFooter(2); ?>
+        </div>
+        <?php echo $renderPageFooter(3); ?>
 
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number"><?php echo e($toRoman(4)); ?>.</span>
             <span><?php echo e($d['proposal_intro'] ?? 'Our Proposal'); ?></span>
@@ -190,11 +209,13 @@
             </tbody>
         </table>
         <p class="proposal-note"><?php echo e($d['supplemental_fee_note'] ?? ''); ?></p>
-        <?php echo $renderPageFooter(3); ?>
+        </div>
+        <?php echo $renderPageFooter(4); ?>
 
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number"><?php echo e($toRoman(5)); ?>.</span>
             <span>Proposal Highlights</span>
@@ -248,18 +269,23 @@
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </tbody>
         </table>
-        <?php echo $renderPageFooter(4); ?>
+        </div>
+        <?php echo $renderPageFooter(5); ?>
 
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number"><?php echo e($toRoman(8)); ?>.</span>
             <span>Terms and Conditions</span>
         </h2>
-        <?php $__currentLoopData = ($d['terms_and_conditions'] ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $term): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <?php $__currentLoopData = ($d['terms_and_conditions'] ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $termIndex => $term): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <div class="proposal-term-block">
-                <h3 class="proposal-subheading proposal-subheading-tight"><?php echo e($term['title'] ?? ''); ?></h3>
+                <h3 class="proposal-subheading proposal-subheading-tight">
+                    <span class="proposal-term-number"><?php echo e($termIndex + 1); ?>.</span>
+                    <span><?php echo e($term['title'] ?? ''); ?></span>
+                </h3>
 
                 <?php if(!empty($term['intro'])): ?>
                     <p class="proposal-paragraph"><?php echo e($term['intro']); ?></p>
@@ -270,11 +296,11 @@
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
                 <?php if(!empty($term['items'])): ?>
-                    <ul class="proposal-bullet-list">
+                    <ol class="proposal-numbered-list">
                         <?php $__currentLoopData = $term['items']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <li><?php echo e($item); ?></li>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                    </ul>
+                    </ol>
                 <?php endif; ?>
 
                 <?php if(!empty($term['outro'])): ?>
@@ -282,7 +308,13 @@
                 <?php endif; ?>
             </div>
         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        </div>
+        <?php echo $renderPageFooter(6); ?>
 
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number"><?php echo e($toRoman(9)); ?>.</span>
             <span>Client Engagement Team</span>
@@ -309,12 +341,15 @@
             </tbody>
         </table>
 
+        <p class="proposal-end-note">-End-</p>
         <p class="proposal-system-note"><?php echo e($d['system_note'] ?? ''); ?></p>
-        <?php echo $renderPageFooter(5); ?>
+        </div>
+        <?php echo $renderPageFooter(7); ?>
 
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number"><?php echo e($toRoman(10)); ?>.</span>
             <span>Conforme and Acceptance</span>
@@ -339,7 +374,8 @@
             <div><?php echo e($d['company_address'] ?? ''); ?></div>
             <div>Email: <?php echo e($d['company_email'] ?? ''); ?> &bull; Website: <?php echo e($d['company_website'] ?? ''); ?> &bull; Phone: <?php echo e($d['company_phone'] ?? ''); ?></div>
         </div>
-        <?php echo $renderPageFooter(6); ?>
+        </div>
+        <?php echo $renderPageFooter(8); ?>
 
     </section>
 </div>
