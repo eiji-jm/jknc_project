@@ -46,6 +46,119 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function storeManual(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'client_name' => ['nullable', 'string', 'max:255'],
+            'business_name' => ['nullable', 'string', 'max:255'],
+            'service_area' => ['nullable', 'string', 'max:255'],
+            'services' => ['nullable', 'string', 'max:1000'],
+            'products' => ['nullable', 'string', 'max:1000'],
+            'planned_start_date' => ['nullable', 'date'],
+            'target_completion_date' => ['nullable', 'date'],
+            'assigned_project_manager' => ['nullable', 'string', 'max:255'],
+            'assigned_consultant' => ['nullable', 'string', 'max:255'],
+            'assigned_associate' => ['nullable', 'string', 'max:255'],
+            'client_confirmation_name' => ['nullable', 'string', 'max:255'],
+            'scope_summary' => ['nullable', 'string', 'max:2000'],
+            'engagement_requirements_text' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $project = Project::query()->create([
+            'name' => $validated['name'],
+            'engagement_type' => 'Project',
+            'status' => 'Start',
+            'current_phase' => 'Start',
+            'current_step' => 'START Checklist',
+            'planned_start_date' => $validated['planned_start_date'] ?? null,
+            'target_completion_date' => $validated['target_completion_date'] ?? null,
+            'assigned_project_manager' => $validated['assigned_project_manager'] ?? null,
+            'assigned_consultant' => $validated['assigned_consultant'] ?? null,
+            'assigned_associate' => $validated['assigned_associate'] ?? null,
+            'client_name' => $validated['client_name'] ?? null,
+            'business_name' => $validated['business_name'] ?? null,
+            'service_area' => $validated['service_area'] ?? null,
+            'services' => $validated['services'] ?? null,
+            'products' => $validated['products'] ?? null,
+            'scope_summary' => $validated['scope_summary'] ?? null,
+            'client_confirmation_name' => $validated['client_confirmation_name'] ?? ($validated['client_name'] ?? null),
+            'metadata' => [
+                'created_from' => 'project_dashboard_manual',
+            ],
+            'opened_at' => now(),
+        ]);
+
+        ProjectStart::query()->create([
+            'project_id' => $project->id,
+            'form_date' => now()->toDateString(),
+            'date_started' => $validated['planned_start_date'] ?? now()->toDateString(),
+            'status' => 'pending',
+            'checklist' => $this->manualStartChecklist(),
+            'kyc_requirements' => [
+                'organization_type' => 'unknown',
+                'sole' => [],
+                'juridical' => [],
+            ],
+            'engagement_requirements' => $this->buildManualRequirementRows(
+                $validated['engagement_requirements_text'] ?? '',
+                $validated['assigned_associate'] ?? ($validated['assigned_consultant'] ?? ($validated['assigned_project_manager'] ?? 'Assigned team')),
+                'START intake'
+            ),
+            'approval_steps' => $this->manualStartApprovalSteps(
+                $validated['assigned_consultant'] ?? null,
+                $validated['assigned_associate'] ?? null
+            ),
+            'routing' => $this->manualRoutingRows(),
+            'clearance' => $this->manualClearancePayload(
+                $validated['assigned_consultant'] ?? null,
+                $validated['assigned_associate'] ?? null
+            ),
+        ]);
+
+        $scopeRows = $this->manualScopeRows($validated);
+        $internalApproval = $this->manualInternalApprovalPayload(
+            $validated['assigned_project_manager'] ?? null,
+            $validated['assigned_consultant'] ?? null,
+            $validated['assigned_associate'] ?? null
+        );
+
+        ProjectSow::query()->create([
+            'project_id' => $project->id,
+            'version_number' => '1.0',
+            'date_prepared' => now()->toDateString(),
+            'within_scope_items' => $scopeRows,
+            'out_of_scope_items' => [],
+            'client_confirmation_name' => $project->client_confirmation_name,
+            'internal_approval' => $internalApproval,
+            'approval_status' => 'draft',
+            'ntp_status' => 'pending',
+        ]);
+
+        ProjectSowReport::query()->create([
+            'project_id' => $project->id,
+            'version_number' => '1.0',
+            'date_prepared' => now()->toDateString(),
+            'within_scope_items' => $scopeRows,
+            'out_of_scope_items' => [],
+            'status_summary' => [
+                'total_main_tasks' => count($scopeRows),
+                'open' => count($scopeRows),
+                'in_progress' => 0,
+                'delayed' => 0,
+                'completed' => 0,
+                'on_hold' => 0,
+            ],
+            'project_completion_percentage' => 0,
+            'client_confirmation_name' => $project->client_confirmation_name,
+            'internal_approval' => $internalApproval,
+        ]);
+
+        return redirect()
+            ->route('project.show', ['project' => $project, 'tab' => 'start'])
+            ->with('success', 'Project created and opened in START form.');
+    }
+
     public function show(Request $request, Project $project): View
     {
         $payload = $this->buildProjectDocumentPayload($project);
@@ -700,5 +813,143 @@ class ProjectController extends Controller
             'date_recorded' => $validated['date_recorded'] ?? null,
             'date_signed' => $validated['date_signed'] ?? null,
         ];
+    }
+
+    private function buildManualRequirementRows(string $rawRequirements, string $assignedTo, string $purpose): array
+    {
+        $rows = collect(preg_split('/[\r\n]+/', trim($rawRequirements)))
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->map(fn (string $item, int $index): array => [
+                'number' => $index + 1,
+                'requirement' => $item,
+                'notes' => '',
+                'purpose' => $purpose,
+                'provided_by' => 'Client',
+                'submitted_to' => 'Sales & Marketing',
+                'assigned_to' => $assignedTo,
+                'timeline' => 'To be scheduled',
+            ])
+            ->all();
+
+        if ($rows !== []) {
+            return $rows;
+        }
+
+        return [[
+            'number' => 1,
+            'requirement' => 'Initial intake and supporting documents',
+            'notes' => '',
+            'purpose' => $purpose,
+            'provided_by' => 'Client',
+            'submitted_to' => 'Sales & Marketing',
+            'assigned_to' => $assignedTo,
+            'timeline' => 'To be scheduled',
+        ]];
+    }
+
+    private function manualStartChecklist(): array
+    {
+        return [
+            ['label' => 'Client Contact Form', 'status' => 'pending'],
+            ['label' => 'Deal Form', 'status' => 'pending'],
+            ['label' => 'Business Information Form', 'status' => 'pending'],
+            ['label' => 'Client Information Form', 'status' => 'pending'],
+            ['label' => 'Service Task Activation & Routing Tracker (Start)', 'status' => 'provided'],
+            ['label' => 'Others', 'status' => 'pending'],
+        ];
+    }
+
+    private function manualStartApprovalSteps(?string $assignedConsultant, ?string $assignedAssociate): array
+    {
+        $leadConsultant = $assignedConsultant ?: 'Lead Consultant';
+        $leadAssociate = $assignedAssociate ?: 'Lead Associate';
+
+        return [
+            ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Deal Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Client Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/'.$leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Proposal/Contract', 'responsible_person' => 'Sales & Marketing/'.$leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Final Quote', 'responsible_person' => $leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
+        ];
+    }
+
+    private function manualRoutingRows(): array
+    {
+        return [
+            ['role' => 'Admin', 'status' => 'pending'],
+            ['role' => 'Lead Consultant', 'status' => 'pending'],
+            ['role' => 'Lead Associate', 'status' => 'pending'],
+            ['role' => 'Sales & Marketing', 'status' => 'pending'],
+        ];
+    }
+
+    private function manualClearancePayload(?string $assignedConsultant, ?string $assignedAssociate): array
+    {
+        return [
+            'assigned_team_lead' => '',
+            'assigned_team_lead_signature' => '',
+            'lead_consultant_confirmed' => $assignedConsultant ?? '',
+            'lead_consultant_signature' => '',
+            'lead_associate_assigned' => $assignedAssociate ?? '',
+            'lead_associate_signature' => '',
+            'sales_marketing' => 'Sales & Marketing',
+            'sales_marketing_signature' => '',
+            'record_custodian_name' => 'Record Custodian',
+            'record_custodian_signature' => '',
+            'date_recorded' => now()->toDateString(),
+            'date_signed' => null,
+        ];
+    }
+
+    private function manualInternalApprovalPayload(?string $assignedProjectManager, ?string $assignedConsultant, ?string $assignedAssociate): array
+    {
+        return [
+            'prepared_by' => $assignedProjectManager ?: $assignedConsultant,
+            'reviewed_by' => 'Admin',
+            'referred_by_closed_by' => null,
+            'sales_marketing' => 'Sales & Marketing',
+            'lead_consultant' => $assignedConsultant,
+            'lead_associate_assigned' => $assignedAssociate,
+            'finance' => 'Finance',
+            'president' => 'President',
+            'record_custodian' => 'Record Custodian',
+            'date_recorded' => now()->toDateString(),
+            'date_signed' => null,
+        ];
+    }
+
+    private function manualScopeRows(array $validated): array
+    {
+        $items = collect(preg_split('/[\r\n,;]+/', (string) ($validated['services'] ?? '')))
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values();
+
+        if ($items->isEmpty() && filled($validated['scope_summary'] ?? null)) {
+            $items = collect(preg_split('/[\r\n,;]+/', (string) $validated['scope_summary']))
+                ->map(fn ($item) => trim((string) $item))
+                ->filter()
+                ->values();
+        }
+
+        return $items
+            ->take(5)
+            ->map(fn (string $item): array => [
+                'main_task_description' => $item,
+                'sub_task_description' => 'To be defined during planning',
+                'responsible' => $validated['assigned_consultant'] ?? ($validated['assigned_project_manager'] ?? 'Project Team'),
+                'duration' => 'TBD',
+                'start_date' => $validated['planned_start_date'] ?? null,
+                'end_date' => $validated['target_completion_date'] ?? null,
+                'status' => 'Pending',
+                'remarks' => null,
+            ])
+            ->values()
+            ->all();
     }
 }
