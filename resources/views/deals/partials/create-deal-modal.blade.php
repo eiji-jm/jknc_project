@@ -3,7 +3,17 @@
     $formAction = $formAction ?? route('deals.store');
     $formMethod = strtoupper($formMethod ?? 'POST');
     $submitLabel = $submitLabel ?? 'Save & View Deal';
+    $panelTitle = $panelTitle ?? 'Create Deal';
+    $panelSubtitle = $panelSubtitle ?? 'Select an existing client, then complete the consulting and deal form.';
     $draft = $dealDraft ?? [];
+    $numericFieldValue = static function ($value): string {
+        if ($value === null) {
+            return '';
+        }
+
+        $normalized = preg_replace('/[^0-9.\-]/', '', (string) $value);
+        return is_string($normalized) ? trim($normalized) : '';
+    };
     $serviceAreaOptions = collect($serviceAreaOptions ?? [])
         ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
         ->map(fn ($value): string => trim((string) $value))
@@ -303,6 +313,9 @@
     $draftDealCode = old('deal_code', $draft['deal_code'] ?? 'Auto-generated after save');
     $draftCreatedBy = old('created_by', $draft['created_by'] ?? $currentUserName);
     $draftCreatedAt = old('created_at_label', $draft['created_at_label'] ?? now()->format('F d, Y • h:i:s A'));
+    $dealErrorMap = $errors->toArray();
+    $dealErrorMessages = $errors->all();
+    $dealErrorKeys = $errors->keys();
 @endphp
 
 <div id="createDealModal" class="fixed inset-0 z-[60] hidden" aria-hidden="true">
@@ -312,8 +325,8 @@
         <div id="createDealPanel" class="pointer-events-auto flex h-full w-full max-w-[860px] translate-x-full flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-[820px]">
             <div class="flex items-center justify-between border-b border-gray-100 px-6 py-5 sm:px-8">
                 <div>
-                    <h2 id="dealPanelTitle" class="text-2xl font-semibold text-gray-900">Create Deal</h2>
-                    <p id="dealPanelSubtitle" class="mt-1 text-sm text-gray-500">Select an existing client, then complete the consulting and deal form.</p>
+                    <h2 id="dealPanelTitle" class="text-2xl font-semibold text-gray-900">{{ $panelTitle }}</h2>
+                    <p id="dealPanelSubtitle" class="mt-1 text-sm text-gray-500">{{ $panelSubtitle }}</p>
                 </div>
                 <button id="closeCreateDealModal" type="button" class="text-2xl leading-none text-gray-500 hover:text-gray-800">&times;</button>
             </div>
@@ -327,6 +340,18 @@
                 <input id="deal_selected_contact_id" type="hidden" name="contact_id" value="{{ old('contact_id', $draft['contact_id'] ?? '') }}">
 
                 <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6 sm:px-8">
+                    @if ($errors->any())
+                        <div id="dealFormErrorSummary" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert" tabindex="-1">
+                            <p class="font-semibold">Please review the highlighted fields before continuing.</p>
+                            <p class="mt-1 text-xs text-red-600">{{ count($dealErrorMessages) }} {{ \Illuminate\Support\Str::plural('issue', count($dealErrorMessages)) }} need attention.</p>
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-xs text-red-700">
+                                @foreach (collect($dealErrorMessages)->take(6) as $errorMessage)
+                                    <li>{{ $errorMessage }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <div class="flex flex-col gap-3 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-sm font-medium text-gray-500">Consulting & Deal Form</p>
                         <div class="relative sm:flex-shrink-0">
@@ -710,12 +735,12 @@
                                 $otherFeesRowCount = max(count((array) $otherFeesTitles), count((array) $otherFeesAmounts));
                             @endphp
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><input id="estimated_professional_fee" name="estimated_professional_fee" value="{{ $estimatedProfessionalFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><input id="estimated_government_fees" name="estimated_government_fees" value="{{ $estimatedGovernmentFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><input id="estimated_service_support_fee" name="estimated_service_support_fee" value="{{ $estimatedServiceSupportFeeValue }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><input id="total_service_fee" name="total_service_fee" value="{{ old('total_service_fee', $draft['total_service_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><input id="total_product_fee" name="total_product_fee" value="{{ old('total_product_fee', $draft['total_product_fee'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $totalEstimatedValue }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_professional_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Professional Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="estimated_professional_fee" name="estimated_professional_fee" inputmode="decimal" value="{{ $numericFieldValue($estimatedProfessionalFeeValue) }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="estimated_government_fees" class="mb-1 block text-sm font-medium text-gray-700">Estimated Government Fees</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="estimated_government_fees" name="estimated_government_fees" inputmode="decimal" value="{{ $numericFieldValue($estimatedGovernmentFeeValue) }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="estimated_service_support_fee" name="estimated_service_support_fee" inputmode="decimal" value="{{ $numericFieldValue($estimatedServiceSupportFeeValue) }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_service_fee" name="total_service_fee" value="{{ $numericFieldValue(old('total_service_fee', $draft['total_service_fee'] ?? '')) }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_product_fee" name="total_product_fee" value="{{ $numericFieldValue(old('total_product_fee', $draft['total_product_fee'] ?? '')) }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $numericFieldValue($totalEstimatedValue) }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                             </div>
                             <div id="otherFeesRows" class="mt-3 space-y-3">
                                 @for ($i = 0; $i < $otherFeesRowCount; $i++)
@@ -726,7 +751,7 @@
                                         </div>
                                         <div>
                                             <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
-                                            <input name="other_fees_amounts[]" value="{{ $otherFeesAmounts[$i] ?? '' }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+                                            <div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input name="other_fees_amounts[]" inputmode="decimal" value="{{ $numericFieldValue($otherFeesAmounts[$i] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount></div>
                                         </div>
                                         <div class="flex items-end">
                                             <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>
@@ -882,9 +907,6 @@
                         </section>
                     </div>
 
-                    @if ($errors->any())
-                        <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{{ $errors->first() }}</div>
-                    @endif
                 </div>
 
                 <div class="mt-auto flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 sm:px-8">
@@ -934,6 +956,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const serviceRequirementCatalog = @json($serviceRequirementCatalog ?? []);
     const productPricing = @json($productPricing);
     const productOptionsByServiceArea = @json($productOptionsByServiceArea);
+    const invalidFieldMessages = @json($dealErrorMap);
+    const invalidFieldKeys = @json($dealErrorKeys);
     const customServicePrice = 2500;
     const customProductPrice = 350;
 
@@ -959,6 +983,83 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectedBusinessRecord = null;
     let selectedContactRecord = null;
 
+    const markFieldInvalid = (field, message) => {
+        if (!field) {
+            return;
+        }
+
+        field.classList.remove('border-gray-300', 'focus:border-blue-500', 'focus:ring-blue-100');
+        field.classList.add('border-red-400', 'bg-red-50', 'text-red-900', 'focus:border-red-500', 'focus:ring-red-100');
+        field.setAttribute('aria-invalid', 'true');
+
+        const wrapper = field.closest('div');
+        if (!wrapper || wrapper.querySelector('[data-inline-error-for]')) {
+            return;
+        }
+
+        const inlineError = document.createElement('p');
+        inlineError.className = 'mt-1 text-xs text-red-600';
+        inlineError.dataset.inlineErrorFor = field.name || field.id || 'field';
+        inlineError.textContent = message;
+        wrapper.appendChild(inlineError);
+    };
+
+    const applyValidationUi = () => {
+        if (!Array.isArray(invalidFieldKeys) || invalidFieldKeys.length === 0) {
+            return;
+        }
+
+        const firstInvalidField = [];
+
+        invalidFieldKeys.forEach((key) => {
+            const proxyTargets = {
+                contact_id: contactSearch,
+                owner_id: ownerTrigger,
+            };
+            const bracketName = key.split('.').reduce((carry, segment, index) => {
+                if (index === 0) {
+                    return segment;
+                }
+
+                return `${carry}[${segment}]`;
+            }, '');
+            const arrayBaseName = `${key.split('.')[0]}[]`;
+            const candidates = [
+                `[name="${key}"]`,
+                `[name="${bracketName}"]`,
+                `[name="${arrayBaseName}"]`,
+                `[name^="${key.split('.')[0]}["]`,
+                `[name="${key.split('.')[0]}"]`,
+                `#${key}`,
+            ];
+            const field = proxyTargets[key] || document.querySelector(candidates.join(', '));
+
+            if (!field) {
+                return;
+            }
+
+            const fieldErrors = invalidFieldMessages[key];
+            const message = Array.isArray(fieldErrors) && fieldErrors.length > 0
+                ? fieldErrors[0]
+                : (field.getAttribute('data-error-message') || 'Please review this field.');
+
+            markFieldInvalid(field, message);
+
+            if (firstInvalidField.length === 0) {
+                firstInvalidField.push(field);
+            }
+        });
+
+        const summary = document.getElementById('dealFormErrorSummary');
+        const focusTarget = firstInvalidField[0] || summary;
+        if (focusTarget) {
+            focusTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (typeof focusTarget.focus === 'function') {
+                focusTarget.focus({ preventScroll: true });
+            }
+        }
+    };
+
     const openModal = () => {
         if (!modal || !panel) {
             return;
@@ -970,6 +1071,7 @@ document.addEventListener('DOMContentLoaded', function () {
         requestAnimationFrame(() => {
             overlay?.classList.remove('opacity-0');
             panel.classList.remove('translate-x-full');
+            applyValidationUi();
         });
     };
 
@@ -1013,7 +1115,10 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
-                <input name="other_fees_amounts[]" value="${amount}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+                <div class="relative">
+                    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span>
+                    <input name="other_fees_amounts[]" inputmode="decimal" value="${amount}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
+                </div>
             </div>
             <div class="flex items-end">
                 <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>

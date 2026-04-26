@@ -22,7 +22,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DealController extends Controller
 {
@@ -857,92 +856,131 @@ class DealController extends Controller
 
     public function updateDealStage(Request $request, int $id): JsonResponse|RedirectResponse
     {
-        abort_unless(Schema::hasTable('deals'), 500, 'Deals table is not available.');
-
-        $validated = $request->validate([
-            'stage_id' => ['required'],
-        ]);
-
-        $stageInput = trim((string) ($validated['stage_id'] ?? ''));
-        if ($stageInput === '') {
-            return response()->json(['success' => false, 'message' => 'No stage selected'], 400);
-        }
-
-        $deal = Deal::query()->findOrFail($id);
-        $hasStageTable = Schema::hasTable('deal_stages');
-        $stage = null;
-        $resolvedStageName = $stageInput;
-
-        if ($hasStageTable) {
-            if (is_numeric($stageInput)) {
-                $stage = DealStage::query()->findOrFail((int) $stageInput);
-            } else {
-                $stage = DealStage::query()->where('name', $stageInput)->first();
+        try {
+            if (! Schema::hasTable('deals')) {
+                return $this->dealStageErrorResponse($request, $id, 'Deals are not available right now. Please try again in a moment.', 503);
             }
-        }
 
-        if ($stage) {
-            $resolvedStageName = $stage->name;
-        }
-
-        $updates = [];
-        if ($stage && Schema::hasColumn('deals', 'stage_id')) {
-            $updates['stage_id'] = $stage->id;
-        }
-        if (Schema::hasColumn('deals', 'stage')) {
-            $updates['stage'] = $resolvedStageName;
-        }
-
-        abort_if($updates === [], 500, 'Deals stage columns are not available.');
-
-        $deal->update($updates);
-
-        $stages = collect($this->dealStages())->values();
-        $currentStage = $stage
-            ? ($stages->firstWhere('id', $stage->id) ?: [
-                'id' => $stage->id,
-                'name' => $stage->name,
-                'order' => 0,
-                'color' => $stage->color,
-            ])
-            : ($stages->firstWhere('name', $resolvedStageName) ?: [
-                'id' => null,
-                'name' => $resolvedStageName,
-                'order' => 0,
-                'color' => null,
+            $validated = $request->validate([
+                'stage_id' => ['required'],
             ]);
 
-        $payload = [
-            'success' => true,
-            'message' => 'Stage updated successfully',
-            'deal' => [
-                'id' => $deal->id,
-                'stage' => $resolvedStageName,
-                'stage_id' => $stage?->id,
-            ],
-            'current_stage' => $currentStage,
-            'stages' => $stages->all(),
-        ];
+            $stageInput = trim((string) ($validated['stage_id'] ?? ''));
+            if ($stageInput === '') {
+                return $this->dealStageErrorResponse($request, $id, 'Select a stage before saving.', 422);
+            }
 
-        if ($request->expectsJson()) {
-            return response()->json($payload);
+            $deal = Deal::query()->find($id);
+            if (! $deal) {
+                return $this->dealStageErrorResponse($request, $id, 'The deal you are trying to update could not be found.', 404);
+            }
+
+            $hasStageTable = Schema::hasTable('deal_stages');
+            $stage = null;
+            $resolvedStageName = $stageInput;
+
+            if ($hasStageTable) {
+                if (is_numeric($stageInput)) {
+                    $stage = DealStage::query()->find((int) $stageInput);
+                } else {
+                    $stage = DealStage::query()->where('name', $stageInput)->first();
+                }
+            }
+
+            if (is_numeric($stageInput) && ! $stage) {
+                return $this->dealStageErrorResponse($request, $id, 'The selected stage is no longer available. Refresh the page and try again.', 422);
+            }
+
+            if ($stage) {
+                $resolvedStageName = $stage->name;
+            }
+
+            $updates = [];
+            if ($stage && Schema::hasColumn('deals', 'stage_id')) {
+                $updates['stage_id'] = $stage->id;
+            }
+            if (Schema::hasColumn('deals', 'stage')) {
+                $updates['stage'] = $resolvedStageName;
+            }
+
+            if ($updates === []) {
+                return $this->dealStageErrorResponse($request, $id, 'This deal cannot be moved because stage tracking is not configured yet.', 500);
+            }
+
+            $deal->update($updates);
+
+            $stages = collect($this->dealStages())->values();
+            $currentStage = $stage
+                ? ($stages->firstWhere('id', $stage->id) ?: [
+                    'id' => $stage->id,
+                    'name' => $stage->name,
+                    'order' => 0,
+                    'color' => $stage->color,
+                ])
+                : ($stages->firstWhere('name', $resolvedStageName) ?: [
+                    'id' => null,
+                    'name' => $resolvedStageName,
+                    'order' => 0,
+                    'color' => null,
+                ]);
+
+            $payload = [
+                'success' => true,
+                'message' => 'Stage updated successfully.',
+                'deal' => [
+                    'id' => $deal->id,
+                    'stage' => $resolvedStageName,
+                    'stage_id' => $stage?->id,
+                ],
+                'current_stage' => $currentStage,
+                'stages' => $stages->all(),
+            ];
+
+            if ($request->expectsJson()) {
+                return response()->json($payload);
+            }
+
+            return redirect()
+                ->route('deals.show', $id)
+                ->with('stage_success', $payload['message']);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->dealStageErrorResponse(
+                $request,
+                $id,
+                'We could not update the deal stage right now. Please try again.',
+                500
+            );
         }
-
-        return redirect()
-            ->route('deals.show', $id)
-            ->with('stage_success', $payload['message']);
     }
 
     public function preview(Request $request): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
-        $contact = $this->resolveContact((int) $validated['contact_id']);
-        abort_unless($contact, 404);
-        $draft = $this->buildPreviewPayload($validated, $contact);
 
-        $request->session()->put('deals.preview_payload', $draft);
+        try {
+            $contact = $this->resolveContact((int) $validated['contact_id']);
+            if (! $contact) {
+                return $this->redirectToDealFormWithError(
+                    $request,
+                    'Select a valid existing client before previewing this deal.'
+                );
+            }
 
-        return redirect()->route('deals.preview.show');
+            $draft = $this->buildPreviewPayload($validated, $contact);
+
+            $request->session()->put('deals.preview_payload', $draft);
+
+            return redirect()->route('deals.preview.show');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->redirectToDealFormWithError(
+                $request,
+                'We could not generate the preview right now. Your entries are still here, so please review and try again.'
+            );
+        }
     }
 
     public function saveDraft(Request $request): RedirectResponse
@@ -971,125 +1009,196 @@ class DealController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
-        $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
-            ? $validated['deal_code']
-            : Deal::generateNextDealCode();
-        $validated['deal_name'] = $validated['deal_code'];
 
-        $contact = $this->resolveContact((int) $validated['contact_id']);
-        abort_unless($contact, 404);
+        try {
+            $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
+                ? $validated['deal_code']
+                : Deal::generateNextDealCode();
+            $validated['deal_name'] = $validated['deal_code'];
 
-        if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
-            $mockDeal = $this->buildMockSavedDeal($validated, $contact);
-            $request->session()->put('deals.mock_saved', $mockDeal);
-            $request->session()->put('deals.mock_saved_payload', [
-                'id' => $mockDeal['id'],
-                ...$validated,
+            $contact = $this->resolveContact((int) $validated['contact_id']);
+            if (! $contact) {
+                return $this->redirectToDealFormWithError(
+                    $request,
+                    'Select a valid existing client before saving this deal.'
+                );
+            }
+
+            if (! Schema::hasTable('deals') || ! Contact::query()->whereKey($validated['contact_id'])->exists()) {
+                $mockDeal = $this->buildMockSavedDeal($validated, $contact);
+                $request->session()->put('deals.mock_saved', $mockDeal);
+                $request->session()->put('deals.mock_saved_payload', [
+                    'id' => $mockDeal['id'],
+                    ...$validated,
+                ]);
+                $request->session()->forget('deals.preview_payload');
+
+                return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
+            }
+
+            $createdDeal = Deal::query()->create([
+                ...$this->dealPersistencePayload($validated),
+                ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
+                ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
+                'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+                'salutation' => $validated['salutation'] ?? $contact->salutation,
+                'first_name' => $validated['first_name'] ?? $contact->first_name,
+                'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
+                'last_name' => $validated['last_name'] ?? $contact->last_name,
+                'email' => $validated['email'] ?? $contact->email,
+                'mobile' => $validated['mobile'] ?? $contact->phone,
+                'address' => $validated['address'] ?? $contact->contact_address,
+                'company_name' => $validated['company_name'] ?? $contact->company_name,
+                'company_address' => $validated['company_address'] ?? $contact->company_address,
+                'position' => $validated['position'] ?? $contact->position,
             ]);
+            $this->applyFeePersistence($createdDeal, $validated);
+            $this->syncDealNameToCode($createdDeal);
+            $createdDeal->save();
+            $this->projectProvisioner->createOrSyncFromDeal($createdDeal);
+
             $request->session()->forget('deals.preview_payload');
 
-            return redirect()->route('deals.show', $mockDeal['id'])->with('success', 'Mock deal saved and submitted for approval.');
+            return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created and submitted for approval.');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->redirectToDealFormWithError(
+                $request,
+                'We could not save the deal right now. Please review the highlighted details and try again.'
+            );
         }
-
-        $createdDeal = Deal::query()->create([
-            ...$this->dealPersistencePayload($validated),
-            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
-            ...(Schema::hasColumn('deals', 'created_by') ? ['created_by' => optional(Auth::user())->name ?: 'System'] : []),
-            'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
-            'salutation' => $validated['salutation'] ?? $contact->salutation,
-            'first_name' => $validated['first_name'] ?? $contact->first_name,
-            'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
-            'last_name' => $validated['last_name'] ?? $contact->last_name,
-            'email' => $validated['email'] ?? $contact->email,
-            'mobile' => $validated['mobile'] ?? $contact->phone,
-            'address' => $validated['address'] ?? $contact->contact_address,
-            'company_name' => $validated['company_name'] ?? $contact->company_name,
-            'company_address' => $validated['company_address'] ?? $contact->company_address,
-            'position' => $validated['position'] ?? $contact->position,
-        ]);
-        $this->applyFeePersistence($createdDeal, $validated);
-        $this->syncDealNameToCode($createdDeal);
-        $createdDeal->save();
-        $this->projectProvisioner->createOrSyncFromDeal($createdDeal);
-
-        $request->session()->forget('deals.preview_payload');
-
-        return redirect()->route('deals.show', $createdDeal->id)->with('success', 'Deal created and submitted for approval.');
     }
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $validated = $this->validateDealPayload($request);
-        $contact = $this->resolveContact((int) $validated['contact_id']);
-        abort_unless($contact, 404);
+        $existingDeal = null;
+        if (Schema::hasTable('deals')) {
+            $existingDeal = Deal::query()->find($id);
 
-        if (! Schema::hasTable('deals')) {
-            $mockSaved = $this->buildMockSavedDeal($validated, $contact) + ['id' => $id];
-            $request->session()->put('deals.mock_saved', $mockSaved);
-            $request->session()->put('deals.mock_saved_payload', [
-                'id' => $id,
-                ...$validated,
-            ]);
-
-            return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
+            if (! $request->filled('contact_id') && filled($existingDeal?->contact_id)) {
+                $request->merge([
+                    'contact_id' => (int) $existingDeal->contact_id,
+                ]);
+            }
         }
 
-        $deal = Deal::query()->findOrFail($id);
-        $validated['deal_code'] = Deal::hasValidDealCode($deal->deal_code)
-            ? $deal->deal_code
-            : Deal::generateNextDealCode(
-                year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
-                ignoreDealId: $deal->id
-            );
-        $validated['deal_name'] = $validated['deal_code'];
-        $deal->fill([
-            ...$this->dealPersistencePayload($validated),
-            ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
-            'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
-            'salutation' => $validated['salutation'] ?? $contact->salutation,
-            'first_name' => $validated['first_name'] ?? $contact->first_name,
-            'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
-            'last_name' => $validated['last_name'] ?? $contact->last_name,
-            'email' => $validated['email'] ?? $contact->email,
-            'mobile' => $validated['mobile'] ?? $contact->phone,
-            'address' => $validated['address'] ?? $contact->contact_address,
-            'company_name' => $validated['company_name'] ?? $contact->company_name,
-            'company_address' => $validated['company_address'] ?? $contact->company_address,
-            'position' => $validated['position'] ?? $contact->position,
-        ]);
-        $this->applyFeePersistence($deal, $validated);
-        $this->ensureDealCodeAssigned($deal, $contact);
-        $this->syncDealNameToCode($deal);
-        $deal->save();
-        $this->projectProvisioner->createOrSyncFromDeal($deal);
+        $validated = $this->validateDealPayload($request);
 
-        return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
+        try {
+            $contact = $this->resolveContact((int) $validated['contact_id']);
+            if (! $contact) {
+                return $this->redirectToDealFormWithError(
+                    $request,
+                    'Select a valid existing client before updating this deal.',
+                    $id
+                );
+            }
+
+            if (! Schema::hasTable('deals')) {
+                $mockSaved = $this->buildMockSavedDeal($validated, $contact) + ['id' => $id];
+                $request->session()->put('deals.mock_saved', $mockSaved);
+                $request->session()->put('deals.mock_saved_payload', [
+                    'id' => $id,
+                    ...$validated,
+                ]);
+
+                return redirect()->route('deals.show', $id)->with('success', 'Mock deal updated and resubmitted for approval.');
+            }
+
+            $deal = $existingDeal ?: Deal::query()->find($id);
+            if (! $deal) {
+                return redirect()
+                    ->route('deals.index')
+                    ->with('error', 'The deal you are trying to update could not be found.');
+            }
+
+            $validated['deal_code'] = Deal::hasValidDealCode($deal->deal_code)
+                ? $deal->deal_code
+                : Deal::generateNextDealCode(
+                    year: optional($deal->created_at)->year ?: (int) now()->format('Y'),
+                    ignoreDealId: $deal->id
+                );
+            $validated['deal_name'] = $validated['deal_code'];
+            $deal->fill([
+                ...$this->dealPersistencePayload($validated),
+                ...(Schema::hasColumn('deals', 'stage_id') ? ['stage_id' => $this->resolveStageIdByName((string) ($validated['stage'] ?? ''))] : []),
+                'customer_type' => $validated['customer_type'] ?? $contact->customer_type,
+                'salutation' => $validated['salutation'] ?? $contact->salutation,
+                'first_name' => $validated['first_name'] ?? $contact->first_name,
+                'middle_name' => $validated['middle_name'] ?? $contact->middle_name,
+                'last_name' => $validated['last_name'] ?? $contact->last_name,
+                'email' => $validated['email'] ?? $contact->email,
+                'mobile' => $validated['mobile'] ?? $contact->phone,
+                'address' => $validated['address'] ?? $contact->contact_address,
+                'company_name' => $validated['company_name'] ?? $contact->company_name,
+                'company_address' => $validated['company_address'] ?? $contact->company_address,
+                'position' => $validated['position'] ?? $contact->position,
+            ]);
+            $this->applyFeePersistence($deal, $validated);
+            $this->ensureDealCodeAssigned($deal, $contact);
+            $this->syncDealNameToCode($deal);
+            $deal->save();
+            $this->projectProvisioner->createOrSyncFromDeal($deal);
+
+            return redirect()->route('deals.show', $deal->id)->with('success', 'Deal updated and resubmitted for approval.');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->redirectToDealFormWithError(
+                $request,
+                'We could not update the deal right now. Please review the highlighted details and try again.',
+                $id
+            );
+        }
     }
 
     public function approve(Request $request, int $id): RedirectResponse
     {
-        abort_unless($this->isDealReviewer($request), 403);
-        abort_unless(Schema::hasTable('deals'), 404);
+        if (! $this->isDealReviewer($request)) {
+            return redirect()
+                ->route('deals.show', $id)
+                ->with('error', 'You do not have permission to approve this deal.');
+        }
 
-        $deal = Deal::query()->findOrFail($id);
+        if (! Schema::hasTable('deals')) {
+            return redirect()
+                ->route('deals.index')
+                ->with('error', 'Deals are not available right now. Please try again later.');
+        }
 
-        DB::transaction(function () use ($deal, $request): void {
-            $deal->forceFill([
-                'qualification_result' => 'qualified',
-                'deal_status' => 'approved',
-                'stage' => $this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')),
-                'stage_id' => Schema::hasColumn('deals', 'stage_id')
-                    ? $this->resolveStageIdByName($this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')))
-                    : $deal->stage_id,
-                'approved_at' => now(),
-                'approved_by_name' => $request->user()?->name ?? 'System User',
-                'rejected_at' => null,
-                'rejected_by_name' => null,
-                'rejection_reason' => null,
-            ])->save();
+        $deal = Deal::query()->find($id);
+        if (! $deal) {
+            return redirect()
+                ->route('deals.index')
+                ->with('error', 'The deal you are trying to approve could not be found.');
+        }
 
-            $this->projectProvisioner->createFromApprovedDeal($deal);
-        });
+        try {
+            DB::transaction(function () use ($deal, $request): void {
+                $deal->forceFill([
+                    'qualification_result' => 'qualified',
+                    'deal_status' => 'approved',
+                    'stage' => $this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')),
+                    'stage_id' => Schema::hasColumn('deals', 'stage_id')
+                        ? $this->resolveStageIdByName($this->resolveQualifiedStage('qualified', (string) ($deal->stage ?? 'Qualification')))
+                        : $deal->stage_id,
+                    'approved_at' => now(),
+                    'approved_by_name' => $request->user()?->name ?? 'System User',
+                    'rejected_at' => null,
+                    'rejected_by_name' => null,
+                    'rejection_reason' => null,
+                ])->save();
+
+                $this->projectProvisioner->createFromApprovedDeal($deal);
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('deals.show', $deal->id)
+                ->with('error', 'We could not approve the deal right now. Please try again.');
+        }
 
         return redirect()
             ->route('deals.show', $deal->id)
@@ -1098,35 +1207,57 @@ class DealController extends Controller
 
     public function reject(Request $request, int $id): RedirectResponse
     {
-        abort_unless($this->isDealReviewer($request), 403);
-        abort_unless(Schema::hasTable('deals'), 404);
+        if (! $this->isDealReviewer($request)) {
+            return redirect()
+                ->route('deals.show', $id)
+                ->with('error', 'You do not have permission to reject this deal.');
+        }
+
+        if (! Schema::hasTable('deals')) {
+            return redirect()
+                ->route('deals.index')
+                ->with('error', 'Deals are not available right now. Please try again later.');
+        }
 
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $deal = Deal::query()->findOrFail($id);
+        $deal = Deal::query()->find($id);
+        if (! $deal) {
+            return redirect()
+                ->route('deals.index')
+                ->with('error', 'The deal you are trying to reject could not be found.');
+        }
 
-        $deal->forceFill([
-            'qualification_result' => 'not_qualified',
-            'deal_status' => 'rejected',
-            'stage' => 'Closed Lost',
-            'stage_id' => Schema::hasColumn('deals', 'stage_id')
-                ? $this->resolveStageIdByName('Closed Lost')
-                : $deal->stage_id,
-            'approved_at' => null,
-            'approved_by_name' => null,
-            'rejected_at' => now(),
-            'rejected_by_name' => $request->user()?->name ?? 'System User',
-            'rejection_reason' => trim((string) ($validated['reason'] ?? '')) ?: 'Not qualified for engagement.',
-        ])->save();
+        try {
+            $deal->forceFill([
+                'qualification_result' => 'not_qualified',
+                'deal_status' => 'rejected',
+                'stage' => 'Closed Lost',
+                'stage_id' => Schema::hasColumn('deals', 'stage_id')
+                    ? $this->resolveStageIdByName('Closed Lost')
+                    : $deal->stage_id,
+                'approved_at' => null,
+                'approved_by_name' => null,
+                'rejected_at' => now(),
+                'rejected_by_name' => $request->user()?->name ?? 'System User',
+                'rejection_reason' => trim((string) ($validated['reason'] ?? '')) ?: 'Not qualified for engagement.',
+            ])->save();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('deals.show', $deal->id)
+                ->with('error', 'We could not reject the deal right now. Please try again.');
+        }
 
         return redirect()
             ->route('deals.show', $deal->id)
             ->with('success', 'Deal marked as not qualified and rejected.');
     }
 
-    public function show(int $id): View
+    public function show(int $id): View|RedirectResponse
     {
         if (Schema::hasTable('deals')) {
             $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'proposal'])->find($id);
@@ -1373,7 +1504,9 @@ class DealController extends Controller
         $deal = collect($this->mockDeals())->firstWhere('id', $id);
 
         if (! $deal) {
-            throw new NotFoundHttpException();
+            return redirect()
+                ->route('deals.index')
+                ->with('error', 'The deal you are looking for could not be found.');
         }
 
         $stages = $this->dealStages();
@@ -2104,6 +2237,32 @@ class DealController extends Controller
         return $parsed;
     }
 
+    private function redirectToDealFormWithError(Request $request, string $message, ?int $dealId = null): RedirectResponse
+    {
+        $redirect = $dealId
+            ? redirect()->route('deals.show', ['id' => $dealId, 'edit_deal' => 1])
+            : redirect()->route('deals.index', ['open_deal_modal' => 1]);
+
+        return $redirect
+            ->withInput()
+            ->withErrors(['deal_form' => $message])
+            ->with('error', $message);
+    }
+
+    private function dealStageErrorResponse(Request $request, int $dealId, string $message, int $status): JsonResponse|RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], $status);
+        }
+
+        return redirect()
+            ->route('deals.show', $dealId)
+            ->with('error', $message);
+    }
+
     private function validateDealPayload(Request $request): array
     {
         $this->normalizeFeeRequestKeys($request);
@@ -2453,9 +2612,34 @@ class DealController extends Controller
     private function normalizeFeeRequestKeys(Request $request): void
     {
         $request->merge([
-            'estimated_government_fees' => $request->input('estimated_government_fees', $request->input('estimated_government_fee')),
-            'total_estimated_engagement_value' => $request->input('total_estimated_engagement_value', $request->input('total_estimated_value')),
+            'estimated_professional_fee' => $this->normalizeCurrencyInputValue($request->input('estimated_professional_fee')),
+            'estimated_government_fees' => $this->normalizeCurrencyInputValue($request->input('estimated_government_fees', $request->input('estimated_government_fee'))),
+            'estimated_government_fee' => $this->normalizeCurrencyInputValue($request->input('estimated_government_fee', $request->input('estimated_government_fees'))),
+            'estimated_service_support_fee' => $this->normalizeCurrencyInputValue($request->input('estimated_service_support_fee')),
+            'total_service_fee' => $this->normalizeCurrencyInputValue($request->input('total_service_fee')),
+            'total_product_fee' => $this->normalizeCurrencyInputValue($request->input('total_product_fee')),
+            'total_estimated_engagement_value' => $this->normalizeCurrencyInputValue($request->input('total_estimated_engagement_value', $request->input('total_estimated_value'))),
+            'total_estimated_value' => $this->normalizeCurrencyInputValue($request->input('total_estimated_value', $request->input('total_estimated_engagement_value'))),
+            'other_fees_amounts' => collect((array) $request->input('other_fees_amounts', []))
+                ->map(fn ($value) => $this->normalizeCurrencyInputValue($value))
+                ->all(),
         ]);
+    }
+
+    private function normalizeCurrencyInputValue(mixed $value): mixed
+    {
+        if (is_array($value) || is_object($value)) {
+            return $value;
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^0-9.\-]/', '', (string) $value);
+        $normalized = is_string($normalized) ? trim($normalized) : '';
+
+        return $normalized === '' ? null : $normalized;
     }
 
     private function dealPersistencePayload(array $validated): array

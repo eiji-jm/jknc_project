@@ -30,6 +30,18 @@
 
 <div class="bg-[#f7f6f2] p-6">
     <div class="mx-auto max-w-[1500px] space-y-4">
+        @if (session('success'))
+            <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
             <a href="{{ route('deals.index') }}" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Deals</a>
             <span class="mx-1">/</span>
@@ -329,6 +341,8 @@
     'openDealModal' => $openDealModal ?? false,
     'formAction' => route('deals.update', $deal['id']),
     'formMethod' => 'PUT',
+    'panelTitle' => 'Edit Deal',
+    'panelSubtitle' => 'Update the selected deal details.',
     'submitLabel' => 'Update Deal',
 ])
 
