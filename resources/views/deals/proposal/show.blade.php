@@ -12,7 +12,8 @@
         background: #fff;
         box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
         border: 1px solid #dbe2ea;
-        padding: 52px 58px;
+        padding: 52px 58px 84px;
+        position: relative;
     }
     .proposal-cover { min-height: 1100px; position: relative; }
     .proposal-cover-logo-wrap { width: 100%; }
@@ -23,10 +24,12 @@
     .proposal-cover-date { margin-top: 60px; font-size: 14px; color: #111827; font-style: italic; }
     .proposal-presented-label { margin-top: 70px; font-size: 15px; font-style: italic; }
     .proposal-presented-name, .proposal-presented-location { margin-top: 10px; font-size: 16px; font-weight: 700; font-style: italic; }
-    .proposal-contact-strip { margin: 8px 8px 22px; }
-    .proposal-contact-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .proposal-contact-table td { border: 1px solid #c9c9c9; padding: 7px 8px; text-align: center; color: #0031af; font-size: 12px; font-style: italic; }
+    .proposal-cover-footer { position: absolute; left: 58px; right: 58px; bottom: 54px; }
+    .proposal-contact-strip { margin: 0; text-align: center; color: #0031af; font-style: italic; }
+    .proposal-contact-inline { display: flex; justify-content: center; flex-wrap: nowrap; gap: 26px; font-size: 12px; }
     .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
+    .proposal-page-footer { position: absolute; left: 58px; right: 58px; bottom: 24px; font-size: 10px; line-height: 1.25; color: #111827; }
+    .proposal-page-footer div { margin: 0; }
     .proposal-section-heading { margin: 18px 0 12px; font-size: 24px; line-height: 1.18; color: #0031af; font-style: italic; font-weight: 700; }
     .proposal-section-number { display: inline-block; width: 48px; }
     .proposal-subheading { margin: 18px 0 8px; font-size: 15px; line-height: 1.35; color: #111827; font-weight: 700; }
@@ -71,6 +74,9 @@
         .proposal-cover-body { margin-top: 72px; }
         .proposal-cover-year { font-size: 56px; }
         .proposal-cover-title { font-size: 26px; }
+        .proposal-cover-footer { position: static; margin-top: 72px; }
+        .proposal-page-footer { left: 20px; right: 20px; bottom: 18px; }
+        .proposal-contact-inline { flex-wrap: wrap; gap: 12px 18px; }
         .proposal-signature-grid { grid-template-columns: 1fr; }
     }
 </style>

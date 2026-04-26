@@ -972,6 +972,7 @@ class DealController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
+        $validated = $this->applyCalculatedTimeline($validated);
         $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
             ? $validated['deal_code']
             : Deal::generateNextDealCode();
@@ -1021,6 +1022,7 @@ class DealController extends Controller
     public function update(Request $request, int $id): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
+        $validated = $this->applyCalculatedTimeline($validated);
         $contact = $this->resolveContact((int) $validated['contact_id']);
         abort_unless($contact, 404);
 
@@ -2462,6 +2464,34 @@ class DealController extends Controller
             'estimated_government_fees' => $request->input('estimated_government_fees', $request->input('estimated_government_fee')),
             'total_estimated_engagement_value' => $request->input('total_estimated_engagement_value', $request->input('total_estimated_value')),
         ]);
+    }
+
+    private function applyCalculatedTimeline(array $validated): array
+    {
+        $plannedStartDate = $validated['planned_start_date'] ?? null;
+        $confirmedDeliveryDate = $validated['confirmed_delivery_date'] ?? null;
+
+        if (blank($plannedStartDate) || blank($confirmedDeliveryDate)) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        try {
+            $start = Carbon::parse((string) $plannedStartDate)->startOfDay();
+            $end = Carbon::parse((string) $confirmedDeliveryDate)->startOfDay();
+        } catch (\Throwable) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        if ($end->lt($start)) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        $validated['estimated_duration'] = (string) ($start->diffInDays($end) + 1);
+
+        return $validated;
     }
 
     private function dealPersistencePayload(array $validated): array

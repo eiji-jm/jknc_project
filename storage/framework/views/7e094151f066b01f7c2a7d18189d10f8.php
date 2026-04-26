@@ -23,6 +23,18 @@
         ['title' => 'Our Role and Value', 'content' => 'role_and_value'],
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
+
+    $totalPages = 6;
+    $renderPageFooter = function (int $pageNumber) use ($d, $totalPages) {
+        return '
+            <div class="proposal-page-footer">
+                <div>John Kelly &amp; Company</div>
+                <div>'.e($d['company_address'] ?? '').'</div>
+                <div>Email: '.e($d['company_email'] ?? '').' &bull; Website: '.e($d['company_website'] ?? '').' &bull; Phone: '.e($d['company_phone'] ?? '').'</div>
+                <div>Page '.$pageNumber.' of '.$totalPages.'</div>
+            </div>
+        ';
+    };
 ?>
 
 <div class="proposal-doc">
@@ -41,22 +53,22 @@
             <div class="proposal-presented-name"><?php echo e($d['business_name'] ?? 'Business Name'); ?></div>
             <div class="proposal-presented-location"><?php echo e($d['location'] ?? 'Philippines'); ?></div>
         </div>
+
+        <div class="proposal-cover-footer">
+            <div class="proposal-contact-strip">
+                <div class="proposal-contact-inline">
+                    <span><?php echo e($d['company_phone'] ?? ''); ?></span>
+                    <span><?php echo e($d['company_email'] ?? ''); ?></span>
+                    <span><?php echo e($d['company_website'] ?? ''); ?></span>
+                    <span><?php echo e($d['reference_id'] ?? ''); ?></span>
+                    <span>Confidential</span>
+                </div>
+                <div class="proposal-contact-address"><?php echo e($d['company_address'] ?? ''); ?></div>
+            </div>
+        </div>
     </section>
 
     <section class="proposal-page">
-        <div class="proposal-contact-strip">
-            <table class="proposal-contact-table">
-                <tr>
-                    <td><?php echo e($d['company_phone'] ?? ''); ?></td>
-                    <td><?php echo e($d['company_email'] ?? ''); ?></td>
-                    <td><?php echo e($d['company_website'] ?? ''); ?></td>
-                    <td><?php echo e($d['reference_id'] ?? ''); ?></td>
-                    <td>Confidential</td>
-                </tr>
-            </table>
-            <div class="proposal-contact-address"><?php echo e($d['company_address'] ?? ''); ?></div>
-        </div>
-
         <?php $__currentLoopData = $sections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $section): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <h2 class="proposal-section-heading">
                 <span class="proposal-section-number"><?php echo e($index + 1); ?>.</span>
@@ -92,6 +104,8 @@
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </tbody>
         </table>
+        <?php echo $renderPageFooter(2); ?>
+
     </section>
 
     <section class="proposal-page">
@@ -148,6 +162,8 @@
             </tbody>
         </table>
         <p class="proposal-note"><?php echo e($d['supplemental_fee_note'] ?? ''); ?></p>
+        <?php echo $renderPageFooter(3); ?>
+
     </section>
 
     <section class="proposal-page">
@@ -204,6 +220,8 @@
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </tbody>
         </table>
+        <?php echo $renderPageFooter(4); ?>
+
     </section>
 
     <section class="proposal-page">
@@ -263,6 +281,8 @@
         </table>
 
         <p class="proposal-system-note"><?php echo e($d['system_note'] ?? ''); ?></p>
+        <?php echo $renderPageFooter(5); ?>
+
     </section>
 
     <section class="proposal-page">
@@ -290,6 +310,8 @@
             <div><?php echo e($d['company_address'] ?? ''); ?></div>
             <div>Email: <?php echo e($d['company_email'] ?? ''); ?> &bull; Website: <?php echo e($d['company_website'] ?? ''); ?> &bull; Phone: <?php echo e($d['company_phone'] ?? ''); ?></div>
         </div>
+        <?php echo $renderPageFooter(6); ?>
+
     </section>
 </div>
 <?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/deals/proposal/partials/document.blade.php ENDPATH**/ ?>

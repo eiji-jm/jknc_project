@@ -769,7 +769,7 @@
                             <h3 class="text-base font-semibold text-gray-900">Estimated Timeline</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
                                 <div><label for="planned_start_date" class="mb-1 block text-sm font-medium text-gray-700">Planned Start Date</label><input id="planned_start_date" type="date" name="planned_start_date" value="<?php echo e(old('planned_start_date', $draft['planned_start_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="<?php echo e(old('estimated_duration', $draft['estimated_duration'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="<?php echo e(old('estimated_duration', $draft['estimated_duration'] ?? '')); ?>" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="estimated_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Estimated Completion Date</label><input id="estimated_completion_date" type="date" name="estimated_completion_date" value="<?php echo e(old('estimated_completion_date', $draft['estimated_completion_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="client_preferred_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Client Preferred Completion Date</label><input id="client_preferred_completion_date" type="date" name="client_preferred_completion_date" value="<?php echo e(old('client_preferred_completion_date', $draft['client_preferred_completion_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="confirmed_delivery_date" class="mb-1 block text-sm font-medium text-gray-700">Confirmed Delivery Date</label><input id="confirmed_delivery_date" type="date" name="confirmed_delivery_date" value="<?php echo e(old('confirmed_delivery_date', $draft['confirmed_delivery_date'] ?? '')); ?>" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
@@ -919,6 +919,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const dependentSections = document.getElementById('dealDependentSections');
     const requiredMessage = document.getElementById('dealContactRequiredMessage');
     const saveBtn = document.getElementById('saveDealBtn');
+    const plannedStartDateInput = document.getElementById('planned_start_date');
+    const confirmedDeliveryDateInput = document.getElementById('confirmed_delivery_date');
+    const estimatedDurationInput = document.getElementById('estimated_duration');
     const feeInputs = [
         document.querySelector('[name="estimated_professional_fee"]'),
         document.querySelector('[name="estimated_government_fee"]') || document.querySelector('[name="estimated_government_fees"]'),
@@ -999,6 +1002,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isNaN(parsed) ? 0 : parsed;
     };
 
+    const parseDateValue = (value) => {
+        if (!value) {
+            return null;
+        }
+
+        const date = new Date(`${value}T00:00:00`);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const syncEstimatedDuration = () => {
+        if (!estimatedDurationInput) {
+            return;
+        }
+
+        const plannedStart = parseDateValue(plannedStartDateInput?.value);
+        const confirmedDelivery = parseDateValue(confirmedDeliveryDateInput?.value);
+
+        if (!plannedStart || !confirmedDelivery || confirmedDelivery < plannedStart) {
+            estimatedDurationInput.value = '';
+            return;
+        }
+
+        const millisecondsPerDay = 1000 * 60 * 60 * 24;
+        const dayCount = Math.round((confirmedDelivery.getTime() - plannedStart.getTime()) / millisecondsPerDay) + 1;
+        estimatedDurationInput.value = dayCount > 0 ? String(dayCount) : '';
+    };
+
     const otherFeeAmountInputs = () => Array.from(document.querySelectorAll('[name="other_fees_amounts[]"]'));
     const serviceFeeInput = document.querySelector('[name="total_service_fee"]');
     const productFeeInput = document.querySelector('[name="total_product_fee"]');
@@ -1071,6 +1101,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const total = professional + government + support + totalServiceFee + totalProductFee + otherTotal;
         totalInput.value = total > 0 ? total.toFixed(2) : '';
     };
+
+    plannedStartDateInput?.addEventListener('change', syncEstimatedDuration);
+    confirmedDeliveryDateInput?.addEventListener('change', syncEstimatedDuration);
+    syncEstimatedDuration();
 
     const setDependentDisabled = (isDisabled) => {
         if (!dependentSections) {

@@ -15,7 +15,7 @@
     <style>
         @page { margin: 32px 36px; }
         body { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.55; }
-        .proposal-page { page-break-after: always; }
+        .proposal-page { page-break-after: always; position: relative; padding-bottom: 70px; }
         .proposal-page:last-child { page-break-after: auto; }
         .proposal-cover { min-height: 980px; position: relative; }
         .proposal-cover-logo-wrap { width: 100%; }
@@ -26,10 +26,13 @@
         .proposal-cover-date { margin-top: 60px; font-size: 14px; color: #111827; font-style: italic; }
         .proposal-presented-label { margin-top: 70px; font-size: 15px; font-style: italic; }
         .proposal-presented-name, .proposal-presented-location { margin-top: 10px; font-size: 16px; font-weight: 700; font-style: italic; }
-        .proposal-contact-strip { margin: 8px 8px 22px; }
-        .proposal-contact-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .proposal-contact-table td { border: 1px solid #c9c9c9; padding: 7px 8px; text-align: center; color: #0031af; font-size: 12px; font-style: italic; }
+        .proposal-cover-footer { position: absolute; left: 8px; right: 8px; bottom: 26px; }
+        .proposal-contact-strip { margin: 0; text-align: center; color: #0031af; font-style: italic; }
+        .proposal-contact-inline { width: 100%; text-align: center; font-size: 12px; }
+        .proposal-contact-inline span { display: inline-block; margin: 0 14px; }
         .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
+        .proposal-page-footer { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; line-height: 1.25; color: #111827; }
+        .proposal-page-footer div { margin: 0; }
         .proposal-section-heading { margin: 18px 0 12px; font-size: 24px; line-height: 1.18; color: #0031af; font-style: italic; font-weight: 700; }
         .proposal-section-number { display: inline-block; width: 48px; }
         .proposal-subheading { margin: 18px 0 8px; font-size: 15px; line-height: 1.35; color: #111827; font-weight: 700; }
