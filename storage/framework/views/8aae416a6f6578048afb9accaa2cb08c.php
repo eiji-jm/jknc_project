@@ -12,8 +12,11 @@
         : 'JURIDICAL ENTITY (Corporation / OPC / Partnership / Cooperative)';
 ?>
 
-<form method="POST" action="<?php echo e(route('project.start.update', $project)); ?>" class="space-y-4">
+<form method="POST" action="<?php echo e($startFormAction ?? route('project.start.update', $project)); ?>" class="space-y-4">
     <?php echo csrf_field(); ?>
+    <?php if(! empty($startRedirectUrl ?? null)): ?>
+        <input type="hidden" name="redirect_url" value="<?php echo e($startRedirectUrl); ?>">
+    <?php endif; ?>
     <input type="hidden" name="status" value="<?php echo e(old('status', $start?->status ?? 'pending')); ?>">
     <input type="hidden" name="form_date" value="<?php echo e($formDate); ?>">
     <?php $__currentLoopData = $startChecklist; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -230,8 +233,9 @@
                     <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-600">Rejection / Hold Reason</label>
                     <input name="rejection_reason" value="<?php echo e($rejectionReason); ?>" class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
                 </div>
-                <div class="flex items-end">
+                <div class="flex flex-wrap items-end justify-end gap-2">
                     <button type="button" class="project-doc-action" data-add-row="start-requirements">Add Engagement Row</button>
+                    <button type="submit" class="project-doc-primary">Save START Form</button>
                 </div>
             </div>
         </div>

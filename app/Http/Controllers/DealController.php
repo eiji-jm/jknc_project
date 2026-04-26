@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\Company;
 use App\Models\Deal;
 use App\Models\DealStage;
+use App\Models\Project;
 use App\Models\Product;
 use App\Models\Service;
 use App\Models\User;
@@ -1256,12 +1257,17 @@ class DealController extends Controller
                     ],
                 ];
 
+                $linkedProjectContext = $storedDeal->project
+                    ? $this->buildLinkedProjectStartContext($storedDeal->project)
+                    : [];
+
                 return view('deals.show', [
                     'deal' => $deal,
                     'detail' => $detail,
                     'stages' => $stages,
                     'hasSavedProposal' => $storedDeal->proposal !== null,
                     'dealFormData' => $this->storedDealFormData($storedDeal),
+                    ...$linkedProjectContext,
                     ...$this->dealPanelContext($this->storedDealFormData($storedDeal)),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
@@ -3036,6 +3042,68 @@ class DealController extends Controller
             'business_information_form' => $hasApprovedBif ? 'provided' : 'pending',
             'client_information_form' => $hasApprovedCif ? 'provided' : 'pending',
             'service_task_activation_routing_tracker' => 'pending',
+        ];
+    }
+
+    private function buildLinkedProjectStartContext(Project $project): array
+    {
+        $project->loadMissing([
+            'deal:id,deal_code,engagement_type',
+            'contact:id,first_name,last_name,email,phone,company_name',
+            'starts' => fn ($query) => $query->latest(),
+        ]);
+
+        $start = $project->starts->first();
+        $startChecklist = collect($start?->checklist ?? [])->whenEmpty(fn () => collect([
+            ['label' => 'Client Contact Form', 'status' => 'pending'],
+            ['label' => 'Deal Form', 'status' => 'pending'],
+            ['label' => 'Business Information Form', 'status' => 'pending'],
+            ['label' => 'Client Information Form', 'status' => 'pending'],
+            ['label' => 'Service Task Activation & Routing Tracker (Start)', 'status' => 'pending'],
+            ['label' => 'Others', 'status' => 'pending'],
+        ]));
+        $startKyc = (array) ($start?->kyc_requirements ?? []);
+        $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([[
+            'number' => 1,
+            'requirement' => '',
+            'notes' => '',
+            'purpose' => '',
+            'provided_by' => '',
+            'submitted_to' => '',
+            'assigned_to' => '',
+            'timeline' => '',
+        ]]));
+        $startApprovalSteps = collect($start?->approval_steps ?? [])->whenEmpty(fn () => collect([
+            ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Deal Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Client Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/Consultant/Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Proposal/Contract', 'responsible_person' => 'Sales & Marketing/Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Final Quote', 'responsible_person' => 'Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Invoice-Downpayment/Advance', 'responsible_person' => 'Finance', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Clearance', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Turn Over', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+        ]));
+        $routing = collect($start?->routing ?? [])->whenEmpty(fn () => collect([
+            ['role' => 'Admin', 'status' => 'pending'],
+            ['role' => 'Lead Consultant', 'status' => 'pending'],
+            ['role' => 'Lead Associate', 'status' => 'pending'],
+            ['role' => 'Sales & Marketing', 'status' => 'pending'],
+        ]));
+
+        return [
+            'project' => $project,
+            'start' => $start,
+            'startChecklist' => $startChecklist,
+            'startKycOrganization' => (string) ($startKyc['organization_type'] ?? 'unknown'),
+            'startKycSole' => collect($startKyc['sole'] ?? []),
+            'startKycJuridical' => collect($startKyc['juridical'] ?? []),
+            'startReqs' => $startReqs,
+            'startApprovalSteps' => $startApprovalSteps,
+            'startClearance' => (array) ($start?->clearance ?? []),
+            'routing' => $routing,
         ];
     }
 }

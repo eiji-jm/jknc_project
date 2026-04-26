@@ -560,8 +560,11 @@
                 <input type="hidden" name="approval_date_time_done[]" value="{{ old('approval_date_time_done.1', '') }}">
             </div>
 
-            <div class="rsat-actions">
+            <div class="mt-4 flex justify-end">
                 <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-requirements">Add RSAT Row</button>
+            </div>
+            <div class="rsat-actions">
+                <div></div>
                 <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT</button>
             </div>
         </form>
@@ -761,8 +764,11 @@
                 </div>
             </div>
 
-            <div class="rsat-actions">
+            <div class="mt-4 flex justify-end">
                 <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-report-rows">Add Report Row</button>
+            </div>
+            <div class="rsat-actions">
+                <div></div>
                 <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT Report</button>
             </div>
         </form>
