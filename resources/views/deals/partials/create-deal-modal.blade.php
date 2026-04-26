@@ -1108,22 +1108,46 @@ document.addEventListener('DOMContentLoaded', function () {
         const row = document.createElement('div');
         row.className = 'grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]';
         row.setAttribute('data-other-fee-row', '');
-        row.innerHTML = `
-            <div>
-                <label class="mb-1 block text-sm font-medium text-gray-700">Fee Title</label>
-                <input name="other_fees_titles[]" value="${title}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-title>
-            </div>
-            <div>
-                <label class="mb-1 block text-sm font-medium text-gray-700">Fee Amount</label>
-                <div class="relative">
-                    <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span>
-                    <input name="other_fees_amounts[]" inputmode="decimal" value="${amount}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" data-other-fee-amount>
-                </div>
-            </div>
-            <div class="flex items-end">
-                <button type="button" class="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50" data-other-fee-remove>&times;</button>
-            </div>
-        `;
+
+        const titleWrap = document.createElement('div');
+        const titleLabel = document.createElement('label');
+        titleLabel.className = 'mb-1 block text-sm font-medium text-gray-700';
+        titleLabel.textContent = 'Fee Title';
+        const titleInput = document.createElement('input');
+        titleInput.name = 'other_fees_titles[]';
+        titleInput.value = title;
+        titleInput.className = 'h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+        titleInput.setAttribute('data-other-fee-title', '');
+        titleWrap.append(titleLabel, titleInput);
+
+        const amountWrap = document.createElement('div');
+        const amountLabel = document.createElement('label');
+        amountLabel.className = 'mb-1 block text-sm font-medium text-gray-700';
+        amountLabel.textContent = 'Fee Amount';
+        const amountFieldWrap = document.createElement('div');
+        amountFieldWrap.className = 'relative';
+        const amountPrefix = document.createElement('span');
+        amountPrefix.className = 'pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500';
+        amountPrefix.textContent = 'P';
+        const amountInput = document.createElement('input');
+        amountInput.name = 'other_fees_amounts[]';
+        amountInput.value = amount;
+        amountInput.inputMode = 'decimal';
+        amountInput.className = 'h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+        amountInput.setAttribute('data-other-fee-amount', '');
+        amountFieldWrap.append(amountPrefix, amountInput);
+        amountWrap.append(amountLabel, amountFieldWrap);
+
+        const actionWrap = document.createElement('div');
+        actionWrap.className = 'flex items-end';
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-700 hover:bg-gray-50';
+        removeButton.setAttribute('data-other-fee-remove', '');
+        removeButton.innerHTML = '&times;';
+        actionWrap.appendChild(removeButton);
+
+        row.append(titleWrap, amountWrap, actionWrap);
 
         return row;
     };
@@ -2024,6 +2048,31 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
+    const createContactResultButton = (record, customerType) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'deal-contact-result block w-full rounded-md px-3 py-2 text-left hover:bg-blue-50';
+        button.dataset.recordId = String(record.id ?? '');
+
+        const label = document.createElement('p');
+        label.className = 'text-sm font-medium text-gray-800';
+        label.textContent = record.label || (customerType === 'business' ? 'Unnamed company' : 'Unnamed contact');
+
+        const company = document.createElement('p');
+        company.className = 'text-xs text-gray-500';
+        company.textContent = customerType === 'business'
+            ? (record.owner_name || record.company_name || '-')
+            : (record.company_name || '-');
+
+        const meta = document.createElement('p');
+        meta.className = 'text-[11px] text-gray-400';
+        meta.textContent = `${record.email || '-'} · ${record.mobile || '-'}`;
+
+        button.append(label, company, meta);
+
+        return button;
+    };
+
     const renderContactResults = (keyword) => {
         if (!contactResults) {
             return;
@@ -2050,24 +2099,15 @@ document.addEventListener('DOMContentLoaded', function () {
             .slice(0, 30);
 
         if (matches.length === 0) {
-            contactResults.innerHTML = `<div class="px-3 py-2 text-sm text-gray-500">No matching ${customerType === 'business' ? 'companies' : 'contacts'} found.</div>`;
+            const emptyState = document.createElement('div');
+            emptyState.className = 'px-3 py-2 text-sm text-gray-500';
+            emptyState.textContent = `No matching ${customerType === 'business' ? 'companies' : 'contacts'} found.`;
+            contactResults.replaceChildren(emptyState);
             contactResults.classList.remove('hidden');
             return;
         }
 
-        contactResults.innerHTML = matches.map((record) => {
-            const safeLabel = record.label || (customerType === 'business' ? 'Unnamed company' : 'Unnamed contact');
-            const safeCompany = record.company_name || '-';
-            const safeEmail = record.email || '-';
-            const safeMobile = record.mobile || '-';
-            return `
-                <button type="button" class="deal-contact-result block w-full rounded-md px-3 py-2 text-left hover:bg-blue-50" data-record-id="${record.id}">
-                    <p class="text-sm font-medium text-gray-800">${safeLabel}</p>
-                    <p class="text-xs text-gray-500">${customerType === 'business' ? (record.owner_name || safeCompany) : safeCompany}</p>
-                    <p class="text-[11px] text-gray-400">${safeEmail} · ${safeMobile}</p>
-                </button>
-            `;
-        }).join('');
+        contactResults.replaceChildren(...matches.map((record) => createContactResultButton(record, customerType)));
 
         contactResults.classList.remove('hidden');
 
