@@ -10,6 +10,7 @@ use App\Models\ProjectStart;
 use Illuminate\Support\Arr;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -155,17 +156,17 @@ class ProjectController extends Controller
         ]);
 
         return redirect()
-            ->route('project.show', ['project' => $project, 'tab' => 'start'])
-            ->with('success', 'Project created and opened in START form.');
+            ->route('project.show', ['project' => $project, 'tab' => 'sow'])
+            ->with('success', 'Project created and opened in Scope of Work.');
     }
 
     public function show(Request $request, Project $project): View
     {
         $payload = $this->buildProjectDocumentPayload($project);
         extract($payload);
-        $tab = in_array((string) $request->query('tab', 'start'), ['start', 'sow', 'report'], true)
-            ? (string) $request->query('tab', 'start')
-            : 'start';
+        $tab = in_array((string) $request->query('tab', 'sow'), ['sow', 'report'], true)
+            ? (string) $request->query('tab', 'sow')
+            : 'sow';
 
         return view('project.show', compact('project', 'start', 'sow', 'report', 'tab'));
     }
@@ -292,8 +293,22 @@ class ProjectController extends Controller
         $start->project_id = $project->id;
         $start->save();
 
+        $redirectUrl = $request->input('redirect_url');
+        if (is_string($redirectUrl) && $redirectUrl !== '' && URL::isValidUrl($redirectUrl)) {
+            $allowedBases = collect([
+                rtrim((string) config('app.url'), '/'),
+                rtrim($request->getSchemeAndHttpHost(), '/'),
+            ])->filter()->unique();
+
+            if ($allowedBases->contains(fn (string $base): bool => str_starts_with($redirectUrl, $base))) {
+                return redirect()
+                    ->to($redirectUrl)
+                    ->with('success', 'START form updated successfully.');
+            }
+        }
+
         return redirect()
-            ->route('project.show', ['project' => $project->id, 'tab' => 'start'])
+            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
             ->with('success', 'START form updated successfully.');
     }
 

@@ -26,6 +26,7 @@
     $currentStagePositionJson = $progressCurrentStagePosition;
     $stageDataJson = collect($stages ?? [])->values()->all();
     $currentStageIdJson = $deal['stage_id'] ?? null;
+    $startSectionAvailable = isset($project) && $project && ! str_contains(strtolower(trim((string) $project->engagement_type)), 'regular');
 @endphp
 
 <div class="bg-[#f7f6f2] p-6">
@@ -59,23 +60,28 @@
                     <span class="text-lg font-semibold text-gray-900">{{ $formatCurrency($deal['amount'] ?? 0) }}</span>
                 </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <i class="far fa-pen-to-square mr-1"></i>Edit Deal
-                </button>
-                <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
-                    <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
-                </button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                @if ($startSectionAvailable)
+                    <a href="#deal-start-form" class="flex h-9 items-center rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
+                        <i class="fas fa-clipboard-check mr-1"></i>START Form
+                    </a>
+                @endif
                 @if (($deal['stage'] ?? '') === 'Proposal')
                     <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-700 hover:bg-amber-100">
                         <i class="fas fa-file-signature mr-1"></i>Create Proposal
                     </a>
                 @endif
+                <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                    <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
+                </button>
+                <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <i class="far fa-pen-to-square mr-1"></i>Edit Deal
+                </button>
                 @if (data_get($detail, 'project.id'))
                     @php
                         $linkedEngagementType = strtolower(trim((string) data_get($detail, 'service.engagement_type', '')));
                         $linkedRoute = str_contains($linkedEngagementType, 'regular') ? 'regular.show' : 'project.show';
-                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project';
+                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project Workspace';
                     @endphp
                     <a href="{{ route($linkedRoute, data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
                         <i class="fas fa-diagram-project mr-1"></i>{{ $linkedLabel }}
@@ -160,6 +166,40 @@
                     <h2 class="mb-4 text-lg font-semibold text-gray-900">Deal Form Preview</h2>
                     @include('deals.partials.deal-form-document', ['dealFormData' => $dealFormData])
                 </article>
+
+                @if ($startSectionAvailable)
+                    <article id="deal-start-form" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">START Form</h2>
+                                <p class="mt-1 text-sm text-gray-500">Manage the project START intake directly from this deal.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ route('project.start.download', $project) }}" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-file-arrow-down mr-1"></i>Download START PDF
+                                </a>
+                                <a href="{{ route('project.show', ['project' => $project->id, 'tab' => 'start']) }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                                    <i class="fas fa-up-right-from-square mr-1"></i>Open Full Project
+                                </a>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            @include('project.partials.tab-start', [
+                                'project' => $project,
+                                'start' => $start,
+                                'startChecklist' => $startChecklist,
+                                'startKycOrganization' => $startKycOrganization,
+                                'startKycSole' => $startKycSole,
+                                'startKycJuridical' => $startKycJuridical,
+                                'startReqs' => $startReqs,
+                                'startApprovalSteps' => $startApprovalSteps,
+                                'startClearance' => $startClearance,
+                                'routing' => $routing,
+                                'startRedirectUrl' => route('deals.show', $deal['id']).'#deal-start-form',
+                            ])
+                        </div>
+                    </article>
+                @endif
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h2 class="mb-4 text-xl font-semibold text-gray-900">Deal Stage Progress</h2>
@@ -354,6 +394,9 @@
 ></div>
 <script id="dealShowStageBadgeClasses" type="application/json">@json($stageBadgeClassesJson)</script>
 <script id="dealShowStageData" type="application/json">@json($stageDataJson)</script>
+@if ($startSectionAvailable)
+    <template id="start-requirement-row-template"><tr><td class="border border-slate-900 px-2 py-1 text-center"></td><td class="border border-slate-900 px-1"><input name="engagement_requirement[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_notes[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_purpose[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_provided_by[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_submitted_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_assigned_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_timeline[]" class="w-full border-0 px-1 py-1 text-[11px]"></td></tr></template>
+@endif
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -390,6 +433,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
     buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.tabButton)));
+    document.querySelectorAll('[data-add-row]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const target = document.getElementById(button.dataset.addRow);
+            const template = document.getElementById('start-requirement-row-template');
+            if (!target || !template) {
+                return;
+            }
+            target.insertAdjacentHTML('beforeend', template.innerHTML);
+        });
+    });
 
     const getStagePosition = (stage) => Number(stage?.position ?? stage?.order ?? 0);
 
