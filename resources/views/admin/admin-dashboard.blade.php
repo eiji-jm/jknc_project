@@ -14,16 +14,7 @@
         <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
                 <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Admin Dashboard</h1>
-                <p class="text-sm text-gray-500 mt-1">Review files for approval and rejection</p>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
-                    Export
-                </button>
-                <button class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                    + New Review
-                </button>
+                <p class="text-sm text-gray-500 mt-1">Review module submissions and route approvals through Town Hall/Admin.</p>
             </div>
         </div>
 
@@ -90,52 +81,50 @@
         </div>
 
         <div class="px-5 pt-5">
-            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 xl:justify-between">
+            <form method="GET" action="{{ route('admin.dashboard') }}" class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col xl:flex-row xl:items-center gap-3 xl:justify-between">
                 <div class="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
                     <div class="relative">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
                         <input
                             type="text"
-                            placeholder="Search file, module, department, uploader..."
+                            name="search"
+                            value="{{ $filters['search'] }}"
+                            placeholder="Search ref, module, file, department, uploader..."
                             class="w-full md:w-80 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
                         >
                     </div>
 
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
-                        <option>All Modules</option>
-                        <option>Town Hall</option>
-                        <option>Corporate</option>
-                        <option>Accounting</option>
+                    <select name="module" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
+                        <option value="all">All Modules</option>
+                        @foreach($moduleOptions as $moduleOption)
+                            <option value="{{ $moduleOption }}" @selected($filters['module'] === $moduleOption)>{{ $moduleOption }}</option>
+                        @endforeach
                     </select>
 
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
-                        <option>All Departments</option>
-                        <option>Town Hall</option>
-                        <option>Corporate</option>
-                        <option>Accounting</option>
-                        <option>Operations</option>
-                        <option>LGU</option>
+                    <select name="department" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
+                        <option value="all">All Departments</option>
+                        @foreach($departmentOptions as $departmentOption)
+                            <option value="{{ $departmentOption }}" @selected($filters['department'] === $departmentOption)>{{ $departmentOption }}</option>
+                        @endforeach
                     </select>
 
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
-                        <option>All Status</option>
-                        <option>Pending Approval</option>
-                        <option>Approved</option>
-                        <option>Rejected</option>
-                        <option>Needs Revision</option>
-                        <option>Expired</option>
+                    <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500">
+                        <option value="all">All Status</option>
+                        @foreach($statusOptions as $statusOption)
+                            <option value="{{ $statusOption }}" @selected($filters['status'] === $statusOption)>{{ $statusOption }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white transition">
+                    <a href="{{ route('admin.dashboard') }}" class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white transition">
                         Reset
-                    </button>
-                    <button class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    </a>
+                    <button type="submit" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                         Apply Filter
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
 
         <div class="px-5 py-5 flex-1 flex flex-col">
@@ -157,102 +146,94 @@
                     </thead>
 
                     <tbody class="bg-white text-gray-700">
-                        @forelse($communications as $communication)
+                        @forelse($items as $item)
                             @php
-                                $approval = $communication->approval_status ?? 'Pending';
-
-                                $approvalClasses = match($approval) {
+                                $statusClasses = match($item->status) {
                                     'Approved' => 'bg-green-50 text-green-700',
                                     'Rejected' => 'bg-red-50 text-red-700',
-                                    'Needs Revision' => 'bg-blue-50 text-blue-700',
-                                    default => 'bg-yellow-50 text-yellow-700',
+                                    'Needs Revision' => 'bg-yellow-50 text-yellow-700',
+                                    'Expired' => 'bg-gray-200 text-gray-700',
+                                    default => 'bg-blue-50 text-blue-700',
                                 };
 
-                                $moduleLabel = 'Town Hall';
-                                $moduleClasses = 'bg-blue-50 text-blue-700';
+                                $moduleClasses = match($item->module) {
+                                    'Town Hall' => 'bg-blue-50 text-blue-700',
+                                    'Contacts' => 'bg-purple-50 text-purple-700',
+                                    'Company' => 'bg-indigo-50 text-indigo-700',
+                                    'Deals' => 'bg-amber-50 text-amber-700',
+                                    'Services' => 'bg-teal-50 text-teal-700',
+                                    'Products' => 'bg-emerald-50 text-emerald-700',
+                                    default => 'bg-gray-100 text-gray-700',
+                                };
 
-                                $priority = $communication->priority ?? 'Low';
-                                $priorityClasses = $priority === 'High'
+                                $priorityClasses = $item->priority === 'High'
                                     ? 'bg-red-50 text-red-700'
                                     : 'bg-yellow-50 text-yellow-700';
                             @endphp
 
                             <tr class="border-t border-gray-200 hover:bg-gray-50">
-                                <td class="px-4 py-3 border-r border-gray-200">{{ $communication->ref_no }}</td>
+                                <td class="px-4 py-3 border-r border-gray-200">{{ $item->ref_no }}</td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
                                     <span class="px-2 py-1 text-xs rounded-full {{ $moduleClasses }} font-medium">
-                                        {{ $moduleLabel }}
+                                        {{ $item->module }}
                                     </span>
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->subject ?: 'No Subject' }}
+                                    {{ $item->file_name }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->department_stakeholder ?: 'Town Hall' }}
+                                    {{ $item->department }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->from_name ?: ($communication->uploader->name ?? '—') }}
+                                    {{ $item->uploaded_by }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    {{ $communication->communication_date
-                                        ? \Carbon\Carbon::parse($communication->communication_date)->format('M d, Y')
-                                        : '—' }}
+                                    {{ $item->date_uploaded }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    @if($communication->approver)
-                                        <div class="font-medium text-gray-800">
-                                            {{ $communication->approver->name }}
-                                        </div>
-                                        <div class="text-xs text-gray-400">
-                                            Approver
-                                        </div>
-                                    @else
-                                        <span class="text-gray-400 text-sm">—</span>
-                                    @endif
+                                    {{ $item->approver }}
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
                                     <span class="px-2 py-1 text-xs rounded-full {{ $priorityClasses }} font-medium">
-                                        {{ $priority }}
+                                        {{ $item->priority }}
                                     </span>
                                 </td>
 
                                 <td class="px-4 py-3 border-r border-gray-200">
-                                    @if($communication->is_archived)
-                                        <span class="px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700 font-medium">
-                                            Expired
-                                        </span>
-                                    @else
-                                        <span class="px-2 py-1 text-xs rounded-full {{ $approvalClasses }} font-medium">
-                                            {{ $approval }}
-                                        </span>
-                                    @endif
+                                    <span class="px-2 py-1 text-xs rounded-full {{ $statusClasses }} font-medium">
+                                        {{ $item->status }}
+                                    </span>
                                 </td>
 
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-center gap-2">
-                                        @if(!$communication->is_archived)
-                                            <form action="{{ route('townhall.approve', $communication->id) }}" method="POST">
+                                        @if($item->approve_route)
+                                            <form action="{{ $item->approve_route }}" method="POST">
                                                 @csrf
                                                 <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition">
                                                     Approve
                                                 </button>
                                             </form>
+                                        @endif
 
-                                            <form action="{{ route('townhall.reject', $communication->id) }}" method="POST">
+                                        @if($item->reject_route)
+                                            <form action="{{ $item->reject_route }}" method="POST">
                                                 @csrf
                                                 <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
                                                     Reject
                                                 </button>
                                             </form>
+                                        @endif
 
-                                            <form action="{{ route('townhall.revise', $communication->id) }}" method="POST">
+                                        @if($item->revise_route)
+                                            <form action="{{ $item->revise_route }}" method="POST">
                                                 @csrf
                                                 <button class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-800 text-white hover:bg-black transition">
                                                     Revise
@@ -261,7 +242,7 @@
                                         @endif
 
                                         <a
-                                            href="{{ route('townhall.show', $communication->id) }}"
+                                            href="{{ $item->show_route }}"
                                             class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
                                         >
                                             View
@@ -272,7 +253,7 @@
                         @empty
                             <tr>
                                 <td colspan="10" class="px-4 py-8 text-center text-gray-500">
-                                    No files found.
+                                    No approvals found for the selected filters.
                                 </td>
                             </tr>
                         @endforelse
@@ -282,7 +263,7 @@
 
             <div class="mt-3 flex items-center justify-between text-[11px] text-gray-500 px-1">
                 <div class="flex items-center gap-6">
-                    <span>Total Files <span class="text-gray-800 font-semibold">{{ $communications->total() }}</span></span>
+                    <span>Total Files <span class="text-gray-800 font-semibold">{{ $items->total() }}</span></span>
                     <span>Pending <span class="text-yellow-600 font-semibold">{{ $pendingCount }}</span></span>
                     <span>Approved <span class="text-green-600 font-semibold">{{ $approvedCount }}</span></span>
                     <span>Rejected <span class="text-red-600 font-semibold">{{ $rejectedCount }}</span></span>
@@ -290,21 +271,13 @@
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <span>
-                        Records per page
-                        <select class="bg-transparent outline-none font-semibold text-gray-700">
-                            <option>10</option>
-                            <option>25</option>
-                            <option>50</option>
-                        </select>
-                    </span>
-                    <span>{{ $communications->firstItem() ?? 0 }} to {{ $communications->lastItem() ?? 0 }}</span>
+                    <span>{{ $items->firstItem() ?? 0 }} to {{ $items->lastItem() ?? 0 }}</span>
                 </div>
             </div>
 
-            @if(method_exists($communications, 'links'))
+            @if(method_exists($items, 'links'))
                 <div class="mt-4">
-                    {{ $communications->links() }}
+                    {{ $items->links() }}
                 </div>
             @endif
         </div>

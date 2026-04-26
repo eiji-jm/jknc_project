@@ -236,6 +236,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/kyc/reject', [ContactsController::class, 'rejectKyc'])->name('contacts.kyc.reject');
     Route::post('/contacts/{contact}/kyc/change-request', [ContactsController::class, 'requestKycChange'])->name('contacts.kyc.change-request');
     Route::post('/contacts/{contact}/kyc/change-request/approve', [ContactsController::class, 'approveKycChange'])->name('contacts.kyc.change-request.approve');
+    Route::post('/contacts/{contact}/kyc/change-request/reject', [ContactsController::class, 'rejectKycChange'])->name('contacts.kyc.change-request.reject');
     Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sendCifClientForm'])->name('contacts.cif.send');
     Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
     Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
@@ -297,6 +298,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::match(['put', 'patch'], '/products/{id}', [ProductController::class, 'update'])->name('products.update');
     Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
+    Route::post('/products/{id}/approve', [ProductController::class, 'approve'])->name('products.approve');
+    Route::post('/products/{id}/reject', [ProductController::class, 'reject'])->name('products.reject');
     Route::post('/products/change-owner', [ProductController::class, 'changeOwner'])->name('products.change-owner');
     Route::post('/products/custom-fields', [ProductController::class, 'storeCustomField'])->name('products.custom-fields.store');
     Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');

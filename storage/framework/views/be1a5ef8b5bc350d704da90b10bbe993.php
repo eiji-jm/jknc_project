@@ -406,9 +406,6 @@
 </div>
 <?php $__env->stopSection(); ?>
 
-<<<<<<< HEAD:storage/framework/views/be1a5ef8b5bc350d704da90b10bbe993.php
-<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH D:\School\ojt\jknc_work\jknc_project\resources\views/policies/policies.blade.php ENDPATH**/ ?>
-=======
 <?php $__env->startPush('styles'); ?>
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css" rel="stylesheet">
@@ -688,5 +685,4 @@
 </script>
 <?php $__env->stopPush(); ?>
 
-<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\dimpa\Herd\jknc_project\resources\views/policies/policies.blade.php ENDPATH**/ ?>
->>>>>>> 60b13185dbbe47f1f655b888ee63e54e4267c117:storage/framework/views/cbaf95e46a4196f937a2e11d9f64febe.php
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH D:\School\ojt\jknc_work\jknc_project\resources\views/policies/policies.blade.php ENDPATH**/ ?>
