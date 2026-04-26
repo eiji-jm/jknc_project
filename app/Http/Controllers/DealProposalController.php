@@ -498,6 +498,7 @@ class DealProposalController extends Controller
             'supplemental_fees' => self::SUPPLEMENTAL_FEES,
             'terms_and_conditions' => self::TERMS_AND_CONDITIONS,
             'engagement_team' => self::ENGAGEMENT_TEAM,
+            'engagement_team_intro' => "John Kelly & Company assigns a team of consultants and associates who collectively take responsibility for overseeing the project engagement, ensuring consistent guidance, clear communication, and smooth coordination throughout the duration of the engagement.",
             'supplemental_fee_note' => '(All rates are exclusive of VAT and/or withholding tax, if applicable)',
             'proposal_intro' => 'Our Proposal',
             'requirements_intro' => 'To proceed smoothly, we may request the following:',

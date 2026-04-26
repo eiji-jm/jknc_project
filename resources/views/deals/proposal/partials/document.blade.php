@@ -18,9 +18,37 @@
 
     $proposalLogo = $logoSrc ?? asset('images/deal-proposal-template-logo.png');
 
+    $toRoman = function (int $number): string {
+        $map = [
+            1000 => 'M',
+            900 => 'CM',
+            500 => 'D',
+            400 => 'CD',
+            100 => 'C',
+            90 => 'XC',
+            50 => 'L',
+            40 => 'XL',
+            10 => 'X',
+            9 => 'IX',
+            5 => 'V',
+            4 => 'IV',
+            1 => 'I',
+        ];
+
+        $result = '';
+        foreach ($map as $value => $roman) {
+            while ($number >= $value) {
+                $result .= $roman;
+                $number -= $value;
+            }
+        }
+
+        return $result;
+    };
+
     $sections = [
         ['title' => 'Executive Summary', 'content' => 'executive_summary'],
-        ['title' => 'Our Role and Value', 'content' => 'role_and_value'],
+        ['title' => 'Our Role and Value to You', 'content' => 'role_and_value'],
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
 
@@ -71,7 +99,7 @@
     <section class="proposal-page">
         @foreach ($sections as $index => $section)
             <h2 class="proposal-section-heading">
-                <span class="proposal-section-number">{{ $index + 1 }}.</span>
+                <span class="proposal-section-number">{{ $toRoman($index + 1) }}.</span>
                 <span>{{ $section['title'] }}</span>
             </h2>
 
@@ -109,7 +137,7 @@
 
     <section class="proposal-page">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">4.</span>
+            <span class="proposal-section-number">{{ $toRoman(4) }}.</span>
             <span>{{ $d['proposal_intro'] ?? 'Our Proposal' }}</span>
         </h2>
         <p class="proposal-paragraph">{{ $d['our_proposal_text'] ?? '' }}</p>
@@ -166,7 +194,7 @@
 
     <section class="proposal-page">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">5.</span>
+            <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
             <span>Proposal Highlights</span>
         </h2>
         @foreach (($d['proposal_highlights'] ?? []) as $highlight)
@@ -174,7 +202,7 @@
         @endforeach
 
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">6.</span>
+            <span class="proposal-section-number">{{ $toRoman(6) }}.</span>
             <span>Our Commitment</span>
         </h2>
         @foreach (($d['commitment'] ?? []) as $item)
@@ -182,7 +210,7 @@
         @endforeach
 
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">7.</span>
+            <span class="proposal-section-number">{{ $toRoman(7) }}.</span>
             <span>Agreement Inclusions and Exclusions</span>
         </h2>
         <h3 class="proposal-subheading">Agreement Inclusions</h3>
@@ -223,7 +251,7 @@
 
     <section class="proposal-page">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">8.</span>
+            <span class="proposal-section-number">{{ $toRoman(8) }}.</span>
             <span>Terms and Conditions</span>
         </h2>
         @foreach (($d['terms_and_conditions'] ?? []) as $term)
@@ -253,9 +281,10 @@
         @endforeach
 
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">9.</span>
-            <span>Engagement Team</span>
+            <span class="proposal-section-number">{{ $toRoman(9) }}.</span>
+            <span>Client Engagement Team</span>
         </h2>
+        <p class="proposal-paragraph">{{ $d['engagement_team_intro'] ?? '' }}</p>
         <table class="proposal-data-table">
             <thead>
                 <tr>
@@ -283,7 +312,7 @@
 
     <section class="proposal-page">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">10.</span>
+            <span class="proposal-section-number">{{ $toRoman(10) }}.</span>
             <span>Conforme and Acceptance</span>
         </h2>
         <p class="proposal-paragraph">By signing below, the parties acknowledge and accept the terms and conditions outlined in this proposal, which shall constitute a binding agreement.</p>
