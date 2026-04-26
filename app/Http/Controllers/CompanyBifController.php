@@ -283,7 +283,7 @@ class CompanyBifController extends Controller
         abort_unless($this->isKycReviewer($request), 403);
 
         $validated = $request->validate([
-            'change_rejection_reason' => ['required', 'string', 'max:2000'],
+            'change_rejection_reason' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $bifRecord = $this->findBif($company, $bif);
@@ -294,13 +294,13 @@ class CompanyBifController extends Controller
         }
 
         $userName = $request->user()?->name ?? 'System User';
-        $reason = trim((string) $validated['change_rejection_reason']);
+        $reason = trim((string) ($validated['change_rejection_reason'] ?? ''));
 
         $bifRecord->update([
             'change_request_status' => 'rejected',
             'change_reviewed_at' => now(),
             'change_reviewed_by_name' => $userName,
-            'change_rejection_reason' => $reason,
+            'change_rejection_reason' => $reason !== '' ? $reason : null,
             'updated_by' => $request->user()?->id,
         ]);
 

@@ -271,6 +271,10 @@
                                                 @csrf
                                                 <button type="submit" class="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700">Approve Change Request</button>
                                             </form>
+                                            <form method="POST" action="{{ route('contacts.kyc.change-request.reject', $contact->id) }}">
+                                                @csrf
+                                                <button type="submit" class="h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white hover:bg-red-700">Reject Change Request</button>
+                                            </form>
                                         @endif
                                     @endif
                                     <p id="kycActionWarning" class="hidden rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"></p>
