@@ -263,6 +263,164 @@ SVG;
         ];
     }
 
+    private function financeResolveModuleRecord(string $moduleKey, mixed $recordId): ?FinanceRecord
+    {
+        if (blank($recordId) || !is_numeric($recordId)) {
+            return null;
+        }
+
+        return FinanceRecord::query()
+            ->where('module_key', $moduleKey)
+            ->find((int) $recordId);
+    }
+
+    private function financeLegacyLineItems(FinanceRecord $record): array
+    {
+        $data = $record->data ?? [];
+
+        $items = match ($record->module_key) {
+            'pr' => [[
+                'item_module' => 'product',
+                'item_record_id' => data_get($data, 'master_item_id'),
+                'item_id' => data_get($data, 'master_item_id'),
+                'description' => data_get($data, 'description_specification'),
+                'category' => data_get($data, 'master_item_type'),
+                'quantity' => data_get($data, 'quantity'),
+                'amount' => data_get($data, 'unit_cost'),
+                'subtotal' => data_get($data, 'estimated_total_cost'),
+                'discount_amount' => data_get($data, 'discount_amount'),
+                'shipping_amount' => data_get($data, 'shipping_amount'),
+                'tax_amount' => data_get($data, 'tax_amount'),
+                'wht_amount' => data_get($data, 'wht_amount'),
+                'total' => data_get($data, 'estimated_total_cost'),
+                'supplier_id' => data_get($data, 'supplier_id'),
+            ]],
+            'po' => [[
+                'item_module' => data_get($data, 'linked_item_type'),
+                'item_record_id' => data_get($data, 'linked_item_id'),
+                'item_id' => data_get($data, 'linked_item_id'),
+                'description' => data_get($data, 'purpose'),
+                'category' => data_get($data, 'linked_item_type'),
+                'quantity' => data_get($data, 'quantity'),
+                'amount' => data_get($data, 'unit_cost'),
+                'subtotal' => data_get($data, 'total_amount'),
+                'discount_amount' => data_get($data, 'discount_amount'),
+                'shipping_amount' => data_get($data, 'shipping_amount'),
+                'tax_amount' => data_get($data, 'tax_amount'),
+                'wht_amount' => data_get($data, 'wht_amount'),
+                'total' => data_get($data, 'total_amount'),
+                'supplier_id' => data_get($data, 'supplier_id'),
+            ]],
+            default => [],
+        };
+
+        return array_values(array_filter($items, function (array $item) {
+            return collect($item)->contains(fn ($value) => !blank($value) && $value !== 0 && $value !== '0');
+        }));
+    }
+
+    private function financeResolvedLineItems(FinanceRecord $record, array $lookupOptions): array
+    {
+        $data = $record->data ?? [];
+        $rawItems = array_values(array_filter(
+            (array) data_get($data, 'line_items', []),
+            fn ($item) => is_array($item)
+        ));
+
+        if (!$rawItems) {
+            $rawItems = $this->financeLegacyLineItems($record);
+        }
+
+        $lineItems = [];
+
+        foreach ($rawItems as $item) {
+            $itemModule = (string) data_get($item, 'item_module', '');
+            if (!in_array($itemModule, ['product', 'service'], true)) {
+                $itemModule = $record->module_key === 'po'
+                    ? ((string) data_get($item, 'linked_item_type', 'product') ?: 'product')
+                    : 'product';
+            }
+
+            $itemRecordId = data_get($item, 'item_record_id');
+            if (blank($itemRecordId)) {
+                $itemRecordId = data_get($item, 'linked_item_id', data_get($item, 'item_id'));
+            }
+
+            $itemRecord = $this->financeResolveModuleRecord($itemModule, $itemRecordId);
+            $quantity = (float) data_get($item, 'quantity', 0);
+            $amount = (float) data_get($item, 'amount', 0);
+            $subtotal = (float) data_get($item, 'subtotal', $quantity * $amount);
+            $discountAmount = (float) data_get($item, 'discount_amount', 0);
+            $shippingAmount = (float) data_get($item, 'shipping_amount', 0);
+            $taxAmount = (float) data_get($item, 'tax_amount', 0);
+            $whtAmount = (float) data_get($item, 'wht_amount', 0);
+            $total = (float) data_get($item, 'total', $subtotal - $discountAmount + $shippingAmount + $taxAmount - $whtAmount);
+            $supplierId = data_get($item, 'supplier_id')
+                ?: data_get($itemRecord?->data, 'supplier_id')
+                ?: data_get($data, 'supplier_id');
+
+            $lineItems[] = [
+                'item_module' => $itemModule,
+                'item_record_id' => $itemRecordId,
+                'item' => $itemRecord?->record_title
+                    ?: $this->financePdfLookupLabel($lookupOptions, $itemModule, $itemRecordId)
+                    ?: $this->financePdfValue(data_get($item, 'item_id', $itemRecordId)),
+                'description' => $this->financePdfValue(data_get($item, 'description')),
+                'category' => $this->financePdfValue(data_get($item, 'category') ?: Str::headline($itemModule)),
+                'quantity' => $this->financePdfValue(data_get($item, 'quantity')),
+                'amount' => $this->financePdfValue(data_get($item, 'amount')),
+                'subtotal' => number_format($subtotal, 2),
+                'discount_amount' => number_format($discountAmount, 2),
+                'shipping_amount' => number_format($shippingAmount, 2),
+                'tax_amount' => number_format($taxAmount, 2),
+                'wht_amount' => number_format($whtAmount, 2),
+                'total' => number_format($total, 2),
+                'total_value' => $total,
+                'supplier_id' => $supplierId,
+                'supplier_label' => $this->financePdfLookupLabel($lookupOptions, 'supplier', $supplierId)
+                    ?: $this->financePdfValue($supplierId),
+            ];
+        }
+
+        return array_values(array_filter($lineItems, function (array $item) {
+            return collect([
+                $item['item'] ?? null,
+                $item['description'] ?? null,
+                $item['quantity'] ?? null,
+                $item['amount'] ?? null,
+                $item['total'] ?? null,
+            ])->contains(fn ($value) => trim((string) $value) !== '' && $value !== 'N/A');
+        }));
+    }
+
+    private function financePoSupplierGroups(array $lineItems): array
+    {
+        $groups = [];
+
+        foreach ($lineItems as $item) {
+            $groupKey = (string) ($item['supplier_id'] ?: $item['supplier_label'] ?: 'unspecified');
+
+            if (!isset($groups[$groupKey])) {
+                $groups[$groupKey] = [
+                    'supplier_id' => $item['supplier_id'] ?: null,
+                    'supplier_label' => $item['supplier_label'] ?: 'Unspecified Supplier',
+                    'items' => [],
+                    'group_total_value' => 0,
+                ];
+            }
+
+            $groups[$groupKey]['items'][] = $item;
+            $groups[$groupKey]['group_total_value'] += (float) ($item['total_value'] ?? 0);
+        }
+
+        return array_values(array_map(function (array $group) {
+            $group['items_count'] = count($group['items']);
+            $group['group_total'] = number_format((float) $group['group_total_value'], 2);
+
+            return $group;
+        }, $groups));
+    }
+
     private function financePreviewSections(FinanceRecord $record, array $lookupOptions): array
     {
         $moduleKey = $record->module_key;
@@ -382,6 +540,8 @@ SVG;
                     ['name' => 'priority', 'label' => 'Priority'],
                     ['name' => 'purchase_type', 'label' => 'Purchase Type'],
                     ['name' => 'needed_date', 'label' => 'Needed Date'],
+                    ['name' => 'for_client', 'label' => 'Is this for a client?'],
+                    ['name' => 'pr_reason_categories', 'label' => 'Reason (tick all that apply)'],
                 ]),
                 $section('Requester Details', [
                     ['name' => 'requestor', 'label' => 'Employee Name'],
@@ -415,26 +575,21 @@ SVG;
             'po' => [
                 $section('Order Details', [
                     ['name' => 'linked_pr_id', 'label' => 'Linked PR'],
-                    ['name' => 'supplier_id', 'label' => 'Supplier'],
                     ['name' => 'expected_delivery_date', 'label' => 'Expected Delivery Date'],
                     ['name' => 'delivery_address', 'label' => 'Delivery Address'],
                     ['name' => 'terms_and_conditions', 'label' => 'Terms and Conditions'],
                 ]),
-                $section('Item & Cost Details', [
-                    ['name' => 'linked_item_type', 'label' => 'Items / Services Type'],
-                    ['name' => 'linked_item_id', 'label' => 'Items / Services'],
-                    ['name' => 'quantity', 'label' => 'Quantity'],
-                    ['name' => 'unit_cost', 'label' => 'Unit Cost'],
-                    ['name' => 'total_amount', 'label' => 'Total Amount'],
-                    ['name' => 'coa_id', 'label' => 'Account'],
-                ]),
-                $section('Notes', [
+                ['type' => 'line_items', 'title' => 'Items / Cost Details'],
+                $section('Purpose & Notes', [
+                    ['name' => 'supplier_id', 'label' => 'Primary Supplier'],
+                    ['name' => 'purpose', 'label' => 'Purpose'],
                     ['name' => 'remarks', 'label' => 'Remarks'],
                 ]),
                 $notesSection,
             ],
             'ca' => [
                 $section('Request Details', [
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'requestor', 'label' => 'Requestor'],
                     ['name' => 'needed_date', 'label' => 'Needed Date'],
                     ['name' => 'priority', 'label' => 'Priority'],
@@ -478,6 +633,7 @@ SVG;
             ],
             'lr' => [
                 $section('Liquidation Details', [
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'linked_ca_id', 'label' => 'CA Reference No.'],
                     ['name' => 'total_cash_advance', 'label' => 'CA Amount'],
                     ['name' => 'purpose', 'label' => 'Justification / Business Need'],
@@ -508,6 +664,7 @@ SVG;
             ],
             'err' => [
                 $section('Reimbursement Details', [
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'linked_lr_id', 'label' => 'Linked LR'],
                     ['name' => 'expense_details', 'label' => 'Expense Details'],
                     ['name' => 'amount', 'label' => 'Amount'],
@@ -554,6 +711,8 @@ SVG;
             ],
             'crf' => [
                 $section('Return Details', [
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
+                    ['name' => 'requestor', 'label' => 'Returnee'],
                     ['name' => 'linked_lr_id', 'label' => 'Linked LR'],
                     ['name' => 'amount_returned', 'label' => 'Amount Returned'],
                     ['name' => 'mode_of_return', 'label' => 'Mode of Return'],
@@ -630,6 +789,7 @@ SVG;
             ['label' => 'Record Number', 'value' => $this->normalizeFinanceRecordNumber($record->module_key, $record->record_number)],
             ['label' => $recordTitleLabel, 'value' => $record->record_title ?: 'N/A'],
             ['label' => 'Record Date', 'value' => optional($record->record_date)->format('Y-m-d') ?: 'N/A'],
+            ['label' => 'Record Time', 'value' => data_get($data, 'transaction_time') ?: 'N/A'],
             ['label' => 'Amount', 'value' => $record->amount !== null ? number_format((float) $record->amount, 2) : 'N/A'],
             ['label' => 'Status', 'value' => $record->status ?: 'N/A'],
             ['label' => 'Workflow', 'value' => $record->workflow_status ?: 'N/A'],
@@ -639,33 +799,13 @@ SVG;
             ['label' => 'Approved At', 'value' => optional($record->approved_at)->format('Y-m-d H:i:s') ?: 'N/A'],
         ];
 
-        $lineItems = [];
-        foreach ((array) data_get($data, 'line_items', []) as $item) {
-            $quantity = (float) data_get($item, 'quantity', 0);
-            $amount = (float) data_get($item, 'amount', 0);
-            $subtotal = (float) data_get($item, 'subtotal', $quantity * $amount);
-            $discountAmount = (float) data_get($item, 'discount_amount', 0);
-            $shippingAmount = (float) data_get($item, 'shipping_amount', 0);
-            $taxAmount = (float) data_get($item, 'tax_amount', 0);
-            $whtAmount = (float) data_get($item, 'wht_amount', 0);
-            $total = (float) data_get($item, 'total', $subtotal - $discountAmount + $shippingAmount + $taxAmount - $whtAmount);
-            $lineItems[] = [
-                'item' => $this->financePdfLookupLabel($lookupOptions, 'product', data_get($item, 'item_id')) ?: $this->financePdfValue(data_get($item, 'item_id')),
-                'description' => $this->financePdfValue(data_get($item, 'description')),
-                'category' => $this->financePdfValue(data_get($item, 'category')),
-                'quantity' => $this->financePdfValue(data_get($item, 'quantity')),
-                'amount' => $this->financePdfValue(data_get($item, 'amount')),
-                'subtotal' => number_format($subtotal, 2),
-                'discount_amount' => number_format($discountAmount, 2),
-                'shipping_amount' => number_format($shippingAmount, 2),
-                'tax_amount' => number_format($taxAmount, 2),
-                'wht_amount' => number_format($whtAmount, 2),
-                'total' => number_format($total, 2),
-            ];
-        }
-        $lineItemsTotal = array_reduce((array) data_get($data, 'line_items', []), function (float $carry, $item) {
-            return $carry + (float) data_get($item, 'total', 0);
+        $lineItems = $this->financeResolvedLineItems($record, $lookupOptions);
+        $lineItemsTotal = array_reduce($lineItems, function (float $carry, array $item) {
+            return $carry + (float) ($item['total_value'] ?? 0);
         }, 0.0);
+        $poSupplierGroups = $record->module_key === 'po'
+            ? $this->financePoSupplierGroups($lineItems)
+            : [];
 
         $costSummary = match ($record->module_key) {
             'lr' => [
@@ -751,6 +891,7 @@ SVG;
             'detailRows' => $detailRows,
             'previewSections' => $this->financePreviewSections($record, $lookupOptions),
             'lineItems' => $lineItems,
+            'poSupplierGroups' => $poSupplierGroups,
             'costSummary' => $costSummary,
             'liquidationReport' => $liquidationReport,
             'attachments' => $attachments,
@@ -1111,6 +1252,7 @@ SVG;
             'amount' => 'nullable|numeric|min:0',
             'status' => 'required|in:Active,Inactive',
             'data' => 'nullable|array',
+            'data.transaction_time' => 'nullable|date_format:H:i',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx',
         ];
@@ -1179,6 +1321,7 @@ SVG;
                 'data.total_amount' => 'nullable|numeric|min:0',
             ],
             'ca' => [
+                'data.requester_mode' => 'nullable|in:own_request,request_for_another',
                 'data.requestor' => 'required|string|max:255',
                 'data.purpose' => 'required|string|max:2000',
                 'data.amount_requested' => 'required|numeric|min:0',
@@ -1187,6 +1330,7 @@ SVG;
                 'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'lr' => [
+                'data.requester_mode' => 'nullable|in:own_request,request_for_another',
                 'data.linked_ca_id' => ['required', $this->acceptedLinkedRecordRule('ca')],
                 'data.linked_dv_id' => ['nullable', $this->acceptedLinkedRecordRule('dv', ['source_document_type' => 'ca'])],
                 'data.total_cash_advance' => 'required|numeric|min:0',
@@ -1205,6 +1349,7 @@ SVG;
                 'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'err' => [
+                'data.requester_mode' => 'nullable|in:own_request,request_for_another',
                 'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr')],
                 'data.amount' => 'required|numeric|min:0',
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
@@ -1226,6 +1371,8 @@ SVG;
                 'data.payroll_expense_coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
             ],
             'crf' => [
+                'data.requester_mode' => 'nullable|in:own_request,request_for_another',
+                'data.requestor' => 'required|string|max:255',
                 'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr', ['variance_indicator' => 'Overage'])],
                 'data.amount_returned' => 'required|numeric|min:0',
                 'data.receiving_bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],

@@ -6,6 +6,7 @@
     const textField = (name, label, options = {}) => ({ name, label, type: 'text', ...options });
     const numberField = (name, label, options = {}) => ({ name, label, type: 'number', ...options });
     const dateField = (name, label, options = {}) => ({ name, label, type: 'date', ...options });
+    const timeField = (name, label, options = {}) => ({ name, label, type: 'time', ...options });
     const textareaField = (name, label, options = {}) => ({ name, label, type: 'textarea', rows: 3, fullWidth: true, ...options });
     const selectField = (name, label, options = {}) => ({ name, label, type: 'select', options: [], ...options });
     const checkboxField = (name, label, options = {}) => ({ name, label, type: 'checkbox', ...options });
@@ -17,6 +18,7 @@
         'record_number': 'Record number',
         'record_title': 'Name',
         'record_date': 'Date',
+        'data.transaction_time': 'Time',
         'amount': 'Amount',
         'status': 'Status',
         'data.completion_mode': 'Completion mode',
@@ -66,6 +68,13 @@
 
     function todayDateValue() {
         return new Date().toISOString().slice(0, 10);
+    }
+
+    function currentTimeValue() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
     }
 
     function generateSupplierCode() {
@@ -262,6 +271,7 @@
     }
 
     let supplierCompletionMode = 'complete_internally';
+    let pendingLiquidationBranchDraft = null;
 
     function isSupplierModule() {
         return currentModuleKey === 'supplier';
@@ -565,6 +575,31 @@
                         { value: 'Services', label: 'Services' },
                     ],
                 }),
+                selectField('for_client', 'Is this for a client?', {
+                    options: [
+                        { value: 'Yes', label: 'Yes' },
+                        { value: 'No', label: 'No' },
+                    ],
+                }),
+                checkboxGroupField('pr_reason_categories', 'Reason (tick all that apply)', {
+                    options: [
+                        { value: 'Office Supplies', label: 'Office Supplies' },
+                        { value: 'IT / Hardware', label: 'IT / Hardware' },
+                        { value: 'Software / Subscription', label: 'Software / Subscription' },
+                        { value: 'Furniture / Fixtures', label: 'Furniture / Fixtures' },
+                        { value: 'Marketing / Advertising', label: 'Marketing / Advertising' },
+                        { value: 'Professional Services', label: 'Professional Services' },
+                        { value: 'Training / Seminar', label: 'Training / Seminar' },
+                        { value: 'Maintenance / Repair', label: 'Maintenance / Repair' },
+                        { value: 'Replacement (Damaged/Old)', label: 'Replacement (Damaged/Old)' },
+                        { value: 'New Hire / Onboarding', label: 'New Hire / Onboarding' },
+                        { value: 'Compliance / Regulatory', label: 'Compliance / Regulatory' },
+                        { value: 'Client / Project', label: 'Client / Project' },
+                        { value: 'Emergency / Urgent Need', label: 'Emergency / Urgent Need' },
+                        { value: 'Inventory Replenishment', label: 'Inventory Replenishment' },
+                        { value: 'Others', label: 'Others' },
+                    ],
+                }),
                 selectField('supplier_id', 'Supplier', { source: 'supplier' }),
                 selectField('new_vendor', 'New Vendor?', {
                     options: [
@@ -668,7 +703,14 @@
             recordDateLabel: 'Date',
             summaryKeys: ['requestor', 'cash_advance_type', 'amount_requested', 'mode_of_release'],
             fields: [
-                textField('requestor', 'Requestor', { required: true, autoFillCurrentUser: true, readOnly: true }),
+                selectField('requester_mode', 'Requester Option', {
+                    options: [
+                        { value: 'own_request', label: 'Own Request' },
+                        { value: 'request_for_another', label: 'Request for Another' },
+                    ],
+                    required: true,
+                }),
+                textField('requestor', 'Requestor', { required: true }),
                 textField('employee_id', 'Employee ID'),
                 textField('employee_name', 'Employee Name'),
                 textField('employee_email', 'Email', { inputType: 'email' }),
@@ -757,11 +799,18 @@
             recordDateLabel: 'Date',
             summaryKeys: ['linked_ca_id', 'total_cash_advance', 'variance_indicator', 'grand_total'],
             fields: [
+                selectField('requester_mode', 'Requester Option', {
+                    options: [
+                        { value: 'own_request', label: 'Own Request' },
+                        { value: 'request_for_another', label: 'Request for Another' },
+                    ],
+                    required: true,
+                }),
                 selectField('linked_ca_id', 'CA Reference No.', { source: 'ca', required: true }),
                 numberField('total_cash_advance', 'CA Amount', { required: true }),
                 textareaField('purpose', 'Justification / Business Need', { required: true, fullWidth: true }),
                 textField('employee_id', 'Employee ID'),
-                textField('employee_name', 'Employee Name', { autoFillCurrentUser: true, readOnly: true }),
+                textField('employee_name', 'Employee Name'),
                 textField('employee_email', 'Email'),
                 textField('contact_number', 'Contact #'),
                 textField('position', 'Position'),
@@ -778,7 +827,14 @@
             recordDateLabel: 'Date',
             summaryKeys: ['linked_lr_id', 'amount', 'supplier_id', 'bank_account_id'],
             fields: [
-                textField('requestor', 'Requestor', { required: true, autoFillCurrentUser: true, readOnly: true }),
+                selectField('requester_mode', 'Requester Option', {
+                    options: [
+                        { value: 'own_request', label: 'Own Request' },
+                        { value: 'request_for_another', label: 'Request for Another' },
+                    ],
+                    required: true,
+                }),
+                textField('requestor', 'Requestor', { required: true }),
                 textareaField('expense_details', 'Expense Details'),
                 numberField('amount', 'Amount', { required: true }),
                 selectField('supplier_id', 'Supplier', { source: 'supplier' }),
@@ -871,6 +927,14 @@
             recordDateLabel: 'Date',
             summaryKeys: ['linked_lr_id', 'amount_returned', 'receiving_bank_account_id', 'coa_id'],
             fields: [
+                selectField('requester_mode', 'Requester Option', {
+                    options: [
+                        { value: 'own_request', label: 'Own Request' },
+                        { value: 'request_for_another', label: 'Request for Another' },
+                    ],
+                    required: true,
+                }),
+                textField('requestor', 'Returnee', { required: true }),
                 selectField('linked_lr_id', 'Linked LR', { source: 'lr_overage', required: true }),
                 numberField('amount_returned', 'Amount Returned', { required: true }),
                 selectField('mode_of_return', 'Mode of Return', {
@@ -1362,6 +1426,7 @@
                 linkedRecord: linkedLrRecord,
                 prefill: {
                     linked_lr_id: linkedLrRecord.id,
+                    requester_mode: 'own_request',
                     requestor: linkedLrRecord?.data?.employee_name || bootstrap.currentUserName || '',
                     expense_details: detailsText || `Shortage from ${linkedCaLabel}`,
                     amount,
@@ -1381,6 +1446,8 @@
                 linkedRecord: linkedLrRecord,
                 prefill: {
                     linked_lr_id: linkedLrRecord.id,
+                    requester_mode: 'own_request',
+                    requestor: linkedLrRecord?.data?.employee_name || bootstrap.currentUserName || '',
                     amount_returned: amount,
                     mode_of_return: linkedLrRecord?.data?.mode_of_return || 'Cash',
                     receiving_bank_account_id: linkedLrRecord?.data?.bank_account_id || '',
@@ -1392,6 +1459,34 @@
         }
 
         return null;
+    }
+
+    function openPendingLiquidationBranch() {
+        if (!pendingLiquidationBranchDraft) {
+            showFinanceToast('No linked liquidation route is ready yet.', 'warning');
+            return;
+        }
+
+        const branchDraft = pendingLiquidationBranchDraft;
+        pendingLiquidationBranchDraft = null;
+        financeDraftContext = branchDraft;
+        changeModule(branchDraft.moduleKey);
+        requestAnimationFrame(() => {
+            openFinanceDrawer();
+            showFinanceToast(
+                branchDraft.moduleKey === 'err'
+                    ? 'Opening ERR with the calculated shortage details.'
+                    : 'Opening CRF with the calculated overage details.',
+                'success'
+            );
+        });
+    }
+
+    function dismissPendingLiquidationBranch() {
+        pendingLiquidationBranchDraft = null;
+        document.querySelector('[data-pending-liquidation-panel]')?.remove();
+        renderDrawerPreview();
+        showFinanceToast('Staying on the liquidation report.', 'info');
     }
 
     function getDraftValue(name, record = null) {
@@ -1981,6 +2076,8 @@
             control = `<input type="number" step="0.01" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         } else if (field.type === 'date') {
             control = `<input type="date" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
+        } else if (field.type === 'time') {
+            control = `<input type="time" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         } else {
             control = `<input type="${field.inputType || 'text'}" name="${fieldName}" value="${escapeHtml(value)}" class="w-full border rounded-md p-2 ${readOnlyClass}" ${required} ${readOnlyAttr}>`;
         }
@@ -2119,7 +2216,12 @@
     }
 
     function getPrLineItemRows(record) {
-        const lineItems = Array.isArray(record?.data?.line_items) ? record.data.line_items : [];
+        const draftLineItems = Array.isArray(financeFormValues?.line_items) && financeFormValues.line_items.length
+            ? financeFormValues.line_items
+            : (Array.isArray(financeDraftContext?.prefill?.line_items) ? financeDraftContext.prefill.line_items : []);
+        const lineItems = draftLineItems.length
+            ? draftLineItems
+            : (Array.isArray(record?.data?.line_items) ? record.data.line_items : []);
 
         if (lineItems.length) {
             return lineItems.map((item) => ({
@@ -2135,6 +2237,26 @@
                 wht_amount: item.wht_amount || '',
                 total: item.total || '',
             }));
+        }
+
+        if (record?.module_key === 'po') {
+            const legacyItem = {
+                item_id: record ? (getModuleFieldValue(record, { name: 'linked_item_id' }) || '') : '',
+                description: record ? (getModuleFieldValue(record, { name: 'purpose' }) || '') : '',
+                category: record ? (getModuleFieldValue(record, { name: 'linked_item_type' }) || '') : '',
+                quantity: record ? (getModuleFieldValue(record, { name: 'quantity' }) || '') : '',
+                amount: record ? (getModuleFieldValue(record, { name: 'unit_cost' }) || '') : '',
+                subtotal: record ? (getModuleFieldValue(record, { name: 'total_amount' }) || '') : '',
+                discount_amount: record ? (getModuleFieldValue(record, { name: 'discount_amount' }) || '') : '',
+                shipping_amount: record ? (getModuleFieldValue(record, { name: 'shipping_amount' }) || '') : '',
+                tax_amount: record ? (getModuleFieldValue(record, { name: 'tax_amount' }) || '') : '',
+                wht_amount: record ? (getModuleFieldValue(record, { name: 'wht_amount' }) || '') : '',
+                total: record ? (getModuleFieldValue(record, { name: 'total_amount' }) || '') : '',
+            };
+
+            if (Object.values(legacyItem).some((value) => String(value || '').trim() !== '')) {
+                return [legacyItem];
+            }
         }
 
         const legacyItem = {
@@ -2171,6 +2293,16 @@
     }
 
     function getPrItemDisplayValue(value) {
+        if (currentModuleKey === 'po') {
+            const lookups = [financeLookupOptions.product || [], financeLookupOptions.service || []];
+            for (const lookup of lookups) {
+                const matchById = lookup.find((option) => String(option.id) === String(value));
+                if (matchById) {
+                    return matchById.label;
+                }
+            }
+        }
+
         const productLookup = financeLookupOptions.product || [];
         const matchById = productLookup.find((option) => String(option.id) === String(value));
         if (matchById) {
@@ -2197,6 +2329,69 @@
             requestor: currentUser.name,
             employee_email: currentUser.email,
         };
+    }
+
+    function getRequestOwnershipConfig(moduleKey = currentModuleKey) {
+        const configs = {
+            pr: { modeField: 'requester_mode', nameField: 'requestor', emailField: 'employee_email' },
+            ca: { modeField: 'requester_mode', nameField: 'requestor', emailField: 'employee_email', mirrorNameField: 'employee_name' },
+            lr: { modeField: 'requester_mode', nameField: 'employee_name', emailField: 'employee_email' },
+            err: { modeField: 'requester_mode', nameField: 'requestor' },
+            crf: { modeField: 'requester_mode', nameField: 'requestor' },
+        };
+
+        return configs[moduleKey] || null;
+    }
+
+    function isRequestOwnershipModule(moduleKey = currentModuleKey) {
+        return Boolean(getRequestOwnershipConfig(moduleKey));
+    }
+
+    function syncRequestOwnershipFields({ preserveExisting = false } = {}) {
+        const config = getRequestOwnershipConfig();
+        if (!config) return;
+
+        const form = $('financeForm');
+        if (!form) return;
+
+        const autoValues = getPrRequesterDefaults();
+        const requesterModeInput = form.querySelector(`select[name="data[${config.modeField}]"]`);
+        const requesterMode = requesterModeInput?.value
+            || financeFormValues[config.modeField]
+            || 'own_request';
+        const shouldUseOwnRequest = requesterMode !== 'request_for_another';
+
+        if (requesterModeInput) {
+            requesterModeInput.value = requesterMode;
+        }
+
+        const syncField = (fieldName, autoValue, { readOnlyWhenOwn = true } = {}) => {
+            const input = form.querySelector(`[name="data[${fieldName}]"]`);
+            if (!input) return;
+
+            const currentValue = String(input.value || '').trim();
+            const nextValue = shouldUseOwnRequest
+                ? (preserveExisting && currentValue ? currentValue : (autoValue || ''))
+                : (preserveExisting && currentValue && currentValue !== (autoValue || '') ? currentValue : '');
+
+            input.value = nextValue;
+            if (readOnlyWhenOwn) {
+                setReadonlyState(input, shouldUseOwnRequest && Boolean(autoValue));
+            }
+            financeFormValues[fieldName] = nextValue;
+            financeFormValues[`data[${fieldName}]`] = nextValue;
+        };
+
+        syncField(config.nameField, autoValues.requestor);
+        if (config.mirrorNameField) {
+            syncField(config.mirrorNameField, autoValues.requestor);
+        }
+        if (config.emailField) {
+            syncField(config.emailField, autoValues.employee_email);
+        }
+
+        financeFormValues[config.modeField] = requesterMode;
+        financeFormValues[`data[${config.modeField}]`] = requesterMode;
     }
 
     function getPrSupplierRecord(value) {
@@ -2242,6 +2437,148 @@
         financeFormValues = financeFormValues || {};
         financeFormValues[fieldName] = value ?? '';
         financeFormValues[`data[${fieldName}]`] = value ?? '';
+    }
+
+    function getNormalizedLineItems(record) {
+        const rows = getPrLineItemRows(record);
+        return rows.map((row) => ({
+            item_id: row.item_id || '',
+            description: row.description || '',
+            category: row.category || '',
+            quantity: row.quantity || '',
+            amount: row.amount || '',
+            subtotal: row.subtotal || row.total || '',
+            discount_amount: row.discount_amount || '',
+            shipping_amount: row.shipping_amount || '',
+            tax_amount: row.tax_amount || '',
+            wht_amount: row.wht_amount || '',
+            total: row.total || '',
+        }));
+    }
+
+    function replaceCurrentLineItemSection(rows = []) {
+        if (!isLineItemModule()) return;
+
+        const section = document.querySelector('[data-pr-line-items-section]');
+        if (!section) return;
+
+        financeFormValues = financeFormValues || {};
+        financeFormValues.line_items = rows.map((row) => ({ ...row }));
+        section.outerHTML = renderPrLineItemsTable({
+            module_key: currentModuleKey,
+            data: { line_items: financeFormValues.line_items },
+        });
+        bindPurchaseRequestLineItems();
+        updatePrTotals();
+    }
+
+    function syncPoLinkedPrFields({ preserveExisting = false } = {}) {
+        if (currentModuleKey !== 'po') return;
+
+        const form = $('financeForm');
+        if (!form) return;
+
+        const linkedPrId = form.querySelector('select[name="data[linked_pr_id]"]')?.value || financeFormValues.linked_pr_id || '';
+        const linkedPrRecord = getRecordById(linkedPrId) || getRecordByLookupValue('pr', linkedPrId);
+
+        financeFormValues.linked_pr_id = linkedPrId;
+        financeFormValues['data[linked_pr_id]'] = linkedPrId;
+
+        if (!linkedPrRecord) {
+            return;
+        }
+
+        const sourceData = linkedPrRecord.data || {};
+        const sourceLineItems = getNormalizedLineItems(linkedPrRecord);
+        const hasCurrentLineValues = Array.from(form.querySelectorAll('[data-pr-line-item-row] [data-pr-line-item-field]'))
+            .some((input) => String(input.value || '').trim() !== '');
+
+        if (!preserveExisting || !String(form.querySelector('select[name="data[supplier_id]"]')?.value || '').trim()) {
+            setFinanceFieldValue(form, 'supplier_id', sourceData.supplier_id || '');
+        }
+        if (!preserveExisting || !String(form.querySelector('select[name="data[coa_id]"]')?.value || '').trim()) {
+            setFinanceFieldValue(form, 'coa_id', sourceData.coa_id || '');
+        }
+        if (!preserveExisting || !String(form.querySelector('textarea[name="data[remarks]"]')?.value || '').trim()) {
+            setFinanceFieldValue(form, 'remarks', sourceData.remarks || '');
+        }
+
+        const titleInput = $('recordTitleInput');
+        const currentTitle = String(titleInput?.value || '').trim();
+        const defaultTitle = generateDefaultRecordTitle(currentModuleKey);
+        if (titleInput && (!preserveExisting || !currentTitle || currentTitle === defaultTitle)) {
+            titleInput.value = linkedPrRecord.record_title || `PO for ${linkedPrRecord.record_number || 'PR'}`;
+        }
+
+        if (sourceLineItems.length && (!preserveExisting || !hasCurrentLineValues)) {
+            replaceCurrentLineItemSection(sourceLineItems);
+        }
+
+        renderDrawerPreview();
+    }
+
+    function getArfAutofillValuesFromLinkedRecord(record) {
+        const data = record?.data || {};
+        const lineItems = getNormalizedLineItems(record);
+        const firstLineItem = lineItems[0] || {};
+
+        return {
+            supplier_id: data.supplier_id || '',
+            asset_description: firstLineItem.description || data.asset_description || data.purpose || record?.record_title || '',
+            asset_category: firstLineItem.category || data.asset_category || data.linked_item_type || '',
+            serial_number: data.serial_number || '',
+            model: data.model || '',
+            acquisition_cost: data.grand_total || data.total_amount || data.amount || record?.amount || '',
+            acquisition_date: data.payment_date || record?.record_date || '',
+            asset_coa_id: data.asset_coa_id || data.coa_id || '',
+            remarks: data.remarks || '',
+        };
+    }
+
+    function syncArfLinkedDocumentFields({ preserveExisting = false } = {}) {
+        if (currentModuleKey !== 'arf') return;
+
+        const form = $('financeForm');
+        if (!form) return;
+
+        const linkedPoId = form.querySelector('select[name="data[linked_po_id]"]')?.value || financeFormValues.linked_po_id || '';
+        const linkedDvId = form.querySelector('select[name="data[linked_dv_id]"]')?.value || financeFormValues.linked_dv_id || '';
+        const linkedPoRecord = linkedPoId ? (getRecordById(linkedPoId) || getRecordByLookupValue('po', linkedPoId)) : null;
+        const linkedDvRecord = linkedDvId ? (getRecordById(linkedDvId) || getRecordByLookupValue('dv', linkedDvId)) : null;
+
+        financeFormValues.linked_po_id = linkedPoId;
+        financeFormValues['data[linked_po_id]'] = linkedPoId;
+        financeFormValues.linked_dv_id = linkedDvId;
+        financeFormValues['data[linked_dv_id]'] = linkedDvId;
+
+        const payload = {
+            ...(linkedPoRecord ? getArfAutofillValuesFromLinkedRecord(linkedPoRecord) : {}),
+            ...(linkedDvRecord ? getArfAutofillValuesFromLinkedRecord(linkedDvRecord) : {}),
+        };
+
+        if (linkedDvRecord && !linkedPoId && String(linkedDvRecord.data?.source_document_type || '') === 'po' && linkedDvRecord.data?.source_document_id) {
+            setFinanceFieldValue(form, 'linked_po_id', linkedDvRecord.data.source_document_id);
+            financeFormValues.linked_po_id = linkedDvRecord.data.source_document_id;
+            financeFormValues['data[linked_po_id]'] = linkedDvRecord.data.source_document_id;
+        }
+
+        ['supplier_id', 'asset_description', 'asset_category', 'serial_number', 'model', 'acquisition_cost', 'acquisition_date', 'asset_coa_id', 'remarks'].forEach((fieldName) => {
+            const input = form.querySelector(`[name="data[${fieldName}]"]`);
+            const currentValue = String(input?.value || '').trim();
+            if (!input) return;
+            if (preserveExisting && currentValue) return;
+            if (!Object.prototype.hasOwnProperty.call(payload, fieldName)) return;
+            setFinanceFieldValue(form, fieldName, payload[fieldName] || '');
+        });
+
+        const titleInput = $('recordTitleInput');
+        const currentTitle = String(titleInput?.value || '').trim();
+        const defaultTitle = generateDefaultRecordTitle(currentModuleKey);
+        if (titleInput && (!preserveExisting || !currentTitle || currentTitle === defaultTitle)) {
+            titleInput.value = linkedPoRecord?.record_title || linkedDvRecord?.record_title || currentTitle;
+        }
+
+        renderDrawerPreview();
     }
 
     function syncPrRequesterFields({ preserveExisting = false } = {}) {
@@ -2334,7 +2671,7 @@
     }
 
     function syncPrRequestDetails({ preserveExisting = false } = {}) {
-        syncPrRequesterFields({ preserveExisting });
+        syncRequestOwnershipFields({ preserveExisting });
         syncPrVendorFields({ preserveExisting });
     }
 
@@ -2361,7 +2698,7 @@
     }
 
     function isLineItemModule() {
-        return currentModuleKey === 'pr' || currentModuleKey === 'err' || currentModuleKey === 'lr';
+        return currentModuleKey === 'pr' || currentModuleKey === 'po' || currentModuleKey === 'err' || currentModuleKey === 'lr';
     }
 
     function isLiquidationModule() {
@@ -2382,6 +2719,13 @@
                 'Miscellaneous Business Expenses',
                 'Other Expense',
             ];
+        }
+
+        if (currentModuleKey === 'po') {
+            return [
+                ...(financeLookupOptions.product || []).map((option) => option.label || option.value || ''),
+                ...(financeLookupOptions.service || []).map((option) => option.label || option.value || ''),
+            ].filter(Boolean);
         }
 
         const productLookup = financeLookupOptions.product || [];
@@ -2530,7 +2874,7 @@
                 ];
             case 'pr':
                 return [
-                    { title: 'Request Details', fieldNames: ['requesting_department', 'request_type', 'priority', 'purchase_type', 'needed_date'] },
+                    { title: 'Request Details', fieldNames: ['requesting_department', 'request_type', 'priority', 'purchase_type', 'needed_date', 'for_client', 'pr_reason_categories'] },
                     { title: 'Requester Details', fieldNames: ['requestor', 'employee_id', 'employee_email', 'contact_number', 'position', 'superior', 'superior_email'] },
                     { title: 'Vendor Details', fieldNames: ['supplier_id', 'new_vendor', 'vendor_id_number', 'vendors_tin', 'company_name', 'vendor_phone', 'vendor_email', 'vendor_address', 'city', 'province', 'zip'] },
                     { title: 'Items / Cost Details', renderer: () => renderPrPreviewTable(record) },
@@ -2539,19 +2883,19 @@
             case 'po':
                 return [
                     { title: 'Order Details', fieldNames: ['linked_pr_id', 'supplier_id', 'expected_delivery_date', 'delivery_address', 'terms_and_conditions'] },
-                    { title: 'Item & Cost Details', fieldNames: ['linked_item_type', 'linked_item_id', 'quantity', 'unit_cost', 'total_amount', 'coa_id'] },
-                    { title: 'Notes', fieldNames: ['remarks'] },
+                    { title: 'Items / Cost Details', renderer: () => renderPrPreviewTable(record) },
+                    { title: 'Purpose & Notes', fieldNames: ['purpose', 'remarks', 'coa_id'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
             case 'ca':
                 return [
-                    { title: 'Request Details', fieldNames: ['requestor', 'department', 'purpose', 'needed_date', 'mode_of_release', 'amount_requested'] },
+                    { title: 'Request Details', fieldNames: ['requester_mode', 'requestor', 'department', 'purpose', 'needed_date', 'mode_of_release', 'amount_requested'] },
                     { title: 'Funding & Notes', fieldNames: ['bank_account_id', 'coa_id', 'remarks'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
             case 'lr':
                 return [
-                    { title: 'Liquidation Details', fieldNames: ['linked_ca_id', 'total_cash_advance', 'purpose'] },
+                    { title: 'Liquidation Details', fieldNames: ['requester_mode', 'linked_ca_id', 'total_cash_advance', 'purpose'] },
                     { title: 'Requester Details', fieldNames: ['employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'] },
                     { type: 'line_items', renderer: () => renderLiquidationPreviewTable(record) },
                     { type: 'cost_summary', renderer: () => renderLiquidationPreviewSummary(record) },
@@ -2559,7 +2903,7 @@
                 ];
             case 'err':
                 return [
-                    { title: 'Reimbursement Details', fieldNames: ['linked_lr_id', 'expense_details', 'amount', 'supplier_id', 'reimbursement_mode'] },
+                    { title: 'Reimbursement Details', fieldNames: ['requester_mode', 'linked_lr_id', 'requestor', 'expense_details', 'amount', 'supplier_id', 'reimbursement_mode'] },
                     { title: 'Accounting & Funding', fieldNames: ['coa_id', 'bank_account_id', 'remarks'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
@@ -2577,7 +2921,7 @@
                 ];
             case 'crf':
                 return [
-                    { title: 'Return Details', fieldNames: ['linked_lr_id', 'amount_returned', 'mode_of_return', 'receiving_bank_account_id', 'coa_id'] },
+                    { title: 'Return Details', fieldNames: ['requester_mode', 'requestor', 'linked_lr_id', 'amount_returned', 'mode_of_return', 'receiving_bank_account_id', 'coa_id'] },
                     { title: 'Reference & Notes', fieldNames: ['reference_number', 'remarks'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
@@ -2610,15 +2954,24 @@
     }
 
     function resolvePrItemId(value) {
-        const productLookup = financeLookupOptions.product || [];
         const cleaned = String(value || '').trim().toLowerCase();
-        const match = productLookup.find((option) => {
-            const optionId = String(option.id || '').trim().toLowerCase();
-            const optionLabel = String(option.label || '').trim().toLowerCase();
-            return optionId === cleaned || optionLabel === cleaned;
-        });
+        const lookups = currentModuleKey === 'po'
+            ? [financeLookupOptions.product || [], financeLookupOptions.service || []]
+            : [financeLookupOptions.product || []];
 
-        return match ? match.id : '';
+        for (const lookup of lookups) {
+            const match = lookup.find((option) => {
+                const optionId = String(option.id || '').trim().toLowerCase();
+                const optionLabel = String(option.label || '').trim().toLowerCase();
+                return optionId === cleaned || optionLabel === cleaned;
+            });
+
+            if (match) {
+                return match.id;
+            }
+        }
+
+        return '';
     }
 
     function resolvePrCategory(value) {
@@ -2646,7 +2999,7 @@
         const removeButtonLabel = isLiquidation ? 'Remove row' : 'Remove';
 
         return `
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div data-pr-line-items-section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h5 class="text-sm font-semibold text-gray-700">${escapeHtml(title)}</h5>
@@ -2760,12 +3113,20 @@
                 </datalist>
 
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="hidden" name="data[master_item_type]" data-pr-primary-field="master_item_type" value="">
-                    <input type="hidden" name="data[master_item_id]" data-pr-primary-field="master_item_id" value="">
-                    <input type="hidden" name="data[description_specification]" data-pr-primary-field="description_specification" value="">
-                    <input type="hidden" name="data[quantity]" data-pr-primary-field="quantity" value="">
-                    <input type="hidden" name="data[unit_cost]" data-pr-primary-field="unit_cost" value="">
-                    <input type="hidden" name="data[estimated_total_cost]" data-pr-primary-field="estimated_total_cost" value="">
+                    ${currentModuleKey === 'po' ? `
+                        <input type="hidden" name="data[linked_item_type]" data-pr-primary-field="linked_item_type" value="">
+                        <input type="hidden" name="data[linked_item_id]" data-pr-primary-field="linked_item_id" value="">
+                        <input type="hidden" name="data[quantity]" data-pr-primary-field="quantity" value="">
+                        <input type="hidden" name="data[unit_cost]" data-pr-primary-field="unit_cost" value="">
+                        <input type="hidden" name="data[total_amount]" data-pr-primary-field="total_amount" value="">
+                    ` : `
+                        <input type="hidden" name="data[master_item_type]" data-pr-primary-field="master_item_type" value="">
+                        <input type="hidden" name="data[master_item_id]" data-pr-primary-field="master_item_id" value="">
+                        <input type="hidden" name="data[description_specification]" data-pr-primary-field="description_specification" value="">
+                        <input type="hidden" name="data[quantity]" data-pr-primary-field="quantity" value="">
+                        <input type="hidden" name="data[unit_cost]" data-pr-primary-field="unit_cost" value="">
+                        <input type="hidden" name="data[estimated_total_cost]" data-pr-primary-field="estimated_total_cost" value="">
+                    `}
                 </div>
             </div>
         `;
@@ -3199,6 +3560,15 @@
     }
 
     function getPrPrimaryFieldMap() {
+        if (currentModuleKey === 'po') {
+            return {
+                linked_item_id: 'item_id',
+                quantity: 'quantity',
+                unit_cost: 'amount',
+                total_amount: 'total',
+            };
+        }
+
         return {
             master_item_id: 'item_id',
             description_specification: 'description',
@@ -3358,7 +3728,7 @@
     }
 
     function syncPrPrimaryFields() {
-        if (currentModuleKey !== 'pr') return;
+        if (currentModuleKey !== 'pr' && currentModuleKey !== 'po') return;
 
         const firstRow = Array.from(document.querySelectorAll('[data-pr-line-item-row]')).find((row) => {
             return Array.from(row.querySelectorAll('[data-pr-line-item-field]')).some((input) => String(input.value || '').trim() !== '');
@@ -3371,7 +3741,7 @@
             const target = form.querySelector(`[data-pr-primary-field="${primaryField}"]`);
             const source = firstRow?.querySelector(`[data-pr-line-item-field="${rowField}"]`);
             if (target) {
-                if (primaryField === 'master_item_id') {
+                if (primaryField === 'master_item_id' || primaryField === 'linked_item_id') {
                     target.value = source ? resolvePrItemId(source.value) : '';
                 } else {
                     target.value = source ? (source.value || '') : '';
@@ -3382,6 +3752,16 @@
         const typeTarget = form.querySelector('[data-pr-primary-field="master_item_type"]');
         if (typeTarget) {
             typeTarget.value = 'product';
+        }
+
+        const poTypeTarget = form.querySelector('[data-pr-primary-field="linked_item_type"]');
+        if (poTypeTarget) {
+            const itemLabel = String(firstRow?.querySelector('[data-pr-line-item-field="item_id"]')?.value || '').trim().toLowerCase();
+            const serviceLookup = financeLookupOptions.service || [];
+            const productLookup = financeLookupOptions.product || [];
+            const matchedService = serviceLookup.find((option) => String(option.label || option.value || '').trim().toLowerCase() === itemLabel);
+            const matchedProduct = productLookup.find((option) => String(option.label || option.value || '').trim().toLowerCase() === itemLabel);
+            poTypeTarget.value = matchedService ? 'service' : (matchedProduct ? 'product' : 'product');
         }
     }
 
@@ -3550,6 +3930,10 @@
             return value || 'N/A';
         }
 
+        if (field.type === 'time') {
+            return value || 'N/A';
+        }
+
         if (field.type === 'select') {
             if (field.source) {
                 return getLookupLabel(field.source, value) || value;
@@ -3652,7 +4036,7 @@
 
             if (requesterModeSelect) {
                 requesterModeSelect.addEventListener('change', () => {
-                    syncPrRequesterFields({ preserveExisting: false });
+                    syncRequestOwnershipFields({ preserveExisting: false });
                     renderDrawerPreview();
                 });
             }
@@ -3668,6 +4052,42 @@
                 newVendorSelect.addEventListener('change', () => {
                     syncPrVendorFields({ preserveExisting: false });
                     renderDrawerPreview();
+                });
+            }
+        }
+
+        if (isRequestOwnershipModule() && currentModuleKey !== 'pr') {
+            const requesterModeSelect = form.querySelector('select[name="data[requester_mode]"]');
+            if (requesterModeSelect) {
+                requesterModeSelect.addEventListener('change', () => {
+                    syncRequestOwnershipFields({ preserveExisting: false });
+                    renderDrawerPreview();
+                });
+            }
+        }
+
+        if (currentModuleKey === 'po') {
+            const linkedPrSelect = form.querySelector('select[name="data[linked_pr_id]"]');
+            if (linkedPrSelect) {
+                linkedPrSelect.addEventListener('change', () => {
+                    syncPoLinkedPrFields({ preserveExisting: false });
+                });
+            }
+        }
+
+        if (currentModuleKey === 'arf') {
+            const linkedPoSelect = form.querySelector('select[name="data[linked_po_id]"]');
+            const linkedDvSelect = form.querySelector('select[name="data[linked_dv_id]"]');
+
+            if (linkedPoSelect) {
+                linkedPoSelect.addEventListener('change', () => {
+                    syncArfLinkedDocumentFields({ preserveExisting: false });
+                });
+            }
+
+            if (linkedDvSelect) {
+                linkedDvSelect.addEventListener('change', () => {
+                    syncArfLinkedDocumentFields({ preserveExisting: false });
                 });
             }
         }
@@ -3690,6 +4110,9 @@
             : generateModuleRecordNumber(currentModuleKey);
         const recordTitleValue = generateDefaultRecordTitle(currentModuleKey, record);
         const recordDateValue = record ? record.record_date || '' : todayDateValue();
+        const recordTimeValue = record
+            ? (record.data?.transaction_time || currentTimeValue())
+            : (draftContext?.prefill?.transaction_time || currentTimeValue());
         const amountValue = record
             ? (record.amount || '')
             : (draftContext?.prefill?.amount || draftContext?.prefill?.amount_returned || '');
@@ -3713,6 +4136,7 @@
         $('recordNumberInput').value = recordNumberValue;
         $('recordTitleInput').value = recordTitleValue;
         $('recordDateInput').value = recordDateValue;
+        $('recordTimeInput').value = recordTimeValue;
         $('amountInput').value = amountValue;
         $('statusInput').value = statusValue;
         $('drawerTitle').textContent = record ? `Edit ${moduleConfig.label}` : `Add ${moduleConfig.label}`;
@@ -3728,6 +4152,9 @@
         setReadonlyState($('recordNumberInput'), true);
         setReadonlyState($('recordDateInput'), currentModuleKey === 'supplier');
         setRecordNumberLocked(true);
+
+        values.transaction_time = recordTimeValue;
+        values['data[transaction_time]'] = recordTimeValue;
 
         const drawerPanel = $('drawerPanel');
         if (drawerPanel) {
@@ -3829,14 +4256,26 @@
                         </div>
                     </div>
 
+                    ${pendingLiquidationBranchDraft ? `
+                        <div data-pending-liquidation-panel class="md:col-span-2 rounded-xl border ${pendingLiquidationBranchDraft.moduleKey === 'err' ? 'border-red-200 bg-red-50/40' : 'border-emerald-200 bg-emerald-50/40'} p-4">
+                            <h4 class="text-sm font-semibold uppercase tracking-[0.24em] ${pendingLiquidationBranchDraft.moduleKey === 'err' ? 'text-red-700' : 'text-emerald-700'}">Next Section Available</h4>
+                            <p class="mt-2 text-sm text-gray-700">The liquidation result has been calculated. You can open <span class="font-semibold">${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'CRF')}</span> now, or stay here and continue editing.</p>
+                            <div class="mt-4 flex flex-wrap gap-3">
+                                <button type="button" onclick="window.financeModule.openPendingLiquidationBranch()" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Open ${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'CRF')}</button>
+                                <button type="button" onclick="window.financeModule.dismissPendingLiquidationBranch()" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Stay Here</button>
+                            </div>
+                        </div>
+                    ` : ''}
+
                     <div class="md:col-span-2">
                         ${renderLiquidationReportSection(draftLinkedRecord || record, values)}
                     </div>
 
                     <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Requester Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
                         </div>
                     </div>
 
@@ -3856,6 +4295,7 @@
             if (currentModuleKey === 'err') {
                 const linkedLrId = getDraftValue('linked_lr_id', record);
                 const amountValue = getDraftValue('amount', record);
+                const requesterModeValue = getDraftValue('requester_mode', record) || 'own_request';
                 const requestorValue = getDraftValue('requestor', record);
                 const expenseDetails = getDraftValue('expense_details', record);
                 const supplierValue = getDraftValue('supplier_id', record);
@@ -3866,6 +4306,8 @@
 
                 values.linked_lr_id = linkedLrId;
                 values['data[linked_lr_id]'] = linkedLrId;
+                values.requester_mode = requesterModeValue;
+                values['data[requester_mode]'] = requesterModeValue;
                 values.amount = amountValue;
                 values['data[amount]'] = amountValue;
                 values.requestor = requestorValue;
@@ -3895,8 +4337,9 @@
                     <input type="hidden" name="data[linked_lr_id]" value="${escapeHtml(linkedLrId)}">
                     <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Reimbursement Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['requestor', 'expense_details', 'amount', 'supplier_id', 'coa_id', 'reimbursement_mode', 'bank_account_id', 'remarks'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'expense_details', 'amount', 'supplier_id', 'coa_id', 'reimbursement_mode', 'bank_account_id', 'remarks'], values, record)}
                         </div>
                     </div>
                 `;
@@ -3904,6 +4347,8 @@
 
             if (currentModuleKey === 'crf') {
                 const linkedLrId = getDraftValue('linked_lr_id', record);
+                const requesterModeValue = getDraftValue('requester_mode', record) || 'own_request';
+                const requestorValue = getDraftValue('requestor', record);
                 const amountReturnedValue = getDraftValue('amount_returned', record);
                 const modeOfReturnValue = getDraftValue('mode_of_return', record);
                 const receivingBankValue = getDraftValue('receiving_bank_account_id', record);
@@ -3913,6 +4358,10 @@
 
                 values.linked_lr_id = linkedLrId;
                 values['data[linked_lr_id]'] = linkedLrId;
+                values.requester_mode = requesterModeValue;
+                values['data[requester_mode]'] = requesterModeValue;
+                values.requestor = requestorValue;
+                values['data[requestor]'] = requestorValue;
                 values.amount_returned = amountReturnedValue;
                 values['data[amount_returned]'] = amountReturnedValue;
                 values.mode_of_return = modeOfReturnValue;
@@ -3937,8 +4386,9 @@
                     ` : ''}
                     <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Return Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['linked_lr_id', 'amount_returned', 'mode_of_return', 'receiving_bank_account_id', 'coa_id', 'reference_number', 'remarks'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'linked_lr_id', 'amount_returned', 'mode_of_return', 'receiving_bank_account_id', 'coa_id', 'reference_number', 'remarks'], values, record)}
                         </div>
                     </div>
                 `;
@@ -4072,8 +4522,9 @@
 
                     <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Requester Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
                         </div>
                     </div>
 
@@ -4111,8 +4562,9 @@
 
                     <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Requester Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['employee_id', 'employee_name', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'employee_name', 'employee_id', 'employee_email', 'contact_number', 'position', 'department', 'superior', 'superior_email'], values, record)}
                         </div>
                     </div>
 
@@ -4181,7 +4633,7 @@
                     <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Request Details</h4>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['requesting_department', 'requester_mode', 'request_type', 'priority', 'purchase_type', 'needed_date'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requesting_department', 'requester_mode', 'request_type', 'priority', 'purchase_type', 'needed_date', 'for_client', 'pr_reason_categories'], values, record)}
                         </div>
                     </div>
 
@@ -4214,6 +4666,36 @@
                                 <h5 class="text-sm font-semibold text-gray-700">Purpose & Notes</h5>
                                 <div class="mt-4 grid grid-cols-1 gap-4">
                                     ${renderFieldsByNames(moduleConfig, ['purpose', 'remarks'], values, record)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (currentModuleKey === 'po') {
+                const supplierValue = getDraftValue('supplier_id', record);
+                values.supplier_id = supplierValue;
+                values['data[supplier_id]'] = supplierValue;
+
+                return `
+                    <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Order Details</h4>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${renderFieldsByNames(moduleConfig, ['linked_pr_id', 'supplier_id', 'expected_delivery_date', 'delivery_address', 'terms_and_conditions'], values, record)}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Items / Cost Details</h4>
+                        <p class="mt-2 text-xs text-gray-500">Use the same detailed item layout as the purchase request. The live preview updates as you add item rows.</p>
+                        <div class="mt-4 space-y-4">
+                            ${renderPrLineItemsTable(record)}
+
+                            <div class="rounded-xl border border-gray-200 bg-white p-4">
+                                <h5 class="text-sm font-semibold text-gray-700">Purpose & Notes</h5>
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    ${renderFieldsByNames(moduleConfig, ['coa_id', 'remarks'], values, record)}
                                 </div>
                             </div>
                         </div>
@@ -4356,6 +4838,15 @@
         if (currentModuleKey === 'pr') {
             syncPrRequestDetails({ preserveExisting: true });
         }
+        if (isRequestOwnershipModule() && currentModuleKey !== 'pr') {
+            syncRequestOwnershipFields({ preserveExisting: true });
+        }
+        if (currentModuleKey === 'po') {
+            syncPoLinkedPrFields({ preserveExisting: true });
+        }
+        if (currentModuleKey === 'arf') {
+            syncArfLinkedDocumentFields({ preserveExisting: true });
+        }
         if (currentModuleKey === 'bank_account') {
             renderBankAccountLookupList(activeBankAccountLookupQuery);
         }
@@ -4368,6 +4859,8 @@
         const companyName = 'John Kelly & Company';
         const companyLegalName = 'JK&C INC.';
         const companyLogo = '/images/imaglogo.png';
+        const previewDraftContext = financeDraftContext && financeDraftContext.moduleKey === currentModuleKey ? financeDraftContext : null;
+        const draftLinkedRecord = previewDraftContext?.linkedRecord || null;
         const formValues = {};
         const formData = new FormData($('financeForm'));
         formData.forEach((value, key) => {
@@ -4381,6 +4874,7 @@
         });
         const recordNumber = $('recordNumberInput').value.trim();
         const recordDate = $('recordDateInput').value;
+        const recordTime = $('recordTimeInput').value;
         const amount = $('amountInput').value;
         const titleLabel = `${moduleConfig.label} Form`.toUpperCase();
         const recordTitleValue = $('recordTitleInput').value.trim() || generateDefaultRecordTitle(currentModuleKey);
@@ -4388,6 +4882,7 @@
             ['Number', recordNumber || 'N/A'],
             [moduleConfig.recordTitleLabel || 'Name', recordTitleValue || 'N/A'],
             ['Date', recordDate || 'N/A'],
+            ['Time', recordTime || 'N/A'],
             ['Amount', amount || '0.00'],
         ];
 
@@ -4580,6 +5075,122 @@
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        if (currentModuleKey === 'po') {
+            const rows = Array.from(document.querySelectorAll('[data-pr-line-item-row]')).map((row) => ({
+                item_id: row.querySelector('[data-pr-line-item-field="item_id"]')?.value || '',
+                description: row.querySelector('[data-pr-line-item-field="description"]')?.value || '',
+                category: row.querySelector('[data-pr-line-item-field="category"]')?.value || '',
+                quantity: row.querySelector('[data-pr-line-item-field="quantity"]')?.value || '',
+                amount: row.querySelector('[data-pr-line-item-field="amount"]')?.value || '',
+                subtotal: row.querySelector('[data-pr-line-item-field="subtotal"]')?.value || '',
+                discount_amount: row.querySelector('[data-pr-line-item-field="discount_amount"]')?.value || '',
+                shipping_amount: row.querySelector('[data-pr-line-item-field="shipping_amount"]')?.value || '',
+                tax_amount: row.querySelector('[data-pr-line-item-field="tax_amount"]')?.value || '',
+                wht_amount: row.querySelector('[data-pr-line-item-field="wht_amount"]')?.value || '',
+                total: row.querySelector('[data-pr-line-item-field="total"]')?.value || '',
+            }));
+
+            $('drawerPreview').innerHTML = `
+                <div class="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+                    <div class="mb-3 flex items-center justify-between rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
+                        <span>PDF Holder</span>
+                        <span>Live Preview</span>
+                    </div>
+                    <div class="mx-auto max-w-[760px] overflow-hidden rounded-[6px] border border-gray-300 bg-white shadow-lg">
+                        <div class="relative px-5 py-5 text-center border-b border-gray-300 bg-white">
+                            <div class="mx-auto flex items-center justify-center rounded-xl bg-white px-4 py-2">
+                                <img src="${companyLogo}" alt="${escapeHtml(companyName)}" class="block h-24 w-auto max-w-[220px] object-contain">
+                            </div>
+                            <div class="mt-3 text-[16px] font-semibold leading-tight text-gray-900">${escapeHtml(companyName)}</div>
+                            <div class="text-[10px] font-medium tracking-[0.3em] text-gray-500">${escapeHtml(companyLegalName)}</div>
+                        </div>
+
+                        <div class="relative bg-blue-700 px-4 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.32em] text-white">
+                            ${escapeHtml(titleLabel)}
+                        </div>
+
+                        <div class="relative grid grid-cols-2 border-t border-gray-300 text-sm">
+                            ${summaryItems.map(([label, value], index) => `
+                                <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                    <p class="mt-1 text-[15px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Order Details</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2">
+                                ${[
+                                    ['Linked PR', getLookupLabel('pr', formValues['data[linked_pr_id]']) || formValues['data[linked_pr_id]'] || 'Not filled yet'],
+                                    ['Supplier', getLookupLabel('supplier', formValues['data[supplier_id]']) || formValues['data[supplier_id]'] || 'Not filled yet'],
+                                    ['Expected Delivery Date', formValues['data[expected_delivery_date]'] || 'Not filled yet'],
+                                    ['Delivery Address', formValues['data[delivery_address]'] || 'Not filled yet'],
+                                    ['Terms and Conditions', formValues['data[terms_and_conditions]'] || 'Not filled yet'],
+                                    ['Account', getLookupLabel('chart_account', formValues['data[coa_id]']) || formValues['data[coa_id]'] || 'Not filled yet'],
+                                ].map(([label, value], index) => `
+                                    <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                        <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                        <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Items / Cost Details</h4>
+                            </div>
+                            <div class="p-4 overflow-x-auto">
+                                <table class="w-full min-w-[860px] border-collapse text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-700">
+                                            <th class="border border-gray-200 px-3 py-2 text-left w-12">#</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left">Item</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left">Description</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left w-32">Category</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left w-24">Qty</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left w-32">Amount</th>
+                                            <th class="border border-gray-200 px-3 py-2 text-left w-32">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${rows.length ? rows.map((row, index) => `
+                                            <tr>
+                                                <td class="border border-gray-200 px-3 py-2 font-semibold text-blue-700">${index + 1}</td>
+                                                <td class="border border-gray-200 px-3 py-2">${escapeHtml(getPrItemDisplayValue(row.item_id) || 'N/A')}</td>
+                                                <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.description || 'N/A')}</td>
+                                                <td class="border border-gray-200 px-3 py-2">${escapeHtml(getPrCategoryDisplayValue(row.category) || 'N/A')}</td>
+                                                <td class="border border-gray-200 px-3 py-2">${escapeHtml(row.quantity || '0')}</td>
+                                                <td class="border border-gray-200 px-3 py-2">${escapeHtml(formatCurrency(row.amount || 0))}</td>
+                                                <td class="border border-gray-200 px-3 py-2 font-semibold">${escapeHtml(formatCurrency(row.total || (Number(row.quantity || 0) * Number(row.amount || 0))))}</td>
+                                            </tr>
+                                        `).join('') : `
+                                            <tr>
+                                                <td colspan="7" class="border border-gray-200 px-3 py-4 text-center italic text-gray-400">No line items added yet.</td>
+                                            </tr>
+                                        `}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Remarks</h4>
+                            </div>
+                            <div class="px-4 py-3">
+                                <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(formValues['data[remarks]'] || 'Not filled yet')}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -4991,6 +5602,7 @@
 
         if (!linkedLrRecord) {
             financeDraftContext = null;
+            pendingLiquidationBranchDraft = null;
             showFinanceToast('Liquidation details loaded from the selected CA. No linked liquidation record was found yet.', 'success');
             return;
         }
@@ -4998,22 +5610,21 @@
         const branchDraft = buildLiquidationBranchDraft(linkedLrRecord);
         if (!branchDraft) {
             financeDraftContext = null;
+            pendingLiquidationBranchDraft = null;
             renderFinanceForm(linkedLrRecord);
-            showFinanceToast('Linked liquidation loaded. The record is balanced, so no ERR or CRF branch was opened.', 'success');
+            showFinanceToast('Linked liquidation loaded. The result is balanced, so no ERR or CRF shortcut is needed.', 'success');
             return;
         }
 
-        financeDraftContext = branchDraft;
-        changeModule(branchDraft.moduleKey);
-        requestAnimationFrame(() => {
-            openFinanceDrawer();
-            showFinanceToast(
-                branchDraft.moduleKey === 'err'
-                    ? 'Shortage detected. Opening ERR with the linked liquidation details.'
-                    : 'Overage detected. Opening CRF with the linked liquidation details.',
-                'success'
-            );
-        });
+        financeDraftContext = null;
+        pendingLiquidationBranchDraft = branchDraft;
+        renderFinanceForm(linkedLrRecord);
+        showFinanceToast(
+            branchDraft.moduleKey === 'err'
+                ? 'Shortage detected. Use the button to open ERR when you are ready.'
+                : 'Overage detected. Use the button to open CRF when you are ready.',
+            'success'
+        );
     }
 
     function getRecordById(id) {
@@ -5097,6 +5708,7 @@
             ['Record Number', record.record_number || 'N/A'],
             [moduleConfig.recordTitleLabel || 'Name', record.record_title || 'N/A'],
             ['Record Date', record.record_date || 'N/A'],
+            ['Record Time', data.transaction_time || 'N/A'],
             ['Amount', record.amount ? formatCurrency(record.amount) : 'N/A'],
             ['Status', record.status || 'N/A'],
             ['Workflow', record.workflow_status || 'N/A'],
@@ -5969,6 +6581,7 @@
                             <div class="item"><div class="label">Number</div><div class="value">${escapeHtml(record.record_number || 'N/A')}</div></div>
                             <div class="item"><div class="label">${escapeHtml(getModuleConfig(record.module_key).recordTitleLabel || 'Name')}</div><div class="value">${escapeHtml(record.record_title || 'N/A')}</div></div>
                             <div class="item"><div class="label">Date</div><div class="value">${escapeHtml(record.record_date || 'N/A')}</div></div>
+                            <div class="item"><div class="label">Time</div><div class="value">${escapeHtml(record.data?.transaction_time || 'N/A')}</div></div>
                             <div class="item"><div class="label">Amount</div><div class="value">${escapeHtml(record.amount ? formatCurrency(record.amount) : 'N/A')}</div></div>
                             <div class="item"><div class="label">Status</div><div class="value">${escapeHtml(record.status || 'Active')}</div></div>
                             <div class="item"><div class="label">Created By</div><div class="value">${escapeHtml(record.user || '')}</div></div>
@@ -6048,6 +6661,8 @@
         changeWorkflow,
         changeSupplierCompletionMode,
         fetchLiquidationSource,
+        openPendingLiquidationBranch,
+        dismissPendingLiquidationBranch,
         openLookupSelector,
         closeLookupSelector,
         selectLookupSelectorValue,
@@ -6127,6 +6742,7 @@
 
         $('recordNumberInput').addEventListener('input', renderDrawerPreview);
         $('recordDateInput').addEventListener('input', renderDrawerPreview);
+        $('recordTimeInput').addEventListener('input', renderDrawerPreview);
     $('amountInput').addEventListener('input', renderDrawerPreview);
     $('attachmentsInput').addEventListener('change', renderDrawerPreview);
 
