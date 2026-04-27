@@ -120,6 +120,78 @@ class FinanceDemoSeeder extends Seeder
             ]
         );
 
+        $pettyCashAccount = $this->seedRecord(
+            ['module_key' => 'chart_account', 'record_number' => 'COA-1002'],
+            $baseMeta + [
+                'record_title' => 'Petty Cash',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'account_description' => 'Cash on hand for small operational expenses and reimbursements.',
+                    'is_sub_account' => false,
+                    'parent_account_id' => null,
+                    'account_type' => 'Asset',
+                    'account_group' => 'Cash and Cash Equivalents',
+                    'normal_balance' => 'Debit',
+                    'account_status' => 'Active',
+                    'remarks' => 'Used for cash account selector testing.',
+                ],
+            ]
+        );
+
+        $cashOnHandAccount = $this->seedRecord(
+            ['module_key' => 'chart_account', 'record_number' => 'COA-1003'],
+            $baseMeta + [
+                'record_title' => 'Cash on Hand',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'account_description' => 'Cash kept in the office for immediate disbursement needs.',
+                    'is_sub_account' => false,
+                    'parent_account_id' => null,
+                    'account_type' => 'Cash',
+                    'account_group' => 'Cash and Cash Equivalents',
+                    'normal_balance' => 'Debit',
+                    'account_status' => 'Active',
+                    'remarks' => 'Visible in bank/cash related chart account selector.',
+                ],
+            ]
+        );
+
+        $operatingCashAccount = $this->seedRecord(
+            ['module_key' => 'chart_account', 'record_number' => 'COA-1004'],
+            $baseMeta + [
+                'record_title' => 'Operating Cash',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'account_description' => 'Primary cash account used for day-to-day expenses and funding.',
+                    'is_sub_account' => false,
+                    'parent_account_id' => null,
+                    'account_type' => 'Asset',
+                    'account_group' => 'Cash and Cash Equivalents',
+                    'normal_balance' => 'Debit',
+                    'account_status' => 'Active',
+                    'remarks' => 'Paired with finance selector demo data.',
+                ],
+            ]
+        );
+
+        $bankHoldingAccount = $this->seedRecord(
+            ['module_key' => 'chart_account', 'record_number' => 'COA-1005'],
+            $baseMeta + [
+                'record_title' => 'Bank Holding Account',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'account_description' => 'Clearing account for bank transfers and supplier payments.',
+                    'is_sub_account' => false,
+                    'parent_account_id' => null,
+                    'account_type' => 'Asset',
+                    'account_group' => 'Bank Accounts',
+                    'normal_balance' => 'Debit',
+                    'account_status' => 'Active',
+                    'remarks' => 'Used as a selectable linked COA for bank accounts.',
+                ],
+            ]
+        );
+
         $bankAccount = $this->seedRecord(
             ['module_key' => 'bank_account', 'record_number' => 'BANK-0001'],
             $baseMeta + [
@@ -156,6 +228,42 @@ class FinanceDemoSeeder extends Seeder
             ]
         );
 
+        $secondaryBankAccount = $this->seedRecord(
+            ['module_key' => 'bank_account', 'record_number' => 'BANK-0003'],
+            $baseMeta + [
+                'record_title' => 'Supplier Disbursement Account',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'bank_name' => 'Metrobank',
+                    'branch' => 'Mandaluyong',
+                    'currency' => 'PHP',
+                    'bank_status' => 'Active',
+                    'account_type' => 'Checking',
+                    'linked_coa_id' => $bankHoldingAccount->id,
+                    'signatory_notes' => 'Use for supplier settlement transactions.',
+                    'remarks' => 'Additional bank record for selector testing.',
+                ],
+            ]
+        );
+
+        $cashWalletAccount = $this->seedRecord(
+            ['module_key' => 'bank_account', 'record_number' => 'BANK-0004'],
+            $baseMeta + [
+                'record_title' => 'Petty Cash Wallet',
+                'record_date' => '2026-04-10',
+                'data' => [
+                    'bank_name' => 'Cash Custody',
+                    'branch' => 'Main Office',
+                    'currency' => 'PHP',
+                    'bank_status' => 'Active',
+                    'account_type' => 'Cash',
+                    'linked_coa_id' => $pettyCashAccount->id,
+                    'signatory_notes' => 'Cash box for immediate office expenses.',
+                    'remarks' => 'Dummy cash account for lookup list display.',
+                ],
+            ]
+        );
+
         $service->update([
             'data' => array_merge($service->data ?? [], ['coa_id' => $chartAccount->id]),
         ]);
@@ -184,6 +292,18 @@ class FinanceDemoSeeder extends Seeder
                     'coa_id' => $chartAccount->id,
                     'purpose' => 'Maintain office cleanliness and safety.',
                     'needed_date' => '2026-04-12',
+                    'payment_type' => 'Bank Transfer',
+                    'reference_number' => 'PR-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 2500,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'PR-0001-REF',
+                        'purpose' => 'Procurement release for office cleaning request.',
+                        'payment_date' => '2026-04-10',
+                        'remarks' => 'Source payload seeded from PR.',
+                    ],
                     'remarks' => 'Seeded PR for workflow testing.',
                 ],
             ]
@@ -207,6 +327,19 @@ class FinanceDemoSeeder extends Seeder
                     'total_amount' => 2500,
                     'coa_id' => $chartAccount->id,
                     'expected_delivery_date' => '2026-04-15',
+                    'purpose' => 'Payment for approved office cleaning services.',
+                    'payment_type' => 'Bank Transfer',
+                    'reference_number' => 'PO-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 2500,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'PO-0001-REF',
+                        'purpose' => 'Payment for approved office cleaning services.',
+                        'payment_date' => '2026-04-10',
+                        'remarks' => 'Source payload seeded for DV autofill testing.',
+                    ],
                     'remarks' => 'Seeded PO for workflow testing.',
                 ],
             ]
@@ -227,6 +360,18 @@ class FinanceDemoSeeder extends Seeder
                     'mode_of_release' => 'Cash',
                     'bank_account_id' => $bankAccount->id,
                     'coa_id' => $chartAccount->id,
+                    'payment_type' => 'Cash',
+                    'reference_number' => 'CA-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 5000,
+                        'payment_type' => 'Cash',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'CA-0001-REF',
+                        'purpose' => 'Cash advance release for shortage test.',
+                        'payment_date' => '2026-04-10',
+                        'remarks' => 'Source payload seeded from CA.',
+                    ],
                     'remarks' => 'Linked to a shortage liquidation record.',
                 ],
             ]
@@ -290,6 +435,18 @@ class FinanceDemoSeeder extends Seeder
                     'coa_id' => $chartAccount->id,
                     'reimbursement_mode' => 'Bank Transfer',
                     'bank_account_id' => $bankAccount->id,
+                    'payment_type' => 'Bank Transfer',
+                    'reference_number' => 'ERR-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 500,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'ERR-0001-REF',
+                        'purpose' => 'Reimbursement for shortage settlement.',
+                        'payment_date' => '2026-04-12',
+                        'remarks' => 'Source payload seeded from ERR.',
+                    ],
                     'remarks' => 'Seeded ERR for workflow testing.',
                 ],
             ]
@@ -332,6 +489,18 @@ class FinanceDemoSeeder extends Seeder
                     'mode_of_release' => 'Cash',
                     'bank_account_id' => $bankAccount->id,
                     'coa_id' => $chartAccount->id,
+                    'payment_type' => 'Cash',
+                    'reference_number' => 'CA-0002-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 3000,
+                        'payment_type' => 'Cash',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'CA-0002-REF',
+                        'purpose' => 'Cash advance release for overage test.',
+                        'payment_date' => '2026-04-10',
+                        'remarks' => 'Source payload seeded from CA overage.',
+                    ],
                     'remarks' => 'Linked to an overage liquidation record.',
                 ],
             ]
@@ -394,6 +563,17 @@ class FinanceDemoSeeder extends Seeder
                     'receiving_bank_account_id' => $bankAccount->id,
                     'coa_id' => $chartAccount->id,
                     'reference_number' => 'CR-0001',
+                    'payment_type' => 'Cash',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 400,
+                        'payment_type' => 'Cash',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'CR-0001',
+                        'purpose' => 'Cash return from overage liquidation.',
+                        'payment_date' => '2026-04-12',
+                        'remarks' => 'Source payload seeded from CRF.',
+                    ],
                     'remarks' => 'Seeded CRF for workflow testing.',
                 ],
             ]
@@ -411,6 +591,18 @@ class FinanceDemoSeeder extends Seeder
                     'funding_bank_account_id' => $bankAccount->id,
                     'payroll_expense_coa_id' => $chartAccount->id,
                     'supporting_payroll_summary' => 'Seed payroll summary for April 15 cycle.',
+                    'payment_type' => 'Bank Transfer',
+                    'reference_number' => 'PDA-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 85000,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'PDA-0001-REF',
+                        'purpose' => 'Payroll disbursement authorization.',
+                        'payment_date' => '2026-04-15',
+                        'remarks' => 'Source payload seeded from PDA.',
+                    ],
                     'remarks' => 'Used to test PDA to DV flow.',
                 ],
             ]
@@ -430,6 +622,17 @@ class FinanceDemoSeeder extends Seeder
                     'source_account_code' => 'BANK-0001',
                     'destination_account_code' => 'BANK-0002',
                     'transfer_reference_number' => 'TRF-0001',
+                    'payment_type' => 'Bank Transfer',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 15000,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'TRF-0001',
+                        'purpose' => 'Interbank transfer release.',
+                        'payment_date' => '2026-04-14',
+                        'remarks' => 'Source payload seeded from IBTF.',
+                    ],
                     'remarks' => 'This record is intentionally seeded for workflow tests.',
                 ],
             ]
@@ -466,6 +669,7 @@ class FinanceDemoSeeder extends Seeder
                 'data' => [
                     'linked_po_id' => $po->id,
                     'linked_dv_id' => $dvFromPo->id,
+                    'asset_code' => 'JKC-ARF-0001',
                     'asset_description' => 'Office multifunction printer for the admin team.',
                     'asset_category' => 'Office Equipment',
                     'serial_number' => 'SN-ARF-0001',
@@ -478,6 +682,18 @@ class FinanceDemoSeeder extends Seeder
                     'custodian' => 'Juan Dela Cruz',
                     'useful_life' => '5 years',
                     'residual_value' => 0,
+                    'payment_type' => 'Bank Transfer',
+                    'reference_number' => 'ARF-0001-REF',
+                    'dv_payload' => [
+                        'supplier_id' => $supplier->id,
+                        'amount' => 2500,
+                        'payment_type' => 'Bank Transfer',
+                        'coa_id' => $chartAccount->id,
+                        'reference_number' => 'ARF-0001-REF',
+                        'purpose' => 'Asset acquisition payment for printer.',
+                        'payment_date' => '2026-04-13',
+                        'remarks' => 'Source payload seeded from ARF.',
+                    ],
                     'remarks' => 'Asset seeded from PO / DV workflow.',
                 ],
             ]

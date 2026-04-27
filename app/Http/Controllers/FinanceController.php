@@ -57,6 +57,28 @@ class FinanceController extends Controller
         return self::MODULES[$moduleKey] ?? Str::headline($moduleKey);
     }
 
+    private function moduleRecordTitleLabel(string $moduleKey): string
+    {
+        return match ($moduleKey) {
+            'supplier' => 'Supplier Name',
+            'service' => 'Service Name',
+            'product' => 'Product Name',
+            'chart_account' => 'Account Name',
+            'bank_account' => 'Bank Account Name',
+            'pr' => 'Request Title',
+            'po' => 'Order Title',
+            'ca' => 'Requestor',
+            'lr' => 'Liquidating Person',
+            'err' => 'Requestor',
+            'dv' => 'Payee',
+            'pda' => 'Payroll Period',
+            'crf' => 'Returnee',
+            'ibtf' => 'Transfer Title',
+            'arf' => 'Asset Name',
+            default => 'Record Name',
+        };
+    }
+
     private function financePdfImageDataUri(string $relativePath): ?string
     {
         $absolutePath = public_path($relativePath);
@@ -124,10 +146,94 @@ class FinanceController extends Controller
         return $stringValue === '' ? 'N/A' : $stringValue;
     }
 
+    private function financeBarcodeSvg(?string $value): string
+    {
+        $text = trim((string) $value);
+
+        if ($text === '') {
+            return '';
+        }
+
+        $normalized = strtoupper(preg_replace('/\s+/', '', $text) ?: '');
+        if ($normalized === '') {
+            return '';
+        }
+
+        $seed = 0;
+        foreach (str_split($normalized) as $index => $char) {
+            $seed += ord($char) * ($index + 3);
+        }
+
+        $bits = '1010';
+        foreach (str_split($normalized) as $char) {
+            $code = ord($char) ^ ($seed & 0xff);
+            $bits .= str_pad(decbin($code), 8, '0', STR_PAD_LEFT);
+        }
+        $bits .= '110101';
+
+        $unit = 2;
+        $quietZone = 10;
+        $height = 56;
+        $textY = 84;
+        $cursor = $quietZone;
+        $current = $bits[0] ?? '0';
+        $runLength = 0;
+        $rects = '';
+
+        $flushRun = function () use (&$rects, &$cursor, &$runLength, &$current, $unit, $height) {
+            if ($runLength > 0 && $current === '1') {
+                $rects .= sprintf(
+                    '<rect x="%d" y="8" width="%d" height="%d" fill="#111827" />',
+                    $cursor,
+                    $runLength * $unit,
+                    $height
+                );
+            }
+
+            $cursor += $runLength * $unit;
+            $runLength = 0;
+        };
+
+        foreach (str_split($bits) as $bit) {
+            if ($bit === $current) {
+                $runLength++;
+                continue;
+            }
+
+            $flushRun();
+            $current = $bit;
+            $runLength = 1;
+        }
+
+        $flushRun();
+
+        $width = max(240, $cursor + $quietZone);
+        $safeText = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+
+        $centerX = (int) round($width / 2);
+
+        return <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$width} 96" role="img" aria-label="Barcode for {$safeText}">
+    <rect x="0" y="0" width="{$width}" height="96" rx="10" fill="#ffffff" />
+    <rect x="0" y="0" width="{$width}" height="96" rx="10" fill="none" stroke="#e5e7eb" />
+    <g>{$rects}</g>
+    <text x="{$centerX}" y="{$textY}" text-anchor="middle" font-family="monospace" font-size="11" fill="#111827">{$safeText}</text>
+</svg>
+SVG;
+    }
+
     private function financePreviewFieldValue(FinanceRecord $record, string $fieldName, array $lookupOptions): string
     {
         $data = $record->data ?? [];
         $value = data_get($data, $fieldName);
+
+        if ($fieldName === 'requester_mode') {
+            return match ($value) {
+                'own_request' => 'Own Request',
+                'request_for_another' => 'Request for Another',
+                default => $this->financePdfValue($value),
+            };
+        }
 
         if (in_array($fieldName, ['completion_mode', 'vat_status', 'accreditation_status', 'tax_type', 'payment_type', 'mode_of_release', 'mode_of_return', 'reimbursement_mode', 'bank_status', 'account_type', 'account_status', 'service_status', 'product_status', 'normal_balance', 'variance_indicator', 'purchase_type', 'priority', 'request_type'], true)) {
             return $this->financePdfValue($value);
@@ -271,6 +377,7 @@ class FinanceController extends Controller
             'pr' => [
                 $section('Request Details', [
                     ['name' => 'requesting_department', 'label' => 'Department'],
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'request_type', 'label' => 'Type'],
                     ['name' => 'priority', 'label' => 'Priority'],
                     ['name' => 'purchase_type', 'label' => 'Purchase Type'],
@@ -299,7 +406,6 @@ class FinanceController extends Controller
                     ['name' => 'zip', 'label' => 'Zip'],
                 ]),
                 ['type' => 'line_items', 'title' => 'Items / Cost Details'],
-                ['type' => 'cost_summary', 'title' => 'Cost Summary'],
                 $section('Purpose & Notes', [
                     ['name' => 'purpose', 'label' => 'Purpose / Justification'],
                     ['name' => 'remarks', 'label' => 'Remarks'],
@@ -387,12 +493,16 @@ class FinanceController extends Controller
                     ['name' => 'superior_email', 'label' => 'Superior Email'],
                 ]),
                 [
+                    'type' => 'liquidation_report',
+                    'title' => 'Liquidation Report',
+                ],
+                [
                     'type' => 'line_items',
-                    'title' => 'Liquidation / Cost Details',
+                    'title' => 'Liquidation Cost Details',
                 ],
                 [
                     'type' => 'cost_summary',
-                    'title' => 'Cost Summary',
+                    'title' => 'Liquidation Summary',
                 ],
                 $notesSection,
             ],
@@ -476,11 +586,20 @@ class FinanceController extends Controller
                     ['name' => 'linked_po_id', 'label' => 'Linked PO'],
                     ['name' => 'linked_dv_id', 'label' => 'Linked DV'],
                     ['name' => 'supplier_id', 'label' => 'Supplier'],
+                    ['name' => 'asset_code', 'label' => 'Asset Code'],
                     ['name' => 'asset_description', 'label' => 'Asset Description'],
                     ['name' => 'asset_category', 'label' => 'Asset Category'],
                     ['name' => 'serial_number', 'label' => 'Serial Number'],
                     ['name' => 'model', 'label' => 'Model'],
                 ]),
+                [
+                    'type' => 'asset_tag',
+                    'title' => 'Asset Tag',
+                    'asset_code' => data_get($data, 'asset_code') ?: $record->record_number ?: 'N/A',
+                    'location' => data_get($data, 'location') ?: 'N/A',
+                    'serial_number' => data_get($data, 'serial_number') ?: 'N/A',
+                    'barcode_svg' => $this->financeBarcodeSvg(data_get($data, 'asset_code') ?: $record->record_number ?: ''),
+                ],
                 $section('Valuation & Custody', [
                     ['name' => 'acquisition_cost', 'label' => 'Acquisition Cost'],
                     ['name' => 'acquisition_date', 'label' => 'Acquisition Date'],
@@ -502,13 +621,14 @@ class FinanceController extends Controller
         $data = $record->data ?? [];
         $lookupOptions = $this->resolveLookupOptions();
         $moduleLabel = $this->moduleLabel($record->module_key);
+        $recordTitleLabel = $this->moduleRecordTitleLabel($record->module_key);
         $companyName = 'John Kelly & Company';
         $companyLegalName = 'JK&C INC.';
         $companyLogo = $includeLogo ? $this->financePdfImageDataUri('images/imaglogo.png') : null;
         $summaryCards = [
             ['label' => 'Module', 'value' => $moduleLabel],
-            ['label' => 'Record Number', 'value' => $record->record_number ?: 'N/A'],
-            ['label' => 'Record Title', 'value' => $record->record_title ?: 'N/A'],
+            ['label' => 'Record Number', 'value' => $this->normalizeFinanceRecordNumber($record->module_key, $record->record_number)],
+            ['label' => $recordTitleLabel, 'value' => $record->record_title ?: 'N/A'],
             ['label' => 'Record Date', 'value' => optional($record->record_date)->format('Y-m-d') ?: 'N/A'],
             ['label' => 'Amount', 'value' => $record->amount !== null ? number_format((float) $record->amount, 2) : 'N/A'],
             ['label' => 'Status', 'value' => $record->status ?: 'N/A'],
@@ -521,15 +641,31 @@ class FinanceController extends Controller
 
         $lineItems = [];
         foreach ((array) data_get($data, 'line_items', []) as $item) {
+            $quantity = (float) data_get($item, 'quantity', 0);
+            $amount = (float) data_get($item, 'amount', 0);
+            $subtotal = (float) data_get($item, 'subtotal', $quantity * $amount);
+            $discountAmount = (float) data_get($item, 'discount_amount', 0);
+            $shippingAmount = (float) data_get($item, 'shipping_amount', 0);
+            $taxAmount = (float) data_get($item, 'tax_amount', 0);
+            $whtAmount = (float) data_get($item, 'wht_amount', 0);
+            $total = (float) data_get($item, 'total', $subtotal - $discountAmount + $shippingAmount + $taxAmount - $whtAmount);
             $lineItems[] = [
                 'item' => $this->financePdfLookupLabel($lookupOptions, 'product', data_get($item, 'item_id')) ?: $this->financePdfValue(data_get($item, 'item_id')),
                 'description' => $this->financePdfValue(data_get($item, 'description')),
                 'category' => $this->financePdfValue(data_get($item, 'category')),
                 'quantity' => $this->financePdfValue(data_get($item, 'quantity')),
                 'amount' => $this->financePdfValue(data_get($item, 'amount')),
-                'total' => $this->financePdfValue(data_get($item, 'total')),
+                'subtotal' => number_format($subtotal, 2),
+                'discount_amount' => number_format($discountAmount, 2),
+                'shipping_amount' => number_format($shippingAmount, 2),
+                'tax_amount' => number_format($taxAmount, 2),
+                'wht_amount' => number_format($whtAmount, 2),
+                'total' => number_format($total, 2),
             ];
         }
+        $lineItemsTotal = array_reduce((array) data_get($data, 'line_items', []), function (float $carry, $item) {
+            return $carry + (float) data_get($item, 'total', 0);
+        }, 0.0);
 
         $costSummary = match ($record->module_key) {
             'lr' => [
@@ -560,17 +696,63 @@ class FinanceController extends Controller
             return $attachment;
         }, array_filter((array) ($record->attachments ?? []), fn ($attachment) => !blank(data_get($attachment, 'name')) || !blank(data_get($attachment, 'path')))));
 
+        $detailRows = $record->module_key === 'arf'
+            ? [
+                $this->financePreviewRow($record, $lookupOptions, 'asset_code', 'Asset Code'),
+                $this->financePreviewRow($record, $lookupOptions, 'linked_po_id', 'Linked PO'),
+                $this->financePreviewRow($record, $lookupOptions, 'linked_dv_id', 'Linked DV'),
+                $this->financePreviewRow($record, $lookupOptions, 'supplier_id', 'Supplier'),
+                $this->financePreviewRow($record, $lookupOptions, 'asset_description', 'Asset Description'),
+                $this->financePreviewRow($record, $lookupOptions, 'asset_category', 'Asset Category'),
+                $this->financePreviewRow($record, $lookupOptions, 'serial_number', 'Serial Number'),
+                $this->financePreviewRow($record, $lookupOptions, 'model', 'Model'),
+                $this->financePreviewRow($record, $lookupOptions, 'acquisition_cost', 'Acquisition Cost'),
+                $this->financePreviewRow($record, $lookupOptions, 'acquisition_date', 'Acquisition Date'),
+                $this->financePreviewRow($record, $lookupOptions, 'asset_coa_id', 'Asset Account from Chart of Accounts'),
+                $this->financePreviewRow($record, $lookupOptions, 'location', 'Location'),
+                $this->financePreviewRow($record, $lookupOptions, 'custodian', 'Custodian'),
+                $this->financePreviewRow($record, $lookupOptions, 'useful_life', 'Useful Life'),
+                $this->financePreviewRow($record, $lookupOptions, 'residual_value', 'Residual Value'),
+                $this->financePreviewRow($record, $lookupOptions, 'remarks', 'Remarks'),
+            ]
+            : [];
+
+        $liquidationReport = $record->module_key === 'lr'
+            ? [
+                'ca_reference_no' => $this->financePdfLookupLabel($lookupOptions, 'ca', data_get($data, 'linked_ca_id')) ?: data_get($data, 'linked_ca_id') ?: 'N/A',
+                'ca_amount' => data_get($data, 'total_cash_advance') ?: '0.00',
+                'line_items_total' => number_format($lineItemsTotal, 2),
+                'actual_expenses' => data_get($data, 'actual_expenses') ?: '0.00',
+                'variance' => data_get($data, 'variance') ?: '0.00',
+                'variance_indicator' => data_get($data, 'variance_indicator') ?: 'Balanced',
+                'purpose' => data_get($data, 'purpose') ?: 'N/A',
+                'remarks' => data_get($data, 'remarks') ?: 'N/A',
+                'employee_name' => data_get($data, 'employee_name') ?: data_get($data, 'employee_id') ?: 'N/A',
+                'status_label' => $this->financePdfValue(data_get($data, 'variance_indicator') ?: 'Balanced'),
+                'calculation_label' => 'Line Items Total',
+                'calculation_formula' => 'Line Items Total = Sum of all line item totals',
+            ]
+            : null;
+
         return [
             'companyName' => $companyName,
             'companyLegalName' => $companyLegalName,
             'companyLogo' => $companyLogo,
             'moduleLabel' => $moduleLabel,
+            'recordTitleLabel' => $recordTitleLabel,
             'record' => $record,
+            'assetTag' => $record->module_key === 'arf' ? [
+                'asset_code' => data_get($data, 'asset_code') ?: $record->record_number ?: 'N/A',
+                'location' => data_get($data, 'location') ?: 'N/A',
+                'serial_number' => data_get($data, 'serial_number') ?: 'N/A',
+                'barcode_svg' => $this->financeBarcodeSvg(data_get($data, 'asset_code') ?: $record->record_number ?: ''),
+            ] : null,
             'summaryCards' => $summaryCards,
-            'detailRows' => [],
+            'detailRows' => $detailRows,
             'previewSections' => $this->financePreviewSections($record, $lookupOptions),
             'lineItems' => $lineItems,
             'costSummary' => $costSummary,
+            'liquidationReport' => $liquidationReport,
             'attachments' => $attachments,
             'chartAccountLabel' => $this->financePdfLookupLabel($lookupOptions, 'chart_account', data_get($data, 'coa_id')) ?: data_get($data, 'coa_id') ?: 'N/A',
         ];
@@ -665,7 +847,7 @@ class FinanceController extends Controller
     private function optionLabel(FinanceRecord $record): string
     {
         $parts = array_filter([
-            $record->record_number,
+            $this->normalizeFinanceRecordNumber($record->module_key, $record->record_number),
             $record->record_title,
         ]);
 
@@ -688,6 +870,51 @@ class FinanceController extends Controller
         return $this->moduleLabel($record->module_key) . ' #' . $record->id;
     }
 
+    private function recordPrefixForModule(string $moduleKey): string
+    {
+        return match ($moduleKey) {
+            'supplier' => 'SUP',
+            'service' => 'SRV',
+            'product' => 'PRD',
+            'chart_account' => 'COA',
+            'bank_account' => 'BA',
+            'pr' => 'PR',
+            'po' => 'PO',
+            'ca' => 'CA',
+            'lr' => 'LR',
+            'err' => 'ERR',
+            'dv' => 'DV',
+            'pda' => 'PDA',
+            'crf' => 'CRF',
+            'ibtf' => 'IBTF',
+            'arf' => 'ARF',
+            default => Str::upper(Str::substr($moduleKey ?: 'FIN', 0, 5)),
+        };
+    }
+
+    private function normalizeFinanceRecordNumber(string $moduleKey, ?string $recordNumber): string
+    {
+        $value = trim((string) $recordNumber);
+        $prefix = $this->recordPrefixForModule($moduleKey);
+
+        if ($value === '') {
+            return $prefix . '-' . str_pad((string) random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        }
+
+        if (preg_match('/^([A-Z0-9]{2,10})-(\d+)$/i', $value, $matches)) {
+            $normalizedPrefix = strtoupper($matches[1]);
+            $numeric = substr(str_pad($matches[2], 5, '0', STR_PAD_LEFT), -5);
+
+            return $normalizedPrefix . '-' . $numeric;
+        }
+
+        if (preg_match('/^\d+$/', $value)) {
+            return $prefix . '-' . substr(str_pad($value, 5, '0', STR_PAD_LEFT), -5);
+        }
+
+        return $value;
+    }
+
     private function resolveLookupOptions(): array
     {
         $options = [];
@@ -697,12 +924,22 @@ class FinanceController extends Controller
                 ->orderByDesc('record_date')
                 ->orderByDesc('created_at')
                 ->get()
-                ->map(fn (FinanceRecord $record) => [
-                    'id' => $record->id,
-                    'label' => $this->optionLabel($record),
-                    'record_number' => $record->record_number,
-                    'record_title' => $record->record_title,
-                ])
+                ->map(function (FinanceRecord $record) {
+                    $option = [
+                        'id' => $record->id,
+                        'label' => $this->optionLabel($record),
+                        'record_number' => $record->record_number,
+                        'record_title' => $record->record_title,
+                    ];
+
+                    if ($record->module_key === 'chart_account') {
+                        $option['account_type'] = data_get($record->data, 'account_type');
+                        $option['account_group'] = data_get($record->data, 'account_group');
+                        $option['account_description'] = data_get($record->data, 'account_description');
+                    }
+
+                    return $option;
+                })
                 ->values();
         }
 
@@ -735,11 +972,14 @@ class FinanceController extends Controller
 
     private function transformRecord(FinanceRecord $record): array
     {
+        $data = $record->data ?? [];
+        $existingDvPayload = is_array(data_get($data, 'dv_payload')) ? data_get($data, 'dv_payload') : [];
+
         return [
             'id' => $record->id,
             'module_key' => $record->module_key,
             'module_label' => $this->moduleLabel($record->module_key),
-            'record_number' => $record->record_number,
+            'record_number' => $this->normalizeFinanceRecordNumber($record->module_key, $record->record_number),
             'record_title' => $record->record_title,
             'display_label' => $this->optionLabel($record),
             'record_date' => optional($record->record_date)->format('Y-m-d'),
@@ -752,7 +992,12 @@ class FinanceController extends Controller
             'approved_by' => $record->approved_by,
             'approved_at' => optional($record->approved_at)->format('Y-m-d H:i:s'),
             'review_note' => $record->review_note,
-            'data' => $record->data ?? [],
+            'data' => array_merge($data, [
+                'dv_payload' => array_merge(
+                    $this->fallbackDvPayload($record),
+                    $existingDvPayload
+                ),
+            ]),
             'attachments' => array_values(array_map(function ($attachment) {
                 $attachment = is_array($attachment) ? $attachment : [];
                 $attachment['url'] = $this->financeAttachmentUrl($attachment);
@@ -771,6 +1016,62 @@ class FinanceController extends Controller
             'supplier_completion_url' => $record->share_token
                 ? route('finance.supplier.completion', $record->share_token)
                 : null,
+        ];
+    }
+
+    private function fallbackDvPayload(FinanceRecord $record): array
+    {
+        $data = $record->data ?? [];
+
+        $firstFilled = function (array $values) {
+            foreach ($values as $value) {
+                if (!blank($value)) {
+                    return $value;
+                }
+            }
+
+            return null;
+        };
+
+        return [
+            'supplier_id' => data_get($data, 'supplier_id') ?? '',
+            'amount' => $firstFilled([
+                data_get($data, 'amount'),
+                data_get($data, 'grand_total'),
+                data_get($data, 'amount_requested'),
+                data_get($data, 'total_cash_advance'),
+                data_get($data, 'amount_returned'),
+                data_get($data, 'total_payroll_amount'),
+                data_get($data, 'acquisition_cost'),
+                $record->amount,
+            ]) ?? '',
+            'payment_type' => $firstFilled([
+                data_get($data, 'payment_type'),
+                data_get($data, 'mode_of_release'),
+                data_get($data, 'reimbursement_mode'),
+                data_get($data, 'mode_of_return'),
+                data_get($data, 'paid_through'),
+            ]) ?? '',
+            'coa_id' => $firstFilled([
+                data_get($data, 'coa_id'),
+                data_get($data, 'payroll_expense_coa_id'),
+                data_get($data, 'asset_coa_id'),
+            ]) ?? '',
+            'reference_number' => $firstFilled([
+                data_get($data, 'reference_number'),
+                data_get($data, 'transfer_reference_number'),
+                $record->record_number ? $record->record_number . '-REF' : null,
+            ]) ?? '',
+            'purpose' => $firstFilled([
+                data_get($data, 'purpose'),
+                data_get($data, 'expense_details'),
+                data_get($data, 'reason'),
+                data_get($data, 'supporting_payroll_summary'),
+                data_get($data, 'asset_description'),
+                $record->record_title,
+            ]) ?? '',
+            'payment_date' => optional($record->record_date)->format('Y-m-d') ?: '',
+            'remarks' => data_get($data, 'remarks') ?: 'Seeded DV dummy payload.',
         ];
     }
 
@@ -804,7 +1105,7 @@ class FinanceController extends Controller
     {
         return [
             'module_key' => 'required|in:' . implode(',', $this->moduleKeys()),
-            'record_number' => 'required|string|max:255',
+            'record_number' => ['required', 'string', 'max:255', 'regex:/^[A-Z0-9]{2,10}-\d{5}$/'],
             'record_title' => 'nullable|string|max:255',
             'record_date' => 'required|date',
             'amount' => 'nullable|numeric|min:0',
@@ -856,6 +1157,7 @@ class FinanceController extends Controller
             ],
             'pr' => [
                 'data.requesting_department' => 'required|string|max:255',
+                'data.requester_mode' => 'nullable|in:own_request,request_for_another',
                 'data.requestor' => 'required|string|max:255',
                 'data.request_type' => 'required|in:Service,Product',
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
@@ -938,6 +1240,7 @@ class FinanceController extends Controller
             'arf' => [
                 'data.linked_po_id' => ['nullable', $this->acceptedLinkedRecordRule('po')],
                 'data.linked_dv_id' => ['nullable', $this->acceptedLinkedRecordRule('dv')],
+                'data.asset_code' => 'required|string|max:255',
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
                 'data.acquisition_cost' => 'required|numeric|min:0',
                 'data.acquisition_date' => 'required|date',
@@ -1158,14 +1461,27 @@ class FinanceController extends Controller
             ->map(fn (FinanceRecord $record) => $this->transformRecord($record))
             ->values();
 
+        $sourceRecords = FinanceRecord::query()
+            ->where(function ($statusQuery) {
+                $statusQuery->where('workflow_status', 'Accepted')
+                    ->orWhere('approval_status', 'Approved');
+            })
+            ->orderByDesc('record_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (FinanceRecord $record) => $this->transformRecord($record))
+            ->values();
+
         return view('finance.index', [
             'records' => $records,
+            'sourceRecords' => $sourceRecords,
             'moduleLabels' => self::MODULES,
             'lookupOptions' => $this->resolveLookupOptions(),
             'currentModule' => $moduleKey,
             'currentWorkflowFilter' => $workflowFilter,
             'canApproveFinance' => $this->canApproveFinance(),
             'currentUserName' => Auth::user()->name ?? 'Unknown User',
+            'currentUserEmail' => Auth::user()->email ?? '',
         ]);
     }
 
@@ -1188,7 +1504,9 @@ class FinanceController extends Controller
         $context = $this->financePdfContext($financeRecord->fresh(), false);
         $pdf = Pdf::loadView('finance.pdf', $context)->setPaper('letter', 'portrait');
 
-        return $pdf->stream(($financeRecord->record_number ?: 'finance-record') . '.pdf');
+        $fileName = $this->normalizeFinanceRecordNumber($financeRecord->module_key, $financeRecord->record_number) ?: 'finance-record';
+
+        return $pdf->stream($fileName . '.pdf');
     }
 
     public function store(Request $request)
@@ -1204,12 +1522,14 @@ class FinanceController extends Controller
         $recordDate = $request->input('record_date');
 
         if ($supplierSendMode) {
-            $recordNumber = $recordNumber ?: 'SUP-' . Str::upper(Str::random(8));
+            $recordNumber = $recordNumber ?: $this->normalizeFinanceRecordNumber('supplier', '');
             $recordTitle = $recordTitle ?: 'Supplier Completion';
             $recordDate = $recordDate ?: now()->toDateString();
         } elseif ($recordTitle === '') {
             $recordTitle = self::MODULES[$request->module_key] ?? Str::headline($request->module_key);
         }
+
+        $recordNumber = $this->normalizeFinanceRecordNumber($request->module_key, $recordNumber);
 
         $record = FinanceRecord::create([
             'module_key' => $request->module_key,
@@ -1263,12 +1583,14 @@ class FinanceController extends Controller
         $recordDate = $request->input('record_date');
 
         if ($supplierSendMode) {
-            $recordNumber = $recordNumber ?: ($financeRecord->record_number ?: 'SUP-' . Str::upper(Str::random(8)));
+            $recordNumber = $recordNumber ?: ($financeRecord->record_number ?: $this->normalizeFinanceRecordNumber('supplier', ''));
             $recordTitle = $recordTitle ?: ($financeRecord->record_title ?: 'Supplier Completion');
             $recordDate = $recordDate ?: optional($financeRecord->record_date)->format('Y-m-d') ?: now()->toDateString();
         } elseif ($recordTitle === '') {
             $recordTitle = $financeRecord->record_title ?: (self::MODULES[$request->module_key] ?? Str::headline($request->module_key));
         }
+
+        $recordNumber = $this->normalizeFinanceRecordNumber($request->module_key, $recordNumber);
 
         $payload = [
             'module_key' => $request->module_key,

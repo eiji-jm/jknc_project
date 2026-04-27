@@ -214,6 +214,344 @@
             color: #111827;
             white-space: pre-line;
         }
+
+        .pr-line-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pr-line-card {
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 12px 14px;
+        }
+
+        .pr-line-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .pr-line-index {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: #1d4ed8;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex: 0 0 auto;
+        }
+
+        .pr-line-title {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .pr-line-meta {
+            margin: 3px 0 0;
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .pr-line-total {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .pr-line-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 12px;
+            margin-top: 10px;
+            align-items: start;
+        }
+
+        .pr-line-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .pr-field-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            padding: 9px 10px;
+        }
+
+        .pr-field-label {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: .18em;
+            font-size: 9px;
+            color: #6b7280;
+        }
+
+        .pr-field-value {
+            margin: 5px 0 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: #111827;
+            word-break: break-word;
+        }
+
+        .pr-summary-panel {
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            background: #fff;
+            padding: 12px;
+        }
+
+        .pr-summary-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .pr-summary-title {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: .24em;
+            font-size: 10px;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .pr-summary-subtitle {
+            margin: 4px 0 0;
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .pr-summary-stack {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .pr-summary-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .pr-summary-full {
+            width: 100%;
+        }
+
+        .pr-summary-formula {
+            margin-top: 10px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .lr-report {
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .lr-report-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .lr-report-eyebrow {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: .24em;
+            font-size: 10px;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .lr-report-title {
+            margin: 4px 0 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .lr-report-subtitle {
+            margin: 4px 0 0;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .lr-report-badge {
+            display: inline-flex;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .lr-report-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr);
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        .lr-report-panel {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            padding: 12px;
+        }
+
+        .lr-report-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .lr-metric {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 10px 12px;
+        }
+
+        .lr-metric-label {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: .18em;
+            font-size: 9px;
+            color: #6b7280;
+        }
+
+        .lr-metric-value {
+            margin: 5px 0 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            word-break: break-word;
+        }
+
+        .lr-calc-band {
+            margin-top: 12px;
+            border: 1px dashed #bfdbfe;
+            border-radius: 12px;
+            background: rgba(219,234,254,.55);
+            padding: 12px;
+        }
+
+        .lr-calc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .lr-note-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 10px 12px;
+        }
+
+        .lr-note-stack {
+            display: grid;
+            gap: 10px;
+        }
+
+        .pr-notes-wrap {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .asset-tag-card {
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .asset-tag-head {
+            padding: 12px 14px;
+            border-bottom: 1px solid #dbe2ea;
+            background: #f8fafc;
+            text-align: center;
+        }
+
+        .asset-tag-company {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.32em;
+            font-size: 10px;
+            color: #6b7280;
+            font-weight: 700;
+        }
+
+        .asset-tag-title {
+            margin: 4px 0 0;
+            font-size: 22px;
+            line-height: 1.1;
+            font-weight: 900;
+            letter-spacing: 0.22em;
+            color: #111827;
+        }
+
+        .asset-tag-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+        }
+
+        .asset-tag-label,
+        .asset-tag-value {
+            border-bottom: 1px solid #dbe2ea;
+            padding: 10px 12px;
+        }
+
+        .asset-tag-label {
+            background: #f8fafc;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: #6b7280;
+            font-weight: 700;
+        }
+
+        .asset-tag-value {
+            font-size: 12px;
+            font-weight: 700;
+            color: #111827;
+            word-break: break-word;
+        }
+
+        .asset-tag-barcode {
+            grid-column: 1 / -1;
+            padding: 12px;
+        }
+
+        .asset-tag-barcode-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+        }
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }
@@ -240,7 +578,7 @@
                     <p class="eyebrow">Official Finance Form</p>
                     <h1>{{ $companyName }}</h1>
                     <p class="sub">{{ $companyLegalName }} | {{ $moduleLabel }}</p>
-                    <p class="meta">{{ $record->record_number ?: 'N/A' }} - {{ $record->record_title ?: 'N/A' }}</p>
+                    <p class="meta">{{ $record->record_number ?: 'N/A' }} - {{ $recordTitleLabel ?: 'Name' }}: {{ $record->record_title ?: 'N/A' }}</p>
                 </div>
             </div>
 
@@ -302,51 +640,186 @@
                         </table>
                     @elseif(data_get($section, 'type') === 'line_items')
                         @if(count($lineItems))
-                            <table class="line-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Item</th>
-                                        <th>Description</th>
-                                        <th>Category</th>
-                                        <th>Qty</th>
-                                        <th>Amount</th>
-                                        <th>Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($lineItems as $index => $item)
-                                        <tr>
-                                            <td>{{ $index + 1 }}</td>
-                                            <td>{{ $item['item'] }}</td>
-                                            <td>{{ $item['description'] }}</td>
-                                            <td>{{ $item['category'] }}</td>
-                                            <td>{{ $item['quantity'] }}</td>
-                                            <td>{{ $item['amount'] }}</td>
-                                            <td><strong>{{ $item['total'] }}</strong></td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                            <div class="pr-line-list">
+                                @foreach($lineItems as $index => $item)
+                                    <div class="pr-line-card">
+                                        <div class="pr-line-head">
+                                            <div style="display:flex; gap:10px; align-items:flex-start;">
+                                                <div class="pr-line-index">{{ $index + 1 }}</div>
+                                                <div>
+                                                    <div class="pr-line-title">{{ $item['item'] }}</div>
+                                                    <div class="pr-line-meta">{{ $item['category'] }} | Qty: {{ $item['quantity'] }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="pr-line-total">{{ $item['total'] }}</div>
+                                        </div>
+                                        <div class="pr-line-grid">
+                                            <div class="pr-line-fields">
+                                                <div class="pr-field-card">
+                                                    <p class="pr-field-label">Description</p>
+                                                    <p class="pr-field-value">{{ $item['description'] }}</p>
+                                                </div>
+                                                <div class="pr-field-card">
+                                                    <p class="pr-field-label">Unit Cost</p>
+                                                    <p class="pr-field-value">{{ $item['amount'] }}</p>
+                                                </div>
+                                                <div class="pr-field-card">
+                                                    <p class="pr-field-label">Line Total</p>
+                                                    <p class="pr-field-value">{{ $item['total'] }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="pr-summary-panel">
+                                                <div class="pr-summary-head">
+                                                    <div>
+                                                        <p class="pr-summary-title">Cost Summary</p>
+                                                        <p class="pr-summary-subtitle">Each item has its own adjustment values.</p>
+                                                    </div>
+                                                </div>
+                                                <div class="pr-summary-stack">
+                                                    <div class="pr-summary-full pr-field-card">
+                                                        <p class="pr-field-label">Subtotal</p>
+                                                        <p class="pr-field-value">{{ $item['subtotal'] ?? $item['total'] }}</p>
+                                                    </div>
+                                                    <div class="pr-summary-row">
+                                                        <div class="pr-field-card">
+                                                            <p class="pr-field-label">Discount</p>
+                                                            <p class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</p>
+                                                        </div>
+                                                        <div class="pr-field-card">
+                                                            <p class="pr-field-label">Shipping</p>
+                                                            <p class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="pr-summary-row">
+                                                        <div class="pr-field-card">
+                                                            <p class="pr-field-label">Tax</p>
+                                                            <p class="pr-field-value">{{ $item['tax_amount'] ?? '0.00' }}</p>
+                                                        </div>
+                                                        <div class="pr-field-card">
+                                                            <p class="pr-field-label">WHT</p>
+                                                            <p class="pr-field-value">{{ $item['wht_amount'] ?? '0.00' }}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="pr-summary-full pr-field-card">
+                                                        <p class="pr-field-label">Line Total</p>
+                                                        <p class="pr-field-value">{{ $item['total'] }}</p>
+                                                    </div>
+                                                    <div class="pr-summary-formula">{{ $item['quantity'] }} x {{ $item['amount'] }} = {{ $item['total'] }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
                         @else
                             <p class="note">No line items added yet.</p>
                         @endif
-                    @elseif(data_get($section, 'type') === 'cost_summary')
-                        <table class="details">
-                            @foreach(array_chunk($costSummary, 2) as $pair)
-                                <tr>
-                                    @foreach($pair as $item)
-                                        <td>
-                                            <p class="label">{{ $item['label'] }}</p>
-                                            <p class="value">{{ $item['value'] }}</p>
-                                        </td>
-                                    @endforeach
-                                    @for($i = count($pair); $i < 2; $i++)
-                                        <td></td>
-                                    @endfor
-                                </tr>
-                            @endforeach
-                        </table>
+                    @elseif(data_get($section, 'type') === 'liquidation_report')
+                        @if(!empty($liquidationReport))
+                            @php
+                                $statusClass = str_contains(strtolower((string) ($liquidationReport['status_label'] ?? 'Balanced')), 'shortage')
+                                    ? 'background:#fef2f2;color:#b91c1c;'
+                                    : (str_contains(strtolower((string) ($liquidationReport['status_label'] ?? 'Balanced')), 'overage')
+                                        ? 'background:#ecfdf5;color:#047857;'
+                                        : 'background:#eff6ff;color:#1d4ed8;');
+                            @endphp
+                            <div class="lr-report">
+                                <div class="lr-report-head">
+                                    <div>
+                                        <p class="lr-report-eyebrow">{{ data_get($section, 'title') ?: 'Liquidation Report' }}</p>
+                                        <div class="lr-report-title">{{ $liquidationReport['status_label'] ?? 'Balanced' }}</div>
+                                        <p class="lr-report-subtitle">Built from the liquidation fields in the slider form.</p>
+                                    </div>
+                                    <span class="lr-report-badge" style="{{ $statusClass }}">{{ $liquidationReport['variance_indicator'] ?? 'Balanced' }}</span>
+                                </div>
+
+                                <div class="lr-report-grid">
+                                    <div class="lr-report-panel">
+                                        <div class="lr-report-metrics">
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">CA Reference No.</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['ca_reference_no'] ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">CA Amount</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['ca_amount'] ?? '0.00' }}</p>
+                                            </div>
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">Line Items Total</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['line_items_total'] ?? '0.00' }}</p>
+                                            </div>
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">Actual Expenses</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['actual_expenses'] ?? '0.00' }}</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="lr-calc-band">
+                                            <p class="lr-metric-label" style="color:#1d4ed8;">Calculation Band</p>
+                                            <div class="lr-calc-grid">
+                                                <div>
+                                                    <p class="lr-metric-label">CA Amount</p>
+                                                    <p class="lr-metric-value">{{ $liquidationReport['ca_amount'] ?? '0.00' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="lr-metric-label">Less Actual Expenses</p>
+                                                    <p class="lr-metric-value">- {{ $liquidationReport['actual_expenses'] ?? '0.00' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="lr-metric-label">Variance</p>
+                                                    <p class="lr-metric-value">{{ $liquidationReport['variance'] ?? '0.00' }}</p>
+                                                </div>
+                                            </div>
+                                            <p class="lr-metric-value" style="margin-top:10px;">Line Items Total = Sum of all item totals</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="lr-report-panel">
+                                        <div class="lr-note-stack">
+                                            <div class="lr-note-card">
+                                                <p class="lr-metric-label">Variance Indicator</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['variance_indicator'] ?? 'Balanced' }}</p>
+                                            </div>
+                                            <div class="lr-note-card">
+                                                <p class="lr-metric-label">Purpose / Business Need</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['purpose'] ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="lr-note-card">
+                                                <p class="lr-metric-label">Remarks</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['remarks'] ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="lr-note-card">
+                                                <p class="lr-metric-label">Requested By</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['employee_name'] ?? 'N/A' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <p class="note">No liquidation report details available.</p>
+                        @endif
+                    @elseif(data_get($section, 'type') === 'asset_tag')
+                        <div class="asset-tag-card">
+                            <div class="asset-tag-head">
+                                <p class="asset-tag-company">JK&amp;C INC.</p>
+                                <div class="asset-tag-title">ASSET TAG</div>
+                            </div>
+                            <div class="asset-tag-grid">
+                                <div class="asset-tag-label">Asset Code</div>
+                                <div class="asset-tag-value">{{ data_get($section, 'asset_code') ?: 'N/A' }}</div>
+                                <div class="asset-tag-label">Location</div>
+                                <div class="asset-tag-value">{{ data_get($section, 'location') ?: 'N/A' }}</div>
+                                <div class="asset-tag-label">Serial Number</div>
+                                <div class="asset-tag-value">{{ data_get($section, 'serial_number') ?: 'N/A' }}</div>
+                                <div class="asset-tag-label">Barcode</div>
+                                <div class="asset-tag-value">
+                                    <div class="asset-tag-barcode-box">
+                                        {!! data_get($section, 'barcode_svg') !!}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     @elseif(data_get($section, 'type') === 'notes')
                         @if(trim((string) $record->review_note) !== '')
                             <div class="note-card">

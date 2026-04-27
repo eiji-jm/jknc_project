@@ -113,7 +113,7 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-1" id="recordNumberLabel">Record Number</label>
                                     <div class="relative">
-                                        <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2 pr-16" placeholder="">
+                                        <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2 pr-16" placeholder="PR-00001">
                                         <button
                                             id="recordNumberEditButton"
                                             type="button"
@@ -125,7 +125,10 @@
                                         </button>
                                     </div>
                                 </div>
-                                <input id="recordTitleInput" name="record_title" type="hidden" value="">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" id="recordTitleLabel">Name</label>
+                                    <input id="recordTitleInput" name="record_title" type="text" class="w-full border rounded-md p-2" placeholder="Name">
+                                </div>
                             </div>
 
                             <div id="recordMetaFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -174,19 +177,45 @@
 </div>
 
 <div id="financeToastStack" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+<div id="financeLookupSelectorModal" class="hidden fixed inset-0 z-[70]">
+    <div class="absolute inset-0 bg-black/40" onclick="window.financeModule.closeLookupSelector()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-7xl h-[86vh] rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+            <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+                <div>
+                    <h3 id="financeLookupSelectorTitle" class="text-lg font-semibold text-gray-900">Select Account</h3>
+                    <p id="financeLookupSelectorSubtitle" class="mt-1 text-xs text-gray-500">Choose a linked record from the selector list.</p>
+                </div>
+                <button type="button" onclick="window.financeModule.closeLookupSelector()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+            </div>
+            <div class="p-5 space-y-4 flex-1 flex flex-col">
+                <input id="financeLookupSelectorSearch" type="text" class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" placeholder="Search accounts...">
+                <div class="rounded-2xl border border-gray-200 bg-white flex-1 flex flex-col overflow-hidden shadow-sm">
+                    <div class="border-b border-gray-100 px-4 py-3">
+                        <p class="text-sm font-semibold text-gray-900">Existing Accounts</p>
+                        <p class="text-xs text-gray-500">Select an account first before linking it.</p>
+                    </div>
+                    <div id="financeLookupSelectorList" class="flex-1 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     window.financeBootstrap = @js([
         'records' => $records,
+        'sourceRecords' => $sourceRecords,
         'moduleLabels' => $moduleLabels,
         'lookupOptions' => $lookupOptions,
         'currentModule' => $currentModule,
         'currentWorkflowFilter' => $currentWorkflowFilter,
         'canApproveFinance' => $canApproveFinance,
         'currentUserName' => $currentUserName,
+        'currentUserEmail' => $currentUserEmail,
         'csrfToken' => csrf_token(),
     ]);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="{{ asset('js/finance.js') }}"></script>
+<script src="{{ asset('js/finance.js') }}?v={{ filemtime(public_path('js/finance.js')) }}"></script>
 @endsection
