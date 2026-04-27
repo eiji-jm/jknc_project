@@ -12,8 +12,11 @@
         : 'JURIDICAL ENTITY (Corporation / OPC / Partnership / Cooperative)';
 @endphp
 
-<form method="POST" action="{{ route('project.start.update', $project) }}" class="space-y-4">
+<form method="POST" action="{{ $startFormAction ?? route('project.start.update', $project) }}" class="space-y-4">
     @csrf
+    @if (! empty($startRedirectUrl ?? null))
+        <input type="hidden" name="redirect_url" value="{{ $startRedirectUrl }}">
+    @endif
     <input type="hidden" name="status" value="{{ old('status', $start?->status ?? 'pending') }}">
     <input type="hidden" name="form_date" value="{{ $formDate }}">
     @foreach ($startChecklist as $index => $item)
@@ -229,8 +232,9 @@
                     <label class="block text-[10px] font-bold uppercase tracking-wide text-slate-600">Rejection / Hold Reason</label>
                     <input name="rejection_reason" value="{{ $rejectionReason }}" class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
                 </div>
-                <div class="flex items-end">
+                <div class="flex flex-wrap items-end justify-end gap-2">
                     <button type="button" class="project-doc-action" data-add-row="start-requirements">Add Engagement Row</button>
+                    <button type="submit" class="project-doc-primary">Save START Form</button>
                 </div>
             </div>
         </div>

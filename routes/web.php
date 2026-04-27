@@ -231,6 +231,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/townhall/{id}/reject', [TownHallController::class, 'reject'])->name('townhall.reject');
     Route::post('/townhall/{id}/revise', [TownHallController::class, 'revise'])->name('townhall.revise');
     Route::post('/townhall/{id}/acknowledge', [TownHallController::class, 'acknowledge'])->name('townhall.acknowledge');
+    Route::get('/townhall/recipients/search', [TownHallController::class, 'searchRecipients'])
+        ->name('townhall.recipients.search');
 
     /*
     |--------------------------------------------------------------------------
@@ -252,6 +254,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/kyc/reject', [ContactsController::class, 'rejectKyc'])->name('contacts.kyc.reject');
     Route::post('/contacts/{contact}/kyc/change-request', [ContactsController::class, 'requestKycChange'])->name('contacts.kyc.change-request');
     Route::post('/contacts/{contact}/kyc/change-request/approve', [ContactsController::class, 'approveKycChange'])->name('contacts.kyc.change-request.approve');
+    Route::post('/contacts/{contact}/kyc/change-request/reject', [ContactsController::class, 'rejectKycChange'])->name('contacts.kyc.change-request.reject');
     Route::post('/contacts/{contact}/kyc/cif/send', [ContactsController::class, 'sendCifClientForm'])->name('contacts.cif.send');
     Route::post('/contacts/{contact}/kyc/specimen/send', [ContactsController::class, 'sendSpecimenClientForm'])->name('contacts.specimen.send');
     Route::get('/contacts/{contact}/cif/preview', [ContactsController::class, 'previewCif'])->name('contacts.cif.preview');
@@ -295,6 +298,7 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/project', [ProjectController::class, 'index'])->name('project.index');
+    Route::post('/project/manual', [ProjectController::class, 'storeManual'])->name('project.manual.store');
     Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
@@ -302,14 +306,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
 
     Route::get('/regular', [RegularController::class, 'index'])->name('regular.index');
+    Route::post('/regular/manual', [RegularController::class, 'storeManual'])->name('regular.manual.store');
     Route::get('/regular/{regular}', [RegularController::class, 'show'])->name('regular.show');
     Route::post('/regular/{regular}/rsat', [RegularController::class, 'updateRsat'])->name('regular.rsat.update');
+    Route::post('/regular/{regular}/report', [RegularController::class, 'updateReport'])->name('regular.report.update');
     Route::get('/regular/{regular}/rsat/download', [RegularController::class, 'downloadRsatPdf'])->name('regular.rsat.download');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
     Route::match(['put', 'patch'], '/products/{id}', [ProductController::class, 'update'])->name('products.update');
     Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
+    Route::post('/products/{id}/approve', [ProductController::class, 'approve'])->name('products.approve');
+    Route::post('/products/{id}/reject', [ProductController::class, 'reject'])->name('products.reject');
     Route::post('/products/change-owner', [ProductController::class, 'changeOwner'])->name('products.change-owner');
     Route::post('/products/custom-fields', [ProductController::class, 'storeCustomField'])->name('products.custom-fields.store');
     Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');

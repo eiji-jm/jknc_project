@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\Deal;
 use App\Models\Project;
+use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
 use App\Services\ProjectProvisioner;
 use Illuminate\Http\RedirectResponse;
@@ -48,7 +49,102 @@ class RegularController extends Controller
         return view('regular.index', compact('regulars', 'stats'));
     }
 
-    public function show(Project $regular): View
+    public function storeManual(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'client_name' => ['nullable', 'string', 'max:255'],
+            'business_name' => ['nullable', 'string', 'max:255'],
+            'service_area' => ['nullable', 'string', 'max:255'],
+            'services' => ['nullable', 'string', 'max:1000'],
+            'products' => ['nullable', 'string', 'max:1000'],
+            'planned_start_date' => ['nullable', 'date'],
+            'target_completion_date' => ['nullable', 'date'],
+            'assigned_project_manager' => ['nullable', 'string', 'max:255'],
+            'assigned_consultant' => ['nullable', 'string', 'max:255'],
+            'assigned_associate' => ['nullable', 'string', 'max:255'],
+            'client_confirmation_name' => ['nullable', 'string', 'max:255'],
+            'engagement_requirements_text' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $regular = Project::query()->create([
+            'name' => $validated['name'],
+            'engagement_type' => 'Regular Retainer',
+            'status' => 'RSAT',
+            'current_phase' => 'RSAT',
+            'current_step' => 'RSAT Checklist',
+            'planned_start_date' => $validated['planned_start_date'] ?? null,
+            'target_completion_date' => $validated['target_completion_date'] ?? null,
+            'assigned_project_manager' => $validated['assigned_project_manager'] ?? null,
+            'assigned_consultant' => $validated['assigned_consultant'] ?? null,
+            'assigned_associate' => $validated['assigned_associate'] ?? null,
+            'client_name' => $validated['client_name'] ?? null,
+            'business_name' => $validated['business_name'] ?? null,
+            'service_area' => $validated['service_area'] ?? null,
+            'services' => $validated['services'] ?? null,
+            'products' => $validated['products'] ?? null,
+            'client_confirmation_name' => $validated['client_confirmation_name'] ?? ($validated['client_name'] ?? null),
+            'metadata' => [
+                'created_from' => 'regular_dashboard_manual',
+            ],
+            'opened_at' => now(),
+        ]);
+
+        ProjectStart::query()->create([
+            'project_id' => $regular->id,
+            'form_date' => now()->toDateString(),
+            'date_started' => $validated['planned_start_date'] ?? now()->toDateString(),
+            'status' => 'pending',
+            'engagement_requirements' => $this->buildManualRequirementRows(
+                $validated['engagement_requirements_text'] ?? '',
+                $validated['assigned_associate'] ?? ($validated['assigned_consultant'] ?? ($validated['assigned_project_manager'] ?? 'Assigned team'))
+            ),
+            'approval_steps' => $this->buildManualApprovalSteps(
+                $validated['assigned_consultant'] ?? null,
+                $validated['assigned_associate'] ?? null
+            ),
+            'clearance' => $this->buildManualClearancePayload(
+                $validated['assigned_project_manager'] ?? ($validated['assigned_consultant'] ?? null),
+                $validated['assigned_consultant'] ?? null,
+                $validated['assigned_associate'] ?? null
+            ),
+        ]);
+
+        ProjectSowReport::query()->create([
+            'project_id' => $regular->id,
+            'report_number' => '1.0',
+            'date_prepared' => now()->toDateString(),
+            'within_scope_items' => [],
+            'out_of_scope_items' => [],
+            'client_confirmation_name' => $regular->client_confirmation_name,
+            'internal_approval' => [
+                'report_period' => null,
+                'prepared_by' => $validated['assigned_project_manager'] ?? ($validated['assigned_consultant'] ?? null),
+                'prepared_by_name' => null,
+                'prepared_by_date' => null,
+                'reviewed_by' => 'Admin',
+                'reviewed_by_name' => null,
+                'reviewed_by_date' => null,
+                'referred_by_closed_by' => null,
+                'sales_marketing' => 'Sales & Marketing',
+                'lead_consultant' => $validated['assigned_consultant'] ?? null,
+                'lead_associate_assigned' => $validated['assigned_associate'] ?? null,
+                'finance' => 'Finance',
+                'president' => 'President',
+                'record_custodian' => 'Record Custodian',
+                'date_recorded' => now()->toDateString(),
+                'date_signed' => null,
+                'transmittal_no' => null,
+                'date_submitted_for_transmittal' => null,
+            ],
+        ]);
+
+        return redirect()
+            ->route('regular.show', ['regular' => $regular, 'tab' => 'rsat'])
+            ->with('success', 'Regular engagement created and opened in RSAT form.');
+    }
+
+    public function show(Request $request, Project $regular): View
     {
         abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
 
@@ -56,12 +152,18 @@ class RegularController extends Controller
             'deal:id,deal_code,engagement_type',
             'contact:id,first_name,last_name,email,phone,company_name',
             'company:id,company_name',
+            'company.latestBif',
             'starts' => fn ($query) => $query->latest(),
+            'sowReports' => fn ($query) => $query->latest(),
         ]);
 
         $rsat = $regular->starts->first() ?: new ProjectStart(['project_id' => $regular->id]);
+        $report = $regular->sowReports->first() ?: new ProjectSowReport(['project_id' => $regular->id]);
+        $tab = in_array((string) $request->query('tab', 'rsat'), ['rsat', 'report'], true)
+            ? (string) $request->query('tab', 'rsat')
+            : 'rsat';
 
-        return view('regular.show', compact('regular', 'rsat'));
+        return view('regular.show', compact('regular', 'rsat', 'report', 'tab'));
     }
 
     public function updateRsat(Request $request, Project $regular): RedirectResponse
@@ -129,7 +231,7 @@ class RegularController extends Controller
         $rsat->project_id = $regular->id;
         $rsat->save();
 
-        return redirect()->route('regular.show', $regular)->with('success', 'RSAT form updated successfully.');
+        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'rsat'])->with('success', 'RSAT form updated successfully.');
     }
 
     public function downloadRsatPdf(Project $regular)
@@ -154,6 +256,78 @@ class RegularController extends Controller
         abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate RSAT PDF preview.');
 
         return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
+    public function updateReport(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $validated = $request->validate([
+            'report_number' => ['nullable', 'string', 'max:50'],
+            'date_prepared' => ['nullable', 'date'],
+            'report_period' => ['nullable', 'string', 'max:255'],
+            'report_service' => ['nullable', 'array'],
+            'report_service.*' => ['nullable', 'string', 'max:255'],
+            'report_activity_output' => ['nullable', 'array'],
+            'report_activity_output.*' => ['nullable', 'string', 'max:255'],
+            'report_frequency' => ['nullable', 'array'],
+            'report_frequency.*' => ['nullable', 'string', 'max:255'],
+            'report_reminder_lead_time' => ['nullable', 'array'],
+            'report_reminder_lead_time.*' => ['nullable', 'string', 'max:255'],
+            'report_deadline' => ['nullable', 'array'],
+            'report_deadline.*' => ['nullable', 'string', 'max:255'],
+            'client_confirmation_name' => ['nullable', 'string', 'max:255'],
+            'prepared_by' => ['nullable', 'string', 'max:255'],
+            'prepared_by_name' => ['nullable', 'string', 'max:255'],
+            'prepared_by_date' => ['nullable', 'string', 'max:255'],
+            'reviewed_by' => ['nullable', 'string', 'max:255'],
+            'reviewed_by_name' => ['nullable', 'string', 'max:255'],
+            'reviewed_by_date' => ['nullable', 'string', 'max:255'],
+            'referred_by_closed_by' => ['nullable', 'string', 'max:255'],
+            'sales_marketing' => ['nullable', 'string', 'max:255'],
+            'lead_consultant' => ['nullable', 'string', 'max:255'],
+            'lead_associate_assigned' => ['nullable', 'string', 'max:255'],
+            'finance' => ['nullable', 'string', 'max:255'],
+            'president' => ['nullable', 'string', 'max:255'],
+            'record_custodian' => ['nullable', 'string', 'max:255'],
+            'date_recorded' => ['nullable', 'date'],
+            'date_signed' => ['nullable', 'date'],
+            'transmittal_no' => ['nullable', 'string', 'max:255'],
+            'date_submitted_for_transmittal' => ['nullable', 'date'],
+        ]);
+
+        $report = $regular->sowReports()->latest()->first() ?: new ProjectSowReport(['project_id' => $regular->id]);
+        $report->fill([
+            'report_number' => $validated['report_number'] ?? null,
+            'date_prepared' => $validated['date_prepared'] ?? null,
+            'within_scope_items' => $this->buildReportRows($request),
+            'out_of_scope_items' => [],
+            'client_confirmation_name' => $validated['client_confirmation_name'] ?? null,
+            'internal_approval' => [
+                'report_period' => $validated['report_period'] ?? null,
+                'prepared_by' => $validated['prepared_by'] ?? null,
+                'prepared_by_name' => $validated['prepared_by_name'] ?? null,
+                'prepared_by_date' => $validated['prepared_by_date'] ?? null,
+                'reviewed_by' => $validated['reviewed_by'] ?? null,
+                'reviewed_by_name' => $validated['reviewed_by_name'] ?? null,
+                'reviewed_by_date' => $validated['reviewed_by_date'] ?? null,
+                'referred_by_closed_by' => $validated['referred_by_closed_by'] ?? null,
+                'sales_marketing' => $validated['sales_marketing'] ?? null,
+                'lead_consultant' => $validated['lead_consultant'] ?? null,
+                'lead_associate_assigned' => $validated['lead_associate_assigned'] ?? null,
+                'finance' => $validated['finance'] ?? null,
+                'president' => $validated['president'] ?? null,
+                'record_custodian' => $validated['record_custodian'] ?? null,
+                'date_recorded' => $validated['date_recorded'] ?? null,
+                'date_signed' => $validated['date_signed'] ?? null,
+                'transmittal_no' => $validated['transmittal_no'] ?? null,
+                'date_submitted_for_transmittal' => $validated['date_submitted_for_transmittal'] ?? null,
+            ],
+        ]);
+        $report->project_id = $regular->id;
+        $report->save();
+
+        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'report'])->with('success', 'RSAT report updated successfully.');
     }
 
     private function provisionMissingRegularRecords(): void
@@ -240,6 +414,100 @@ class RegularController extends Controller
             'record_custodian_signature' => $validated['clearance_record_custodian_signature'] ?? null,
             'date_recorded' => $validated['clearance_date_recorded'] ?? null,
             'date_signed' => $validated['clearance_date_signed'] ?? null,
+        ];
+    }
+
+    private function buildReportRows(Request $request): array
+    {
+        $services = (array) $request->input('report_service', []);
+        $activities = (array) $request->input('report_activity_output', []);
+        $frequencies = (array) $request->input('report_frequency', []);
+        $reminders = (array) $request->input('report_reminder_lead_time', []);
+        $deadlines = (array) $request->input('report_deadline', []);
+
+        return collect($activities)->map(function ($value, $index) use ($services, $frequencies, $reminders, $deadlines) {
+            $service = trim((string) ($services[$index] ?? ''));
+            $activity = trim((string) $value);
+            $frequency = trim((string) ($frequencies[$index] ?? ''));
+            $reminder = trim((string) ($reminders[$index] ?? ''));
+            $deadline = trim((string) ($deadlines[$index] ?? ''));
+
+            if ($service === '' && $activity === '' && $frequency === '' && $reminder === '' && $deadline === '') {
+                return null;
+            }
+
+            return [
+                'service' => $service,
+                'activity_output' => $activity,
+                'frequency' => $frequency,
+                'reminder_lead_time' => $reminder,
+                'deadline' => $deadline,
+            ];
+        })->filter()->values()->all();
+    }
+
+    private function buildManualRequirementRows(string $rawRequirements, string $assignedTo): array
+    {
+        $rows = collect(preg_split('/[\r\n]+/', trim($rawRequirements)))
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->map(fn (string $item, int $index): array => [
+                'number' => $index + 1,
+                'requirement' => $item,
+                'notes' => '',
+                'purpose' => 'Regular service activity',
+                'provided_by' => 'Client',
+                'submitted_to' => 'Sales & Marketing',
+                'assigned_to' => $assignedTo,
+                'timeline' => 'Recurring schedule',
+            ])
+            ->all();
+
+        if ($rows !== []) {
+            return $rows;
+        }
+
+        return [[
+            'number' => 1,
+            'requirement' => 'Initial RSAT intake and service routing',
+            'notes' => '',
+            'purpose' => 'Regular service activity',
+            'provided_by' => 'Client',
+            'submitted_to' => 'Sales & Marketing',
+            'assigned_to' => $assignedTo,
+            'timeline' => 'Recurring schedule',
+        ]];
+    }
+
+    private function buildManualApprovalSteps(?string $assignedConsultant, ?string $assignedAssociate): array
+    {
+        $leadConsultant = $assignedConsultant ?: 'Lead Consultant';
+        $leadAssociate = $assignedAssociate ?: 'Lead Associate';
+
+        return [
+            ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Regular Service Activity Tracker (RSAT)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
+            ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/'.$leadConsultant.'/'.$leadAssociate, 'name_and_signature' => '', 'date_time_done' => ''],
+        ];
+    }
+
+    private function buildManualClearancePayload(?string $preparedBy, ?string $assignedConsultant, ?string $assignedAssociate): array
+    {
+        return [
+            'assigned_team_lead' => $preparedBy ?? '',
+            'assigned_team_lead_signature' => '',
+            'lead_consultant_confirmed' => $assignedConsultant ?? '',
+            'lead_consultant_signature' => '',
+            'lead_associate_assigned' => $assignedAssociate ?? '',
+            'lead_associate_signature' => '',
+            'sales_marketing' => 'Sales & Marketing',
+            'sales_marketing_signature' => '',
+            'record_custodian_name' => 'Record Custodian',
+            'record_custodian_signature' => '',
+            'date_recorded' => now()->toDateString(),
+            'date_signed' => null,
         ];
     }
 }

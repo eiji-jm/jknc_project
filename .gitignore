@@ -26,3 +26,4 @@ Thumbs.db
 # SQLite database files
 /laravel
 /database/*.sqlite
+/storage/framework/views/*

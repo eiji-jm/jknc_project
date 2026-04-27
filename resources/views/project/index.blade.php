@@ -23,6 +23,13 @@
                     Approved project and hybrid deals automatically open here, with START, SOW, NTP, reporting, delivery, and completion tracked inside one record.
                 </p>
             </div>
+            <button
+                type="button"
+                class="inline-flex h-11 items-center justify-center rounded-full bg-[#102d79] px-5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d255f]"
+                onclick="window.jkncSlideOver.open(document.getElementById('projectManualCreateDrawer'))"
+            >
+                Create Project
+            </button>
         </div>
 
         <div class="mb-6 grid gap-3 xl:grid-cols-5">
@@ -96,4 +103,88 @@
         </div>
     </div>
 </div>
+
+<x-slide-over id="projectManualCreateDrawer" width="sm:max-w-[760px]">
+    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-900">Create Project</h2>
+            <p class="mt-1 text-sm text-gray-500">Manually create a project record and open the RSAT form to fill out details, scope, activities, and requirements.</p> 
+        </div>
+        <button type="button" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" onclick="window.jkncSlideOver.close(document.getElementById('projectManualCreateDrawer'))">
+            <span class="sr-only">Close</span>
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <form method="POST" action="{{ route('project.manual.store') }}" class="flex h-full flex-col overflow-hidden">
+        @csrf
+        <div class="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Project Name</label>
+                    <input name="name" value="{{ old('name') }}" required class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Client Name</label>
+                    <input name="client_name" value="{{ old('client_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Business Name</label>
+                    <input name="business_name" value="{{ old('business_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Planned Start</label>
+                    <input type="date" name="planned_start_date" value="{{ old('planned_start_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Target Completion</label>
+                    <input type="date" name="target_completion_date" value="{{ old('target_completion_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Service Area</label>
+                    <input name="service_area" value="{{ old('service_area') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Client Confirmation Name</label>
+                    <input name="client_confirmation_name" value="{{ old('client_confirmation_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Project Manager</label>
+                    <input name="assigned_project_manager" value="{{ old('assigned_project_manager') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Lead Consultant</label>
+                    <input name="assigned_consultant" value="{{ old('assigned_consultant') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Lead Associate</label>
+                    <input name="assigned_associate" value="{{ old('assigned_associate') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Services</label>
+                    <textarea name="services" rows="3" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('services') }}</textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Products</label>
+                    <textarea name="products" rows="2" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('products') }}</textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Scope Summary</label>
+                    <textarea name="scope_summary" rows="3" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('scope_summary') }}</textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">START Engagement Requirements</label>
+                    <textarea name="engagement_requirements_text" rows="5" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900" placeholder="One requirement per line">{{ old('engagement_requirements_text') }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-end gap-3">
+                <button type="button" class="inline-flex h-11 items-center rounded-full border border-gray-300 px-5 text-sm font-medium text-gray-700 hover:bg-gray-50" onclick="window.jkncSlideOver.close(document.getElementById('projectManualCreateDrawer'))">Cancel</button>
+                <button type="submit" class="inline-flex h-11 items-center rounded-full bg-[#102d79] px-5 text-sm font-semibold text-white hover:bg-[#0d255f]">Create</button>
+            </div>
+        </div>
+    </form>
+</x-slide-over>
 @endsection

@@ -1608,6 +1608,7 @@ class ContactsController extends Controller
         $cifData['change_requested_by'] = '';
         $cifData['change_reviewed_at'] = '';
         $cifData['change_reviewed_by'] = '';
+        $cifData['change_rejection_reason'] = '';
         $this->saveCifDataToStorage($contactModel, $cifData);
 
         return redirect()
@@ -1685,6 +1686,7 @@ class ContactsController extends Controller
         $cifData['change_requested_by'] = $request->user()?->name ?? '';
         $cifData['change_reviewed_at'] = '';
         $cifData['change_reviewed_by'] = '';
+        $cifData['change_rejection_reason'] = '';
         $this->saveCifDataToStorage($contactModel, $cifData);
 
         return redirect()
@@ -1713,11 +1715,47 @@ class ContactsController extends Controller
         $cifData['change_request_status'] = 'approved';
         $cifData['change_reviewed_at'] = now()->toDateTimeString();
         $cifData['change_reviewed_by'] = $request->user()?->name ?? '';
+        $cifData['change_rejection_reason'] = '';
         $this->saveCifDataToStorage($contactModel, $cifData);
 
         return redirect()
             ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
             ->with('success', 'Change request approved. Editing is now unlocked until the next resubmission.');
+    }
+
+    public function rejectKycChange(Request $request, string $contact): RedirectResponse
+    {
+        abort_unless($this->isKycReviewer($request->user()), 403);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $contactModel = Contact::query()->findOrFail($contact);
+
+        if (strtolower((string) ($contactModel->cif_status ?? '')) !== 'approved') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'Only approved CIF records can reject change requests.']);
+        }
+
+        $cifData = $this->loadCifData($contactModel);
+        if (strtolower((string) ($cifData['change_request_status'] ?? '')) !== 'pending') {
+            return redirect()
+                ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+                ->withErrors(['kyc' => 'There is no pending change request to reject.']);
+        }
+
+        $reason = trim((string) ($validated['reason'] ?? ''));
+        $cifData['change_request_status'] = 'rejected';
+        $cifData['change_reviewed_at'] = now()->toDateTimeString();
+        $cifData['change_reviewed_by'] = $request->user()?->name ?? '';
+        $cifData['change_rejection_reason'] = $reason;
+        $this->saveCifDataToStorage($contactModel, $cifData);
+
+        return redirect()
+            ->route('contacts.show', ['contact' => $contactModel->id, 'tab' => 'kyc'])
+            ->with('success', 'Change request rejected.');
     }
 
     public function downloadSpecimenSignature(Request $request, string $id): View
@@ -2036,6 +2074,13 @@ class ContactsController extends Controller
             'date_verified' => '',
             'verified_by' => '',
             'remarks' => '',
+            'change_request_status' => '',
+            'change_request_note' => '',
+            'change_requested_at' => '',
+            'change_requested_by' => '',
+            'change_reviewed_at' => '',
+            'change_reviewed_by' => '',
+            'change_rejection_reason' => '',
             'cif_document_issued_on' => '',
             'cif_document_issued_by' => '',
         ];
@@ -2115,6 +2160,7 @@ class ContactsController extends Controller
         $cifData['change_requested_by'] = '';
         $cifData['change_reviewed_at'] = '';
         $cifData['change_reviewed_by'] = '';
+        $cifData['change_rejection_reason'] = '';
         $this->saveCifDataToStorage($contact, $cifData);
     }
 

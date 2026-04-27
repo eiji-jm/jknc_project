@@ -22,10 +22,28 @@
     $initials = strtoupper(substr((string) ($deal['contact_name'] ?? 'C'), 0, 1).substr(strrchr(' '.($deal['contact_name'] ?? 'C'), ' '), 1, 1));
     $progressCurrentStage = data_get($detail, 'progress.current_stage', []);
     $progressCurrentStagePosition = (int) (data_get($progressCurrentStage, 'position') ?? data_get($progressCurrentStage, 'order', 0));
+    $stageBadgeClassesJson = $stageBadgeClasses;
+    $currentStageNameJson = $deal['stage'] ?? data_get($progressCurrentStage, 'name');
+    $currentStagePositionJson = $progressCurrentStagePosition;
+    $stageDataJson = collect($stages ?? [])->values()->all();
+    $currentStageIdJson = $deal['stage_id'] ?? null;
+    $startSectionAvailable = isset($project) && $project && ! str_contains(strtolower(trim((string) $project->engagement_type)), 'regular');
 @endphp
 
 <div class="bg-[#f7f6f2] p-6">
     <div class="mx-auto max-w-[1500px] space-y-4">
+        @if (session('success'))
+            <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
             <a href="{{ route('deals.index') }}" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Deals</a>
             <span class="mx-1">/</span>
@@ -34,29 +52,37 @@
 
         <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
             <div>
-                <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
+                <div class="flex flex-wrap items-center gap-2">
+                    <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
+                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $detail['deal_status'] ?? 'Pending' }}</span>
+                </div>
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                     <span id="dealStageBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $stageBadgeClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $deal['stage'] }}</span>
                     <span class="text-lg font-semibold text-gray-900">{{ $formatCurrency($deal['amount'] ?? 0) }}</span>
                 </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <i class="far fa-pen-to-square mr-1"></i>Edit Deal
-                </button>
-                <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
-                    <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
-                </button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                @if ($startSectionAvailable)
+                    <a href="#deal-start-form" class="flex h-9 items-center rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
+                        <i class="fas fa-clipboard-check mr-1"></i>START Form
+                    </a>
+                @endif
                 @if (($deal['stage'] ?? '') === 'Proposal')
                     <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-700 hover:bg-amber-100">
                         <i class="fas fa-file-signature mr-1"></i>Create Proposal
                     </a>
                 @endif
+                <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                    <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
+                </button>
+                <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <i class="far fa-pen-to-square mr-1"></i>Edit Deal
+                </button>
                 @if (data_get($detail, 'project.id'))
                     @php
                         $linkedEngagementType = strtolower(trim((string) data_get($detail, 'service.engagement_type', '')));
                         $linkedRoute = str_contains($linkedEngagementType, 'regular') ? 'regular.show' : 'project.show';
-                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project';
+                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project Workspace';
                     @endphp
                     <a href="{{ route($linkedRoute, data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
                         <i class="fas fa-diagram-project mr-1"></i>{{ $linkedLabel }}
@@ -141,6 +167,40 @@
                     <h2 class="mb-4 text-lg font-semibold text-gray-900">Deal Form Preview</h2>
                     @include('deals.partials.deal-form-document', ['dealFormData' => $dealFormData])
                 </article>
+
+                @if ($startSectionAvailable)
+                    <article id="deal-start-form" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-4 py-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">START Form</h2>
+                                <p class="mt-1 text-sm text-gray-500">Manage the project START intake directly from this deal.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ route('project.start.download', $project) }}" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    <i class="fas fa-file-arrow-down mr-1"></i>Download START PDF
+                                </a>
+                                <a href="{{ route('project.show', ['project' => $project->id, 'tab' => 'start']) }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                                    <i class="fas fa-up-right-from-square mr-1"></i>Open Full Project
+                                </a>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            @include('project.partials.tab-start', [
+                                'project' => $project,
+                                'start' => $start,
+                                'startChecklist' => $startChecklist,
+                                'startKycOrganization' => $startKycOrganization,
+                                'startKycSole' => $startKycSole,
+                                'startKycJuridical' => $startKycJuridical,
+                                'startReqs' => $startReqs,
+                                'startApprovalSteps' => $startApprovalSteps,
+                                'startClearance' => $startClearance,
+                                'routing' => $routing,
+                                'startRedirectUrl' => route('deals.show', $deal['id']).'#deal-start-form',
+                            ])
+                        </div>
+                    </article>
+                @endif
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h2 class="mb-4 text-xl font-semibold text-gray-900">Deal Stage Progress</h2>
@@ -267,32 +327,7 @@
                     <button type="button" class="text-sm font-medium text-blue-600 hover:text-blue-700"><i class="fas fa-plus mr-1"></i>Add Tag</button>
                 </article>
 
-                <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <h3 class="mb-2 text-base font-semibold text-gray-900">Actions</h3>
-                    <div class="space-y-2">
-                        <button id="openCreateDealModalBtnSecondary" type="button" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Edit Deal</button>
-                        <button id="openStageUpdateModalBtnSecondary" type="button" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Update Stage</button>
-                        @if (($deal['stage'] ?? '') === 'Proposal')
-                            <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="block w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-100">Create Proposal</a>
-                        @endif
-                        @if (in_array((string) (auth()->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true))
-                            <form method="POST" action="{{ route('deals.approve', $deal['id']) }}">
-                                @csrf
-                                <button type="submit" class="w-full rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-left text-sm text-green-700 hover:bg-green-100">Mark Qualified</button>
-                            </form>
-                            <form method="POST" action="{{ route('deals.reject', $deal['id']) }}">
-                                @csrf
-                                <input type="hidden" name="reason" value="Not qualified for engagement.">
-                                <button type="submit" class="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-100">Mark Not Qualified</button>
-                            </form>
-                        @endif
-                    </div>
-                    <div class="mt-3 border-t border-gray-100 pt-3">
-                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">
-                            {{ $detail['deal_status'] ?? 'Pending' }}
-                        </span>
-                    </div>
-                </article>
+
             </aside>
         </div>
     </div>
@@ -347,16 +382,29 @@
     'openDealModal' => $openDealModal ?? false,
     'formAction' => route('deals.update', $deal['id']),
     'formMethod' => 'PUT',
+    'panelTitle' => 'Edit Deal',
+    'panelSubtitle' => 'Update the selected deal details.',
     'submitLabel' => 'Update Deal',
 ])
 
+<div
+    id="dealShowScriptData"
+    data-current-stage-name="{{ e((string) ($currentStageNameJson ?? '')) }}"
+    data-current-stage-position="{{ (int) ($currentStagePositionJson ?? 0) }}"
+    data-current-stage-id="{{ e((string) ($currentStageIdJson ?? '')) }}"
+></div>
+<script id="dealShowStageBadgeClasses" type="application/json">@json($stageBadgeClassesJson)</script>
+<script id="dealShowStageData" type="application/json">@json($stageDataJson)</script>
+@if ($startSectionAvailable)
+    <template id="start-requirement-row-template"><tr><td class="border border-slate-900 px-2 py-1 text-center"></td><td class="border border-slate-900 px-1"><input name="engagement_requirement[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_notes[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_purpose[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_provided_by[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_submitted_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_assigned_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_timeline[]" class="w-full border-0 px-1 py-1 text-[11px]"></td></tr></template>
+@endif
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const secondary = document.getElementById('openCreateDealModalBtnSecondary');
-    const primary = document.getElementById('openCreateDealModalBtn');
-    secondary?.addEventListener('click', () => primary?.click());
+    const dealShowScriptData = document.getElementById('dealShowScriptData');
+    const stageBadgeClassesNode = document.getElementById('dealShowStageBadgeClasses');
+    const stageDataNode = document.getElementById('dealShowStageData');
     const stagePrimary = document.getElementById('openStageUpdateModalBtn');
-    const stageSecondary = document.getElementById('openStageUpdateModalBtnSecondary');
     const stageModal = document.getElementById('dealStageModal');
     const stageModalOverlay = document.getElementById('dealStageModalOverlay');
     const stageModalCancel = document.getElementById('dealStageModalCancel');
@@ -365,11 +413,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const stageBadge = document.getElementById('dealStageBadge');
     const stageText = document.getElementById('dealStageText');
     const stageProgress = document.getElementById('dealStageProgress');
-    const stageBadgeClasses = @json($stageBadgeClasses);
-    const currentStageName = @json($deal['stage'] ?? data_get($progressCurrentStage, 'name'));
-    const currentStagePosition = @json((int) $progressCurrentStagePosition);
-    let stageData = @json(collect($stages ?? [])->values()->all());
-    let currentStageId = @json($deal['stage_id'] ?? null);
+    const stageBadgeClasses = stageBadgeClassesNode ? JSON.parse(stageBadgeClassesNode.textContent || '{}') : {};
+    const currentStageName = dealShowScriptData?.dataset.currentStageName || '';
+    const currentStagePosition = Number(dealShowScriptData?.dataset.currentStagePosition || 0);
+    let stageData = stageDataNode ? JSON.parse(stageDataNode.textContent || '[]') : [];
+    let currentStageId = dealShowScriptData?.dataset.currentStageId || null;
     let toastTimer = null;
 
     const buttons = Array.from(document.querySelectorAll('[data-tab-button]'));
@@ -386,6 +434,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
     buttons.forEach((button) => button.addEventListener('click', () => activate(button.dataset.tabButton)));
+    document.querySelectorAll('[data-add-row]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const target = document.getElementById(button.dataset.addRow);
+            const template = document.getElementById('start-requirement-row-template');
+            if (!target || !template) {
+                return;
+            }
+            target.insertAdjacentHTML('beforeend', template.innerHTML);
+        });
+    });
 
     const getStagePosition = (stage) => Number(stage?.position ?? stage?.order ?? 0);
 
@@ -494,7 +552,6 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     stagePrimary?.addEventListener('click', openStageModal);
-    stageSecondary?.addEventListener('click', openStageModal);
     stageModalOverlay?.addEventListener('click', closeStageModal);
     stageModalCancel?.addEventListener('click', closeStageModal);
     if (!stageToast?.classList.contains('hidden')) {

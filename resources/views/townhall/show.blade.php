@@ -9,23 +9,33 @@
         {{-- LEFT SIDE --}}
         <div id="ack-scroll-container" class="w-[70%] h-[calc(100vh-80px)] overflow-y-auto pr-2">
 
-            {{-- BACK --}}
+            {{-- TOP ACTIONS --}}
             <div class="mb-4 flex justify-between items-center">
                 <a href="{{ route('townhall') }}"
                    class="border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-100">
                     ← Back
                 </a>
 
-                @if(
-                    $communication->approval_status === 'Needs Revision' &&
-                    $communication->created_by === Auth::id() &&
-                    Auth::user()->hasPermission('create_townhall')
-                )
-                    <a href="{{ route('townhall.edit', $communication->id) }}"
-                       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow">
-                        Edit Revision
-                    </a>
-                @endif
+                <div class="flex items-center gap-2">
+                    @if($communication->approval_status === 'Approved')
+                        <a href="{{ route('townhall.download.pdf', $communication->id) }}"
+                           class="inline-flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm shadow">
+                            <i class="fas fa-file-pdf"></i>
+                            Download PDF
+                        </a>
+                    @endif
+
+                    @if(
+                        $communication->approval_status === 'Needs Revision' &&
+                        $communication->created_by === Auth::id() &&
+                        Auth::user()->hasPermission('create_townhall')
+                    )
+                        <a href="{{ route('townhall.edit', $communication->id) }}"
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow">
+                            Edit Revision
+                        </a>
+                    @endif
+                </div>
             </div>
 
             @if(
@@ -38,70 +48,82 @@
             @endif
 
             {{-- MEMO --}}
-            <div class="memo-preview bg-white border border-gray-300 shadow px-[72px] py-[72px] mb-6">
+            <div class="memo-page">
 
                 {{-- HEADER --}}
-                <div class="flex justify-between border-b pb-6 mb-8">
-                    <div>
-                        <h1 class="text-[22px] font-bold">JOHN KELLY & COMPANY</h1>
-                        <p class="text-[12px] text-gray-500">Corporate Memorandum</p>
+                <div class="memo-page-header">
+                    <div class="flex items-start gap-4 mb-6">
+                        <div class="shrink-0 pt-1">
+                            <img src="{{ asset('images/jk-logo.png') }}" alt="JK Logo" class="h-[72px] w-auto object-contain">
+                        </div>
+
+                        <div class="flex-1 pt-1">
+                            <p class="text-[12px] leading-[1.35] text-gray-700 font-serif m-0">
+                                Atty. Jose B. Ogang, CPA, MMPSM · Jose Tamayo Rio,<br>
+                                MM-BM, CPA · Lyndon Earl P. Rio, RN, CB · John Kelly Abalde,<br>
+                                CLSSBB, CPM
+                            </p>
+                        </div>
                     </div>
 
-                    <div class="text-right text-sm">
-                        <p>Ref No: <b>{{ $communication->ref_no }}</b></p>
-                        <p>Date: <b>{{ $communication->communication_date }}</b></p>
-                    </div>
-                </div>
-
-                {{-- TITLE --}}
-                <div class="text-center mb-8">
-                    <h2 class="text-[20px] font-bold tracking-[0.2em]">MEMORANDUM</h2>
-                </div>
-
-                {{-- META --}}
-                <div class="space-y-3 text-sm mb-10">
-                    <div class="grid grid-cols-[120px_1fr]">
-                        <b>{{ $communication->recipient_label ?? 'To' }}</b>
-                        <span class="border-b">{{ $communication->to_for }}</span>
+                    <div class="memo-page-title">
+                        <h2>MEMORANDUM</h2>
                     </div>
 
-                    <div class="grid grid-cols-[120px_1fr]">
-                        <b>From</b>
-                        <span class="border-b">{{ $communication->from_name }}</span>
+                    <div class="memo-page-meta memo-content-inset">
+                        <p><strong>Memo NO.:</strong> {{ $communication->ref_no }}</p>
+                        <p>
+                            <strong>Date:</strong>
+                            {{ $communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('F d, Y') : '—' }}
+                        </p>
+                        <p><strong>{{ $communication->recipient_label ?? 'To' }}:</strong> {{ $communication->to_for ?: '—' }}</p>
+                        <p><strong>From:</strong> {{ $communication->from_name ?: '—' }}</p>
+                        <p><strong>SUBJECT:</strong> {{ $communication->subject ?: '—' }}</p>
                     </div>
 
-                    <div class="grid grid-cols-[120px_1fr]">
-                        <b>Department</b>
-                        <span class="border-b">{{ $communication->department_stakeholder }}</span>
-                    </div>
-
-                    <div class="grid grid-cols-[120px_1fr]">
-                        <b>Priority</b>
-                        <span class="border-b">{{ $communication->priority }}</span>
-                    </div>
-
-                    <div class="grid grid-cols-[120px_1fr]">
-                        <b>Subject</b>
-                        <span class="border-b font-semibold">{{ $communication->subject }}</span>
-                    </div>
+                    <div class="memo-page-divider memo-content-inset"></div>
                 </div>
 
                 {{-- BODY --}}
-                <div class="text-[15px] leading-8 min-h-[300px]">
-                    {!! $communication->message !!}
+                <div class="memo-page-body memo-content-inset">
+                    {!! $communication->message ?: '<p style="color:#9ca3af;">No memorandum body provided.</p>' !!}
                 </div>
 
-                {{-- SIGNATURE --}}
-                <div class="mt-16">
-                    <p>Respectfully,</p>
-                    <div class="mt-10 border-b w-[250px]"></div>
-                    <p class="mt-2 font-semibold">{{ $communication->from_name }}</p>
-                </div>
+                {{-- FOOT SECTION --}}
+                <div class="memo-page-footer">
+                    <div class="issued-block memo-content-inset">
+                        Issued this
+                        <strong>
+                            {{ $communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('jS \\d\\a\\y \\o\\f F, Y') : '______________' }}
+                        </strong>
+                        in Cebu City, Philippines.
+                    </div>
 
-                {{-- FOOTER --}}
-                <div class="mt-10 border-t pt-4 text-sm">
-                    <p><b>CC:</b> {{ $communication->cc }}</p>
-                    <p><b>Additional:</b> {{ $communication->additional }}</p>
+                    <div class="prepared-block memo-content-inset">
+                        <p class="prepared-label">Prepared by:</p>
+
+                        <div class="signature-line"></div>
+                        <p class="prepared-name">{{ $communication->from_name ?: '—' }}</p>
+                        <p class="prepared-role">President/CEO</p>
+                    </div>
+
+                    <div class="memo-extra-details memo-content-inset">
+                        <p><strong>CC:</strong> {{ $communication->cc ?: '—' }}</p>
+                        <p><strong>Additional:</strong> {{ $communication->additional ?: '—' }}</p>
+                    </div>
+
+                    <div class="memo-footer-note memo-content-inset">
+                        This Memorandum is an official corporate record of JK&amp;C INC. Unauthorized reproduction,
+                        alteration, disclosure, or misuse of this Memorandum, in whole or in part, is strictly prohibited
+                        and may result in administrative sanctions, termination of employment or engagement, and/or the
+                        institution of appropriate civil, criminal, or regulatory actions, in accordance with applicable
+                        laws and company policies.
+                    </div>
+
+                    <div class="memo-footer-address memo-content-inset">
+                        JK&amp;C INC.<br>
+                        3F Cebu Holdings Center Cebu Business Park, Cebu City, Philippines, 6000
+                    </div>
                 </div>
             </div>
 
@@ -208,37 +230,47 @@
 
                     <div>
                         <p class="text-gray-500 text-xs">Date</p>
-                        <p>{{ $communication->communication_date }}</p>
+                        <p>{{ $communication->communication_date ? \Carbon\Carbon::parse($communication->communication_date)->format('F d, Y') : '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">From</p>
-                        <p>{{ $communication->from_name }}</p>
+                        <p>{{ $communication->from_name ?: '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">{{ $communication->recipient_label ?? 'To' }}</p>
-                        <p>{{ $communication->to_for }}</p>
+                        <p>{{ $communication->to_for ?: '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">Department</p>
-                        <p>{{ $communication->department_stakeholder }}</p>
+                        <p>{{ $communication->department_stakeholder ?: '—' }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Priority</p>
+                        <p>{{ $communication->priority ?: '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">Status</p>
-                        <p>{{ $communication->approval_status }}</p>
+                        <p>{{ $communication->approval_status ?: '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">Subject</p>
-                        <p>{{ $communication->subject }}</p>
+                        <p>{{ $communication->subject ?: '—' }}</p>
                     </div>
 
                     <div>
                         <p class="text-gray-500 text-xs">CC</p>
-                        <p>{{ $communication->cc }}</p>
+                        <p>{{ $communication->cc ?: '—' }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-gray-500 text-xs">Additional</p>
+                        <p>{{ $communication->additional ?: '—' }}</p>
                     </div>
 
                     @if($communication->approval_notes)
@@ -251,7 +283,7 @@
 
                 @if($communication->approval_status === 'Approved')
                     <a href="{{ route('townhall.download.pdf', $communication->id) }}"
-                       class="block text-center bg-red-600 text-white py-2 rounded-lg">
+                       class="block text-center bg-red-600 text-white py-2 rounded-lg hover:bg-red-700">
                         Download PDF
                     </a>
                 @endif
@@ -272,6 +304,176 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+    .memo-page {
+        width: 100%;
+        background: #fff;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        padding: 50px 60px;
+        box-sizing: border-box;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .memo-content-inset {
+        margin-left: 40px;
+        margin-right: 40px;
+    }
+
+    .memo-page-header {
+        margin-bottom: 24px;
+    }
+
+    .memo-page-title {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+    .memo-page-title h2 {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: #555;
+        font-family: "Times New Roman", Georgia, serif;
+        margin: 0;
+    }
+
+    .memo-page-meta {
+        margin-bottom: 10px;
+        font-size: 14px;
+        line-height: 1.35;
+        color: #111827;
+        font-family: "Times New Roman", Georgia, serif;
+    }
+
+    .memo-page-meta p {
+        margin: 2px 0;
+    }
+
+    .memo-page-divider {
+        border-bottom: 1px solid #6b7280;
+        margin-top: 10px;
+        margin-bottom: 24px;
+    }
+
+    .memo-page-body,
+    .memo-page-body p,
+    .memo-page-body li,
+    .memo-page-body span,
+    .memo-page-body div,
+    .memo-page-body td,
+    .memo-page-body th {
+        font-family: "Times New Roman", Georgia, serif !important;
+        color: #111827;
+    }
+
+    .memo-page-body {
+        font-size: 14px;
+        line-height: 1.3;
+        text-align: justify;
+        min-height: 420px;
+    }
+
+    .memo-page-body p,
+    .memo-page-body li {
+        text-align: justify;
+    }
+
+    .memo-page-body p {
+        margin: 0 0 3px 0;
+    }
+
+    .memo-page-body ul,
+    .memo-page-body ol {
+        margin: 0 0 18px 24px;
+        padding-left: 18px;
+    }
+
+    .memo-page-body table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin: 12px 0 16px 0;
+    }
+
+    .memo-page-body th,
+    .memo-page-body td {
+        border: 1px solid #94a3b8;
+        padding: 10px 12px;
+        vertical-align: top;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+    }
+
+    .memo-page-body th {
+        background: #f8fafc;
+        font-weight: 600;
+    }
+
+    .memo-page-footer {
+        margin-top: 40px;
+        font-family: "Times New Roman", Georgia, serif;
+        color: #1f2937;
+    }
+
+    .issued-block {
+        font-size: 14px;
+        line-height: 1.7;
+        margin-bottom: 32px;
+    }
+
+    .prepared-block {
+        margin-top: 20px;
+    }
+
+    .prepared-label {
+        margin: 0 0 36px 0;
+        font-size: 14px;
+    }
+
+    .signature-line {
+        width: 240px;
+        border-bottom: 1px solid #374151;
+        margin-bottom: 4px;
+    }
+
+    .prepared-name {
+        margin: 0;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .prepared-role {
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .memo-extra-details {
+        margin-top: 24px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .memo-extra-details p {
+        margin: 2px 0;
+    }
+
+    .memo-footer-note {
+    margin-top: 56px;
+    font-size: 11px;
+    line-height: 1.45;
+    text-align: justify;
+}
+
+    .memo-footer-address {
+    margin-top: 24px;
+    font-size: 11px;
+    line-height: 1.45;
+}
+</style>
+@endpush
 
 @push('scripts')
 <script>

@@ -2,21 +2,7 @@
 @section('title', 'Town Hall')
 
 @section('content')
-<div id="townhall-page" class="w-full h-full px-6 py-5" x-data="{
-    showSlideOver: false,
-    previewRef: 'AUTO-INCREMENT',
-    previewDate: '',
-    previewFrom: '{{ Auth::user()->name }}',
-    previewDepartment: '',
-    previewRecipientLabel: 'To',
-    previewTo: '',
-    previewPriority: 'Low',
-    previewSubject: '',
-    previewBody: '<p style=&quot;color:#9ca3af;&quot;>Write the formal communication here...</p>',
-    previewCc: '',
-    previewAdditional: '',
-    previewExpiry: ''
-}">
+<div id="townhall-page" class="w-full h-full px-6 py-5" x-data="townhallContactSuggest()">
 
     @if(session('success'))
         <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -50,7 +36,7 @@
                 x-transition:leave-end="-translate-x-full"
                 class="w-[70%] h-full bg-[#f5f6f8] overflow-y-auto p-6 border-r border-gray-200"
             >
-                <div class="max-w-[850px] mx-auto mb-4 flex justify-end sticky top-0 z-10">
+                <div class="max-w-[850px] mx-auto mb-4 flex justify-end">
                     <button
                         type="button"
                         id="download-preview-pdf"
@@ -62,82 +48,7 @@
                 </div>
 
                 <div class="max-w-[850px] mx-auto">
-                    <div id="memo-preview-pdf" class="memo-preview bg-white border border-gray-300 shadow min-h-[1100px] px-[72px] py-[72px] overflow-hidden">
-
-                        {{-- LETTERHEAD --}}
-                        <div class="flex items-start justify-between border-b border-gray-300 pb-6 mb-8">
-                            <div>
-                                <h1 class="text-[22px] font-bold tracking-wide text-gray-900">JOHN KELLY &amp; COMPANY</h1>
-                                <p class="text-[12px] text-gray-500 mt-1">Corporate Memo Preview</p>
-                            </div>
-
-                            <div class="text-right text-[12px] text-gray-600 leading-5">
-                                <p>Ref No: <span class="font-semibold" x-text="previewRef"></span></p>
-                                <p>Date: <span class="font-semibold" x-text="previewDate || '________________'"></span></p>
-                            </div>
-                        </div>
-
-                        {{-- MEMO TITLE --}}
-                        <div class="text-center mb-8">
-                            <h2 class="text-[20px] font-bold tracking-[0.18em] text-gray-900">MEMORANDUM</h2>
-                        </div>
-
-                        {{-- META --}}
-                        <div class="space-y-3 text-[14px] text-gray-800 mb-10">
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide" x-text="previewRecipientLabel"></p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewTo || '______________________________'"></p>
-                            </div>
-
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide">From</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewFrom || '______________________________'"></p>
-                            </div>
-
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide">Department</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewDepartment || '______________________________'"></p>
-                            </div>
-
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide">Priority</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1" x-text="previewPriority || 'Low'"></p>
-                            </div>
-
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide">Subject</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 font-semibold break-words [overflow-wrap:anywhere]" x-text="previewSubject || '______________________________'"></p>
-                            </div>
-
-                            <div class="grid grid-cols-[120px_1fr] gap-3">
-                                <p class="font-semibold uppercase tracking-wide">Expiry</p>
-                                <p class="border-b border-dotted border-gray-300 pb-1 break-words [overflow-wrap:anywhere]" x-text="previewExpiry || '______________________________'"></p>
-                            </div>
-                        </div>
-
-                        {{-- BODY --}}
-                        <div class="text-[15px] leading-8 text-gray-900 min-h-[420px] max-w-full overflow-hidden">
-                            <div
-                                class="preview-body prose prose-sm max-w-none w-full overflow-x-auto break-words [overflow-wrap:anywhere] [&_p]:my-4 [&_p]:leading-8 [&_ul]:my-4 [&_ol]:my-4"
-                                x-html="previewBody"
-                            ></div>
-                        </div>
-
-                        {{-- SIGNATURE AREA --}}
-                        <div class="mt-16 space-y-10 text-[14px] text-gray-800">
-                            <div>
-                                <p>Respectfully,</p>
-                                <div class="mt-12 border-b border-gray-400 w-[260px]"></div>
-                                <p class="mt-2 font-semibold break-words [overflow-wrap:anywhere]" x-text="previewFrom || '________________'"></p>
-                            </div>
-
-                            <div class="pt-6 border-t border-gray-200 space-y-2">
-                                <p class="break-words [overflow-wrap:anywhere]"><span class="font-semibold">CC:</span> <span x-text="previewCc || '______________________________'"></span></p>
-                                <p class="break-words [overflow-wrap:anywhere]"><span class="font-semibold">Additional:</span> <span x-text="previewAdditional || '______________________________'"></span></p>
-                            </div>
-                        </div>
-
-                    </div>
+                    <div id="memo-preview-pages" class="space-y-6"></div>
                 </div>
             </div>
 
@@ -228,14 +139,42 @@
                                 <option value="For">For</option>
                             </select>
 
-                            <input
-                                type="text"
-                                name="to_for"
-                                x-model="previewTo"
-                                value="{{ old('to_for') }}"
-                                placeholder="Enter recipient"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                            >
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    name="to_for"
+                                    x-model="previewTo"
+                                    @focus="openSuggestions('to')"
+                                    @input.debounce.250ms="searchSuggestions('to')"
+                                    @keydown.arrow-down.prevent="highlightNext('to')"
+                                    @keydown.arrow-up.prevent="highlightPrev('to')"
+                                    @keydown.enter.prevent="selectHighlighted('to')"
+                                    @keydown.escape="closeSuggestions('to')"
+                                    autocomplete="off"
+                                    value="{{ old('to_for') }}"
+                                    placeholder="Add one or more recipients separated by comma"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                                >
+
+                                <div
+                                    x-show="dropdowns.to.show && dropdowns.to.items.length > 0"
+                                    x-cloak
+                                    @click.away="closeSuggestions('to')"
+                                    class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden"
+                                >
+                                    <template x-for="(contact, index) in dropdowns.to.items" :key="'to-' + contact.id">
+                                        <button
+                                            type="button"
+                                            @click="selectSuggestion('to', contact)"
+                                            :class="dropdowns.to.highlighted === index ? 'bg-blue-50' : 'bg-white'"
+                                            class="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            <div class="text-sm font-medium text-gray-800" x-text="contact.name"></div>
+                                            <div class="text-xs text-gray-500" x-text="contact.role + (contact.company_name ? ' • ' + contact.company_name : (contact.email ? ' • ' + contact.email : ''))"></div>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <input type="hidden" name="recipient_label" :value="previewRecipientLabel">
@@ -287,26 +226,82 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1">CC</label>
-                            <input
-                                type="text"
-                                name="cc"
-                                x-model="previewCc"
-                                value="{{ old('cc') }}"
-                                placeholder="Enter CC recipients"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                            >
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    name="cc"
+                                    x-model="previewCc"
+                                    @focus="openSuggestions('cc')"
+                                    @input.debounce.250ms="searchSuggestions('cc')"
+                                    @keydown.arrow-down.prevent="highlightNext('cc')"
+                                    @keydown.arrow-up.prevent="highlightPrev('cc')"
+                                    @keydown.enter.prevent="selectHighlighted('cc')"
+                                    @keydown.escape="closeSuggestions('cc')"
+                                    autocomplete="off"
+                                    value="{{ old('cc') }}"
+                                    placeholder="Enter CC recipients"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                                >
+
+                                <div
+                                    x-show="dropdowns.cc.show && dropdowns.cc.items.length > 0"
+                                    x-cloak
+                                    @click.away="closeSuggestions('cc')"
+                                    class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden"
+                                >
+                                    <template x-for="(contact, index) in dropdowns.cc.items" :key="'cc-' + contact.id">
+                                        <button
+                                            type="button"
+                                            @click="selectSuggestion('cc', contact)"
+                                            :class="dropdowns.cc.highlighted === index ? 'bg-blue-50' : 'bg-white'"
+                                            class="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            <div class="text-sm font-medium text-gray-800" x-text="contact.name"></div>
+                                            <div class="text-xs text-gray-500" x-text="contact.role + (contact.company_name ? ' • ' + contact.company_name : (contact.email ? ' • ' + contact.email : ''))"></div>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1">Additional</label>
-                            <input
-                                type="text"
-                                name="additional"
-                                x-model="previewAdditional"
-                                value="{{ old('additional') }}"
-                                placeholder="Optional"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                            >
+                            <div class="relative">
+                                <input
+                                    type="text"
+                                    name="additional"
+                                    x-model="previewAdditional"
+                                    @focus="openSuggestions('additional')"
+                                    @input.debounce.250ms="searchSuggestions('additional')"
+                                    @keydown.arrow-down.prevent="highlightNext('additional')"
+                                    @keydown.arrow-up.prevent="highlightPrev('additional')"
+                                    @keydown.enter.prevent="selectHighlighted('additional')"
+                                    @keydown.escape="closeSuggestions('additional')"
+                                    autocomplete="off"
+                                    value="{{ old('additional') }}"
+                                    placeholder="Optional"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                                >
+
+                                <div
+                                    x-show="dropdowns.additional.show && dropdowns.additional.items.length > 0"
+                                    x-cloak
+                                    @click.away="closeSuggestions('additional')"
+                                    class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden"
+                                >
+                                    <template x-for="(contact, index) in dropdowns.additional.items" :key="'additional-' + contact.id">
+                                        <button
+                                            type="button"
+                                            @click="selectSuggestion('additional', contact)"
+                                            :class="dropdowns.additional.highlighted === index ? 'bg-blue-50' : 'bg-white'"
+                                            class="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            <div class="text-sm font-medium text-gray-800" x-text="contact.name"></div>
+                                            <div class="text-xs text-gray-500" x-text="contact.role + (contact.company_name ? ' • ' + contact.company_name : (contact.email ? ' • ' + contact.email : ''))"></div>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -562,10 +557,6 @@
 <link href="https://cdn.jsdelivr.net/npm/quill-table-better@1/dist/quill-table-better.css" rel="stylesheet">
 
 <style>
-    .memo-preview {
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    }
-
     .word-ribbon {
         background: linear-gradient(to bottom, #ffffff, #f8fafc);
     }
@@ -618,8 +609,8 @@
         margin: 0.75rem 0;
     }
 
-    /* PREVIEW TABLE */
-    .preview-body table {
+    .preview-body table,
+    .memo-body-block table {
         width: 100% !important;
         max-width: 100% !important;
         table-layout: fixed !important;
@@ -635,12 +626,16 @@
     }
 
     .preview-body table colgroup,
-    .preview-body table col {
+    .preview-body table col,
+    .memo-body-block table colgroup,
+    .memo-body-block table col {
         width: auto !important;
     }
 
     .preview-body th,
-    .preview-body td {
+    .preview-body td,
+    .memo-body-block th,
+    .memo-body-block td {
         width: auto !important;
         min-width: 0 !important;
         border: 1px solid #94a3b8 !important;
@@ -651,12 +646,12 @@
         white-space: normal !important;
     }
 
-    .preview-body th {
+    .preview-body th,
+    .memo-body-block th {
         background: #f8fafc !important;
         font-weight: 600 !important;
     }
 
-    /* EDITOR TABLE */
     .ql-editor table {
         width: 100% !important;
         max-width: 100% !important;
@@ -695,17 +690,29 @@
     .ql-editor p,
     .ql-editor li,
     .ql-editor span,
-    .ql-editor div {
+    .ql-editor div,
+    .memo-body-block p,
+    .memo-body-block li,
+    .memo-body-block span,
+    .memo-body-block div {
         word-break: break-word;
         overflow-wrap: anywhere;
     }
 
-    .preview-body h1, .preview-body h2, .preview-body h3 {
+    .preview-body h1,
+    .preview-body h2,
+    .preview-body h3,
+    .memo-body-block h1,
+    .memo-body-block h2,
+    .memo-body-block h3 {
         line-height: 1.35;
         margin: 0.75rem 0;
     }
 
-    .preview-body ul, .preview-body ol {
+    .preview-body ul,
+    .preview-body ol,
+    .memo-body-block ul,
+    .memo-body-block ol {
         padding-left: 1.5rem;
     }
 
@@ -713,6 +720,96 @@
     .ql-table-better-menu,
     .quill-table-better-wrapper {
         z-index: 9999 !important;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    .memo-page {
+        width: 100%;
+        min-height: 1123px;
+        background: #fff;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        padding: 50px 60px;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .memo-page-header {
+        margin-bottom: 24px;
+    }
+
+    .memo-page-title {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+    .memo-page-title h2 {
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: #555;
+        font-family: "Times New Roman", Georgia, serif;
+        margin: 0;
+    }
+
+    .memo-page-meta {
+        margin-bottom: 10px;
+        font-size: 14px;
+        line-height: 1.3;
+        color: #111827;
+        font-family: "Times New Roman", Georgia, serif;
+    }
+
+    .memo-page-divider {
+        border-bottom: 1px solid #6b7280;
+        margin: 10px 0 24px 0;
+    }
+
+    .memo-page-body {
+        font-size: 14px;
+        line-height: 1.7;
+        color: #111827;
+        font-family: "Times New Roman", Georgia, serif;
+    }
+
+    .memo-page-body p {
+        margin: 0 0 18px 0;
+    }
+
+    .memo-page-footer {
+        margin-top: 40px;
+        font-family: "Times New Roman", Georgia, serif;
+        color: #1f2937;
+    }
+
+    .memo-footer-note {
+        margin-top: 48px;
+        font-size: 11px;
+        line-height: 1.35;
+    }
+
+    .memo-footer-address {
+        margin-top: 20px;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .memo-measure-wrap {
+        position: absolute;
+        left: -99999px;
+        top: 0;
+        width: 850px;
+        visibility: hidden;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    .memo-body-block,
+    .memo-body-block * {
+        font-family: "Times New Roman", Georgia, serif !important;
     }
 </style>
 @endpush
@@ -723,19 +820,372 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function buildMemoHeader(data, pageNumber) {
+    const showMeta = pageNumber === 1;
+
+    return `
+        <div class="memo-page-header">
+            <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;">
+                <div style="flex:0 0 auto;padding-top:4px;">
+                    <img src="${data.logoUrl}" alt="JK Logo" style="height:72px;width:auto;object-fit:contain;">
+                </div>
+
+                <div style="flex:1 1 auto;padding-top:4px;">
+                    <p style="font-size:12px;line-height:1.35;color:#4b5563;font-family:'Times New Roman', Georgia, serif;margin:0;">
+                        Atty. Jose B. Ogang, CPA, MMPSM · Jose Tamayo Rio,<br>
+                        MM-BM, CPA · Lyndon Earl P. Rio, RN, CB · John Kelly Abalde,<br>
+                        CLSSBB, CPM
+                    </p>
+                </div>
+            </div>
+
+            <div class="memo-page-title">
+                <h2>MEMORANDUM</h2>
+            </div>
+
+            ${
+                showMeta
+                    ? `
+                    <div class="memo-page-meta">
+                        <p style="margin:2px 0;"><strong>Memo NO.:</strong> ${escapeHtml(data.ref)}</p>
+                        <p style="margin:2px 0;"><strong>Date:</strong> ${escapeHtml(data.date)}</p>
+                        <p style="margin:2px 0;"><strong>${escapeHtml(data.recipientLabel)}:</strong> ${escapeHtml(data.to)}</p>
+                        <p style="margin:2px 0;"><strong>From:</strong> ${escapeHtml(data.from)}</p>
+                        <p style="margin:2px 0;"><strong>SUBJECT:</strong> ${escapeHtml(data.subject)}</p>
+                    </div>
+                    <div class="memo-page-divider"></div>
+                    `
+                    : ''
+            }
+        </div>
+    `;
+}
+
+function buildMemoFooter(data, isLastPage) {
+    return `
+        <div class="memo-page-footer">
+            ${
+                isLastPage
+                    ? `
+                    <div style="font-size:14px;line-height:1.7;">
+                        <p style="margin:0 0 32px 0;">
+                            Issued this <strong>${escapeHtml(data.date)}</strong> in Cebu City, Philippines.
+                        </p>
+
+                        <div style="margin-top:20px;">
+                            <p style="margin:0 0 36px 0;">Prepared by:</p>
+                            <div style="width:240px;border-bottom:1px solid #374151;margin-bottom:4px;"></div>
+                            <p style="margin:0;font-weight:600;line-height:1.2;">${escapeHtml(data.from)}</p>
+                            <p style="margin:0;line-height:1.2;">President/CEO</p>
+                        </div>
+                    </div>
+                    `
+                    : ''
+            }
+
+            <div class="memo-footer-note">
+                This Memorandum is an official corporate record of JK&amp;C INC. Unauthorized reproduction,
+                alteration, disclosure, or misuse of this Memorandum, in whole or in part, is strictly prohibited
+                and may result in administrative sanctions, termination of employment or engagement, and/or the
+                institution of appropriate civil, criminal, or regulatory actions, in accordance with applicable
+                laws and company policies.
+            </div>
+
+            <div class="memo-footer-address">
+                JK&amp;C INC.<br>
+                3F Cebu Holdings Center Cebu Business Park, Cebu City, Philippines, 6000
+            </div>
+        </div>
+    `;
+}
+
+function createMemoPageShell(data, pageNumber, isLastPage = false) {
+    return `
+        <div class="memo-page">
+            ${buildMemoHeader(data, pageNumber)}
+            <div class="memo-page-body" data-page-body></div>
+            ${buildMemoFooter(data, isLastPage)}
+        </div>
+    `;
+}
+
+function paginateMemoPreview(data) {
+    const container = document.getElementById('memo-preview-pages');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const measureWrap = document.createElement('div');
+    measureWrap.className = 'memo-measure-wrap';
+    document.body.appendChild(measureWrap);
+
+    const bodyHtml = (data.body || '').trim() || '<p style="color:#9ca3af;">Write the formal communication here...</p>';
+
+    const source = document.createElement('div');
+    source.innerHTML = bodyHtml;
+
+    const nodes = Array.from(source.childNodes).filter(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent.trim() !== '';
+        }
+        return true;
+    });
+
+    const blocks = nodes.length
+        ? nodes.map(node => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'memo-body-block';
+            wrapper.appendChild(node.cloneNode(true));
+            return wrapper;
+        })
+        : (() => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'memo-body-block';
+            wrapper.innerHTML = '<p style="color:#9ca3af;">Write the formal communication here...</p>';
+            return [wrapper];
+        })();
+
+    let pageNumber = 1;
+    let pages = [];
+    let currentPageWrap = document.createElement('div');
+    currentPageWrap.innerHTML = createMemoPageShell(data, pageNumber, false);
+    let currentPageEl = currentPageWrap.firstElementChild;
+    let currentBody = currentPageEl.querySelector('[data-page-body]');
+    measureWrap.appendChild(currentPageEl);
+
+    function getAvailableHeight(pageEl, bodyEl) {
+        const footer = pageEl.querySelector('.memo-page-footer');
+        return pageEl.clientHeight - bodyEl.offsetTop - footer.offsetHeight - 10;
+    }
+
+    blocks.forEach((block) => {
+        const candidate = block.cloneNode(true);
+        currentBody.appendChild(candidate);
+
+        const availableHeight = getAvailableHeight(currentPageEl, currentBody);
+
+        if (currentBody.scrollHeight > availableHeight) {
+            currentBody.removeChild(candidate);
+
+            pages.push(currentPageEl);
+
+            pageNumber++;
+            const nextPageWrap = document.createElement('div');
+            nextPageWrap.innerHTML = createMemoPageShell(data, pageNumber, false);
+            currentPageEl = nextPageWrap.firstElementChild;
+            currentBody = currentPageEl.querySelector('[data-page-body]');
+            measureWrap.appendChild(currentPageEl);
+
+            currentBody.appendChild(block.cloneNode(true));
+        }
+    });
+
+    pages.push(currentPageEl);
+
+    if (pages.length > 0) {
+        const lastIndex = pages.length - 1;
+        const lastBodyHtml = pages[lastIndex].querySelector('[data-page-body]').innerHTML;
+
+        const rebuiltLast = document.createElement('div');
+        rebuiltLast.innerHTML = createMemoPageShell(data, lastIndex + 1, true);
+        rebuiltLast.firstElementChild.querySelector('[data-page-body]').innerHTML = lastBodyHtml;
+        pages[lastIndex] = rebuiltLast.firstElementChild;
+    }
+
+    container.innerHTML = '';
+    pages.forEach(page => container.appendChild(page));
+
+    document.body.removeChild(measureWrap);
+}
+
+function townhallContactSuggest() {
+    return {
+        showSlideOver: false,
+        previewRef: 'AUTO-INCREMENT',
+        previewDate: @js(old('communication_date', '')),
+        previewFrom: @js(Auth::user()->name),
+        previewDepartment: @js(old('department_stakeholder', '')),
+        previewRecipientLabel: @js(old('recipient_label', 'To')),
+        previewTo: @js(old('to_for', '')),
+        previewPriority: @js(old('priority', 'Low')),
+        previewSubject: @js(old('subject', '')),
+        previewBody: @js(old('message', '<p style="color:#9ca3af;">Write the formal communication here...</p>')),
+        previewCc: @js(old('cc', '')),
+        previewAdditional: @js(old('additional', '')),
+        previewExpiry: @js(old('expires_at', '')),
+
+        dropdowns: {
+            to: { items: [], show: false, highlighted: -1 },
+            cc: { items: [], show: false, highlighted: -1 },
+            additional: { items: [], show: false, highlighted: -1 },
+        },
+
+        getFieldValue(field) {
+            if (field === 'to') return this.previewTo || '';
+            if (field === 'cc') return this.previewCc || '';
+            if (field === 'additional') return this.previewAdditional || '';
+            return '';
+        },
+
+        setFieldValue(field, value) {
+            if (field === 'to') this.previewTo = value;
+            if (field === 'cc') this.previewCc = value;
+            if (field === 'additional') this.previewAdditional = value;
+        },
+
+        extractLastToken(value) {
+            if (!value) return '';
+            const parts = value.split(',');
+            return (parts[parts.length - 1] || '').trim();
+        },
+
+        async openSuggestions(field) {
+            await this.fetchSuggestions(field, '', 3);
+        },
+
+        async searchSuggestions(field) {
+            const rawValue = this.getFieldValue(field);
+            const query = this.extractLastToken(rawValue);
+            await this.fetchSuggestions(field, query, 8);
+        },
+
+        async fetchSuggestions(field, query = '', limit = 8) {
+            try {
+                const response = await fetch(`{{ route('townhall.recipients.search') }}?q=${encodeURIComponent(query)}&limit=${limit}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    this.dropdowns[field].items = [];
+                    this.dropdowns[field].show = false;
+                    this.dropdowns[field].highlighted = -1;
+                    return;
+                }
+
+                const data = await response.json();
+
+                this.dropdowns[field].items = Array.isArray(data) ? data : [];
+                this.dropdowns[field].show = this.dropdowns[field].items.length > 0;
+                this.dropdowns[field].highlighted = this.dropdowns[field].items.length > 0 ? 0 : -1;
+            } catch (error) {
+                this.dropdowns[field].items = [];
+                this.dropdowns[field].show = false;
+                this.dropdowns[field].highlighted = -1;
+            }
+        },
+
+        selectSuggestion(field, contact) {
+            const name = (contact.name || '').trim();
+            if (!name) return;
+
+            const currentValue = this.getFieldValue(field).trim();
+
+            if (!currentValue) {
+                this.setFieldValue(field, field === 'to' ? name + ', ' : name);
+                this.closeSuggestions(field);
+                return;
+            }
+
+            const parts = currentValue.split(',');
+            parts[parts.length - 1] = name;
+
+            const cleaned = parts
+                .map(part => part.trim())
+                .filter(Boolean);
+
+            const unique = [];
+            cleaned.forEach(item => {
+                if (!unique.includes(item)) {
+                    unique.push(item);
+                }
+            });
+
+            if (field === 'to') {
+                this.setFieldValue(field, unique.join(', ') + ', ');
+            } else {
+                this.setFieldValue(field, unique.join(', '));
+            }
+
+            this.closeSuggestions(field);
+        },
+
+        highlightNext(field) {
+            if (!this.dropdowns[field].show || this.dropdowns[field].items.length === 0) return;
+
+            if (this.dropdowns[field].highlighted < this.dropdowns[field].items.length - 1) {
+                this.dropdowns[field].highlighted++;
+            } else {
+                this.dropdowns[field].highlighted = 0;
+            }
+        },
+
+        highlightPrev(field) {
+            if (!this.dropdowns[field].show || this.dropdowns[field].items.length === 0) return;
+
+            if (this.dropdowns[field].highlighted > 0) {
+                this.dropdowns[field].highlighted--;
+            } else {
+                this.dropdowns[field].highlighted = this.dropdowns[field].items.length - 1;
+            }
+        },
+
+        selectHighlighted(field) {
+            if (
+                this.dropdowns[field].show &&
+                this.dropdowns[field].highlighted >= 0 &&
+                this.dropdowns[field].items[this.dropdowns[field].highlighted]
+            ) {
+                this.selectSuggestion(field, this.dropdowns[field].items[this.dropdowns[field].highlighted]);
+            }
+        },
+
+        closeSuggestions(field) {
+            this.dropdowns[field].show = false;
+            this.dropdowns[field].highlighted = -1;
+        }
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const editorEl = document.getElementById('editor');
     const hiddenInput = document.getElementById('message');
     const form = document.getElementById('townhall-form');
     const defaultHtml = '<p style="color:#9ca3af;">Write the formal communication here...</p>';
 
+    function renderPages(alpineData) {
+        if (!alpineData) return;
+
+        paginateMemoPreview({
+            logoUrl: `{{ asset('images/jk-logo.png') }}`,
+            ref: alpineData.previewRef || 'AUTO-INCREMENT',
+            date: alpineData.previewDate || '______________',
+            recipientLabel: alpineData.previewRecipientLabel || 'To',
+            to: alpineData.previewTo || '______________________________',
+            from: alpineData.previewFrom || '______________________________',
+            subject: alpineData.previewSubject || '______________________________',
+            body: alpineData.previewBody || defaultHtml
+        });
+    }
+
+    const rootEl = document.getElementById('townhall-page');
+    const alpineData = rootEl ? Alpine.$data(rootEl) : null;
+
     if (editorEl && hiddenInput && form && window.Quill && window.QuillTableBetter) {
         Quill.register({
             'modules/table-better': QuillTableBetter
         }, true);
-
-        const rootEl = document.getElementById('townhall-page');
-        const alpineData = rootEl ? Alpine.$data(rootEl) : null;
 
         const quill = new Quill('#editor', {
             theme: 'snow',
@@ -777,6 +1227,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (alpineData) {
                 alpineData.previewBody = (hasText || hasTable) ? html : defaultHtml;
+                renderPages(alpineData);
             }
         }
 
@@ -806,11 +1257,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    renderPages(alpineData);
+
+    if (alpineData) {
+        ['previewDate', 'previewFrom', 'previewDepartment', 'previewRecipientLabel', 'previewTo', 'previewPriority', 'previewSubject', 'previewCc', 'previewAdditional', 'previewExpiry'].forEach((key) => {
+            let currentValue = alpineData[key];
+            Object.defineProperty(alpineData, key, {
+                get() {
+                    return currentValue;
+                },
+                set(value) {
+                    currentValue = value;
+                    renderPages(alpineData);
+                }
+            });
+        });
+    }
+
     const downloadBtn = document.getElementById('download-preview-pdf');
 
     if (downloadBtn) {
         downloadBtn.addEventListener('click', function () {
-            const element = document.getElementById('memo-preview-pdf');
+            const element = document.getElementById('memo-preview-pages');
             if (!element) return;
 
             const subject = document.querySelector('input[name="subject"]')?.value?.trim() || 'townhall-memo';
@@ -819,14 +1287,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 .replace(/\s+/g, '-')
                 .toLowerCase();
 
-            html2pdf().set({
-                margin: [0.3, 0.3, 0.3, 0.3],
+            const options = {
+                margin: [0.15, 0.15, 0.15, 0.15],
                 filename: `${safeFileName}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['css', 'legacy'] }
-            }).from(element).save();
+            };
+
+            html2pdf().set(options).from(element).save();
         });
     }
 });

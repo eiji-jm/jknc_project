@@ -5,40 +5,7 @@
 @php
     $fmt = fn ($v) => $v ? \Illuminate\Support\Carbon::parse($v)->format('M d, Y') : '-';
     $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' ')) ?: ($project->client_name ?: '-');
-    $tabs = ['start' => 'START Form', 'sow' => 'Scope of Work', 'report' => 'SOW Report'];
-    $startChecklist = collect($start?->checklist ?? [])->whenEmpty(fn () => collect([
-        ['label' => 'Client Contact Form', 'status' => 'pending'],
-        ['label' => 'Deal Form', 'status' => 'pending'],
-        ['label' => 'Business Information Form', 'status' => 'pending'],
-        ['label' => 'Client Information Form', 'status' => 'pending'],
-        ['label' => 'Service Task Activation & Routing Tracker (Start)', 'status' => 'pending'],
-        ['label' => 'Others', 'status' => 'pending'],
-    ]));
-    $startKyc = (array) ($start?->kyc_requirements ?? []);
-    $startKycOrganization = (string) ($startKyc['organization_type'] ?? 'unknown');
-    $startKycSole = collect($startKyc['sole'] ?? []);
-    $startKycJuridical = collect($startKyc['juridical'] ?? []);
-    $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '']]));
-    $startApprovalSteps = collect($start?->approval_steps ?? [])->whenEmpty(fn () => collect([
-        ['requirement' => 'Client Contact Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Deal Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Business Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Client Information Form', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Service Task Activation & Routing Tracker (Start)', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Engagement-Specific Requirement', 'responsible_person' => 'Sales & Marketing/Consultant/Associate', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Proposal/Contract', 'responsible_person' => 'Sales & Marketing/Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Final Quote', 'responsible_person' => 'Lead Consultant/Lead Associate', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Invoice-Downpayment/Advance', 'responsible_person' => 'Finance', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Clearance', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-        ['requirement' => 'Turn Over', 'responsible_person' => 'Sales & Marketing', 'name_and_signature' => '', 'date_time_done' => ''],
-    ]));
-    $startClearance = (array) ($start?->clearance ?? []);
-    $routing = collect($start?->routing ?? [])->whenEmpty(fn () => collect([
-        ['role' => 'Admin', 'status' => 'pending'],
-        ['role' => 'Lead Consultant', 'status' => 'pending'],
-        ['role' => 'Lead Associate', 'status' => 'pending'],
-        ['role' => 'Sales & Marketing', 'status' => 'pending'],
-    ]));
+    $tabs = ['sow' => 'Scope of Work', 'report' => 'SOW Report'];
     $sowWithin = collect($sow?->within_scope_items ?? [])->whenEmpty(fn () => collect([['main_task_description' => '', 'sub_task_description' => '', 'responsible' => '', 'duration' => '', 'start_date' => '', 'end_date' => '', 'status' => '', 'remarks' => '']]));
     $sowOut = collect($sow?->out_of_scope_items ?? [])->whenEmpty(fn () => collect([['main_task_description' => '', 'sub_task_description' => '', 'responsible' => '', 'duration' => '', 'start_date' => '', 'end_date' => '', 'status' => '', 'remarks' => '']]));
     $repWithin = collect($report?->within_scope_items ?? [])->whenEmpty(fn () => collect([['main_task_description' => '', 'sub_task_description' => '', 'responsible' => '', 'duration' => '', 'start_date' => '', 'end_date' => '', 'status' => '', 'remarks' => '']]));
@@ -50,12 +17,58 @@
 @endphp
 
 <style>
-    .project-workspace { background: linear-gradient(180deg, #edf3fb 0%, #f7f6f2 24%, #f7f6f2 100%); }
-    .project-top-card { border: 1px solid #d9e2ef; background: rgba(255,255,255,.92); box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05); }
-    .project-tab-link { display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d4deeb; background: #fff; padding: 10px 16px; font-size: .85rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #475569; }
-    .project-tab-link.active { border-color: #102d79; background: #102d79; color: #fff; box-shadow: 0 10px 20px rgba(16, 45, 121, 0.16); }
-    .project-tab-link:hover { border-color: #93a4c4; color: #102d79; }
-    .project-linked-card { border: 1px solid #dbe3f0; background: #fff; }
+    .project-workspace {
+        background:
+            radial-gradient(circle at top left, rgba(13, 70, 140, 0.08), transparent 28%),
+            linear-gradient(180deg, #f2f6fc 0%, #fbfcfe 26%, #fbfcfe 100%);
+    }
+    .project-top-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
+    }
+    .project-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        border: 1px solid #cfd9e7;
+        background: #fff;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e3a5f;
+    }
+    .project-tab-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #cfd9e7;
+        background: #fff;
+        padding: 10px 18px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1e3a5f;
+        transition: all 0.16s ease;
+    }
+    .project-tab-link.active {
+        border-color: #1c4587;
+        background: #1c4587;
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(28, 69, 135, 0.18);
+    }
+    .project-tab-link:hover {
+        border-color: #9eb2cf;
+        color: #1c4587;
+    }
+    .project-linked-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    }
     .project-doc-shell { border: 1px solid #cbd5e1; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06); }
     .project-doc-topbar { height: 8px; background: #102d79; }
     .project-doc-header { display: grid; gap: 18px; padding: 18px 22px; border-bottom: 1px solid #dbe3f0; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); }
@@ -103,25 +116,22 @@
         </div>
         <div class="project-top-card rounded-2xl px-5 py-5">
             <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Project Annex Forms</p>
-                <h1 class="mt-2 text-2xl font-semibold text-gray-900">{{ $project->name }}</h1>
-                <p class="mt-2 text-sm text-gray-500">{{ $project->project_code }} - {{ $project->deal?->deal_code ?? 'No linked deal code' }}</p>
-            </div>
-            <div class="grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-                <div><span class="text-gray-400">Business:</span> {{ $project->business_name ?: '-' }}</div>
-                <div><span class="text-gray-400">Client:</span> {{ $contactName }}</div>
-                <div><span class="text-gray-400">Planned Start:</span> {{ $fmt($project->planned_start_date) }}</div>
-                <div><span class="text-gray-400">Target Completion:</span> {{ $fmt($project->target_completion_date) }}</div>
-            </div>
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Project Workspace</p>
+                    <h1 class="mt-2 text-2xl font-semibold text-gray-900">{{ $project->name }}</h1>
+                    <p class="mt-2 text-sm text-gray-500">{{ $project->project_code }} - {{ $project->deal?->deal_code ?? 'No linked deal code' }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <span class="project-pill"><span class="text-slate-400">Business</span> {{ $project->business_name ?: '-' }}</span>
+                    <span class="project-pill"><span class="text-slate-400">Client</span> {{ $contactName }}</span>
+                    <span class="project-pill"><span class="text-slate-400">Planned Start</span> {{ $fmt($project->planned_start_date) }}</span>
+                    <span class="project-pill"><span class="text-slate-400">Target Completion</span> {{ $fmt($project->target_completion_date) }}</span>
+                </div>
             </div>
             <div class="mt-5 flex flex-wrap gap-2">
                 @foreach ($tabs as $key => $label)
                     <a href="{{ route('project.show', ['project' => $project->id, 'tab' => $key]) }}" class="project-tab-link {{ $tab === $key ? 'active' : '' }}">{{ $label }}</a>
                 @endforeach
-                @if ($tab === 'start')
-                    <a href="{{ route('project.start.download', $project) }}" class="project-doc-primary">Download START PDF</a>
-                @endif
             </div>
         </div>
         @if (session('success'))
@@ -139,16 +149,13 @@
             </div>
         </div>
         <div class="space-y-4">
-            @include('project.partials.tab-'.$tab, compact('project', 'start', 'sow', 'report', 'contactName', 'startChecklist', 'startKycOrganization', 'startKycSole', 'startKycJuridical', 'startReqs', 'startApprovalSteps', 'startClearance', 'routing', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
+            @include('project.partials.tab-'.$tab, compact('project', 'sow', 'report', 'contactName', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
         </div>
     </div>
 </div>
 
 <template id="scope-row-template"><tr><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="main_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="sub_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="responsible"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="duration"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="start_date"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="end_date"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="status"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="remarks"></td></tr></template>
-<template id="start-requirement-row-template"><tr><td class="border border-slate-900 px-2 py-1 text-center"></td><td class="border border-slate-900 px-1"><input name="engagement_requirement[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_notes[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_purpose[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_provided_by[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_submitted_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_assigned_to[]" class="w-full border-0 px-1 py-1 text-[11px]"></td><td class="border border-slate-900 px-1"><input name="engagement_timeline[]" class="w-full border-0 px-1 py-1 text-[11px]"></td></tr></template>
-<template id="start-routing-row-template"><div class="grid gap-3 md:grid-cols-2"><input name="routing_role[]" class="h-10 rounded-lg border border-gray-300 px-3 text-sm"><select name="routing_status[]" class="h-10 rounded-lg border border-gray-300 px-3 text-sm"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div></template>
 <script>
-document.querySelectorAll('[data-add-row]').forEach((b)=>b.addEventListener('click',()=>{const t=document.getElementById(b.dataset.addRow);const id=b.dataset.addRow==='start-routing'?'start-routing-row-template':'start-requirement-row-template';t.insertAdjacentHTML('beforeend',document.getElementById(id).innerHTML);}));
 document.querySelectorAll('[data-add-scope-row]').forEach((b)=>b.addEventListener('click',()=>{const t=document.getElementById(b.dataset.addScopeRow),p=b.dataset.addScopeRow.startsWith('within')?'within':'out',f=document.getElementById('scope-row-template').content.cloneNode(true);f.querySelectorAll('[data-name]').forEach((i)=>i.name=p+'_'+i.dataset.name+'[]');t.appendChild(f);}));
 </script>
 @endsection

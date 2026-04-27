@@ -352,6 +352,54 @@ class ProductController extends Controller
             ->with('success', 'Product delete request submitted for admin approval.');
     }
 
+    public function approve(Request $request, string $id): RedirectResponse
+    {
+        $product = Product::query()->where('product_id', $id)->firstOrFail();
+
+        if ((string) $product->status !== 'Pending Approval') {
+            return redirect()
+                ->route('admin.dashboard')
+                ->with('success', 'This product review has already been resolved.');
+        }
+
+        $now = now();
+
+        $product->forceFill([
+            'status' => 'Active',
+            'reviewed_by' => $request->user()?->name ?? 'System User',
+            'reviewed_at' => $now,
+            'approved_by' => $request->user()?->name ?? 'System User',
+            'approved_at' => $now,
+        ])->save();
+
+        return redirect()
+            ->route('admin.dashboard')
+            ->with('success', 'Product approved successfully.');
+    }
+
+    public function reject(Request $request, string $id): RedirectResponse
+    {
+        $product = Product::query()->where('product_id', $id)->firstOrFail();
+
+        if ((string) $product->status !== 'Pending Approval') {
+            return redirect()
+                ->route('admin.dashboard')
+                ->with('success', 'This product review has already been resolved.');
+        }
+
+        $product->forceFill([
+            'status' => 'Rejected',
+            'reviewed_by' => $request->user()?->name ?? 'System User',
+            'reviewed_at' => now(),
+            'approved_by' => null,
+            'approved_at' => null,
+        ])->save();
+
+        return redirect()
+            ->route('admin.dashboard')
+            ->with('success', 'Product rejected successfully.');
+    }
+
     private function upsertCatalogChangeRequest(
         string $module,
         int $recordId,
