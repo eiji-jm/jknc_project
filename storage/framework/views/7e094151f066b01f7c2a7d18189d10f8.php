@@ -162,35 +162,115 @@
         </h2>
         <p class="proposal-paragraph"><?php echo e($d['our_proposal_text'] ?? ''); ?></p>
 
-        <h3 class="proposal-subheading">Scope of Service / Assistance</h3>
-        <?php $__currentLoopData = $paragraphs($d['scope_of_service'] ?? ''); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $line): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-            <p class="proposal-paragraph"><?php echo e($line); ?></p>
-        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Services Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <h3 class="proposal-subheading">What You Will Receive</h3>
-        <ul class="proposal-bullet-list">
-            <?php $__currentLoopData = $paragraphs($d['what_you_will_receive'] ?? ''); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $line): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                <li><?php echo e($line); ?></li>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-        </ul>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Products Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <?php if($requirements->isNotEmpty()): ?>
-            <h3 class="proposal-subheading">Requirements</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-need-heading">What We Need From You</h3>
             <p class="proposal-paragraph"><?php echo e($d['requirements_intro'] ?? ''); ?></p>
-            <?php $__currentLoopData = $requirements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $group): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                <div class="proposal-requirement-group">
-                    <div class="proposal-requirement-label"><?php echo e($group['label']); ?></div>
-                    <ul class="proposal-bullet-list">
-                        <?php $__currentLoopData = $group['items']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $line): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <li><?php echo e($line); ?></li>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                    </ul>
-                </div>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-            <p class="proposal-note"><?php echo e($d['requirements_note'] ?? ''); ?></p>
-        <?php endif; ?>
 
-        <h3 class="proposal-subheading proposal-subheading-blue">Service Fee</h3>
+        <table class="proposal-data-table proposal-requirements-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>For Sole Proprietor / Professional / Individual;</th>
+                    <th>For Juridical / Corporation / Partnership;</th>
+                    <th>Optional / If Applicable;</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td><?php echo $paragraphs($d['requirements_sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>'); ?></td>
+                    <td><?php echo $paragraphs($d['requirements_juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>'); ?></td>
+                    <td><?php echo $paragraphs($d['requirements_optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>'); ?></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+            <p class="proposal-note"><?php echo e($d['requirements_note'] ?? ''); ?></p>
+
+        <h3 class="proposal-subheading proposal-subheading-blue">Fees</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Services</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Products</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
         <table class="proposal-pricing-table">
             <thead>
                 <tr>
@@ -199,13 +279,14 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Regular Price</td><td><?php echo e($money($d['price_regular'] ?? 0)); ?></td></tr>
+                <tr><td>Total Services</td><td></td></tr>
+                <tr><td>Total Product</td><td></td></tr>
                 <tr><td>Discount</td><td><?php echo e($money($d['price_discount'] ?? 0)); ?></td></tr>
                 <tr><td>Subtotal (After Discount)</td><td><?php echo e($money($d['price_subtotal'] ?? 0)); ?></td></tr>
-                <tr><td>Tax</td><td><?php echo e($money($d['price_tax'] ?? 0)); ?></td></tr>
-                <tr class="is-total"><td>Total</td><td><?php echo e($money($d['price_total'] ?? 0)); ?></td></tr>
-                <tr><td>Downpayment</td><td><?php echo e($money($d['price_down'] ?? 0)); ?></td></tr>
-                <tr><td>Balance</td><td><?php echo e($money($d['price_balance'] ?? 0)); ?></td></tr>
+                <tr><td>Tax (if applicable)</td><td><?php echo e($money($d['price_tax'] ?? 0)); ?></td></tr>
+                <tr class="is-total"><td>Total Fees</td><td><?php echo e($money($d['price_total'] ?? 0)); ?></td></tr>
+                <tr><td>Down Payment (50%)</td><td><?php echo e($money($d['price_down'] ?? 0)); ?></td></tr>
+                <tr><td>Balance Payable Upon Completion (50%)</td><td><?php echo e($money($d['price_balance'] ?? 0)); ?></td></tr>
             </tbody>
         </table>
         <p class="proposal-note"><?php echo e($d['supplemental_fee_note'] ?? ''); ?></p>
@@ -369,11 +450,6 @@
             </div>
         </div>
 
-        <div class="proposal-footer-note">
-            <div>John Kelly &amp; Company</div>
-            <div><?php echo e($d['company_address'] ?? ''); ?></div>
-            <div>Email: <?php echo e($d['company_email'] ?? ''); ?> &bull; Website: <?php echo e($d['company_website'] ?? ''); ?> &bull; Phone: <?php echo e($d['company_phone'] ?? ''); ?></div>
-        </div>
         </div>
         <?php echo $renderPageFooter(8); ?>
 

@@ -160,35 +160,115 @@
         </h2>
         <p class="proposal-paragraph">{{ $d['our_proposal_text'] ?? '' }}</p>
 
-        <h3 class="proposal-subheading">Scope of Service / Assistance</h3>
-        @foreach ($paragraphs($d['scope_of_service'] ?? '') as $line)
-            <p class="proposal-paragraph">{{ $line }}</p>
-        @endforeach
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Services Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <h3 class="proposal-subheading">What You Will Receive</h3>
-        <ul class="proposal-bullet-list">
-            @foreach ($paragraphs($d['what_you_will_receive'] ?? '') as $line)
-                <li>{{ $line }}</li>
-            @endforeach
-        </ul>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Products Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        @if ($requirements->isNotEmpty())
-            <h3 class="proposal-subheading">Requirements</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-need-heading">What We Need From You</h3>
             <p class="proposal-paragraph">{{ $d['requirements_intro'] ?? '' }}</p>
-            @foreach ($requirements as $group)
-                <div class="proposal-requirement-group">
-                    <div class="proposal-requirement-label">{{ $group['label'] }}</div>
-                    <ul class="proposal-bullet-list">
-                        @foreach ($group['items'] as $line)
-                            <li>{{ $line }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endforeach
-            <p class="proposal-note">{{ $d['requirements_note'] ?? '' }}</p>
-        @endif
 
-        <h3 class="proposal-subheading proposal-subheading-blue">Service Fee</h3>
+        <table class="proposal-data-table proposal-requirements-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>For Sole Proprietor / Professional / Individual;</th>
+                    <th>For Juridical / Corporation / Partnership;</th>
+                    <th>Optional / If Applicable;</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td>{!! $paragraphs($d['requirements_sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td>{!! $paragraphs($d['requirements_juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td>{!! $paragraphs($d['requirements_optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+            <p class="proposal-note">{{ $d['requirements_note'] ?? '' }}</p>
+
+        <h3 class="proposal-subheading proposal-subheading-blue">Fees</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Services</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Products</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
         <table class="proposal-pricing-table">
             <thead>
                 <tr>
@@ -197,13 +277,14 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Regular Price</td><td>{{ $money($d['price_regular'] ?? 0) }}</td></tr>
+                <tr><td>Total Services</td><td></td></tr>
+                <tr><td>Total Product</td><td></td></tr>
                 <tr><td>Discount</td><td>{{ $money($d['price_discount'] ?? 0) }}</td></tr>
                 <tr><td>Subtotal (After Discount)</td><td>{{ $money($d['price_subtotal'] ?? 0) }}</td></tr>
-                <tr><td>Tax</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>
-                <tr class="is-total"><td>Total</td><td>{{ $money($d['price_total'] ?? 0) }}</td></tr>
-                <tr><td>Downpayment</td><td>{{ $money($d['price_down'] ?? 0) }}</td></tr>
-                <tr><td>Balance</td><td>{{ $money($d['price_balance'] ?? 0) }}</td></tr>
+                <tr><td>Tax (if applicable)</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>
+                <tr class="is-total"><td>Total Fees</td><td>{{ $money($d['price_total'] ?? 0) }}</td></tr>
+                <tr><td>Down Payment (50%)</td><td>{{ $money($d['price_down'] ?? 0) }}</td></tr>
+                <tr><td>Balance Payable Upon Completion (50%)</td><td>{{ $money($d['price_balance'] ?? 0) }}</td></tr>
             </tbody>
         </table>
         <p class="proposal-note">{{ $d['supplemental_fee_note'] ?? '' }}</p>
@@ -363,11 +444,6 @@
             </div>
         </div>
 
-        <div class="proposal-footer-note">
-            <div>John Kelly &amp; Company</div>
-            <div>{{ $d['company_address'] ?? '' }}</div>
-            <div>Email: {{ $d['company_email'] ?? '' }} &bull; Website: {{ $d['company_website'] ?? '' }} &bull; Phone: {{ $d['company_phone'] ?? '' }}</div>
-        </div>
         </div>
         {!! $renderPageFooter(8) !!}
     </section>
