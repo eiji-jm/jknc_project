@@ -158,6 +158,15 @@
             @endif
 
             @if(Auth::user()->hasPermission('access_corporate'))
+                <a href="{{ route('finance') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('finance*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-coins text-base"></i>
+                    <span>Finance</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_corporate'))
                 <a href="{{ route('corporate') }}"
                    class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
                    {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') || request()->routeIs('corporate.sec_aoi') || request()->routeIs('corporate.bylaws') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
@@ -369,6 +378,93 @@
                     </div>
                 </div>
 
+            </aside>
+
+        @elseif(request()->routeIs('finance*'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Finance</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('finance', ['module' => 'supplier']) }}" data-finance-module="supplier"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module', 'supplier') === 'supplier' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Supplier
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'service']) }}" data-finance-module="service"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'service' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Service
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'product']) }}" data-finance-module="product"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'product' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Product
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'chart_account']) }}" data-finance-module="chart_account"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'chart_account' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Chart of Accounts
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'bank_account']) }}" data-finance-module="bank_account"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'bank_account' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Bank Accounts
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'pr']) }}" data-finance-module="pr"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'pr' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Purchase Request
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'po']) }}" data-finance-module="po"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'po' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Purchase Order
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'ca']) }}" data-finance-module="ca"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'ca' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Cash Advance
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'lr']) }}" data-finance-module="lr"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'lr' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Liquidation Report
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'err']) }}" data-finance-module="err"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'err' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Expense Reimbursement Request
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'dv']) }}" data-finance-module="dv"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'dv' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Disbursement Voucher
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'pda']) }}" data-finance-module="pda"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'pda' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Payroll Disbursement Authorization
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'crf']) }}" data-finance-module="crf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'crf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Cash Return Form
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'ibtf']) }}" data-finance-module="ibtf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'ibtf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Interbank Fund Transfer Form
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'arf']) }}" data-finance-module="arf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'arf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Asset Registration Form
+                        </a>
+                    </div>
+                </div>
             </aside>
 
         @elseif($isHumanCapitalSection && Auth::user()->hasPermission('access_human_capital'))

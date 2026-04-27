@@ -52,6 +52,7 @@ use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BankingController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CorporateDocumentDefaultsController;
 use App\Http\Controllers\MinuteController;
 use App\Http\Controllers\NoticeController;
@@ -704,6 +705,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/accounting/{id}/submit', [AccountingController::class, 'submit'])->name('accounting.submit');
     });
 
+    Route::get('/finance', [FinanceController::class, 'index'])->name('finance');
+    Route::get('/finance/{financeRecord}', [FinanceController::class, 'show'])->name('finance.show');
+    Route::get('/finance/{financeRecord}/preview-html', [FinanceController::class, 'previewHtml'])->name('finance.preview.html');
+    Route::get('/finance/{financeRecord}/preview-pdf', [FinanceController::class, 'previewPdf'])->name('finance.preview.pdf');
+    Route::post('/finance', [FinanceController::class, 'store'])->name('finance.store');
+    Route::put('/finance/{financeRecord}', [FinanceController::class, 'update'])->name('finance.update');
+    Route::post('/finance/{financeRecord}/submit', [FinanceController::class, 'submit'])->name('finance.submit');
+    Route::post('/finance/{financeRecord}/approve', [FinanceController::class, 'approve'])->name('finance.approve');
+    Route::post('/finance/{financeRecord}/revert', [FinanceController::class, 'revert'])->name('finance.revert');
+    Route::post('/finance/{financeRecord}/archive', [FinanceController::class, 'archive'])->name('finance.archive');
+    Route::post('/finance/{financeRecord}/share-supplier-link', [FinanceController::class, 'shareSupplierLink'])->name('finance.supplier.share');
+    Route::post('/finance/{financeRecord}/supplier-email', [FinanceController::class, 'updateSupplierEmailAndResend'])->name('finance.supplier.email');
+
     Route::get('/banking/data', [BankingController::class, 'index'])->name('banking.index');
     Route::post('/banking/store', [BankingController::class, 'store'])->name('banking.store');
     Route::get('/banking/{id}', [BankingController::class, 'show'])->name('banking.show');
@@ -845,6 +859,17 @@ Route::delete('/onboarding/trainings/{training}', [OnboardingRecordController::c
     Route::view('/training', 'human-capital.training')->name('training');
     Route::view('/performance', 'human-capital.performance')->name('performance');
     Route::view('/offboarding', 'human-capital.offboarding')->name('offboarding');
+
+    /*
+|--------------------------------------------------------------------------
+| FINANCE SUPPLIER COMPLETION ROUTES (public/token-based)
+|--------------------------------------------------------------------------
+*/
+Route::get('/finance/supplier/completion/{token}', [FinanceController::class, 'supplierCompletionForm'])
+    ->name('finance.supplier.completion');
+Route::post('/finance/supplier/completion/{token}', [FinanceController::class, 'submitSupplierCompletion'])
+    ->name('finance.supplier.completion.submit');
+
 });
 Route::get('/recruitment/assessment/start/{uuid}', [RecruitmentController::class, 'startAssessment'])
     ->name('recruitment.assessment.start');
