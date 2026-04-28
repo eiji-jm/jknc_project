@@ -18,39 +18,7 @@
     $recordCustodian = old('clearance_record_custodian_name', $rsatClearance['record_custodian_name'] ?? '');
     $recordedDate = old('clearance_date_recorded', $rsatClearance['date_recorded'] ?? '');
     $signedDate = old('clearance_date_signed', $rsatClearance['date_signed'] ?? '');
-    $clientType = strtolower(trim((string) ($regular->deal?->customer_type ?? '')));
-    $isNewClient = $clientType === 'new';
-    $isExistingClient = in_array($clientType, ['existing', 'existing client'], true);
-    $isChangeInformation = str_contains($clientType, 'change');
-    $reportRows = collect($report?->within_scope_items ?? [])->whenEmpty(fn () => collect(array_fill(0, 10, [
-        'service' => '',
-        'activity_output' => '',
-        'frequency' => '',
-        'reminder_lead_time' => '',
-        'deadline' => '',
-    ])));
-    $reportApproval = (array) ($report?->internal_approval ?? []);
-    $reportNumber = old('report_number', $report?->report_number);
-    $reportDatePrepared = old('date_prepared', optional($report?->date_prepared)->format('Y-m-d'));
-    $reportPeriod = old('report_period', $reportApproval['report_period'] ?? '');
-    $reportPreparedBy = old('prepared_by', $reportApproval['prepared_by'] ?? '');
-    $reportPreparedByName = old('prepared_by_name', $reportApproval['prepared_by_name'] ?? '');
-    $reportPreparedByDate = old('prepared_by_date', $reportApproval['prepared_by_date'] ?? '');
-    $reportReviewedBy = old('reviewed_by', $reportApproval['reviewed_by'] ?? '');
-    $reportReviewedByName = old('reviewed_by_name', $reportApproval['reviewed_by_name'] ?? '');
-    $reportReviewedByDate = old('reviewed_by_date', $reportApproval['reviewed_by_date'] ?? '');
-    $reportReferredBy = old('referred_by_closed_by', $reportApproval['referred_by_closed_by'] ?? '');
-    $reportSalesMarketing = old('sales_marketing', $reportApproval['sales_marketing'] ?? '');
-    $reportLeadConsultant = old('lead_consultant', $reportApproval['lead_consultant'] ?? '');
-    $reportLeadAssociate = old('lead_associate_assigned', $reportApproval['lead_associate_assigned'] ?? '');
-    $reportFinance = old('finance', $reportApproval['finance'] ?? '');
-    $reportPresident = old('president', $reportApproval['president'] ?? '');
-    $reportRecordCustodian = old('record_custodian', $reportApproval['record_custodian'] ?? '');
-    $reportDateRecorded = old('date_recorded', $reportApproval['date_recorded'] ?? '');
-    $reportDateSigned = old('date_signed', $reportApproval['date_signed'] ?? '');
-    $reportTransmittalNo = old('transmittal_no', $reportApproval['transmittal_no'] ?? '');
-    $reportDateSubmittedForTransmittal = old('date_submitted_for_transmittal', $reportApproval['date_submitted_for_transmittal'] ?? '');
-    $reportClientSignature = old('client_confirmation_name', $report?->client_confirmation_name ?? '');
+    $generatedReports = $generatedReports ?? collect();
 ?>
 
 <style>
@@ -157,47 +125,62 @@
         font-size: 11px;
         line-height: 1;
     }
-    .rsat-matrix {
+    .rsat-table-wrap {
         margin-top: 18px;
+        overflow-x: auto;
     }
-    .rsat-matrix-header,
-    .rsat-matrix-row {
-        display: grid;
-        grid-template-columns: 70px 1.1fr 1.5fr 1fr 1fr 0.9fr;
-        gap: 14px;
-        align-items: end;
+    .rsat-table {
+        width: 100%;
+        min-width: 1080px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-family: Georgia, "Times New Roman", serif;
     }
-    .rsat-matrix-header {
-        border-bottom: 2px solid #1c4587;
-        padding-bottom: 8px;
-        font-family: Arial, sans-serif;
+    .rsat-table th,
+    .rsat-table td {
+        border: 1px solid #111827;
+        padding: 0;
+        vertical-align: middle;
+    }
+    .rsat-table th {
+        background: #1c4587;
+        color: #fff;
+        padding: 6px 4px;
+        text-align: center;
         font-size: 0.76rem;
         font-weight: 700;
-        letter-spacing: 0.05em;
-        color: #1c4587;
-        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
-    .rsat-matrix-row {
-        padding: 10px 0 0;
-    }
-    .rsat-index {
-        border-bottom: 1px solid #111827;
-        padding: 6px 0 5px;
+    .rsat-table .rsat-index {
+        min-height: 32px;
+        padding: 6px 4px;
         text-align: center;
         color: #111827;
+        font-size: 0.82rem;
+    }
+    .rsat-row-delete {
+        width: 100%;
+        min-height: 32px;
+        border: 0;
+        background: transparent;
+        color: #dc2626;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        line-height: 1;
     }
     .rsat-row-input {
         width: 100%;
+        min-height: 32px;
         border: 0;
-        border-bottom: 1px solid #111827;
         background: transparent;
-        padding: 6px 0 5px;
+        padding: 6px 8px;
         color: #111827;
+        font-size: 0.82rem;
     }
     .rsat-row-input:focus {
         outline: none;
-        border-bottom-color: #1c4587;
-        box-shadow: inset 0 -1px 0 #1c4587;
+        box-shadow: inset 0 0 0 1px #1c4587;
     }
     .rsat-signature {
         margin-top: 28px;
@@ -302,14 +285,6 @@
     @media (max-width: 820px) {
         .rsat-form {
             padding: 20px 18px 24px;
-        }
-        .rsat-matrix-header,
-        .rsat-matrix-row {
-            grid-template-columns: 56px repeat(5, minmax(140px, 1fr));
-            min-width: 980px;
-        }
-        .rsat-matrix {
-            overflow-x: auto;
         }
     }
 </style>
@@ -419,9 +394,6 @@
                         <div class="rsat-meta-label">BIF No.</div>
                         <div class="rsat-line-value"><?php echo e($regular->company?->latestBif?->bif_no ?? ''); ?></div>
                     </div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isNewClient ? 'X' : ''); ?></span> NEW CLIENT</div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isExistingClient ? 'X' : ''); ?></span> EXISTING CLIENT</div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isChangeInformation ? 'X' : ''); ?></span> CHANGE INFORMATION</div>
                 </div>
 
                 <div class="mt-5 rsat-meta-grid">
@@ -435,40 +407,51 @@
                     </div>
                 </div>
 
-                <div class="rsat-matrix">
-                    <div class="rsat-matrix-header">
-                        <div>Item #</div>
-                        <div>Service</div>
-                        <div>Activity / Output</div>
-                        <div>Frequency</div>
-                        <div>Reminder Lead Time</div>
-                        <div>Deadline</div>
-                    </div>
+                <div class="rsat-table-wrap">
+                    <table class="rsat-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 6%;">Item #</th>
+                                <th style="width: 16%;">Service</th>
+                                <th style="width: 34%;">Activity / Output</th>
+                                <th style="width: 16%;">Frequency</th>
+                                <th style="width: 16%;">Reminder Lead Time</th>
+                                <th style="width: 10%;">Deadline</th>
+                                <th style="width: 6%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="regular-requirements">
+                            <?php $__currentLoopData = $rsatRequirements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <tr class="rsat-matrix-row">
+                                    <td><div class="rsat-index"><?php echo e($index + 1); ?></div></td>
+                                    <td>
+                                        <input name="engagement_purpose[]" value="<?php echo e(old('engagement_purpose.'.$index, $item['purpose'] ?? '')); ?>" class="rsat-row-input">
+                                    </td>
+                                    <td>
+                                        <input name="engagement_requirement[]" value="<?php echo e(old('engagement_requirement.'.$index, $item['requirement'] ?? '')); ?>" class="rsat-row-input">
+                                    </td>
+                                    <td>
+                                        <input name="engagement_notes[]" value="<?php echo e(old('engagement_notes.'.$index, $item['notes'] ?? '')); ?>" class="rsat-row-input">
+                                    </td>
+                                    <td>
+                                        <input name="engagement_timeline[]" value="<?php echo e(old('engagement_timeline.'.$index, $item['timeline'] ?? '')); ?>" class="rsat-row-input">
+                                    </td>
+                                    <td>
+                                        <input name="engagement_submitted_to[]" value="<?php echo e(old('engagement_submitted_to.'.$index, $item['submitted_to'] ?? '')); ?>" class="rsat-row-input">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <button type="button" class="rsat-row-delete" data-delete-row>&times;</button>
+                                    </td>
+                                    <input type="hidden" name="engagement_provided_by[]" value="<?php echo e(old('engagement_provided_by.'.$index, $item['provided_by'] ?? '')); ?>">
+                                    <input type="hidden" name="engagement_assigned_to[]" value="<?php echo e(old('engagement_assigned_to.'.$index, $item['assigned_to'] ?? '')); ?>">
+                                </tr>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        </tbody>
+                    </table>
+                </div>
 
-                    <div id="regular-requirements">
-                        <?php $__currentLoopData = $rsatRequirements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <div class="rsat-matrix-row">
-                                <div class="rsat-index"><?php echo e($index + 1); ?></div>
-                                <div>
-                                    <input name="engagement_purpose[]" value="<?php echo e(old('engagement_purpose.'.$index, $item['purpose'] ?? '')); ?>" class="rsat-row-input">
-                                </div>
-                                <div>
-                                    <input name="engagement_requirement[]" value="<?php echo e(old('engagement_requirement.'.$index, $item['requirement'] ?? '')); ?>" class="rsat-row-input">
-                                </div>
-                                <div>
-                                    <input name="engagement_notes[]" value="<?php echo e(old('engagement_notes.'.$index, $item['notes'] ?? '')); ?>" class="rsat-row-input">
-                                </div>
-                                <div>
-                                    <input name="engagement_timeline[]" value="<?php echo e(old('engagement_timeline.'.$index, $item['timeline'] ?? '')); ?>" class="rsat-row-input">
-                                </div>
-                                <div>
-                                    <input name="engagement_submitted_to[]" value="<?php echo e(old('engagement_submitted_to.'.$index, $item['submitted_to'] ?? '')); ?>" class="rsat-row-input">
-                                </div>
-                                <input type="hidden" name="engagement_provided_by[]" value="<?php echo e(old('engagement_provided_by.'.$index, $item['provided_by'] ?? '')); ?>">
-                                <input type="hidden" name="engagement_assigned_to[]" value="<?php echo e(old('engagement_assigned_to.'.$index, $item['assigned_to'] ?? '')); ?>">
-                            </div>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                    </div>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-requirements">Add RSAT Row</button>
                 </div>
 
                 <div class="rsat-signature">
@@ -558,251 +541,110 @@
                 <input type="hidden" name="approval_date_time_done[]" value="<?php echo e(old('approval_date_time_done.1', '')); ?>">
             </div>
 
-            <div class="mt-4 flex justify-end">
-                <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-requirements">Add RSAT Row</button>
-            </div>
             <div class="rsat-actions">
                 <div></div>
-                <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT</button>
+                <div class="flex gap-3">
+                    <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT</button>
+                    <button type="submit" formaction="<?php echo e(route('regular.report.generate', $regular)); ?>" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">Generate RSAT Report</button>
+                </div>
             </div>
         </form>
 
-        <form method="POST" action="<?php echo e(route('regular.report.update', $regular)); ?>" class="rsat-sheet overflow-hidden p-6 <?php echo e($tab !== 'report' ? 'hidden' : ''); ?>" data-tab-panel="report">
-            <?php echo csrf_field(); ?>
-
-            <div class="rsat-form">
-                <div class="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <div class="space-y-5 <?php echo e($tab !== 'report' ? 'hidden' : ''); ?>" data-tab-panel="report">
+            <section class="rsat-top-card rounded-2xl px-6 py-5">
+                <div class="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <img src="<?php echo e(asset('images/imaglogo.png')); ?>" alt="John Kelly and Company" class="h-24 w-auto object-contain">
+                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Report Registry</p>
+                        <h2 class="mt-2 text-3xl font-semibold text-gray-900">RSAT Reports</h2>
+                        <p class="mt-2 text-sm text-slate-500">Generated RSAT reports are recorded here from the RSAT form tab.</p>
                     </div>
-                    <div class="space-y-2">
-                        <div class="rsat-title">REGULAR SERVICE ACTIVITY<br>TRACKER REPORT (RSAT REPORT)</div>
-                        <div class="rsat-form-code">[ Form Code ]</div>
+                    <div class="flex flex-wrap gap-3 text-sm">
+                        <span class="rsat-pill"><span class="text-slate-400">Total Reports</span> <?php echo e($generatedReports->count()); ?></span>
+                        <span class="rsat-pill"><span class="text-slate-400">Latest Report</span> <?php echo e($generatedReports->first()?->report_number ?: '-'); ?></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                <div class="border-b border-slate-200 px-6 py-4">
+                    <div class="relative max-w-md">
+                        <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                        <input
+                            id="regularReportSearch"
+                            type="text"
+                            placeholder="Search report number or status..."
+                            autocomplete="off"
+                            class="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        >
                     </div>
                 </div>
 
-                <div class="rsat-section-title">REPORT INFORMATION</div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            <tr>
+                                <th class="px-6 py-4 text-left">Report No.</th>
+                                <th class="px-6 py-4 text-left">Date of Reporting</th>
+                                <th class="px-6 py-4 text-left">Date Sent to Client</th>
+                                <th class="px-6 py-4 text-left">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="regularReportTableBody" class="divide-y divide-slate-100 bg-white">
+                            <?php $__empty_1 = true; $__currentLoopData = $generatedReports; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                <?php
+                                    $statusLabel = 'Sent to Client';
+                                    $previewUrl = route('regular.report.preview', ['regular' => $regular->id, 'report' => $item->id]);
+                                ?>
+                                <tr
+                                    class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
+                                    data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) )); ?>"
+                                    onclick="window.location='<?php echo e($previewUrl); ?>'"
+                                >
+                                    <td class="px-6 py-4">
+                                        <span class="font-semibold text-blue-700 hover:text-blue-800"><?php echo e($item->report_number ?: 'Report-'.$item->id); ?></span>
+                                    </td>
+                                    <td class="px-6 py-4"><?php echo e(optional($item->date_prepared)->format('M d, Y') ?: '-'); ?></td>
+                                    <td class="px-6 py-4"><?php echo e(optional($item->created_at)->format('M d, Y') ?: '-'); ?></td>
+                                    <td class="px-6 py-4">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <?php echo e($statusLabel); ?>
 
-                <div class="mt-8 rsat-meta-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-                    <div class="rsat-meta-item" style="grid-template-columns: 120px minmax(0, 1fr);">
-                        <div class="rsat-meta-label">Report No.:</div>
-                        <input name="report_number" value="<?php echo e($reportNumber); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-meta-item" style="grid-template-columns: 135px minmax(0, 1fr);">
-                        <div class="rsat-meta-label">Report Date:</div>
-                        <input type="date" name="date_prepared" value="<?php echo e($reportDatePrepared); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-meta-item" style="grid-template-columns: 140px minmax(0, 1fr);">
-                        <div class="rsat-meta-label">Report Period:</div>
-                        <input name="report_period" value="<?php echo e($reportPeriod); ?>" class="rsat-line-input">
-                    </div>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                                <tr>
+                                    <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
+                                        No generated RSAT reports yet. Use <span class="font-semibold text-slate-700">Generate RSAT Report</span> in the RSAT Form tab.
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="mt-8 rsat-meta-grid">
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Client Name:</div>
-                        <div class="rsat-line-value"><?php echo e($contactName); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Date Created:</div>
-                        <div class="rsat-line-value"><?php echo e($formDate ? \Illuminate\Support\Carbon::parse($formDate)->format('m/d/Y') : ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Business Name:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->business_name ?: ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Engagement Type:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->engagement_type ?: ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Condeal Ref No.:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->deal?->deal_code ?: ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Services:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->services ?: ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Service Area:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->service_area ?: ''); ?></div>
-                    </div>
-                    <div class="rsat-meta-item">
-                        <div class="rsat-meta-label">Product:</div>
-                        <div class="rsat-line-value"><?php echo e($regular->products ?: ''); ?></div>
-                    </div>
-                </div>
-
-                <div class="mt-5 rsat-client-row">
-                    <div class="rsat-meta-item" style="grid-template-columns: 90px minmax(0, 1fr);">
-                        <div class="rsat-meta-label">BIF No.</div>
-                        <div class="rsat-line-value"><?php echo e($regular->company?->latestBif?->bif_no ?? ''); ?></div>
-                    </div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isNewClient ? 'X' : ''); ?></span> NEW CLIENT</div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isExistingClient ? 'X' : ''); ?></span> EXISTING CLIENT</div>
-                    <div class="rsat-check-group"><span class="rsat-check"><?php echo e($isChangeInformation ? 'X' : ''); ?></span> CHANGE INFORMATION</div>
-                </div>
-
-                <div class="rsat-matrix">
-                    <div class="rsat-matrix-header">
-                        <div>Item #</div>
-                        <div>Service</div>
-                        <div>Activity / Output</div>
-                        <div>Frequency</div>
-                        <div>Reminder Lead Time</div>
-                        <div>Deadline</div>
-                    </div>
-
-                    <div id="regular-report-rows">
-                        <?php $__currentLoopData = $reportRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <div class="rsat-matrix-row">
-                                <div class="rsat-index"><?php echo e($index + 1); ?></div>
-                                <div><input name="report_service[]" value="<?php echo e(old('report_service.'.$index, $item['service'] ?? '')); ?>" class="rsat-row-input"></div>
-                                <div><input name="report_activity_output[]" value="<?php echo e(old('report_activity_output.'.$index, $item['activity_output'] ?? '')); ?>" class="rsat-row-input"></div>
-                                <div><input name="report_frequency[]" value="<?php echo e(old('report_frequency.'.$index, $item['frequency'] ?? '')); ?>" class="rsat-row-input"></div>
-                                <div><input name="report_reminder_lead_time[]" value="<?php echo e(old('report_reminder_lead_time.'.$index, $item['reminder_lead_time'] ?? '')); ?>" class="rsat-row-input"></div>
-                                <div><input name="report_deadline[]" value="<?php echo e(old('report_deadline.'.$index, $item['deadline'] ?? '')); ?>" class="rsat-row-input"></div>
-                            </div>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                    </div>
-                </div>
-
-                <div class="rsat-signature">
-                    <input name="client_confirmation_name" value="<?php echo e($reportClientSignature); ?>" class="rsat-line-input w-full max-w-[420px] text-center">
-                    <div class="rsat-signature-label">Client Fullname &amp; Signature</div>
-                </div>
-
-                <div class="rsat-section-title">INTERNAL APPROVAL</div>
-
-                <div class="rsat-approval-grid">
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Prepared By:</div>
-                        <input name="prepared_by" value="<?php echo e($reportPreparedBy); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Reviewed By:</div>
-                        <input name="reviewed_by" value="<?php echo e($reportReviewedBy); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Name:</div>
-                        <input name="prepared_by_name" value="<?php echo e($reportPreparedByName); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Name:</div>
-                        <input name="reviewed_by_name" value="<?php echo e($reportReviewedByName); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Date:</div>
-                        <input name="prepared_by_date" value="<?php echo e($reportPreparedByDate); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-approval-pair">
-                        <div class="rsat-approval-label">Date:</div>
-                        <input name="reviewed_by_date" value="<?php echo e($reportReviewedByDate); ?>" class="rsat-line-input">
-                    </div>
-                </div>
-
-                <div class="rsat-footer-grid">
-                    <div class="rsat-footer-pair">
-                        <div>Referred By/Closed By:</div>
-                        <input name="referred_by_closed_by" value="<?php echo e($reportReferredBy); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-footer-pair">
-                        <div>Sales &amp; Marketing:</div>
-                        <input name="sales_marketing" value="<?php echo e($reportSalesMarketing); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-footer-pair">
-                        <div>Lead Consultant:</div>
-                        <input name="lead_consultant" value="<?php echo e($reportLeadConsultant); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-footer-pair">
-                        <div>Lead Associate Assigned:</div>
-                        <input name="lead_associate_assigned" value="<?php echo e($reportLeadAssociate); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-footer-pair">
-                        <div>Finance:</div>
-                        <input name="finance" value="<?php echo e($reportFinance); ?>" class="rsat-line-input">
-                    </div>
-                    <div class="rsat-footer-pair">
-                        <div>President:</div>
-                        <input name="president" value="<?php echo e($reportPresident); ?>" class="rsat-line-input">
-                    </div>
-                </div>
-
-                <div class="mt-4 rsat-footer-grid">
-                    <div class="rsat-footer-note">
-                        <div class="rsat-footer-pair" style="grid-template-columns: 230px minmax(0, 1fr);">
-                            <div>Record Custodian ( Name and Signature)</div>
-                            <input name="record_custodian" value="<?php echo e($reportRecordCustodian); ?>" class="rsat-line-input">
-                        </div>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="rsat-footer-pair">
-                            <div>Date Recorded:</div>
-                            <input type="date" name="date_recorded" value="<?php echo e($reportDateRecorded); ?>" class="rsat-line-input">
-                        </div>
-                        <div class="rsat-footer-pair">
-                            <div>Date Signed:</div>
-                            <input type="date" name="date_signed" value="<?php echo e($reportDateSigned); ?>" class="rsat-line-input">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 border-t border-slate-200 pt-6">
-                    <div class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Transmittal Reference</div>
-                    <div class="mt-4 rsat-meta-grid">
-                        <div class="rsat-meta-item">
-                            <div class="rsat-meta-label">Transmittal No.:</div>
-                            <input name="transmittal_no" value="<?php echo e($reportTransmittalNo); ?>" class="rsat-line-input">
-                        </div>
-                        <div class="rsat-meta-item" style="grid-template-columns: 250px minmax(0, 1fr);">
-                            <div class="rsat-meta-label">Date Submitted For Transmittal:</div>
-                            <input type="date" name="date_submitted_for_transmittal" value="<?php echo e($reportDateSubmittedForTransmittal); ?>" class="rsat-line-input">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4 flex justify-end">
-                <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-report-rows">Add Report Row</button>
-            </div>
-            <div class="rsat-actions">
-                <div></div>
-                <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT Report</button>
-            </div>
-        </form>
+            </section>
+        </div>
     </div>
 </div>
 
 <template id="regular-requirement-row-template">
-    <div class="rsat-matrix-row">
-        <div class="rsat-index"></div>
-        <div><input name="engagement_purpose[]" class="rsat-row-input"></div>
-        <div><input name="engagement_requirement[]" class="rsat-row-input"></div>
-        <div><input name="engagement_notes[]" class="rsat-row-input"></div>
-        <div><input name="engagement_timeline[]" class="rsat-row-input"></div>
-        <div><input name="engagement_submitted_to[]" class="rsat-row-input"></div>
+    <tr class="rsat-matrix-row">
+        <td><div class="rsat-index"></div></td>
+        <td><input name="engagement_purpose[]" class="rsat-row-input"></td>
+        <td><input name="engagement_requirement[]" class="rsat-row-input"></td>
+        <td><input name="engagement_notes[]" class="rsat-row-input"></td>
+        <td><input name="engagement_timeline[]" class="rsat-row-input"></td>
+        <td><input name="engagement_submitted_to[]" class="rsat-row-input"></td>
+        <td style="text-align: center;"><button type="button" class="rsat-row-delete" data-delete-row>&times;</button></td>
         <input type="hidden" name="engagement_provided_by[]" value="">
         <input type="hidden" name="engagement_assigned_to[]" value="">
-    </div>
-</template>
-
-<template id="regular-report-row-template">
-    <div class="rsat-matrix-row">
-        <div class="rsat-index"></div>
-        <div><input name="report_service[]" class="rsat-row-input"></div>
-        <div><input name="report_activity_output[]" class="rsat-row-input"></div>
-        <div><input name="report_frequency[]" class="rsat-row-input"></div>
-        <div><input name="report_reminder_lead_time[]" class="rsat-row-input"></div>
-        <div><input name="report_deadline[]" class="rsat-row-input"></div>
-    </div>
+    </tr>
 </template>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const requirementsContainer = document.getElementById('regular-requirements');
     const rowTemplate = document.getElementById('regular-requirement-row-template');
-    const reportContainer = document.getElementById('regular-report-rows');
-    const reportRowTemplate = document.getElementById('regular-report-row-template');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
 
@@ -826,11 +668,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (button.dataset.addRow === 'regular-report-rows') {
-                reportContainer.insertAdjacentHTML('beforeend', reportRowTemplate.innerHTML);
-                syncRowNumbers(reportContainer);
-            }
         });
+    });
+
+    requirementsContainer?.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-delete-row]');
+        if (!trigger) {
+            return;
+        }
+
+        const row = trigger.closest('tr');
+        if (!row) {
+            return;
+        }
+
+        row.remove();
+        syncRowNumbers(requirementsContainer);
     });
 
     const activateTab = (tabKey) => {
@@ -846,8 +699,25 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => activateTab(button.dataset.tabButton));
     });
 
+    (() => {
+        const searchInput = document.getElementById('regularReportSearch');
+        const rows = Array.from(document.querySelectorAll('#regularReportTableBody tr[data-report-search]'));
+
+        if (!searchInput || rows.length === 0) {
+            return;
+        }
+
+        searchInput.addEventListener('input', () => {
+            const keyword = String(searchInput.value || '').trim().toLowerCase();
+
+            rows.forEach((row) => {
+                const blob = String(row.dataset.reportSearch || '').toLowerCase();
+                row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+            });
+        });
+    })();
+
     syncRowNumbers(requirementsContainer);
-    syncRowNumbers(reportContainer);
     activateTab(<?php echo json_encode($tab, 15, 512) ?>);
 });
 </script>
