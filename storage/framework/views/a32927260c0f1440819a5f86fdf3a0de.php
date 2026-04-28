@@ -1,11 +1,11 @@
-@php
+<?php
     $preparedDate = old('date_prepared', optional($sow?->date_prepared)->format('Y-m-d'));
     $approvalStatus = old('approval_status', $sow?->approval_status ?? 'draft');
     $ntpStatus = old('ntp_status', $sow?->ntp_status ?? 'pending');
     $withinCount = $sowWithin->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
     $outCount = $sowOut->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
     $clientConfirmationName = old('client_confirmation_name', $sow?->client_confirmation_name ?: $project->client_name);
-@endphp
+?>
 
 <style>
     .project-sow-sheet {
@@ -316,13 +316,13 @@
     }
 </style>
 
-<form method="POST" action="{{ route('project.sow.update', $project) }}" enctype="multipart/form-data">
-    @csrf
+<form method="POST" action="<?php echo e(route('project.sow.update', $project)); ?>" enctype="multipart/form-data">
+    <?php echo csrf_field(); ?>
 
     <section class="project-sow-sheet">
         <div class="project-sow-form">
             <div class="project-sow-head">
-                <img src="{{ asset('images/imaglogo.png') }}" alt="John Kelly and Company" class="project-sow-logo">
+                <img src="<?php echo e(asset('images/imaglogo.png')); ?>" alt="John Kelly and Company" class="project-sow-logo">
                 <div class="project-sow-title">
                     <h2>SCOPE OF WORK</h2>
                     <div class="project-sow-code">[ Form Code ]</div>
@@ -332,36 +332,36 @@
             <div class="project-sow-meta">
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Condeal Reference No.:</span>
-                    <span class="project-sow-line">{{ $project->deal?->deal_code ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e($project->deal?->deal_code ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Version No.:</span>
-                    <input name="version_number" value="{{ old('version_number', $sow?->version_number) }}" class="project-sow-line-input">
+                    <input name="version_number" value="<?php echo e(old('version_number', $sow?->version_number)); ?>" class="project-sow-line-input">
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Business Name:</span>
-                    <span class="project-sow-line">{{ $project->business_name ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e($project->business_name ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">SOW No.:</span>
-                    <span class="project-sow-line">{{ $sow?->sow_number ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e($sow?->sow_number ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Client Name:</span>
-                    <span class="project-sow-line">{{ $project->client_name ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e($project->client_name ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Date Prepared:</span>
-                    <input type="date" name="date_prepared" value="{{ $preparedDate }}" class="project-sow-line-input">
+                    <input type="date" name="date_prepared" value="<?php echo e($preparedDate); ?>" class="project-sow-line-input">
                 </div>
             </div>
 
-            @foreach ([
+            <?php $__currentLoopData = [
                 'within' => ['label' => 'WITHIN SCOPE', 'rows' => $sowWithin, 'count' => $withinCount],
                 'out' => ['label' => 'OUT OF SCOPE', 'rows' => $sowOut, 'count' => $outCount],
-            ] as $prefix => $section)
+            ]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $prefix => $section): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <div class="project-sow-section">
-                    <div class="project-sow-section-title">{{ $section['label'] }}</div>
+                    <div class="project-sow-section-title"><?php echo e($section['label']); ?></div>
                     <div class="project-sow-table-wrap">
                         <table class="project-sow-table">
                             <thead>
@@ -377,39 +377,39 @@
                                     <th style="width: 6%;">Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="{{ $prefix }}-scope-table">
-                                @foreach ($section['rows'] as $index => $item)
+                            <tbody id="<?php echo e($prefix); ?>-scope-table">
+                                <?php $__currentLoopData = $section['rows']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                     <tr>
-                                        <td><input name="{{ $prefix }}_main_task_description[]" value="{{ old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_sub_task_description[]" value="{{ old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_responsible[]" value="{{ old($prefix.'_responsible.'.$index, $item['responsible'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_duration[]" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}"></td>
-                                        <td><input type="date" name="{{ $prefix }}_start_date[]" value="{{ old($prefix.'_start_date.'.$index, $item['start_date'] ?? '') }}"></td>
-                                        <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}"></td>
+                                        <td><input name="<?php echo e($prefix); ?>_main_task_description[]" value="<?php echo e(old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '')); ?>"></td>
+                                        <td><input name="<?php echo e($prefix); ?>_sub_task_description[]" value="<?php echo e(old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '')); ?>"></td>
+                                        <td><input name="<?php echo e($prefix); ?>_responsible[]" value="<?php echo e(old($prefix.'_responsible.'.$index, $item['responsible'] ?? '')); ?>"></td>
+                                        <td><input name="<?php echo e($prefix); ?>_duration[]" value="<?php echo e(old($prefix.'_duration.'.$index, $item['duration'] ?? '')); ?>"></td>
+                                        <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value="<?php echo e(old($prefix.'_start_date.'.$index, $item['start_date'] ?? '')); ?>"></td>
+                                        <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value="<?php echo e(old($prefix.'_end_date.'.$index, $item['end_date'] ?? '')); ?>"></td>
                                         <td>
-                                            <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
-                                                @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
-                                                    <option value="{{ $statusValue }}" @selected(($item['status'] ?? 'open') === $statusValue)>{{ $statusLabel }}</option>
-                                                @endforeach
+                                            <select name="<?php echo e($prefix); ?>_status[]" class="task-status-select" style="appearance: none;">
+                                                <?php $__currentLoopData = ['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $statusValue => $statusLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <option value="<?php echo e($statusValue); ?>" <?php if(($item['status'] ?? 'open') === $statusValue): echo 'selected'; endif; ?>><?php echo e($statusLabel); ?></option>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             </select>
                                         </td>
-                                        <td><input name="{{ $prefix }}_remarks[]" value="{{ old($prefix.'_remarks.'.$index, $item['remarks'] ?? '') }}"></td>
-                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                                        <td><input name="<?php echo e($prefix); ?>_remarks[]" value="<?php echo e(old($prefix.'_remarks.'.$index, $item['remarks'] ?? '')); ?>"></td>
+                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="<?php echo e($prefix); ?>-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                                     </tr>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </tbody>
                         </table>
                     </div>
-                    <template id="{{ $prefix }}-scope-row-template">
+                    <template id="<?php echo e($prefix); ?>-scope-row-template">
                         <tr>
-                            <td><input name="{{ $prefix }}_main_task_description[]" value=""></td>
-                            <td><input name="{{ $prefix }}_sub_task_description[]" value=""></td>
-                            <td><input name="{{ $prefix }}_responsible[]" value=""></td>
-                            <td><input name="{{ $prefix }}_duration[]" value=""></td>
-                            <td><input type="date" name="{{ $prefix }}_start_date[]" value=""></td>
-                            <td><input type="date" name="{{ $prefix }}_end_date[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_main_task_description[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_sub_task_description[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_responsible[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_duration[]" value=""></td>
+                            <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value=""></td>
+                            <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value=""></td>
                             <td>
-                                <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
+                                <select name="<?php echo e($prefix); ?>_status[]" class="task-status-select" style="appearance: none;">
                                     <option value="open" selected>Open</option>
                                     <option value="in_progress">In Progress</option>
                                     <option value="delayed">Delayed</option>
@@ -417,36 +417,36 @@
                                     <option value="on_hold">On Hold</option>
                                 </select>
                             </td>
-                            <td><input name="{{ $prefix }}_remarks[]" value=""></td>
-                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                            <td><input name="<?php echo e($prefix); ?>_remarks[]" value=""></td>
+                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="<?php echo e($prefix); ?>-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                         </tr>
                     </template>
                     <div class="project-sow-total">
                         <div class="project-sow-total-spacer"></div>
                         <div class="project-sow-total-label">Total:</div>
-                        <div class="project-sow-total-value">{{ $section['count'] }} item(s)</div>
+                        <div class="project-sow-total-value"><?php echo e($section['count']); ?> item(s)</div>
                     </div>
                     <div class="project-sow-actions">
-                        <button type="button" class="project-doc-action" data-add-scope-row="{{ $prefix }}-scope-table">Add Row</button>
+                        <button type="button" class="project-doc-action" data-add-scope-row="<?php echo e($prefix); ?>-scope-table">Add Row</button>
                     </div>
                 </div>
-            @endforeach
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
             <div class="project-sow-section">
                 <div class="project-sow-section-title">PROJECT STATUS SUMMARY</div>
                 <div class="project-doc-section-body">
                     <div class="project-doc-summary-grid mt-4">
-                        @foreach (['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold'] as $field => $label)
+                        <?php $__currentLoopData = ['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <div class="project-doc-summary-box">
-                                <span>{{ $label }}</span>
-                                <input type="number" min="0" name="{{ $field }}" value="{{ old($field, $repSummary[$field] ?? 0) }}" class="project-doc-input mt-2" readonly>
+                                <span><?php echo e($label); ?></span>
+                                <input type="number" min="0" name="<?php echo e($field); ?>" value="<?php echo e(old($field, $repSummary[$field] ?? 0)); ?>" class="project-doc-input mt-2" readonly>
                             </div>
-                        @endforeach
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </div>
                     <div class="mt-6 grid gap-4">
-                        <div><label class="project-doc-label">Key Issues &amp; Observations</label><textarea name="key_issues" rows="3" class="project-doc-textarea">{{ old('key_issues', $report?->key_issues) }}</textarea></div>
-                        <div><label class="project-doc-label">Recommendations</label><textarea name="recommendations" rows="3" class="project-doc-textarea">{{ old('recommendations', $report?->recommendations) }}</textarea></div>
-                        <div><label class="project-doc-label">Summary &amp; Way Forward</label><textarea name="way_forward" rows="3" class="project-doc-textarea">{{ old('way_forward', $report?->way_forward) }}</textarea></div>
+                        <div><label class="project-doc-label">Key Issues &amp; Observations</label><textarea name="key_issues" rows="3" class="project-doc-textarea"><?php echo e(old('key_issues', $report?->key_issues)); ?></textarea></div>
+                        <div><label class="project-doc-label">Recommendations</label><textarea name="recommendations" rows="3" class="project-doc-textarea"><?php echo e(old('recommendations', $report?->recommendations)); ?></textarea></div>
+                        <div><label class="project-doc-label">Summary &amp; Way Forward</label><textarea name="way_forward" rows="3" class="project-doc-textarea"><?php echo e(old('way_forward', $report?->way_forward)); ?></textarea></div>
                     </div>
                 </div>
             </div>
@@ -454,30 +454,30 @@
             <div class="project-sow-meta-schedule">
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Project Start Date:</span>
-                    <span class="project-sow-line">{{ optional($project->planned_start_date)->format('M d, Y') ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e(optional($project->planned_start_date)->format('M d, Y') ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Client Preferred Completion Date:</span>
-                    <span class="project-sow-line">{{ optional($project->client_preferred_completion_date)->format('M d, Y') ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e(optional($project->client_preferred_completion_date)->format('M d, Y') ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Target Completion Date:</span>
-                    <span class="project-sow-line">{{ optional($project->target_completion_date)->format('M d, Y') ?: '-' }}</span>
+                    <span class="project-sow-line"><?php echo e(optional($project->target_completion_date)->format('M d, Y') ?: '-'); ?></span>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">Approval Status:</span>
                     <select name="approval_status" class="project-sow-line-select">
-                        @foreach (['draft' => 'Draft', 'pending_review' => 'Pending Review', 'approved' => 'Approved'] as $value => $label)
-                            <option value="{{ $value }}" @selected($approvalStatus === $value)>{{ $label }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = ['draft' => 'Draft', 'pending_review' => 'Pending Review', 'approved' => 'Approved']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($value); ?>" <?php if($approvalStatus === $value): echo 'selected'; endif; ?>><?php echo e($label); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
                 <div class="project-sow-meta-row">
                     <span class="project-sow-meta-label">NTP Status:</span>
                     <select name="ntp_status" class="project-sow-line-select">
-                        @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'] as $value => $label)
-                            <option value="{{ $value }}" @selected($ntpStatus === $value)>{{ $label }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $value => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($value); ?>" <?php if($ntpStatus === $value): echo 'selected'; endif; ?>><?php echo e($label); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
             </div>
@@ -490,13 +490,13 @@
                 <div class="project-sow-upload">
                     <div class="project-sow-meta-row">
                         <span class="project-sow-meta-label">Client Confirmation Name:</span>
-                        <input name="client_confirmation_name" value="{{ $clientConfirmationName }}" class="project-sow-line-input">
+                        <input name="client_confirmation_name" value="<?php echo e($clientConfirmationName); ?>" class="project-sow-line-input">
                     </div>
                     <div>
                         <input type="file" name="client_signed_attachment" class="project-sow-file">
-                        @if ($sow?->client_signed_attachment_path)
-                            <a href="{{ route('uploads.show', ['path' => $sow->client_signed_attachment_path]) }}" target="_blank" class="mt-2 inline-block text-sm font-medium text-blue-700 hover:text-blue-800">View uploaded signed file</a>
-                        @endif
+                        <?php if($sow?->client_signed_attachment_path): ?>
+                            <a href="<?php echo e(route('uploads.show', ['path' => $sow->client_signed_attachment_path])); ?>" target="_blank" class="mt-2 inline-block text-sm font-medium text-blue-700 hover:text-blue-800">View uploaded signed file</a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -506,35 +506,35 @@
                 <div class="project-sow-approval-grid">
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Prepared By:</span>
-                        <input name="prepared_by" value="{{ old('prepared_by', $sowApproval['prepared_by'] ?? '') }}" class="project-sow-line-input">
+                        <input name="prepared_by" value="<?php echo e(old('prepared_by', $sowApproval['prepared_by'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Reviewed By:</span>
-                        <input name="reviewed_by" value="{{ old('reviewed_by', $sowApproval['reviewed_by'] ?? '') }}" class="project-sow-line-input">
+                        <input name="reviewed_by" value="<?php echo e(old('reviewed_by', $sowApproval['reviewed_by'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Referred By/Closed By:</span>
-                        <input name="referred_by_closed_by" value="{{ old('referred_by_closed_by', $sowApproval['referred_by_closed_by'] ?? '') }}" class="project-sow-line-input">
+                        <input name="referred_by_closed_by" value="<?php echo e(old('referred_by_closed_by', $sowApproval['referred_by_closed_by'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Sales &amp; Marketing:</span>
-                        <input name="sales_marketing" value="{{ old('sales_marketing', $sowApproval['sales_marketing'] ?? '') }}" class="project-sow-line-input">
+                        <input name="sales_marketing" value="<?php echo e(old('sales_marketing', $sowApproval['sales_marketing'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Lead Consultant:</span>
-                        <input name="lead_consultant" value="{{ old('lead_consultant', $sowApproval['lead_consultant'] ?? '') }}" class="project-sow-line-input">
+                        <input name="lead_consultant" value="<?php echo e(old('lead_consultant', $sowApproval['lead_consultant'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Lead Associate Assigned:</span>
-                        <input name="lead_associate_assigned" value="{{ old('lead_associate_assigned', $sowApproval['lead_associate_assigned'] ?? '') }}" class="project-sow-line-input">
+                        <input name="lead_associate_assigned" value="<?php echo e(old('lead_associate_assigned', $sowApproval['lead_associate_assigned'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">Finance:</span>
-                        <input name="finance" value="{{ old('finance', $sowApproval['finance'] ?? '') }}" class="project-sow-line-input">
+                        <input name="finance" value="<?php echo e(old('finance', $sowApproval['finance'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                     <div class="project-sow-approval-cell">
                         <span class="project-sow-approval-label">President:</span>
-                        <input name="president" value="{{ old('president', $sowApproval['president'] ?? '') }}" class="project-sow-line-input">
+                        <input name="president" value="<?php echo e(old('president', $sowApproval['president'] ?? '')); ?>" class="project-sow-line-input">
                     </div>
                 </div>
                 <div class="project-sow-record-grid">
@@ -542,11 +542,11 @@
                     <div class="project-sow-record-dates">
                         <div class="project-sow-record-date">
                             <span class="project-sow-approval-label">Date Recorded :</span>
-                            <input type="date" name="date_recorded" value="{{ old('date_recorded', $sowApproval['date_recorded'] ?? '') }}" class="project-sow-line-input">
+                            <input type="date" name="date_recorded" value="<?php echo e(old('date_recorded', $sowApproval['date_recorded'] ?? '')); ?>" class="project-sow-line-input">
                         </div>
                         <div class="project-sow-record-date">
                             <span class="project-sow-approval-label">Date Signed :</span>
-                            <input type="date" name="date_signed" value="{{ old('date_signed', $sowApproval['date_signed'] ?? '') }}" class="project-sow-line-input">
+                            <input type="date" name="date_signed" value="<?php echo e(old('date_signed', $sowApproval['date_signed'] ?? '')); ?>" class="project-sow-line-input">
                         </div>
                     </div>
                 </div>
@@ -554,7 +554,7 @@
 
             <div class="project-sow-actions" style="margin-top: 22px;">
                 <button type="submit" class="project-doc-primary">Save Scope of Work</button>
-                <button type="submit" formaction="{{ route('project.sow.generate', $project) }}" class="project-doc-action">Generate SOW Report</button>
+                <button type="submit" formaction="<?php echo e(route('project.sow.generate', $project)); ?>" class="project-doc-action">Generate SOW Report</button>
             </div>
         </div>
     </section>
@@ -661,3 +661,4 @@
         });
     </script>
 </form>
+<?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/project/partials/tab-sow.blade.php ENDPATH**/ ?>

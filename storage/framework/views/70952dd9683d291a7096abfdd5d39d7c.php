@@ -1,10 +1,10 @@
-@php
+<?php
     $reports = $project->sowReports()->latest('date_prepared')->latest()->get();
     $statusClasses = [
         'Sent to Client' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
         'Generated' => 'bg-blue-50 text-blue-700 border border-blue-200',
     ];
-@endphp
+?>
 
 <div class="space-y-5">
     <section class="project-top-card rounded-2xl px-6 py-5">
@@ -15,8 +15,8 @@
                 <p class="mt-2 text-sm text-slate-500">Generated scope of work reports are recorded here from the Scope of Work tab.</p>
             </div>
             <div class="flex flex-wrap gap-3 text-sm">
-                <span class="project-pill"><span class="text-slate-400">Total Reports</span> {{ $reports->count() }}</span>
-                <span class="project-pill"><span class="text-slate-400">Latest Report</span> {{ $reports->first()?->report_number ?: '-' }}</span>
+                <span class="project-pill"><span class="text-slate-400">Total Reports</span> <?php echo e($reports->count()); ?></span>
+                <span class="project-pill"><span class="text-slate-400">Latest Report</span> <?php echo e($reports->first()?->report_number ?: '-'); ?></span>
             </div>
         </div>
     </section>
@@ -46,34 +46,35 @@
                     </tr>
                 </thead>
                 <tbody id="projectReportTableBody" class="divide-y divide-slate-100 bg-white">
-                    @forelse ($reports as $item)
-                        @php
+                    <?php $__empty_1 = true; $__currentLoopData = $reports; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                        <?php
                             $statusLabel = 'Sent to Client';
                             $previewUrl = route('project.report.preview', ['project' => $project->id, 'report' => $item->id]);
-                        @endphp
+                        ?>
                         <tr
                             class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
-                            data-report-search="{{ \Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) ) }}"
-                            onclick="window.location='{{ $previewUrl }}'"
+                            data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) )); ?>"
+                            onclick="window.location='<?php echo e($previewUrl); ?>'"
                         >
                             <td class="px-6 py-4">
-                                <span class="font-semibold text-blue-700 hover:text-blue-800">{{ $item->report_number ?: 'Report-'.$item->id }}</span>
+                                <span class="font-semibold text-blue-700 hover:text-blue-800"><?php echo e($item->report_number ?: 'Report-'.$item->id); ?></span>
                             </td>
-                            <td class="px-6 py-4">{{ optional($item->date_prepared)->format('M d, Y') ?: '-' }}</td>
-                            <td class="px-6 py-4">{{ optional($item->created_at)->format('M d, Y') ?: '-' }}</td>
+                            <td class="px-6 py-4"><?php echo e(optional($item->date_prepared)->format('M d, Y') ?: '-'); ?></td>
+                            <td class="px-6 py-4"><?php echo e(optional($item->created_at)->format('M d, Y') ?: '-'); ?></td>
                             <td class="px-6 py-4">
-                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $statusClasses[$statusLabel] ?? 'bg-slate-100 text-slate-700 border border-slate-200' }}">
-                                    {{ $statusLabel }}
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium <?php echo e($statusClasses[$statusLabel] ?? 'bg-slate-100 text-slate-700 border border-slate-200'); ?>">
+                                    <?php echo e($statusLabel); ?>
+
                                 </span>
                             </td>
                         </tr>
-                    @empty
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <tr>
                             <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
                                 No generated SOW reports yet. Use <span class="font-semibold text-slate-700">Generate SOW Report</span> in the Scope of Work tab.
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -99,3 +100,4 @@
         });
     })();
 </script>
+<?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/project/partials/tab-report.blade.php ENDPATH**/ ?>

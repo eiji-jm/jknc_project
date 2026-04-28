@@ -285,6 +285,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
+    Route::post('/project/{project}/sow/generate-report', [ProjectController::class, 'generateSowReport'])->name('project.sow.generate');
+    Route::get('/project/{project}/report/{report}', [ProjectController::class, 'showGeneratedReport'])->name('project.report.preview');
     Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
 
     Route::get('/regular', [RegularController::class, 'index'])->name('regular.index');

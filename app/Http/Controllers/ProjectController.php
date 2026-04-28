@@ -498,62 +498,50 @@ class ProjectController extends Controller
 
     public function updateSow(Request $request, Project $project): RedirectResponse
     {
-        $validated = $request->validate([
-            'version_number' => ['nullable', 'string', 'max:50'],
-            'date_prepared' => ['nullable', 'date'],
-            'approval_status' => ['required', 'string', 'max:50'],
-            'ntp_status' => ['required', 'string', 'max:50'],
-            'client_confirmation_name' => ['nullable', 'string', 'max:255'],
-            'client_signed_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
-            'project_completion_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'total_main_tasks' => ['nullable', 'numeric', 'min:0'],
-            'open' => ['nullable', 'numeric', 'min:0'],
-            'in_progress' => ['nullable', 'numeric', 'min:0'],
-            'delayed' => ['nullable', 'numeric', 'min:0'],
-            'completed' => ['nullable', 'numeric', 'min:0'],
-            'on_hold' => ['nullable', 'numeric', 'min:0'],
-            'key_issues' => ['nullable', 'string'],
-            'recommendations' => ['nullable', 'string'],
-            'way_forward' => ['nullable', 'string'],
-            'prepared_by' => ['nullable', 'string', 'max:255'],
-            'reviewed_by' => ['nullable', 'string', 'max:255'],
-            'referred_by_closed_by' => ['nullable', 'string', 'max:255'],
-            'sales_marketing' => ['nullable', 'string', 'max:255'],
-            'lead_consultant' => ['nullable', 'string', 'max:255'],
-            'lead_associate_assigned' => ['nullable', 'string', 'max:255'],
-            'finance' => ['nullable', 'string', 'max:255'],
-            'president' => ['nullable', 'string', 'max:255'],
-            'record_custodian' => ['nullable', 'string', 'max:255'],
-            'date_recorded' => ['nullable', 'date'],
-            'date_signed' => ['nullable', 'date'],
-        ]);
-
-        $sow = $project->sows()->latest()->first() ?: new ProjectSow(['project_id' => $project->id]);
-        $sow->fill([
-            'version_number' => $validated['version_number'] ?? null,
-            'date_prepared' => $validated['date_prepared'] ?? null,
-            'within_scope_items' => $this->buildScopeRows($request, 'within'),
-            'out_of_scope_items' => $this->buildScopeRows($request, 'out'),
-            'client_confirmation_name' => $validated['client_confirmation_name'] ?? null,
-            'internal_approval' => $this->buildInternalApprovalPayload($validated),
-            'approval_status' => $validated['approval_status'],
-            'ntp_status' => $validated['ntp_status'],
-        ]);
-        $sow->project_id = $project->id;
-
-        if ($request->hasFile('client_signed_attachment')) {
-            if ($sow->client_signed_attachment_path && Storage::disk('public')->exists($sow->client_signed_attachment_path)) {
-                Storage::disk('public')->delete($sow->client_signed_attachment_path);
-            }
-            $sow->client_signed_attachment_path = $request->file('client_signed_attachment')->store("projects/{$project->id}/sow", 'public');
-        }
-
-        $sow->save();
-        $this->updateProjectSowReportSummary($project, $sow, $validated);
+        $validated = $this->validateSowPayload($request);
+        $this->persistSowDocument($request, $project, $validated);
 
         return redirect()
             ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
             ->with('success', 'Scope of Work updated successfully.');
+    }
+
+    public function generateSowReport(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $this->validateSowPayload($request);
+        $sow = $this->persistSowDocument($request, $project, $validated);
+        $statusSummary = $this->buildReportStatusSummary($validated);
+
+        $report = ProjectSowReport::query()->create([
+            'project_id' => $project->id,
+            'version_number' => $sow->version_number,
+            'date_prepared' => $sow->date_prepared,
+            'within_scope_items' => $sow->within_scope_items ?? [],
+            'out_of_scope_items' => $sow->out_of_scope_items ?? [],
+            'status_summary' => $statusSummary,
+            'project_completion_percentage' => $this->calculateCompletionPercentage($statusSummary),
+            'key_issues' => $validated['key_issues'] ?? null,
+            'recommendations' => $validated['recommendations'] ?? null,
+            'way_forward' => $validated['way_forward'] ?? null,
+            'client_confirmation_name' => $sow->client_confirmation_name,
+            'internal_approval' => $sow->internal_approval ?? [],
+        ]);
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'report'])
+            ->with('success', 'SOW report generated and recorded successfully.');
+    }
+
+    public function showGeneratedReport(Project $project, ProjectSowReport $report): View
+    {
+        abort_unless($report->project_id === $project->id, 404);
+
+        $project->loadMissing(['deal:id,deal_code', 'company:id,company_name', 'contact:id,first_name,last_name']);
+        $sow = $project->sows()->latest()->first();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        return view('project.report-preview', compact('project', 'report', 'sow', 'contactName'));
     }
 
     public function updateReport(Request $request, Project $project): RedirectResponse
@@ -630,6 +618,78 @@ class ProjectController extends Controller
         ]);
         $report->project_id = $project->id;
         $report->save();
+    }
+
+    private function validateSowPayload(Request $request): array
+    {
+        return $request->validate([
+            'version_number' => ['nullable', 'string', 'max:50'],
+            'date_prepared' => ['nullable', 'date'],
+            'approval_status' => ['required', 'string', 'max:50'],
+            'ntp_status' => ['required', 'string', 'max:50'],
+            'client_confirmation_name' => ['nullable', 'string', 'max:255'],
+            'client_signed_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'project_completion_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'total_main_tasks' => ['nullable', 'numeric', 'min:0'],
+            'open' => ['nullable', 'numeric', 'min:0'],
+            'in_progress' => ['nullable', 'numeric', 'min:0'],
+            'delayed' => ['nullable', 'numeric', 'min:0'],
+            'completed' => ['nullable', 'numeric', 'min:0'],
+            'on_hold' => ['nullable', 'numeric', 'min:0'],
+            'key_issues' => ['nullable', 'string'],
+            'recommendations' => ['nullable', 'string'],
+            'way_forward' => ['nullable', 'string'],
+            'prepared_by' => ['nullable', 'string', 'max:255'],
+            'reviewed_by' => ['nullable', 'string', 'max:255'],
+            'referred_by_closed_by' => ['nullable', 'string', 'max:255'],
+            'sales_marketing' => ['nullable', 'string', 'max:255'],
+            'lead_consultant' => ['nullable', 'string', 'max:255'],
+            'lead_associate_assigned' => ['nullable', 'string', 'max:255'],
+            'finance' => ['nullable', 'string', 'max:255'],
+            'president' => ['nullable', 'string', 'max:255'],
+            'record_custodian' => ['nullable', 'string', 'max:255'],
+            'date_recorded' => ['nullable', 'date'],
+            'date_signed' => ['nullable', 'date'],
+        ]);
+    }
+
+    private function persistSowDocument(Request $request, Project $project, array $validated): ProjectSow
+    {
+        $sow = $project->sows()->latest()->first() ?: new ProjectSow(['project_id' => $project->id]);
+        $sow->fill([
+            'version_number' => $validated['version_number'] ?? null,
+            'date_prepared' => $validated['date_prepared'] ?? null,
+            'within_scope_items' => $this->buildScopeRows($request, 'within'),
+            'out_of_scope_items' => $this->buildScopeRows($request, 'out'),
+            'client_confirmation_name' => $validated['client_confirmation_name'] ?? null,
+            'internal_approval' => $this->buildInternalApprovalPayload($validated),
+            'approval_status' => $validated['approval_status'],
+            'ntp_status' => $validated['ntp_status'],
+        ]);
+        $sow->project_id = $project->id;
+
+        if ($request->hasFile('client_signed_attachment')) {
+            if ($sow->client_signed_attachment_path && Storage::disk('public')->exists($sow->client_signed_attachment_path)) {
+                Storage::disk('public')->delete($sow->client_signed_attachment_path);
+            }
+            $sow->client_signed_attachment_path = $request->file('client_signed_attachment')->store("projects/{$project->id}/sow", 'public');
+        }
+
+        $sow->save();
+
+        return $sow;
+    }
+
+    private function calculateCompletionPercentage(array $statusSummary): float
+    {
+        $total = max(0, (int) ($statusSummary['total_main_tasks'] ?? 0));
+        $completed = max(0, (int) ($statusSummary['completed'] ?? 0));
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        return round(($completed / $total) * 100, 2);
     }
 
     private function buildReportStatusSummary(array $validated): array
