@@ -102,7 +102,7 @@
     }
     .project-sow-table {
         width: 100%;
-        min-width: 1080px;
+        min-width: 940px;
         border-collapse: collapse;
         table-layout: fixed;
         font-family: Georgia, "Times New Roman", serif;
@@ -115,7 +115,7 @@
     }
     .project-sow-table th {
         background: #fff;
-        padding: 8px 6px;
+        padding: 5px 4px;
         text-align: center;
         font-size: 0.78rem;
         font-weight: 400;
@@ -123,16 +123,43 @@
     }
     .project-sow-table input {
         width: 100%;
-        min-height: 34px;
+        min-height: 24px;
         border: 0;
         background: transparent;
-        padding: 6px 8px;
+        padding: 3px 6px;
         font-size: 0.82rem;
         color: #111827;
     }
     .project-sow-table input:focus {
         outline: none;
         box-shadow: inset 0 0 0 1px #1c4587;
+    }
+    .project-sow-table select {
+        width: 100%;
+        min-height: 24px;
+        border: 0;
+        background: white;
+        padding: 3px 6px;
+        font-size: 0.82rem;
+        color: #111827;
+        appearance: none;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23111827' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 4px center;
+        background-color: white;
+        padding-right: 16px;
+        font-family: Georgia, "Times New Roman", serif;
+    }
+    .project-sow-table select:focus {
+        outline: none;
+        box-shadow: inset 0 0 0 1px #1c4587;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231c4587' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    }
+    .project-sow-table select option {
+        background: white;
+        color: #111827;
+        padding: 4px;
     }
     .project-sow-total {
         display: grid;
@@ -339,14 +366,15 @@
                         <table class="project-sow-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 18%;">Main Task Description</th>
-                                    <th style="width: 18%;">Sub Task Description</th>
-                                    <th style="width: 13%;">Responsible</th>
-                                    <th style="width: 12%;">Duration</th>
-                                    <th style="width: 12%;">Start Date</th>
-                                    <th style="width: 12%;">End Date</th>
-                                    <th style="width: 10%;">Status</th>
-                                    <th style="width: 15%;">Remarks</th>
+                                    <th style="width: 23%;">Main Task Description</th>
+                                    <th style="width: 23%;">Sub Task Description</th>
+                                    <th style="width: 10%;">Responsible</th>
+                                    <th style="width: 5%;">Duration</th>
+                                    <th style="width: 10%;">Start Date</th>
+                                    <th style="width: 10%;">End Date</th>
+                                    <th style="width: 5%;">Status</th>
+                                    <th style="width: 10%;">Remarks</th>
+                                    <th style="width: 4%;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="{{ $prefix }}-scope-table">
@@ -358,13 +386,41 @@
                                         <td><input name="{{ $prefix }}_duration[]" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}"></td>
                                         <td><input type="date" name="{{ $prefix }}_start_date[]" value="{{ old($prefix.'_start_date.'.$index, $item['start_date'] ?? '') }}"></td>
                                         <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_status[]" value="{{ old($prefix.'_status.'.$index, $item['status'] ?? '') }}"></td>
+                                        <td>
+                                            <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
+                                                @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
+                                                    <option value="{{ $statusValue }}" @selected(($item['status'] ?? 'open') === $statusValue)>{{ $statusLabel }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
                                         <td><input name="{{ $prefix }}_remarks[]" value="{{ old($prefix.'_remarks.'.$index, $item['remarks'] ?? '') }}"></td>
+                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 24px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
+                    <template id="{{ $prefix }}-scope-row-template">
+                        <tr>
+                            <td><input name="{{ $prefix }}_main_task_description[]" value=""></td>
+                            <td><input name="{{ $prefix }}_sub_task_description[]" value=""></td>
+                            <td><input name="{{ $prefix }}_responsible[]" value=""></td>
+                            <td><input name="{{ $prefix }}_duration[]" value=""></td>
+                            <td><input type="date" name="{{ $prefix }}_start_date[]" value=""></td>
+                            <td><input type="date" name="{{ $prefix }}_end_date[]" value=""></td>
+                            <td>
+                                <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
+                                    <option value="open" selected>Open</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="delayed">Delayed</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="on_hold">On Hold</option>
+                                </select>
+                            </td>
+                            <td><input name="{{ $prefix }}_remarks[]" value=""></td>
+                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 24px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                        </tr>
+                    </template>
                     <div class="project-sow-total">
                         <div class="project-sow-total-spacer"></div>
                         <div class="project-sow-total-label">Total:</div>
@@ -375,6 +431,25 @@
                     </div>
                 </div>
             @endforeach
+
+            <div class="project-sow-section">
+                <div class="project-sow-section-title">PROJECT STATUS SUMMARY</div>
+                <div class="project-doc-section-body">
+                    <div class="project-doc-summary-grid mt-4">
+                        @foreach (['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold'] as $field => $label)
+                            <div class="project-doc-summary-box">
+                                <span>{{ $label }}</span>
+                                <input type="number" min="0" name="{{ $field }}" value="{{ old($field, $repSummary[$field] ?? 0) }}" class="project-doc-input mt-2" readonly>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="mt-6 grid gap-4">
+                        <div><label class="project-doc-label">Key Issues &amp; Observations</label><textarea name="key_issues" rows="3" class="project-doc-textarea">{{ old('key_issues', $report?->key_issues) }}</textarea></div>
+                        <div><label class="project-doc-label">Recommendations</label><textarea name="recommendations" rows="3" class="project-doc-textarea">{{ old('recommendations', $report?->recommendations) }}</textarea></div>
+                        <div><label class="project-doc-label">Summary &amp; Way Forward</label><textarea name="way_forward" rows="3" class="project-doc-textarea">{{ old('way_forward', $report?->way_forward) }}</textarea></div>
+                    </div>
+                </div>
+            </div>
 
             <div class="project-sow-meta-schedule">
                 <div class="project-sow-meta-row">
@@ -479,7 +554,110 @@
 
             <div class="project-sow-actions" style="margin-top: 22px;">
                 <button type="submit" class="project-doc-primary">Save Scope of Work</button>
+                <button type="submit" formaction="{{ route('project.sow.generate', $project) }}" class="project-doc-action">Generate SOW Report</button>
             </div>
         </div>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function createScopeRow(prefix) {
+                const template = document.getElementById(`${prefix}-scope-row-template`);
+                if (!template) {
+                    return document.createElement('tr');
+                }
+                const clone = template.content.firstElementChild.cloneNode(true);
+                return clone;
+            }
+
+            function updateProjectSummary() {
+                const statuses = {
+                    'open': 0,
+                    'in_progress': 0,
+                    'delayed': 0,
+                    'completed': 0,
+                    'on_hold': 0
+                };
+
+                document.querySelectorAll('.task-status-select').forEach(select => {
+                    const row = select.closest('tr');
+                    const mainTaskInput = row.querySelector('input[name*="_main_task_description[]"]');
+                    if (mainTaskInput && mainTaskInput.value.trim() !== '') {
+                        const statusValue = select.value;
+                        if (statuses.hasOwnProperty(statusValue)) {
+                            statuses[statusValue]++;
+                        }
+                    }
+                });
+
+                const fieldMap = {
+                    'open': 'open',
+                    'in_progress': 'in_progress',
+                    'delayed': 'delayed',
+                    'completed': 'completed',
+                    'on_hold': 'on_hold'
+                };
+
+                for (const [key, count] of Object.entries(statuses)) {
+                    const field = document.querySelector(`input[name="${fieldMap[key]}"]`);
+                    if (field) {
+                        field.value = count;
+                    }
+                }
+            }
+
+            function updateTotalMainTasks() {
+                const totalMainTasks = Array.from(document.querySelectorAll('input[name*="_main_task_description[]"]')).filter(input => input.value.trim() !== '').length;
+                const totalField = document.querySelector('input[name="total_main_tasks"]');
+                if (totalField) {
+                    totalField.value = totalMainTasks;
+                }
+            }
+
+            document.addEventListener('click', function(e) {
+                const addButton = e.target.closest('[data-add-scope-row]');
+                if (addButton) {
+                    e.preventDefault();
+                    const targetId = addButton.getAttribute('data-add-scope-row');
+                    const tbody = document.getElementById(targetId);
+                    if (!tbody) {
+                        return;
+                    }
+
+                    const prefix = targetId.replace('-scope-table', '');
+                    const newRow = createScopeRow(prefix);
+                    tbody.appendChild(newRow);
+                    updateProjectSummary();
+                    updateTotalMainTasks();
+                }
+
+                const deleteButton = e.target.closest('.delete-row-btn');
+                if (deleteButton) {
+                    e.preventDefault();
+                    const row = deleteButton.closest('tr');
+                    if (row && confirm('Are you sure you want to delete this row?')) {
+                        row.remove();
+                        updateProjectSummary();
+                        updateTotalMainTasks();
+                    }
+                }
+            });
+
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('task-status-select')) {
+                    updateProjectSummary();
+                }
+            });
+
+            document.addEventListener('input', function(e) {
+                if (e.target.name && e.target.name.includes('_main_task_description[]')) {
+                    updateProjectSummary();
+                    updateTotalMainTasks();
+                }
+            });
+
+            updateProjectSummary();
+            updateTotalMainTasks();
+        });
+    </script>
 </form>

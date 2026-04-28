@@ -18,11 +18,51 @@
 
     $proposalLogo = $logoSrc ?? asset('images/deal-proposal-template-logo.png');
 
+    $toRoman = function (int $number): string {
+        $map = [
+            1000 => 'M',
+            900 => 'CM',
+            500 => 'D',
+            400 => 'CD',
+            100 => 'C',
+            90 => 'XC',
+            50 => 'L',
+            40 => 'XL',
+            10 => 'X',
+            9 => 'IX',
+            5 => 'V',
+            4 => 'IV',
+            1 => 'I',
+        ];
+
+        $result = '';
+        foreach ($map as $value => $roman) {
+            while ($number >= $value) {
+                $result .= $roman;
+                $number -= $value;
+            }
+        }
+
+        return $result;
+    };
+
     $sections = [
         ['title' => 'Executive Summary', 'content' => 'executive_summary'],
-        ['title' => 'Our Role and Value', 'content' => 'role_and_value'],
+        ['title' => 'Our Role and Value to You', 'content' => 'role_and_value'],
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
+
+    $totalPages = 8;
+    $renderPageFooter = function (int $pageNumber) use ($d, $totalPages) {
+        return '
+            <div class="proposal-page-footer">
+                <div>John Kelly &amp; Company</div>
+                <div>'.e($d['company_address'] ?? '').'</div>
+                <div>Email: '.e($d['company_email'] ?? '').' &bull; Website: '.e($d['company_website'] ?? '').' &bull; Phone: '.e($d['company_phone'] ?? '').'</div>
+                <div>Page '.$pageNumber.' of '.$totalPages.'</div>
+            </div>
+        ';
+    };
 @endphp
 
 <div class="proposal-doc">
@@ -41,31 +81,47 @@
             <div class="proposal-presented-name">{{ $d['business_name'] ?? 'Business Name' }}</div>
             <div class="proposal-presented-location">{{ $d['location'] ?? 'Philippines' }}</div>
         </div>
+
+        <div class="proposal-cover-footer">
+            <div class="proposal-contact-strip">
+                <div class="proposal-contact-inline">
+                    <span>{{ $d['company_phone'] ?? '' }}</span>
+                    <span>{{ $d['company_email'] ?? '' }}</span>
+                    <span>{{ $d['company_website'] ?? '' }}</span>
+                    <span>{{ $d['reference_id'] ?? '' }}</span>
+                    <span>Confidential</span>
+                </div>
+                <div class="proposal-contact-address">{{ $d['company_address'] ?? '' }}</div>
+            </div>
+        </div>
     </section>
 
-    <section class="proposal-page">
-        <div class="proposal-contact-strip">
-            <table class="proposal-contact-table">
-                <tr>
-                    <td>{{ $d['company_phone'] ?? '' }}</td>
-                    <td>{{ $d['company_email'] ?? '' }}</td>
-                    <td>{{ $d['company_website'] ?? '' }}</td>
-                    <td>{{ $d['reference_id'] ?? '' }}</td>
-                    <td>Confidential</td>
-                </tr>
-            </table>
-            <div class="proposal-contact-address">{{ $d['company_address'] ?? '' }}</div>
-        </div>
-
-        @foreach ($sections as $index => $section)
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        @foreach (collect($sections)->take(2) as $index => $section)
             <h2 class="proposal-section-heading">
-                <span class="proposal-section-number">{{ $index + 1 }}.</span>
+                <span class="proposal-section-number">{{ $toRoman($index + 1) }}.</span>
                 <span>{{ $section['title'] }}</span>
             </h2>
 
             @foreach (($d[$section['content']] ?? []) as $item)
                 <p class="proposal-paragraph">{!! nl2br(e($item)) !!}</p>
             @endforeach
+        @endforeach
+        </div>
+        {!! $renderPageFooter(2) !!}
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
+        @php($thirdSection = $sections[2])
+        <h2 class="proposal-section-heading">
+            <span class="proposal-section-number">{{ $toRoman(3) }}.</span>
+            <span>{{ $thirdSection['title'] }}</span>
+        </h2>
+
+        @foreach (($d[$thirdSection['content']] ?? []) as $item)
+            <p class="proposal-paragraph">{!! nl2br(e($item)) !!}</p>
         @endforeach
 
         <table class="proposal-service-table">
@@ -92,44 +148,127 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
+        {!! $renderPageFooter(3) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">4.</span>
+            <span class="proposal-section-number">{{ $toRoman(4) }}.</span>
             <span>{{ $d['proposal_intro'] ?? 'Our Proposal' }}</span>
         </h2>
         <p class="proposal-paragraph">{{ $d['our_proposal_text'] ?? '' }}</p>
 
-        <h3 class="proposal-subheading">Scope of Service / Assistance</h3>
-        @foreach ($paragraphs($d['scope_of_service'] ?? '') as $line)
-            <p class="proposal-paragraph">{{ $line }}</p>
-        @endforeach
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Services Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <h3 class="proposal-subheading">What You Will Receive</h3>
-        <ul class="proposal-bullet-list">
-            @foreach ($paragraphs($d['what_you_will_receive'] ?? '') as $line)
-                <li>{{ $line }}</li>
-            @endforeach
-        </ul>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Products Availed</h3>
+        <table class="proposal-data-table proposal-availed-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Activity/Output</th>
+                    <th>Frequency</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
 
-        @if ($requirements->isNotEmpty())
-            <h3 class="proposal-subheading">Requirements</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-need-heading">What We Need From You</h3>
             <p class="proposal-paragraph">{{ $d['requirements_intro'] ?? '' }}</p>
-            @foreach ($requirements as $group)
-                <div class="proposal-requirement-group">
-                    <div class="proposal-requirement-label">{{ $group['label'] }}</div>
-                    <ul class="proposal-bullet-list">
-                        @foreach ($group['items'] as $line)
-                            <li>{{ $line }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endforeach
-            <p class="proposal-note">{{ $d['requirements_note'] ?? '' }}</p>
-        @endif
 
-        <h3 class="proposal-subheading proposal-subheading-blue">Service Fee</h3>
+        <table class="proposal-data-table proposal-requirements-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>For Sole Proprietor / Professional / Individual;</th>
+                    <th>For Juridical / Corporation / Partnership;</th>
+                    <th>Optional / If Applicable;</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>***N/A***</td>
+                    <td></td>
+                    <td>{!! $paragraphs($d['requirements_sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td>{!! $paragraphs($d['requirements_juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td>{!! $paragraphs($d['requirements_optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+
+            <p class="proposal-note">{{ $d['requirements_note'] ?? '' }}</p>
+
+        <h3 class="proposal-subheading proposal-subheading-blue">Fees</h3>
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Services</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="proposal-subheading proposal-subheading-blue proposal-subheading-tight">Products</h3>
+        <table class="proposal-data-table proposal-fee-detail-table">
+            <thead>
+                <tr>
+                    <th>Item #</th>
+                    <th>Name</th>
+                    <th>Service ID</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td>Total</td><td></td></tr>
+            </tbody>
+        </table>
+
         <table class="proposal-pricing-table">
             <thead>
                 <tr>
@@ -138,21 +277,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Regular Price</td><td>{{ $money($d['price_regular'] ?? 0) }}</td></tr>
+                <tr><td>Total Services</td><td></td></tr>
+                <tr><td>Total Product</td><td></td></tr>
                 <tr><td>Discount</td><td>{{ $money($d['price_discount'] ?? 0) }}</td></tr>
                 <tr><td>Subtotal (After Discount)</td><td>{{ $money($d['price_subtotal'] ?? 0) }}</td></tr>
-                <tr><td>Tax</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>
-                <tr class="is-total"><td>Total</td><td>{{ $money($d['price_total'] ?? 0) }}</td></tr>
-                <tr><td>Downpayment</td><td>{{ $money($d['price_down'] ?? 0) }}</td></tr>
-                <tr><td>Balance</td><td>{{ $money($d['price_balance'] ?? 0) }}</td></tr>
+                <tr><td>Tax (if applicable)</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>
+                <tr class="is-total"><td>Total Fees</td><td>{{ $money($d['price_total'] ?? 0) }}</td></tr>
+                <tr><td>Down Payment (50%)</td><td>{{ $money($d['price_down'] ?? 0) }}</td></tr>
+                <tr><td>Balance Payable Upon Completion (50%)</td><td>{{ $money($d['price_balance'] ?? 0) }}</td></tr>
             </tbody>
         </table>
         <p class="proposal-note">{{ $d['supplemental_fee_note'] ?? '' }}</p>
+        </div>
+        {!! $renderPageFooter(4) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">5.</span>
+            <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
             <span>Proposal Highlights</span>
         </h2>
         @foreach (($d['proposal_highlights'] ?? []) as $highlight)
@@ -160,7 +303,7 @@
         @endforeach
 
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">6.</span>
+            <span class="proposal-section-number">{{ $toRoman(6) }}.</span>
             <span>Our Commitment</span>
         </h2>
         @foreach (($d['commitment'] ?? []) as $item)
@@ -168,7 +311,7 @@
         @endforeach
 
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">7.</span>
+            <span class="proposal-section-number">{{ $toRoman(7) }}.</span>
             <span>Agreement Inclusions and Exclusions</span>
         </h2>
         <h3 class="proposal-subheading">Agreement Inclusions</h3>
@@ -204,16 +347,22 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
+        {!! $renderPageFooter(5) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">8.</span>
+            <span class="proposal-section-number">{{ $toRoman(8) }}.</span>
             <span>Terms and Conditions</span>
         </h2>
-        @foreach (($d['terms_and_conditions'] ?? []) as $term)
+        @foreach (($d['terms_and_conditions'] ?? []) as $termIndex => $term)
             <div class="proposal-term-block">
-                <h3 class="proposal-subheading proposal-subheading-tight">{{ $term['title'] ?? '' }}</h3>
+                <h3 class="proposal-subheading proposal-subheading-tight">
+                    <span class="proposal-term-number">{{ $termIndex + 1 }}.</span>
+                    <span>{{ $term['title'] ?? '' }}</span>
+                </h3>
 
                 @if (!empty($term['intro']))
                     <p class="proposal-paragraph">{{ $term['intro'] }}</p>
@@ -224,11 +373,11 @@
                 @endforeach
 
                 @if (!empty($term['items']))
-                    <ul class="proposal-bullet-list">
+                    <ol class="proposal-numbered-list">
                         @foreach ($term['items'] as $item)
                             <li>{{ $item }}</li>
                         @endforeach
-                    </ul>
+                    </ol>
                 @endif
 
                 @if (!empty($term['outro']))
@@ -236,11 +385,17 @@
                 @endif
             </div>
         @endforeach
+        </div>
+        {!! $renderPageFooter(6) !!}
+    </section>
 
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">9.</span>
-            <span>Engagement Team</span>
+            <span class="proposal-section-number">{{ $toRoman(9) }}.</span>
+            <span>Client Engagement Team</span>
         </h2>
+        <p class="proposal-paragraph">{{ $d['engagement_team_intro'] ?? '' }}</p>
         <table class="proposal-data-table">
             <thead>
                 <tr>
@@ -262,12 +417,16 @@
             </tbody>
         </table>
 
+        <p class="proposal-end-note">-End-</p>
         <p class="proposal-system-note">{{ $d['system_note'] ?? '' }}</p>
+        </div>
+        {!! $renderPageFooter(7) !!}
     </section>
 
-    <section class="proposal-page">
+    <section class="proposal-page proposal-inner-page">
+        <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">10.</span>
+            <span class="proposal-section-number">{{ $toRoman(10) }}.</span>
             <span>Conforme and Acceptance</span>
         </h2>
         <p class="proposal-paragraph">By signing below, the parties acknowledge and accept the terms and conditions outlined in this proposal, which shall constitute a binding agreement.</p>
@@ -285,10 +444,7 @@
             </div>
         </div>
 
-        <div class="proposal-footer-note">
-            <div>John Kelly &amp; Company</div>
-            <div>{{ $d['company_address'] ?? '' }}</div>
-            <div>Email: {{ $d['company_email'] ?? '' }} &bull; Website: {{ $d['company_website'] ?? '' }} &bull; Phone: {{ $d['company_phone'] ?? '' }}</div>
         </div>
+        {!! $renderPageFooter(8) !!}
     </section>
 </div>

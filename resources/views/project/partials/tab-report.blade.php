@@ -1,88 +1,101 @@
-<form method="POST" action="{{ route('project.report.update', $project) }}" class="space-y-4">
-    @csrf
-    <section class="project-doc-shell">
-        <div class="project-doc-topbar"></div>
-        <div class="project-doc-header">
-            <div class="project-doc-brand">
-                <img src="{{ asset('images/imaglogo.png') }}" alt="John Kelly and Company">
-                <div class="project-doc-title">
-                    <h2>Scope of Work Report</h2>
-                    <p>Project Annex</p>
-                </div>
+@php
+    $reports = $project->sowReports()->latest('date_prepared')->latest()->get();
+    $statusClasses = [
+        'Sent to Client' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        'Generated' => 'bg-blue-50 text-blue-700 border border-blue-200',
+    ];
+@endphp
+
+<div class="space-y-5">
+    <section class="project-top-card rounded-2xl px-6 py-5">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Report Registry</p>
+                <h2 class="mt-2 text-3xl font-semibold text-gray-900">SOW Reports</h2>
+                <p class="mt-2 text-sm text-slate-500">Generated scope of work reports are recorded here from the Scope of Work tab.</p>
             </div>
-            <div class="flex items-start justify-between gap-4">
-                <div class="project-doc-grid flex-1">
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Condeal Reference No.</span><span class="project-doc-meta-value">{{ $project->deal?->deal_code ?: '-' }}</span></div>
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Business Name</span><span class="project-doc-meta-value">{{ $project->business_name ?: '-' }}</span></div>
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Client Name</span><span class="project-doc-meta-value">{{ $project->client_name ?: '-' }}</span></div>
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Version No.</span><span class="project-doc-meta-value">{{ $report?->version_number ?: '-' }}</span></div>
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Report No.</span><span class="project-doc-meta-value">{{ $report?->report_number ?: '-' }}</span></div>
-                    <div class="project-doc-meta"><span class="project-doc-meta-label">Date Prepared</span><span class="project-doc-meta-value">{{ optional($report?->date_prepared)->format('M d, Y') ?: '-' }}</span></div>
-                </div>
-                <button type="submit" class="project-doc-primary whitespace-nowrap">Save SOW Report</button>
+            <div class="flex flex-wrap gap-3 text-sm">
+                <span class="project-pill"><span class="text-slate-400">Total Reports</span> {{ $reports->count() }}</span>
+                <span class="project-pill"><span class="text-slate-400">Latest Report</span> {{ $reports->first()?->report_number ?: '-' }}</span>
             </div>
         </div>
     </section>
-    <section class="project-doc-section">
-        <div class="project-doc-section-title">Form Details</div>
-        <div class="project-doc-section-body grid gap-4 md:grid-cols-4">
-            <div><label class="project-doc-label">Version No.</label><input name="version_number" value="{{ old('version_number', $report?->version_number) }}" class="project-doc-input"></div>
-            <div><label class="project-doc-label">Date Prepared</label><input type="date" name="date_prepared" value="{{ old('date_prepared', optional($report?->date_prepared)->format('Y-m-d')) }}" class="project-doc-input"></div>
-            <div><label class="project-doc-label">Completion %</label><input type="number" step="0.01" min="0" max="100" name="project_completion_percentage" value="{{ old('project_completion_percentage', $report?->project_completion_percentage) }}" class="project-doc-input"></div>
-            <div><label class="project-doc-label">Client Confirmation Name</label><input name="client_confirmation_name" value="{{ old('client_confirmation_name', $report?->client_confirmation_name ?: $project->client_name) }}" class="project-doc-input"></div>
-        </div>
-    </section>
-    @foreach (['within' => ['label' => 'Within Scope', 'rows' => $repWithin], 'out' => ['label' => 'Out of Scope', 'rows' => $repOut]] as $prefix => $section)
-        <section class="project-doc-section">
-            <div class="flex items-center justify-between gap-3">
-                <div class="project-doc-section-title w-full">{{ $section['label'] }}</div>
-                <button type="button" class="project-doc-action mr-4 mt-3" data-add-scope-row="{{ $prefix }}-report-table">Add Row</button>
+
+    <section class="project-linked-card overflow-hidden rounded-2xl">
+        <div class="border-b border-slate-200 px-6 py-4">
+            <div class="relative max-w-md">
+                <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                <input
+                    id="projectReportSearch"
+                    type="text"
+                    placeholder="Search report number or status..."
+                    autocomplete="off"
+                    class="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
             </div>
-            <div class="project-doc-section-body overflow-x-auto">
-                <table class="project-doc-table text-sm">
-                    <thead><tr><th class="text-left">Main Task Description</th><th class="text-left">Sub Task Description</th><th class="text-left">Responsible</th><th class="text-left">Duration</th><th class="text-left">Start Date</th><th class="text-left">End Date</th><th class="text-left">Status</th><th class="text-left">Remarks</th></tr></thead>
-                    <tbody id="{{ $prefix }}-report-table" class="divide-y divide-gray-100">
-                        @foreach ($section['rows'] as $index => $item)
-                            <tr>
-                                <td><input name="{{ $prefix }}_main_task_description[]" value="{{ old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input name="{{ $prefix }}_sub_task_description[]" value="{{ old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input name="{{ $prefix }}_responsible[]" value="{{ old($prefix.'_responsible.'.$index, $item['responsible'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input name="{{ $prefix }}_duration[]" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input type="date" name="{{ $prefix }}_start_date[]" value="{{ old($prefix.'_start_date.'.$index, $item['start_date'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input name="{{ $prefix }}_status[]" value="{{ old($prefix.'_status.'.$index, $item['status'] ?? '') }}" class="project-doc-input"></td>
-                                <td><input name="{{ $prefix }}_remarks[]" value="{{ old($prefix.'_remarks.'.$index, $item['remarks'] ?? '') }}" class="project-doc-input"></td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            <p class="project-doc-total ml-4">{{ $section['rows']->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count() }} item(s)</p>
-        </section>
-    @endforeach
-    <section class="project-doc-section">
-        <div class="project-doc-section-title">Project Status Summary</div>
-        <div class="project-doc-section-body">
-        <div class="project-doc-summary-grid">
-            @foreach (['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold'] as $field => $label)
-                <div class="project-doc-summary-box"><span>{{ $label }}</span><input type="number" min="0" name="{{ $field }}" value="{{ old($field, $repSummary[$field] ?? 0) }}" class="project-doc-input mt-2"></div>
-            @endforeach
         </div>
-        <div class="mt-6 grid gap-4">
-            <div><label class="project-doc-label">Key Issues & Observations</label><textarea name="key_issues" rows="3" class="project-doc-textarea">{{ old('key_issues', $report?->key_issues) }}</textarea></div>
-            <div><label class="project-doc-label">Recommendations</label><textarea name="recommendations" rows="3" class="project-doc-textarea">{{ old('recommendations', $report?->recommendations) }}</textarea></div>
-            <div><label class="project-doc-label">Summary & Way Forward</label><textarea name="way_forward" rows="3" class="project-doc-textarea">{{ old('way_forward', $report?->way_forward) }}</textarea></div>
-        </div>
-        </div>
-    </section>
-    <section class="project-doc-section">
-        <div class="project-doc-section-title">Internal Approval</div>
-        <div class="project-doc-section-body grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            @foreach (['prepared_by' => 'Prepared By','reviewed_by' => 'Reviewed By','referred_by_closed_by' => 'Referred By / Closed By','sales_marketing' => 'Sales & Marketing','lead_consultant' => 'Lead Consultant','lead_associate_assigned' => 'Lead Associate Assigned','finance' => 'Finance','president' => 'President','record_custodian' => 'Record Custodian'] as $field => $label)
-                <div><label class="project-doc-label">{{ $label }}</label><input name="{{ $field }}" value="{{ old($field, $repApproval[$field] ?? '') }}" class="project-doc-input"></div>
-            @endforeach
-            <div><label class="project-doc-label">Date Recorded</label><input type="date" name="date_recorded" value="{{ old('date_recorded', $repApproval['date_recorded'] ?? '') }}" class="project-doc-input"></div>
-            <div><label class="project-doc-label">Date Signed</label><input type="date" name="date_signed" value="{{ old('date_signed', $repApproval['date_signed'] ?? '') }}" class="project-doc-input"></div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    <tr>
+                        <th class="px-6 py-4 text-left">Report No.</th>
+                        <th class="px-6 py-4 text-left">Date of Reporting</th>
+                        <th class="px-6 py-4 text-left">Date Sent to Client</th>
+                        <th class="px-6 py-4 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="projectReportTableBody" class="divide-y divide-slate-100 bg-white">
+                    @forelse ($reports as $item)
+                        @php
+                            $statusLabel = 'Sent to Client';
+                            $previewUrl = route('project.report.preview', ['project' => $project->id, 'report' => $item->id]);
+                        @endphp
+                        <tr
+                            class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
+                            data-report-search="{{ \Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) ) }}"
+                            onclick="window.location='{{ $previewUrl }}'"
+                        >
+                            <td class="px-6 py-4">
+                                <span class="font-semibold text-blue-700 hover:text-blue-800">{{ $item->report_number ?: 'Report-'.$item->id }}</span>
+                            </td>
+                            <td class="px-6 py-4">{{ optional($item->date_prepared)->format('M d, Y') ?: '-' }}</td>
+                            <td class="px-6 py-4">{{ optional($item->created_at)->format('M d, Y') ?: '-' }}</td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $statusClasses[$statusLabel] ?? 'bg-slate-100 text-slate-700 border border-slate-200' }}">
+                                    {{ $statusLabel }}
+                                </span>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
+                                No generated SOW reports yet. Use <span class="font-semibold text-slate-700">Generate SOW Report</span> in the Scope of Work tab.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </section>
-</form>
+</div>
+
+<script>
+    (() => {
+        const searchInput = document.getElementById('projectReportSearch');
+        const rows = Array.from(document.querySelectorAll('#projectReportTableBody tr[data-report-search]'));
+
+        if (!searchInput || rows.length === 0) {
+            return;
+        }
+
+        searchInput.addEventListener('input', () => {
+            const keyword = String(searchInput.value || '').trim().toLowerCase();
+
+            rows.forEach((row) => {
+                const blob = String(row.dataset.reportSearch || '').toLowerCase();
+                row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+            });
+        });
+    })();
+</script>

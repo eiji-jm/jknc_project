@@ -154,23 +154,131 @@ class RegularController extends Controller
             'company:id,company_name',
             'company.latestBif',
             'starts' => fn ($query) => $query->latest(),
-            'sowReports' => fn ($query) => $query->latest(),
         ]);
 
         $rsat = $regular->starts->first() ?: new ProjectStart(['project_id' => $regular->id]);
-        $report = $regular->sowReports->first() ?: new ProjectSowReport(['project_id' => $regular->id]);
+        $report = $this->resolveDraftReport($regular);
+        $generatedReports = $regular->sowReports()
+            ->whereJsonContains('internal_approval->__meta->generated', true)
+            ->latest('date_prepared')
+            ->latest()
+            ->get();
         $tab = in_array((string) $request->query('tab', 'rsat'), ['rsat', 'report'], true)
             ? (string) $request->query('tab', 'rsat')
             : 'rsat';
 
-        return view('regular.show', compact('regular', 'rsat', 'report', 'tab'));
+        return view('regular.show', compact('regular', 'rsat', 'report', 'generatedReports', 'tab'));
     }
 
     public function updateRsat(Request $request, Project $regular): RedirectResponse
     {
         abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
 
-        $validated = $request->validate([
+        $validated = $this->validateRsatPayload($request);
+        $this->persistRsatDocument($request, $regular, $validated);
+
+        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'rsat'])->with('success', 'RSAT form updated successfully.');
+    }
+
+    public function downloadRsatPdf(Project $regular)
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $regular->load(['deal:id,deal_code', 'contact:id,first_name,last_name', 'starts' => fn ($query) => $query->latest()]);
+        $rsat = $regular->starts->first();
+        $rsatRequirements = collect($rsat?->engagement_requirements ?? []);
+        $rsatApprovalSteps = collect($rsat?->approval_steps ?? []);
+        $rsatClearance = (array) ($rsat?->clearance ?? []);
+
+        $targetPath = 'generated-previews/regular/rsat/' . ($regular->project_code ?: $regular->id) . '-rsat-form.pdf';
+        $pdfPath = $this->generatePdfPreview('regular.pdf.rsat', compact(
+            'regular',
+            'rsat',
+            'rsatRequirements',
+            'rsatApprovalSteps',
+            'rsatClearance'
+        ), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate RSAT PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
+    public function updateReport(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $validated = $this->validateReportPayload($request);
+        $this->persistDraftReport($request, $regular, $validated);
+
+        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'report'])->with('success', 'RSAT report updated successfully.');
+    }
+
+    public function generateReport(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $validated = $this->validateRsatPayload($request);
+        $rsat = $this->persistRsatDocument($request, $regular, $validated);
+
+        ProjectSowReport::query()->create([
+            'project_id' => $regular->id,
+            'report_number' => null,
+            'date_prepared' => now()->toDateString(),
+            'within_scope_items' => $this->buildReportRowsFromRsat($rsat),
+            'out_of_scope_items' => [],
+            'client_confirmation_name' => $regular->client_name,
+            'internal_approval' => array_merge($this->buildReportApprovalFromRsat($regular, $rsat), [
+                '__meta' => [
+                    'generated' => true,
+                    'generated_at' => now()->toDateTimeString(),
+                ],
+            ]),
+        ]);
+
+        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'report'])->with('success', 'RSAT report generated and recorded successfully.');
+    }
+
+    public function showGeneratedReport(Project $regular, ProjectSowReport $report): View
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        abort_unless($report->project_id === $regular->id, 404);
+        abort_unless((bool) data_get($report->internal_approval, '__meta.generated', false), 404);
+
+        $regular->loadMissing([
+            'deal:id,deal_code,customer_type,engagement_type',
+            'contact:id,first_name,last_name,email,phone,company_name',
+            'company:id,company_name',
+            'company.latestBif',
+            'starts' => fn ($query) => $query->latest(),
+        ]);
+
+        $rsat = $regular->starts->first() ?: new ProjectStart(['project_id' => $regular->id]);
+
+        return view('regular.report-preview', compact('regular', 'rsat', 'report'));
+    }
+
+    private function provisionMissingRegularRecords(): void
+    {
+        if (! Schema::hasTable('deals') || ! Schema::hasTable('projects')) {
+            return;
+        }
+
+        Deal::query()
+            ->whereDoesntHave('project')
+            ->get()
+            ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
+            ->each(fn (Deal $deal) => $this->projectProvisioner->createOrSyncFromDeal($deal));
+    }
+
+    private function isRegularEngagement(?string $engagementType): bool
+    {
+        return Str::contains(Str::lower(trim((string) $engagementType)), 'regular');
+    }
+
+    private function validateRsatPayload(Request $request): array
+    {
+        return $request->validate([
             'form_date' => ['nullable', 'date'],
             'date_started' => ['nullable', 'date'],
             'date_completed' => ['nullable', 'date'],
@@ -211,7 +319,10 @@ class RegularController extends Controller
             'clearance_date_signed' => ['nullable', 'date'],
             'rejection_reason' => ['nullable', 'string', 'max:1000'],
         ]);
+    }
 
+    private function persistRsatDocument(Request $request, Project $regular, array $validated): ProjectStart
+    {
         $rsat = $regular->starts()->latest()->first() ?: new ProjectStart(['project_id' => $regular->id]);
         $resolvedFormDate = $validated['form_date']
             ?? optional($rsat->form_date)->toDateString()
@@ -231,38 +342,12 @@ class RegularController extends Controller
         $rsat->project_id = $regular->id;
         $rsat->save();
 
-        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'rsat'])->with('success', 'RSAT form updated successfully.');
+        return $rsat;
     }
 
-    public function downloadRsatPdf(Project $regular)
+    private function validateReportPayload(Request $request): array
     {
-        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
-
-        $regular->load(['deal:id,deal_code', 'contact:id,first_name,last_name', 'starts' => fn ($query) => $query->latest()]);
-        $rsat = $regular->starts->first();
-        $rsatRequirements = collect($rsat?->engagement_requirements ?? []);
-        $rsatApprovalSteps = collect($rsat?->approval_steps ?? []);
-        $rsatClearance = (array) ($rsat?->clearance ?? []);
-
-        $targetPath = 'generated-previews/regular/rsat/' . ($regular->project_code ?: $regular->id) . '-rsat-form.pdf';
-        $pdfPath = $this->generatePdfPreview('regular.pdf.rsat', compact(
-            'regular',
-            'rsat',
-            'rsatRequirements',
-            'rsatApprovalSteps',
-            'rsatClearance'
-        ), $targetPath);
-
-        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate RSAT PDF preview.');
-
-        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
-    }
-
-    public function updateReport(Request $request, Project $regular): RedirectResponse
-    {
-        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
-
-        $validated = $request->validate([
+        return $request->validate([
             'report_number' => ['nullable', 'string', 'max:50'],
             'date_prepared' => ['nullable', 'date'],
             'report_period' => ['nullable', 'string', 'max:255'],
@@ -295,57 +380,58 @@ class RegularController extends Controller
             'transmittal_no' => ['nullable', 'string', 'max:255'],
             'date_submitted_for_transmittal' => ['nullable', 'date'],
         ]);
+    }
 
-        $report = $regular->sowReports()->latest()->first() ?: new ProjectSowReport(['project_id' => $regular->id]);
+    private function resolveDraftReport(Project $regular): ProjectSowReport
+    {
+        return $regular->sowReports()
+            ->where(function ($query) {
+                $query->whereNull('internal_approval->__meta->generated')
+                    ->orWhere('internal_approval->__meta->generated', false);
+            })
+            ->latest()
+            ->first() ?: new ProjectSowReport(['project_id' => $regular->id]);
+    }
+
+    private function persistDraftReport(Request $request, Project $regular, array $validated): ProjectSowReport
+    {
+        $report = $this->resolveDraftReport($regular);
+        $approval = [
+            'report_period' => $validated['report_period'] ?? null,
+            'prepared_by' => $validated['prepared_by'] ?? null,
+            'prepared_by_name' => $validated['prepared_by_name'] ?? null,
+            'prepared_by_date' => $validated['prepared_by_date'] ?? null,
+            'reviewed_by' => $validated['reviewed_by'] ?? null,
+            'reviewed_by_name' => $validated['reviewed_by_name'] ?? null,
+            'reviewed_by_date' => $validated['reviewed_by_date'] ?? null,
+            'referred_by_closed_by' => $validated['referred_by_closed_by'] ?? null,
+            'sales_marketing' => $validated['sales_marketing'] ?? null,
+            'lead_consultant' => $validated['lead_consultant'] ?? null,
+            'lead_associate_assigned' => $validated['lead_associate_assigned'] ?? null,
+            'finance' => $validated['finance'] ?? null,
+            'president' => $validated['president'] ?? null,
+            'record_custodian' => $validated['record_custodian'] ?? null,
+            'date_recorded' => $validated['date_recorded'] ?? null,
+            'date_signed' => $validated['date_signed'] ?? null,
+            'transmittal_no' => $validated['transmittal_no'] ?? null,
+            'date_submitted_for_transmittal' => $validated['date_submitted_for_transmittal'] ?? null,
+            '__meta' => [
+                'generated' => false,
+            ],
+        ];
+
         $report->fill([
             'report_number' => $validated['report_number'] ?? null,
             'date_prepared' => $validated['date_prepared'] ?? null,
             'within_scope_items' => $this->buildReportRows($request),
             'out_of_scope_items' => [],
             'client_confirmation_name' => $validated['client_confirmation_name'] ?? null,
-            'internal_approval' => [
-                'report_period' => $validated['report_period'] ?? null,
-                'prepared_by' => $validated['prepared_by'] ?? null,
-                'prepared_by_name' => $validated['prepared_by_name'] ?? null,
-                'prepared_by_date' => $validated['prepared_by_date'] ?? null,
-                'reviewed_by' => $validated['reviewed_by'] ?? null,
-                'reviewed_by_name' => $validated['reviewed_by_name'] ?? null,
-                'reviewed_by_date' => $validated['reviewed_by_date'] ?? null,
-                'referred_by_closed_by' => $validated['referred_by_closed_by'] ?? null,
-                'sales_marketing' => $validated['sales_marketing'] ?? null,
-                'lead_consultant' => $validated['lead_consultant'] ?? null,
-                'lead_associate_assigned' => $validated['lead_associate_assigned'] ?? null,
-                'finance' => $validated['finance'] ?? null,
-                'president' => $validated['president'] ?? null,
-                'record_custodian' => $validated['record_custodian'] ?? null,
-                'date_recorded' => $validated['date_recorded'] ?? null,
-                'date_signed' => $validated['date_signed'] ?? null,
-                'transmittal_no' => $validated['transmittal_no'] ?? null,
-                'date_submitted_for_transmittal' => $validated['date_submitted_for_transmittal'] ?? null,
-            ],
+            'internal_approval' => $approval,
         ]);
         $report->project_id = $regular->id;
         $report->save();
 
-        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'report'])->with('success', 'RSAT report updated successfully.');
-    }
-
-    private function provisionMissingRegularRecords(): void
-    {
-        if (! Schema::hasTable('deals') || ! Schema::hasTable('projects')) {
-            return;
-        }
-
-        Deal::query()
-            ->whereDoesntHave('project')
-            ->get()
-            ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
-            ->each(fn (Deal $deal) => $this->projectProvisioner->createOrSyncFromDeal($deal));
-    }
-
-    private function isRegularEngagement(?string $engagementType): bool
-    {
-        return Str::contains(Str::lower(trim((string) $engagementType)), 'regular');
+        return $report;
     }
 
     private function buildRequirementRows(Request $request, string $prefix): array
@@ -444,6 +530,47 @@ class RegularController extends Controller
                 'deadline' => $deadline,
             ];
         })->filter()->values()->all();
+    }
+
+    private function buildReportRowsFromRsat(ProjectStart $rsat): array
+    {
+        return collect($rsat->engagement_requirements ?? [])
+            ->map(fn (array $row): array => [
+                'service' => trim((string) ($row['purpose'] ?? '')),
+                'activity_output' => trim((string) ($row['requirement'] ?? '')),
+                'frequency' => trim((string) ($row['notes'] ?? '')),
+                'reminder_lead_time' => trim((string) ($row['timeline'] ?? '')),
+                'deadline' => trim((string) ($row['submitted_to'] ?? '')),
+            ])
+            ->filter(fn (array $row): bool => collect($row)->contains(fn ($value) => $value !== ''))
+            ->values()
+            ->all();
+    }
+
+    private function buildReportApprovalFromRsat(Project $regular, ProjectStart $rsat): array
+    {
+        $clearance = (array) ($rsat->clearance ?? []);
+
+        return [
+            'report_period' => null,
+            'prepared_by' => $clearance['assigned_team_lead'] ?? null,
+            'prepared_by_name' => null,
+            'prepared_by_date' => null,
+            'reviewed_by' => $clearance['lead_consultant_confirmed'] ?? null,
+            'reviewed_by_name' => null,
+            'reviewed_by_date' => null,
+            'referred_by_closed_by' => $rsat->rejection_reason,
+            'sales_marketing' => $clearance['sales_marketing'] ?? null,
+            'lead_consultant' => $regular->assigned_consultant,
+            'lead_associate_assigned' => $clearance['lead_associate_assigned'] ?? null,
+            'finance' => null,
+            'president' => null,
+            'record_custodian' => $clearance['record_custodian_name'] ?? null,
+            'date_recorded' => $clearance['date_recorded'] ?? null,
+            'date_signed' => $clearance['date_signed'] ?? null,
+            'transmittal_no' => null,
+            'date_submitted_for_transmittal' => null,
+        ];
     }
 
     private function buildManualRequirementRows(string $rawRequirements, string $assignedTo): array

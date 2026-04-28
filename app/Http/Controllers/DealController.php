@@ -1010,6 +1010,7 @@ class DealController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateDealPayload($request);
+        $validated = $this->applyCalculatedTimeline($validated);
 
         try {
             $validated['deal_code'] = Deal::hasValidDealCode($validated['deal_code'] ?? null)
@@ -1085,6 +1086,7 @@ class DealController extends Controller
         }
 
         $validated = $this->validateDealPayload($request);
+        $validated = $this->applyCalculatedTimeline($validated);
 
         try {
             $contact = $this->resolveContact((int) $validated['contact_id']);
@@ -1999,6 +2001,7 @@ class DealController extends Controller
             $companyOptions = array_values(array_unique(array_merge($companyOptions, $companies->pluck('company_name')->filter()->values()->all())));
         }
 
+        $serviceCatalog = $this->dealServiceCatalog();
         $productCatalog = $this->dealProductCatalog();
 
         return [
@@ -2007,6 +2010,10 @@ class DealController extends Controller
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
             'companyRecords' => $companyRecords,
+            'serviceAreaOptions' => $serviceCatalog['serviceAreaOptions'],
+            'serviceGroups' => $serviceCatalog['serviceGroups'],
+            'servicePricing' => $serviceCatalog['servicePricing'],
+            'serviceRequirementCatalog' => $serviceCatalog['serviceRequirementCatalog'],
             'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
             'productPricing' => $productCatalog['productPricing'],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
@@ -2628,8 +2635,36 @@ class DealController extends Controller
             'total_estimated_value' => $this->normalizeCurrencyInputValue($request->input('total_estimated_value', $request->input('total_estimated_engagement_value'))),
             'other_fees_amounts' => collect((array) $request->input('other_fees_amounts', []))
                 ->map(fn ($value) => $this->normalizeCurrencyInputValue($value))
-                ->all(),
+            ->all(),
         ]);
+    }
+
+    private function applyCalculatedTimeline(array $validated): array
+    {
+        $plannedStartDate = $validated['planned_start_date'] ?? null;
+        $confirmedDeliveryDate = $validated['confirmed_delivery_date'] ?? null;
+
+        if (blank($plannedStartDate) || blank($confirmedDeliveryDate)) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        try {
+            $start = Carbon::parse((string) $plannedStartDate)->startOfDay();
+            $end = Carbon::parse((string) $confirmedDeliveryDate)->startOfDay();
+        } catch (\Throwable) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        if ($end->lt($start)) {
+            $validated['estimated_duration'] = null;
+            return $validated;
+        }
+
+        $validated['estimated_duration'] = (string) ($start->diffInDays($end) + 1);
+
+        return $validated;
     }
 
     private function normalizeCurrencyInputValue(mixed $value): mixed

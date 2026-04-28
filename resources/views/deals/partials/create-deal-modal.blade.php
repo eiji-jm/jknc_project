@@ -6,6 +6,10 @@
     $panelTitle = $panelTitle ?? 'Create Deal';
     $panelSubtitle = $panelSubtitle ?? 'Select an existing client, then complete the consulting and deal form.';
     $draft = $dealDraft ?? [];
+    $contactRecords = $contactRecords ?? [];
+    $companyRecords = $companyRecords ?? [];
+    $serviceRequirementCatalog = $serviceRequirementCatalog ?? [];
+    $openDealModal = $openDealModal ?? false;
     $numericFieldValue = static function ($value): string {
         if ($value === null) {
             return '';
@@ -499,7 +503,7 @@
                                     <div id="service-area-options-grid" class="grid gap-2 sm:grid-cols-2">
                                         @foreach ($serviceAreaOptions as $option)
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="service-area-other-wrapper" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) {{ $option === 'Others' ? 'data-other-target=service-area-other-wrapper' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                 <span>{{ $option }}</span>
                                             </label>
                                         @endforeach
@@ -640,13 +644,17 @@
                                                     $current = $clientRequirementsOthersStatus;
                                                 }
                                             @endphp
-                                            <tr data-client-requirement-row="{{ $key }}" @if ($key === 'others') data-client-others-row @endif>
+                                            @if ($key === 'others')
+                                                <tr data-client-requirement-row="{{ $key }}" data-client-others-row>
+                                            @else
+                                                <tr data-client-requirement-row="{{ $key }}">
+                                            @endif
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" {{ $key === 'others' ? 'data-client-others-radio' : '' }}>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" {{ $key === 'others' ? 'data-client-others-radio' : '' }}>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -769,7 +777,7 @@
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach (['Full Payment Before Service', '50% Downpayment / 50% Completion', 'Milestone-Based Payment', 'Monthly Retainer', 'Others'] as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="payment_terms" value="{{ $option }}" @checked(old('payment_terms', $draft['payment_terms'] ?? '') === $option) @if ($option === 'Others') data-other-target="deal_payment_terms_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <input type="radio" name="payment_terms" value="{{ $option }}" @checked(old('payment_terms', $draft['payment_terms'] ?? '') === $option) {{ $option === 'Others' ? 'data-other-target=deal_payment_terms_other_wrap' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
@@ -793,7 +801,7 @@
                             <h3 class="text-base font-semibold text-gray-900">Estimated Timeline</h3>
                             <div class="mt-3 grid gap-4 sm:grid-cols-2">
                                 <div><label for="planned_start_date" class="mb-1 block text-sm font-medium text-gray-700">Planned Start Date</label><input id="planned_start_date" type="date" name="planned_start_date" value="{{ old('planned_start_date', $draft['planned_start_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="{{ old('estimated_duration', $draft['estimated_duration'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div><label for="estimated_duration" class="mb-1 block text-sm font-medium text-gray-700">Estimated Duration (Days)</label><input id="estimated_duration" name="estimated_duration" value="{{ old('estimated_duration', $draft['estimated_duration'] ?? '') }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm text-gray-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="estimated_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Estimated Completion Date</label><input id="estimated_completion_date" type="date" name="estimated_completion_date" value="{{ old('estimated_completion_date', $draft['estimated_completion_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="client_preferred_completion_date" class="mb-1 block text-sm font-medium text-gray-700">Client Preferred Completion Date</label><input id="client_preferred_completion_date" type="date" name="client_preferred_completion_date" value="{{ old('client_preferred_completion_date', $draft['client_preferred_completion_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="confirmed_delivery_date" class="mb-1 block text-sm font-medium text-gray-700">Confirmed Delivery Date</label><input id="confirmed_delivery_date" type="date" name="confirmed_delivery_date" value="{{ old('confirmed_delivery_date', $draft['confirmed_delivery_date'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
@@ -861,7 +869,7 @@
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach (['Prepare Proposal', 'Prepare Engagement Letter', 'Schedule Client Consultation', 'Request Additional Documents', 'Decline Engagement'] as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="proposal_decision" value="{{ $option }}" @checked(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option) @if ($option === 'Decline Engagement') data-other-target="deal_decline_reason_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <input type="radio" name="proposal_decision" value="{{ $option }}" @checked(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option) {{ $option === 'Decline Engagement' ? 'data-other-target=deal_decline_reason_wrap' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
@@ -940,6 +948,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const dependentSections = document.getElementById('dealDependentSections');
     const requiredMessage = document.getElementById('dealContactRequiredMessage');
     const saveBtn = document.getElementById('saveDealBtn');
+    const plannedStartDateInput = document.getElementById('planned_start_date');
+    const confirmedDeliveryDateInput = document.getElementById('confirmed_delivery_date');
+    const estimatedDurationInput = document.getElementById('estimated_duration');
     const feeInputs = [
         document.querySelector('[name="estimated_professional_fee"]'),
         document.querySelector('[name="estimated_government_fee"]') || document.querySelector('[name="estimated_government_fees"]'),
@@ -958,6 +969,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const productOptionsByServiceArea = @json($productOptionsByServiceArea);
     const invalidFieldMessages = @json($dealErrorMap);
     const invalidFieldKeys = @json($dealErrorKeys);
+    const shouldAutoOpenModal = @json($openDealModal || $errors->any());
     const customServicePrice = 2500;
     const customProductPrice = 350;
 
@@ -1100,6 +1112,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isNaN(parsed) ? 0 : parsed;
     };
 
+    const parseDateValue = (value) => {
+        if (!value) {
+            return null;
+        }
+
+        const date = new Date(`${value}T00:00:00`);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const syncEstimatedDuration = () => {
+        if (!estimatedDurationInput) {
+            return;
+        }
+
+        const plannedStart = parseDateValue(plannedStartDateInput?.value);
+        const confirmedDelivery = parseDateValue(confirmedDeliveryDateInput?.value);
+
+        if (!plannedStart || !confirmedDelivery || confirmedDelivery < plannedStart) {
+            estimatedDurationInput.value = '';
+            return;
+        }
+
+        const millisecondsPerDay = 1000 * 60 * 60 * 24;
+        const dayCount = Math.round((confirmedDelivery.getTime() - plannedStart.getTime()) / millisecondsPerDay) + 1;
+        estimatedDurationInput.value = dayCount > 0 ? String(dayCount) : '';
+    };
+
     const otherFeeAmountInputs = () => Array.from(document.querySelectorAll('[name="other_fees_amounts[]"]'));
     const serviceFeeInput = document.querySelector('[name="total_service_fee"]');
     const productFeeInput = document.querySelector('[name="total_product_fee"]');
@@ -1199,6 +1238,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const total = professional + government + support + totalServiceFee + totalProductFee + otherTotal;
         totalInput.value = total > 0 ? total.toFixed(2) : '';
     };
+
+    plannedStartDateInput?.addEventListener('change', syncEstimatedDuration);
+    confirmedDeliveryDateInput?.addEventListener('change', syncEstimatedDuration);
+    syncEstimatedDuration();
 
     const setDependentDisabled = (isDisabled) => {
         if (!dependentSections) {
@@ -2327,8 +2370,8 @@ document.addEventListener('DOMContentLoaded', function () {
     applyOtherFieldToggles();
     recalculateTotal();
 
-    @if ($openDealModal || $errors->any())
+    if (shouldAutoOpenModal) {
         openModal();
-    @endif
+    }
 });
 </script>
