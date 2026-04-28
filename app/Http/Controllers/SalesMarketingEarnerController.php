@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\SalesMarketingEarner;
+use App\Models\Contact;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class SalesMarketingEarnerController extends Controller
@@ -26,7 +28,8 @@ class SalesMarketingEarnerController extends Controller
 
         $validated = $request->validate([
             'source_type' => ['required', 'string', 'max:50'],
-            'full_name' => ['required', 'string', 'max:255'],
+            'source_id' => ['nullable'],
+            'full_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'mobile_number' => ['nullable', 'string', 'max:255'],
             'bank_name' => ['nullable', 'string', 'max:255'],
@@ -35,6 +38,31 @@ class SalesMarketingEarnerController extends Controller
             'tin' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'string', 'max:50'],
         ]);
+
+        // 🔥 AUTO-FILL LOGIC
+        if ($request->source_type === 'contact' && $request->source_id) {
+            $contact = Contact::find($request->source_id);
+
+            if ($contact) {
+                $validated['full_name'] = trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+                $validated['email'] = $contact->email ?? null;
+                $validated['mobile_number'] = $contact->phone ?? null;
+            }
+        }
+
+        if ($request->source_type === 'employee' && $request->source_id) {
+            $employee = User::find($request->source_id);
+
+            if ($employee) {
+                $validated['full_name'] = $employee->name;
+                $validated['email'] = $employee->email;
+            }
+        }
+
+        // 🔒 MANUAL REQUIRED
+        if ($request->source_type === 'manual' && empty($validated['full_name'])) {
+            return back()->withErrors(['full_name' => 'Full name is required for manual entry']);
+        }
 
         $validated['created_by'] = auth()->id();
 
@@ -62,7 +90,8 @@ class SalesMarketingEarnerController extends Controller
 
         $validated = $request->validate([
             'source_type' => ['required', 'string', 'max:50'],
-            'full_name' => ['required', 'string', 'max:255'],
+            'source_id' => ['nullable'],
+            'full_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'mobile_number' => ['nullable', 'string', 'max:255'],
             'bank_name' => ['nullable', 'string', 'max:255'],
@@ -71,6 +100,26 @@ class SalesMarketingEarnerController extends Controller
             'tin' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'string', 'max:50'],
         ]);
+
+        // 🔥 AUTO-FILL ON UPDATE ALSO
+        if ($request->source_type === 'contact' && $request->source_id) {
+            $contact = Contact::find($request->source_id);
+
+            if ($contact) {
+                $validated['full_name'] = trim(($contact->first_name ?? '') . ' ' . ($contact->last_name ?? ''));
+                $validated['email'] = $contact->email ?? null;
+                $validated['mobile_number'] = $contact->phone ?? null;
+            }
+        }
+
+        if ($request->source_type === 'employee' && $request->source_id) {
+            $employee = User::find($request->source_id);
+
+            if ($employee) {
+                $validated['full_name'] = $employee->name;
+                $validated['email'] = $employee->email;
+            }
+        }
 
         $earner->update($validated);
 
