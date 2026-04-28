@@ -3,6 +3,7 @@
 @section('content')
 @php
     $phaseBadgeClasses = [
+        'SOW' => 'bg-indigo-50 text-indigo-700 border border-indigo-200',
         'Start' => 'bg-indigo-50 text-indigo-700 border border-indigo-200',
         'Planning' => 'bg-blue-50 text-blue-700 border border-blue-200',
         'For NTP Approval' => 'bg-amber-50 text-amber-700 border border-amber-200',
@@ -78,7 +79,7 @@
             <div>
                 <h1 class="text-3xl font-semibold tracking-tight text-gray-900">Project</h1>
                 <p class="mt-1 max-w-3xl text-sm text-gray-500">
-                    Approved project and hybrid deals automatically open here, with START, SOW, NTP, reporting, delivery, and completion tracked inside one record.
+                    Approved project and hybrid deals automatically open here, with SOW, NTP, reporting, delivery, and completion tracked inside one record.
                 </p>
             </div>
             <button
@@ -96,7 +97,7 @@
                 <p class="mt-2 text-3xl font-bold text-gray-900">{{ $stats['all'] }}</p>
             </div>
             <div class="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-sm">
-                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">START</p>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">SOW</p>
                 <p class="mt-2 text-3xl font-bold text-indigo-700">{{ $stats['start'] }}</p>
             </div>
             <div class="rounded-2xl border border-gray-200 bg-white px-5 py-5 shadow-sm">
@@ -142,7 +143,8 @@
                                 <td class="px-4 py-3 text-gray-600">{{ $project->deal?->deal_code ?? '-' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ $project->company?->company_name ?: ($project->business_name ?: '-') }}</td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $phaseBadgeClasses[$project->status] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $project->status }}</span>
+                                    @php($phaseLabel = $project->status === 'Start' ? 'SOW' : $project->status)
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $phaseBadgeClasses[$phaseLabel] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $phaseLabel }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-gray-600">{{ $project->assigned_project_manager ?: '-' }}</td>
                                 <td class="px-4 py-3 text-gray-600">{{ optional($project->target_completion_date)->format('M d, Y') ?: '-' }}</td>
@@ -285,8 +287,8 @@
                     <textarea name="scope_summary" id="project_scope_summary" rows="3" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('scope_summary') }}</textarea>
                 </div>
                 <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700">START Engagement Requirements</label>
-                    <textarea name="engagement_requirements_text" id="project_engagement_requirements_text" rows="5" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900" placeholder="One requirement per line">{{ old('engagement_requirements_text') }}</textarea>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">SOW Engagement Requirements</label>
+                    <textarea name="engagement_requirements_text" rows="5" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900" placeholder="One requirement per line">{{ old('engagement_requirements_text') }}</textarea>
                 </div>
                 <input type="hidden" name="service_area" id="project_service_area" value="{{ old('service_area') }}">
                 <textarea name="services" id="project_services" class="hidden">{{ old('services') }}</textarea>
