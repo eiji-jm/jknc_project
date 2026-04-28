@@ -417,8 +417,8 @@
                         <thead>
                             <tr>
                                 <th style="width: 5%;">Item #</th>
-                                <th style="width: 14%;">Service</th>
-                                <th style="width: 30%;">Activity / Output</th>
+                                <th style="width: 18%;">Service</th>
+                                <th style="width: 26%;">Activity / Output</th>
                                 <th style="width: 12%;">Frequency</th>
                                 <th style="width: 14%;">Reminder Lead Time</th>
                                 <th style="width: 10%;">Deadline</th>

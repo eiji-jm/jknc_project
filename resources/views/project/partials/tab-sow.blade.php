@@ -395,9 +395,9 @@
                                         <td><input name="{{ $prefix }}_main_task_description[]" value="{{ old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '') }}"></td>
                                         <td><input name="{{ $prefix }}_sub_task_description[]" value="{{ old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '') }}"></td>
                                         <td><input name="{{ $prefix }}_responsible[]" value="{{ old($prefix.'_responsible.'.$index, $item['responsible'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_duration[]" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}" readonly></td>
+                                        <td><input name="{{ $prefix }}_duration[]" type="number" min="0" step="1" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}"></td>
                                         <td><input type="date" name="{{ $prefix }}_start_date[]" value="{{ old($prefix.'_start_date.'.$index, $item['start_date'] ?? '') }}"></td>
-                                        <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}"></td>
+                                        <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}" readonly></td>
                                         <td>
                                             <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
                                                 @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
@@ -417,9 +417,9 @@
                             <td><input name="{{ $prefix }}_main_task_description[]" value=""></td>
                             <td><input name="{{ $prefix }}_sub_task_description[]" value=""></td>
                             <td><input name="{{ $prefix }}_responsible[]" value=""></td>
-                            <td><input name="{{ $prefix }}_duration[]" value="" readonly></td>
+                            <td><input name="{{ $prefix }}_duration[]" type="number" min="0" step="1" value=""></td>
                             <td><input type="date" name="{{ $prefix }}_start_date[]" value=""></td>
-                            <td><input type="date" name="{{ $prefix }}_end_date[]" value=""></td>
+                            <td><input type="date" name="{{ $prefix }}_end_date[]" value="" readonly></td>
                             <td>
                                 <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
                                     <option value="open" selected>Open</option>
@@ -608,22 +608,26 @@
                 }
             }
 
-            function calculateDurationDays(startDate, endDate) {
-                if (!startDate || !endDate) {
+            function calculateEndDate(startDate, durationDays) {
+                if (!startDate || durationDays === '' || durationDays === null) {
                     return '';
                 }
 
                 const start = new Date(`${startDate}T00:00:00`);
-                const end = new Date(`${endDate}T00:00:00`);
+                const duration = Number(durationDays);
 
-                if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+                if (Number.isNaN(start.getTime()) || Number.isNaN(duration) || duration < 0) {
                     return '';
                 }
 
-                const diffMs = end.getTime() - start.getTime();
-                const diffDays = Math.floor(diffMs / 86400000);
+                const end = new Date(start);
+                end.setDate(end.getDate() + duration);
 
-                return diffDays >= 0 ? String(diffDays) : '';
+                const year = end.getFullYear();
+                const month = String(end.getMonth() + 1).padStart(2, '0');
+                const day = String(end.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
             }
 
             function todayDateString() {
@@ -635,20 +639,20 @@
                 return `${year}-${month}-${day}`;
             }
 
-            function updateRowDuration(row) {
+            function updateRowEndDate(row) {
                 if (!row) {
                     return;
                 }
 
                 const startInput = row.querySelector('input[name*="_start_date[]"]');
-                const endInput = row.querySelector('input[name*="_end_date[]"]');
                 const durationInput = row.querySelector('input[name*="_duration[]"]');
+                const endInput = row.querySelector('input[name*="_end_date[]"]');
 
                 if (!startInput || !endInput || !durationInput) {
                     return;
                 }
 
-                durationInput.value = calculateDurationDays(startInput.value, endInput.value);
+                endInput.value = calculateEndDate(startInput.value, durationInput.value);
             }
 
             function autoUpdateRowStatus(row) {
@@ -684,8 +688,8 @@
                 }
             }
 
-            function updateAllDurations() {
-                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(updateRowDuration);
+            function updateAllEndDates() {
+                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(updateRowEndDate);
             }
 
             function updateAllAutoStatuses() {
@@ -713,7 +717,7 @@
                     const prefix = targetId.replace('-scope-table', '');
                     const newRow = createScopeRow(prefix);
                     tbody.appendChild(newRow);
-                    updateRowDuration(newRow);
+                    updateRowEndDate(newRow);
                     updateProjectSummary();
                     updateTotalMainTasks();
                 }
@@ -748,8 +752,8 @@
                     return;
                 }
 
-                if (target.name.includes('_start_date[]') || target.name.includes('_end_date[]')) {
-                    updateRowDuration(target.closest('tr'));
+                if (target.name.includes('_start_date[]') || target.name.includes('_duration[]')) {
+                    updateRowEndDate(target.closest('tr'));
                 }
 
                 autoUpdateRowStatus(target.closest('tr'));
@@ -766,7 +770,7 @@
                 refreshScopeDerivedState(e.target);
             });
 
-            updateAllDurations();
+            updateAllEndDates();
             updateAllAutoStatuses();
             updateProjectSummary();
             updateTotalMainTasks();
