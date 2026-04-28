@@ -305,22 +305,15 @@ class DealProposalController extends Controller
 
         $documentData = $this->documentData($deal, $proposal);
         $requirementGroup = $this->selectedRequirementGroup($deal);
-        $generatedDocxPath = null;
         $generatedPdfPath = null;
         $previewError = null;
 
         try {
             $baseName = Str::slug((string) ($deal->deal_code ?: 'deal-proposal')).'-proposal.docx';
-            $generatedDocxPath = $this->templateService->generate(
-                $documentData,
-                $baseName
-            );
-            $generatedPdfPath = $this->generateProposalPdf($documentData, $generatedDocxPath, $baseName);
+            $generatedPdfPath = $this->generateProposalPdf($documentData, $baseName);
         } catch (Throwable $exception) {
-            $generatedDocxPath = null;
             $generatedPdfPath = $this->generateProposalPdf(
                 $documentData,
-                null,
                 Str::slug((string) ($deal->deal_code ?: 'deal-proposal')).'-proposal.docx'
             );
             $previewError = $generatedPdfPath ? null : $exception->getMessage();
@@ -331,8 +324,6 @@ class DealProposalController extends Controller
             'proposal' => $proposal,
             'documentData' => $documentData,
             'proposalDocumentHtml' => $this->renderProposalDocument($documentData),
-            'generatedDocxUrl' => $generatedDocxPath ? route('uploads.show', ['path' => $generatedDocxPath]) : null,
-            'generatedDocxDownloadUrl' => $generatedDocxPath ? route('uploads.show', ['path' => $generatedDocxPath, 'download' => 1]) : null,
             'generatedPdfUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath]) : null,
             'generatedPdfDownloadUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath, 'download' => 1]) : null,
             'requirementGroup' => $requirementGroup,
@@ -370,15 +361,7 @@ class DealProposalController extends Controller
 
         $documentData = $this->documentData($deal, $previewProposal);
         $baseName = Str::slug((string) ($deal->deal_code ?: 'deal-proposal')).'-proposal-preview.docx';
-        $docxPath = null;
-
-        try {
-            $docxPath = $this->templateService->generate($documentData, $baseName);
-        } catch (Throwable $exception) {
-            $docxPath = null;
-        }
-
-        $pdfPath = $this->generateProposalPdf($documentData, $docxPath, $baseName);
+        $pdfPath = $this->generateProposalPdf($documentData, $baseName);
 
         return response()->json([
             'html' => $this->renderProposalDocument($documentData),
@@ -498,6 +481,7 @@ class DealProposalController extends Controller
             'supplemental_fees' => self::SUPPLEMENTAL_FEES,
             'terms_and_conditions' => self::TERMS_AND_CONDITIONS,
             'engagement_team' => self::ENGAGEMENT_TEAM,
+            'engagement_team_intro' => "John Kelly & Company assigns a team of consultants and associates who collectively take responsibility for overseeing the project engagement, ensuring consistent guidance, clear communication, and smooth coordination throughout the duration of the engagement.",
             'supplemental_fee_note' => '(All rates are exclusive of VAT and/or withholding tax, if applicable)',
             'proposal_intro' => 'Our Proposal',
             'requirements_intro' => 'To proceed smoothly, we may request the following:',
@@ -594,21 +578,14 @@ class DealProposalController extends Controller
         ])->render();
     }
 
-    private function generateProposalPdf(array $documentData, ?string $docxPath, string $docxFileName): ?string
+    private function generateProposalPdf(array $documentData, string $docxFileName): ?string
     {
-        if ($docxPath) {
-            $generatedPdfPath = $this->templateService->generatePdfPreview($docxPath);
-            if ($generatedPdfPath) {
-                return $generatedPdfPath;
-            }
-        }
-
         $relativePdfPath = 'generated-proposals/deals/'.preg_replace('/\.docx$/i', '.pdf', $docxFileName);
 
         try {
             $pdf = Pdf::loadView('deals.proposal.pdf', [
                 'documentData' => $documentData,
-            ])->setPaper('a4');
+            ])->setPaper('a4', 'portrait');
 
             Storage::disk('public')->put($relativePdfPath, $pdf->output());
 
