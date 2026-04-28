@@ -172,6 +172,7 @@
                                 <th style="width: 18%;">Frequency</th>
                                 <th style="width: 16%;">Reminder Lead Time</th>
                                 <th style="width: 10%;">Deadline</th>
+                                <th style="width: 10%;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -183,11 +184,13 @@
                                     <td>{{ $item['frequency'] ?? '' }}</td>
                                     <td>{{ $item['reminder_lead_time'] ?? '' }}</td>
                                     <td>{{ $item['deadline'] ?? '' }}</td>
+                                    <td>{{ \Illuminate\Support\Str::of((string) ($item['status'] ?? 'open'))->replace('_', ' ')->title() }}</td>
                                 </tr>
                             @empty
                                 @for ($i = 1; $i <= 10; $i++)
                                     <tr>
                                         <td class="center">{{ $i === 1 ? '1' : '' }}</td>
+                                        <td></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>

@@ -170,6 +170,7 @@
                                 <th style="width: 18%;">Frequency</th>
                                 <th style="width: 16%;">Reminder Lead Time</th>
                                 <th style="width: 10%;">Deadline</th>
+                                <th style="width: 10%;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -181,11 +182,13 @@
                                     <td><?php echo e($item['frequency'] ?? ''); ?></td>
                                     <td><?php echo e($item['reminder_lead_time'] ?? ''); ?></td>
                                     <td><?php echo e($item['deadline'] ?? ''); ?></td>
+                                    <td><?php echo e(\Illuminate\Support\Str::of((string) ($item['status'] ?? 'open'))->replace('_', ' ')->title()); ?></td>
                                 </tr>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                                 <?php for($i = 1; $i <= 10; $i++): ?>
                                     <tr>
                                         <td class="center"><?php echo e($i === 1 ? '1' : ''); ?></td>
+                                        <td></td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
