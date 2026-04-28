@@ -505,6 +505,16 @@ class ProjectController extends Controller
             'ntp_status' => ['required', 'string', 'max:50'],
             'client_confirmation_name' => ['nullable', 'string', 'max:255'],
             'client_signed_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+            'project_completion_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'total_main_tasks' => ['nullable', 'numeric', 'min:0'],
+            'open' => ['nullable', 'numeric', 'min:0'],
+            'in_progress' => ['nullable', 'numeric', 'min:0'],
+            'delayed' => ['nullable', 'numeric', 'min:0'],
+            'completed' => ['nullable', 'numeric', 'min:0'],
+            'on_hold' => ['nullable', 'numeric', 'min:0'],
+            'key_issues' => ['nullable', 'string'],
+            'recommendations' => ['nullable', 'string'],
+            'way_forward' => ['nullable', 'string'],
             'prepared_by' => ['nullable', 'string', 'max:255'],
             'reviewed_by' => ['nullable', 'string', 'max:255'],
             'referred_by_closed_by' => ['nullable', 'string', 'max:255'],
@@ -539,6 +549,7 @@ class ProjectController extends Controller
         }
 
         $sow->save();
+        $this->updateProjectSowReportSummary($project, $sow, $validated);
 
         return redirect()
             ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
@@ -580,14 +591,7 @@ class ProjectController extends Controller
             'date_prepared' => $validated['date_prepared'] ?? null,
             'within_scope_items' => $this->buildScopeRows($request, 'within'),
             'out_of_scope_items' => $this->buildScopeRows($request, 'out'),
-            'status_summary' => [
-                'total_main_tasks' => (int) ($validated['total_main_tasks'] ?? 0),
-                'open' => (int) ($validated['open'] ?? 0),
-                'in_progress' => (int) ($validated['in_progress'] ?? 0),
-                'delayed' => (int) ($validated['delayed'] ?? 0),
-                'completed' => (int) ($validated['completed'] ?? 0),
-                'on_hold' => (int) ($validated['on_hold'] ?? 0),
-            ],
+            'status_summary' => $this->buildReportStatusSummary($validated),
             'project_completion_percentage' => $validated['project_completion_percentage'] ?? null,
             'key_issues' => $validated['key_issues'] ?? null,
             'recommendations' => $validated['recommendations'] ?? null,
@@ -601,6 +605,43 @@ class ProjectController extends Controller
         return redirect()
             ->route('project.show', ['project' => $project->id, 'tab' => 'report'])
             ->with('success', 'SOW report updated successfully.');
+    }
+
+    private function updateProjectSowReportSummary(Project $project, ProjectSow $sow, array $validated): void
+    {
+        $report = $project->sowReports()->latest()->first();
+
+        if (! $report) {
+            $report = new ProjectSowReport(['project_id' => $project->id]);
+            $report->version_number = $sow->version_number;
+            $report->date_prepared = $sow->date_prepared;
+            $report->within_scope_items = $sow->within_scope_items ?? [];
+            $report->out_of_scope_items = $sow->out_of_scope_items ?? [];
+            $report->client_confirmation_name = $sow->client_confirmation_name;
+            $report->internal_approval = $sow->internal_approval ?? [];
+        }
+
+        $report->fill([
+            'status_summary' => $this->buildReportStatusSummary($validated),
+            'project_completion_percentage' => $validated['project_completion_percentage'] ?? null,
+            'key_issues' => $validated['key_issues'] ?? null,
+            'recommendations' => $validated['recommendations'] ?? null,
+            'way_forward' => $validated['way_forward'] ?? null,
+        ]);
+        $report->project_id = $project->id;
+        $report->save();
+    }
+
+    private function buildReportStatusSummary(array $validated): array
+    {
+        return [
+            'total_main_tasks' => (int) ($validated['total_main_tasks'] ?? 0),
+            'open' => (int) ($validated['open'] ?? 0),
+            'in_progress' => (int) ($validated['in_progress'] ?? 0),
+            'delayed' => (int) ($validated['delayed'] ?? 0),
+            'completed' => (int) ($validated['completed'] ?? 0),
+            'on_hold' => (int) ($validated['on_hold'] ?? 0),
+        ];
     }
 
     private function buildChecklistPayload(Request $request): array

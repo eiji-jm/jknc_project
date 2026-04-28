@@ -150,11 +150,6 @@
         </div>
     </div>
 </div>
-
-<template id="scope-row-template"><tr><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="main_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="sub_task_description"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="responsible"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="duration"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="start_date"></td><td class="px-3 py-2"><input type="date" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="end_date"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="status"></td><td class="px-3 py-2"><input class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" data-name="remarks"></td></tr></template>
-<script>
-document.querySelectorAll('[data-add-scope-row]').forEach((b)=>b.addEventListener('click',()=>{const t=document.getElementById(b.dataset.addScopeRow),p=b.dataset.addScopeRow.startsWith('within')?'within':'out',f=document.getElementById('scope-row-template').content.cloneNode(true);f.querySelectorAll('[data-name]').forEach((i)=>i.name=p+'_'+i.dataset.name+'[]');t.appendChild(f);}));
-</script>
 <?php $__env->stopSection(); ?>
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views\project\show.blade.php ENDPATH**/ ?>

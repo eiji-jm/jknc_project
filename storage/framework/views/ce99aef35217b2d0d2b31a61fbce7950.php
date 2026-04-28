@@ -134,6 +134,33 @@
         outline: none;
         box-shadow: inset 0 0 0 1px #1c4587;
     }
+    .project-sow-table select {
+        width: 100%;
+        min-height: 34px;
+        border: 0;
+        background: white;
+        padding: 6px 8px;
+        font-size: 0.82rem;
+        color: #111827;
+        appearance: none;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23111827' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 4px center;
+        background-color: white;
+        padding-right: 20px;
+        font-family: Georgia, "Times New Roman", serif;
+    }
+    .project-sow-table select:focus {
+        outline: none;
+        box-shadow: inset 0 0 0 1px #1c4587;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231c4587' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    }
+    .project-sow-table select option {
+        background: white;
+        color: #111827;
+        padding: 4px;
+    }
     .project-sow-total {
         display: grid;
         grid-template-columns: 1fr 180px 180px;
@@ -346,7 +373,8 @@
                                     <th style="width: 12%;">Start Date</th>
                                     <th style="width: 12%;">End Date</th>
                                     <th style="width: 10%;">Status</th>
-                                    <th style="width: 15%;">Remarks</th>
+                                    <th style="width: 12%;">Remarks</th>
+                                    <th style="width: 6%;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="<?php echo e($prefix); ?>-scope-table">
@@ -358,13 +386,41 @@
                                         <td><input name="<?php echo e($prefix); ?>_duration[]" value="<?php echo e(old($prefix.'_duration.'.$index, $item['duration'] ?? '')); ?>"></td>
                                         <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value="<?php echo e(old($prefix.'_start_date.'.$index, $item['start_date'] ?? '')); ?>"></td>
                                         <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value="<?php echo e(old($prefix.'_end_date.'.$index, $item['end_date'] ?? '')); ?>"></td>
-                                        <td><input name="<?php echo e($prefix); ?>_status[]" value="<?php echo e(old($prefix.'_status.'.$index, $item['status'] ?? '')); ?>"></td>
+                                        <td>
+                                            <select name="<?php echo e($prefix); ?>_status[]" class="task-status-select" style="appearance: none;">
+                                                <?php $__currentLoopData = ['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $statusValue => $statusLabel): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <option value="<?php echo e($statusValue); ?>" <?php if(($item['status'] ?? 'open') === $statusValue): echo 'selected'; endif; ?>><?php echo e($statusLabel); ?></option>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                            </select>
+                                        </td>
                                         <td><input name="<?php echo e($prefix); ?>_remarks[]" value="<?php echo e(old($prefix.'_remarks.'.$index, $item['remarks'] ?? '')); ?>"></td>
+                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="<?php echo e($prefix); ?>-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                                     </tr>
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </tbody>
                         </table>
                     </div>
+                    <template id="<?php echo e($prefix); ?>-scope-row-template">
+                        <tr>
+                            <td><input name="<?php echo e($prefix); ?>_main_task_description[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_sub_task_description[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_responsible[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_duration[]" value=""></td>
+                            <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value=""></td>
+                            <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value=""></td>
+                            <td>
+                                <select name="<?php echo e($prefix); ?>_status[]" class="task-status-select" style="appearance: none;">
+                                    <option value="open" selected>Open</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="delayed">Delayed</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="on_hold">On Hold</option>
+                                </select>
+                            </td>
+                            <td><input name="<?php echo e($prefix); ?>_remarks[]" value=""></td>
+                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="<?php echo e($prefix); ?>-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                        </tr>
+                    </template>
                     <div class="project-sow-total">
                         <div class="project-sow-total-spacer"></div>
                         <div class="project-sow-total-label">Total:</div>
@@ -375,6 +431,25 @@
                     </div>
                 </div>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
+            <div class="project-sow-section">
+                <div class="project-sow-section-title">PROJECT STATUS SUMMARY</div>
+                <div class="project-doc-section-body">
+                    <div class="project-doc-summary-grid mt-4">
+                        <?php $__currentLoopData = ['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <div class="project-doc-summary-box">
+                                <span><?php echo e($label); ?></span>
+                                <input type="number" min="0" name="<?php echo e($field); ?>" value="<?php echo e(old($field, $repSummary[$field] ?? 0)); ?>" class="project-doc-input mt-2" readonly>
+                            </div>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </div>
+                    <div class="mt-6 grid gap-4">
+                        <div><label class="project-doc-label">Key Issues &amp; Observations</label><textarea name="key_issues" rows="3" class="project-doc-textarea"><?php echo e(old('key_issues', $report?->key_issues)); ?></textarea></div>
+                        <div><label class="project-doc-label">Recommendations</label><textarea name="recommendations" rows="3" class="project-doc-textarea"><?php echo e(old('recommendations', $report?->recommendations)); ?></textarea></div>
+                        <div><label class="project-doc-label">Summary &amp; Way Forward</label><textarea name="way_forward" rows="3" class="project-doc-textarea"><?php echo e(old('way_forward', $report?->way_forward)); ?></textarea></div>
+                    </div>
+                </div>
+            </div>
 
             <div class="project-sow-meta-schedule">
                 <div class="project-sow-meta-row">
@@ -482,5 +557,107 @@
             </div>
         </div>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function createScopeRow(prefix) {
+                const template = document.getElementById(`${prefix}-scope-row-template`);
+                if (!template) {
+                    return document.createElement('tr');
+                }
+                const clone = template.content.firstElementChild.cloneNode(true);
+                return clone;
+            }
+
+            function updateProjectSummary() {
+                const statuses = {
+                    'open': 0,
+                    'in_progress': 0,
+                    'delayed': 0,
+                    'completed': 0,
+                    'on_hold': 0
+                };
+
+                document.querySelectorAll('.task-status-select').forEach(select => {
+                    const row = select.closest('tr');
+                    const mainTaskInput = row.querySelector('input[name*="_main_task_description[]"]');
+                    if (mainTaskInput && mainTaskInput.value.trim() !== '') {
+                        const statusValue = select.value;
+                        if (statuses.hasOwnProperty(statusValue)) {
+                            statuses[statusValue]++;
+                        }
+                    }
+                });
+
+                const fieldMap = {
+                    'open': 'open',
+                    'in_progress': 'in_progress',
+                    'delayed': 'delayed',
+                    'completed': 'completed',
+                    'on_hold': 'on_hold'
+                };
+
+                for (const [key, count] of Object.entries(statuses)) {
+                    const field = document.querySelector(`input[name="${fieldMap[key]}"]`);
+                    if (field) {
+                        field.value = count;
+                    }
+                }
+            }
+
+            function updateTotalMainTasks() {
+                const totalMainTasks = Array.from(document.querySelectorAll('input[name*="_main_task_description[]"]')).filter(input => input.value.trim() !== '').length;
+                const totalField = document.querySelector('input[name="total_main_tasks"]');
+                if (totalField) {
+                    totalField.value = totalMainTasks;
+                }
+            }
+
+            document.addEventListener('click', function(e) {
+                const addButton = e.target.closest('[data-add-scope-row]');
+                if (addButton) {
+                    e.preventDefault();
+                    const targetId = addButton.getAttribute('data-add-scope-row');
+                    const tbody = document.getElementById(targetId);
+                    if (!tbody) {
+                        return;
+                    }
+
+                    const prefix = targetId.replace('-scope-table', '');
+                    const newRow = createScopeRow(prefix);
+                    tbody.appendChild(newRow);
+                    updateProjectSummary();
+                    updateTotalMainTasks();
+                }
+
+                const deleteButton = e.target.closest('.delete-row-btn');
+                if (deleteButton) {
+                    e.preventDefault();
+                    const row = deleteButton.closest('tr');
+                    if (row && confirm('Are you sure you want to delete this row?')) {
+                        row.remove();
+                        updateProjectSummary();
+                        updateTotalMainTasks();
+                    }
+                }
+            });
+
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('task-status-select')) {
+                    updateProjectSummary();
+                }
+            });
+
+            document.addEventListener('input', function(e) {
+                if (e.target.name && e.target.name.includes('_main_task_description[]')) {
+                    updateProjectSummary();
+                    updateTotalMainTasks();
+                }
+            });
+
+            updateProjectSummary();
+            updateTotalMainTasks();
+        });
+    </script>
 </form>
 <?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views\project\partials\tab-sow.blade.php ENDPATH**/ ?>
