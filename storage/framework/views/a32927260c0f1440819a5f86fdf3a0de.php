@@ -4,7 +4,7 @@
     $ntpStatus = old('ntp_status', $sow?->ntp_status ?? 'pending');
     $withinCount = $sowWithin->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
     $outCount = $sowOut->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
-    $clientConfirmationName = old('client_confirmation_name', $sow?->client_confirmation_name ?: $project->client_name);
+    $clientConfirmationName = old('client_confirmation_name', $sow?->client_confirmation_name ?: ($project->client_name ?: $contactName));
 ?>
 
 <style>
@@ -383,7 +383,7 @@
                                         <td><input name="<?php echo e($prefix); ?>_main_task_description[]" value="<?php echo e(old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '')); ?>"></td>
                                         <td><input name="<?php echo e($prefix); ?>_sub_task_description[]" value="<?php echo e(old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '')); ?>"></td>
                                         <td><input name="<?php echo e($prefix); ?>_responsible[]" value="<?php echo e(old($prefix.'_responsible.'.$index, $item['responsible'] ?? '')); ?>"></td>
-                                        <td><input name="<?php echo e($prefix); ?>_duration[]" value="<?php echo e(old($prefix.'_duration.'.$index, $item['duration'] ?? '')); ?>"></td>
+                                        <td><input name="<?php echo e($prefix); ?>_duration[]" value="<?php echo e(old($prefix.'_duration.'.$index, $item['duration'] ?? '')); ?>" readonly></td>
                                         <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value="<?php echo e(old($prefix.'_start_date.'.$index, $item['start_date'] ?? '')); ?>"></td>
                                         <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value="<?php echo e(old($prefix.'_end_date.'.$index, $item['end_date'] ?? '')); ?>"></td>
                                         <td>
@@ -405,7 +405,7 @@
                             <td><input name="<?php echo e($prefix); ?>_main_task_description[]" value=""></td>
                             <td><input name="<?php echo e($prefix); ?>_sub_task_description[]" value=""></td>
                             <td><input name="<?php echo e($prefix); ?>_responsible[]" value=""></td>
-                            <td><input name="<?php echo e($prefix); ?>_duration[]" value=""></td>
+                            <td><input name="<?php echo e($prefix); ?>_duration[]" value="" readonly></td>
                             <td><input type="date" name="<?php echo e($prefix); ?>_start_date[]" value=""></td>
                             <td><input type="date" name="<?php echo e($prefix); ?>_end_date[]" value=""></td>
                             <td>
@@ -487,17 +487,9 @@
                 <div class="project-sow-signature-box">
                     Client Fullname &amp; Signature
                 </div>
-                <div class="project-sow-upload">
-                    <div class="project-sow-meta-row">
-                        <span class="project-sow-meta-label">Client Confirmation Name:</span>
-                        <input name="client_confirmation_name" value="<?php echo e($clientConfirmationName); ?>" class="project-sow-line-input">
-                    </div>
-                    <div>
-                        <input type="file" name="client_signed_attachment" class="project-sow-file">
-                        <?php if($sow?->client_signed_attachment_path): ?>
-                            <a href="<?php echo e(route('uploads.show', ['path' => $sow->client_signed_attachment_path])); ?>" target="_blank" class="mt-2 inline-block text-sm font-medium text-blue-700 hover:text-blue-800">View uploaded signed file</a>
-                        <?php endif; ?>
-                    </div>
+                <div class="project-sow-meta-row" style="margin-top: 14px;">
+                    <span class="project-sow-meta-label">Client Confirmation Name:</span>
+                    <input name="client_confirmation_name" value="<?php echo e($clientConfirmationName); ?>" class="project-sow-line-input" readonly>
                 </div>
             </div>
 
@@ -606,6 +598,90 @@
                 }
             }
 
+            function calculateDurationDays(startDate, endDate) {
+                if (!startDate || !endDate) {
+                    return '';
+                }
+
+                const start = new Date(`${startDate}T00:00:00`);
+                const end = new Date(`${endDate}T00:00:00`);
+
+                if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+                    return '';
+                }
+
+                const diffMs = end.getTime() - start.getTime();
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                return diffDays >= 0 ? String(diffDays) : '';
+            }
+
+            function todayDateString() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            }
+
+            function updateRowDuration(row) {
+                if (!row) {
+                    return;
+                }
+
+                const startInput = row.querySelector('input[name*="_start_date[]"]');
+                const endInput = row.querySelector('input[name*="_end_date[]"]');
+                const durationInput = row.querySelector('input[name*="_duration[]"]');
+
+                if (!startInput || !endInput || !durationInput) {
+                    return;
+                }
+
+                durationInput.value = calculateDurationDays(startInput.value, endInput.value);
+            }
+
+            function autoUpdateRowStatus(row) {
+                if (!row) {
+                    return;
+                }
+
+                const startInput = row.querySelector('input[name*="_start_date[]"]');
+                const endInput = row.querySelector('input[name*="_end_date[]"]');
+                const statusSelect = row.querySelector('.task-status-select');
+
+                if (!startInput || !endInput || !statusSelect) {
+                    return;
+                }
+
+                const currentStatus = statusSelect.value;
+                const startDate = startInput.value;
+                const endDate = endInput.value;
+
+                if (!startDate || !endDate) {
+                    return;
+                }
+
+                const today = todayDateString();
+
+                if ((currentStatus === 'open' || currentStatus === 'in_progress') && today > endDate) {
+                    statusSelect.value = 'delayed';
+                    return;
+                }
+
+                if (currentStatus === 'delayed' && today <= endDate) {
+                    statusSelect.value = today >= startDate ? 'in_progress' : 'open';
+                }
+            }
+
+            function updateAllDurations() {
+                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(updateRowDuration);
+            }
+
+            function updateAllAutoStatuses() {
+                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(autoUpdateRowStatus);
+            }
+
             function updateTotalMainTasks() {
                 const totalMainTasks = Array.from(document.querySelectorAll('input[name*="_main_task_description[]"]')).filter(input => input.value.trim() !== '').length;
                 const totalField = document.querySelector('input[name="total_main_tasks"]');
@@ -627,6 +703,7 @@
                     const prefix = targetId.replace('-scope-table', '');
                     const newRow = createScopeRow(prefix);
                     tbody.appendChild(newRow);
+                    updateRowDuration(newRow);
                     updateProjectSummary();
                     updateTotalMainTasks();
                 }
@@ -643,19 +720,44 @@
                 }
             });
 
-            document.addEventListener('change', function(e) {
-                if (e.target.classList.contains('task-status-select')) {
-                    updateProjectSummary();
+            function isScopeField(target) {
+                return Boolean(target?.name) && (
+                    target.name.includes('_main_task_description[]') ||
+                    target.name.includes('_sub_task_description[]') ||
+                    target.name.includes('_responsible[]') ||
+                    target.name.includes('_duration[]') ||
+                    target.name.includes('_start_date[]') ||
+                    target.name.includes('_end_date[]') ||
+                    target.name.includes('_status[]') ||
+                    target.name.includes('_remarks[]')
+                );
+            }
+
+            function refreshScopeDerivedState(target) {
+                if (!isScopeField(target)) {
+                    return;
                 }
-            });
+
+                if (target.name.includes('_start_date[]') || target.name.includes('_end_date[]')) {
+                    updateRowDuration(target.closest('tr'));
+                }
+
+                autoUpdateRowStatus(target.closest('tr'));
+
+                updateProjectSummary();
+                updateTotalMainTasks();
+            }
 
             document.addEventListener('input', function(e) {
-                if (e.target.name && e.target.name.includes('_main_task_description[]')) {
-                    updateProjectSummary();
-                    updateTotalMainTasks();
-                }
+                refreshScopeDerivedState(e.target);
             });
 
+            document.addEventListener('change', function(e) {
+                refreshScopeDerivedState(e.target);
+            });
+
+            updateAllDurations();
+            updateAllAutoStatuses();
             updateProjectSummary();
             updateTotalMainTasks();
         });

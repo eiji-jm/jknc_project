@@ -192,6 +192,10 @@
         width: min(100%, 420px);
         border-bottom: 1px solid #111827;
         min-height: 36px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        text-align: center;
     }
     .rsat-signature-label {
         font-family: Georgia, "Times New Roman", serif;
@@ -455,7 +459,7 @@
                 </div>
 
                 <div class="rsat-signature">
-                    <div class="rsat-signature-line"></div>
+                    <div class="rsat-signature-line"><?php echo e($regular->client_name ?: $contactName); ?></div>
                     <div class="rsat-signature-label">Client Fullname &amp; Signature</div>
                 </div>
 
