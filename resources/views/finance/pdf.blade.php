@@ -360,6 +360,19 @@
             color: #111827;
         }
 
+        .po-supplier-card {
+            border: 1px solid #dbe2ea;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+
+        .po-supplier-head {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
         .lr-report {
             border: 1px solid #dbe2ea;
             border-radius: 12px;
@@ -878,6 +891,118 @@
                             </td>
                         </tr>
                     </table>
+                </div>
+            </div>
+        @endif
+
+        @if($record->module_key === 'po')
+            <div class="section-box">
+                <div class="section-title">Items / Cost Details</div>
+                <div class="section-body">
+                    @if(count($lineItems))
+                        @foreach($poSupplierGroups as $group)
+                            <div class="po-supplier-card">
+                                <table class="po-supplier-head">
+                                    <tr>
+                                        <td style="width:78%;">
+                                            <div class="pr-summary-title">Supplier</div>
+                                            <div class="pr-line-title">{{ $group['supplier_label'] ?: 'Unspecified Supplier' }}</div>
+                                            <div class="pr-line-meta">{{ $group['items_count'] ?? count($group['items'] ?? []) }} item(s) in this purchase order section</div>
+                                        </td>
+                                        <td style="width:22%; text-align:right;">
+                                            <div class="pr-line-total">{{ $group['group_total'] ?? '0.00' }}</div>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <div class="pr-line-list">
+                                    @foreach(($group['items'] ?? []) as $index => $item)
+                                        <div class="pr-line-card">
+                                            <div class="pr-line-head">
+                                                <div>
+                                                    <span class="pr-line-index">{{ $index + 1 }}</span>
+                                                    <span class="pr-line-title">{{ $item['item'] }}</span>
+                                                    <div class="pr-line-meta">{{ $item['category'] }} | Qty: {{ $item['quantity'] }}</div>
+                                                </div>
+                                                <div class="pr-line-total">{{ $item['total'] }}</div>
+                                            </div>
+                                            <div class="pr-line-grid">
+                                                <div class="pr-line-fields">
+                                                    <div class="pr-line-field">
+                                                        <div class="pr-field-label">Description</div>
+                                                        <div class="pr-field-value">{{ $item['description'] }}</div>
+                                                    </div>
+                                                    <div class="pr-line-field">
+                                                        <div class="pr-field-label">Unit Cost</div>
+                                                        <div class="pr-field-value">{{ $item['amount'] }}</div>
+                                                    </div>
+                                                    <div class="pr-line-field">
+                                                        <div class="pr-field-label">Line Total</div>
+                                                        <div class="pr-field-value">{{ $item['total'] }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="pr-line-summary">
+                                                    <div class="pr-summary-panel">
+                                                        <div class="pr-summary-title">Cost Summary</div>
+                                                        <div class="pr-summary-subtitle">Each item has its own adjustment values.</div>
+                                                        <div class="pr-summary-stack">
+                                                            <div class="pr-summary-full">
+                                                                <div class="pr-field-label">Subtotal</div>
+                                                                <div class="pr-field-value">{{ $item['subtotal'] ?? $item['total'] }}</div>
+                                                            </div>
+                                                            <div class="pr-summary-row">
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">Discount</div>
+                                                                    <div class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</div>
+                                                                </div>
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">Shipping</div>
+                                                                    <div class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="pr-summary-row">
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">Tax</div>
+                                                                    <div class="pr-field-value">{{ $item['tax_amount'] ?? '0.00' }}</div>
+                                                                </div>
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">WHT</div>
+                                                                    <div class="pr-field-value">{{ $item['wht_amount'] ?? '0.00' }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="pr-summary-full">
+                                                                <div class="pr-field-label">Line Total</div>
+                                                                <div class="pr-field-value">{{ $item['total'] }}</div>
+                                                            </div>
+                                                            <div class="pr-summary-formula">{{ $item['quantity'] }} x {{ $item['amount'] }} = {{ $item['total'] }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="muted">No line items added yet.</div>
+                    @endif
+
+                    <div class="section-title" style="margin-top: 12px;">Purpose & Notes</div>
+                    <div class="pr-notes-wrap" style="margin-top: 8px;">
+                        <div class="pr-summary-card">
+                            <div class="pr-field-label">Primary Supplier</div>
+                            <div class="pr-field-value">{{ data_get($record->data, 'supplier_id') ?: 'N/A' }}</div>
+                        </div>
+                        <div class="pr-summary-card">
+                            <div class="pr-field-label">Purpose</div>
+                            <div class="pr-field-value">{{ data_get($record->data, 'purpose') ?: 'N/A' }}</div>
+                        </div>
+                        <div class="pr-summary-card">
+                            <div class="pr-field-label">Remarks</div>
+                            <div class="pr-field-value">{{ data_get($record->data, 'remarks') ?: 'N/A' }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         @endif

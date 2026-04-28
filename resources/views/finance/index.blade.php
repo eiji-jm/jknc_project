@@ -136,6 +136,10 @@
                                     <label class="block text-sm font-medium mb-1" id="recordDateLabel">Date</label>
                                     <input id="recordDateInput" name="record_date" type="date" class="w-full border rounded-md p-2">
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" for="recordTimeInput">Time</label>
+                                    <input id="recordTimeInput" name="data[transaction_time]" type="time" class="w-full border rounded-md p-2">
+                                </div>
                             </div>
                             <input id="amountInput" name="amount" type="hidden" step="0.01" value="">
 
