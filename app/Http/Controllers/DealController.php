@@ -2001,6 +2001,7 @@ class DealController extends Controller
             $companyOptions = array_values(array_unique(array_merge($companyOptions, $companies->pluck('company_name')->filter()->values()->all())));
         }
 
+        $serviceCatalog = $this->dealServiceCatalog();
         $productCatalog = $this->dealProductCatalog();
 
         return [
@@ -2009,6 +2010,10 @@ class DealController extends Controller
             'contactOptions' => $contactOptions,
             'contactRecords' => $contactRecords,
             'companyRecords' => $companyRecords,
+            'serviceAreaOptions' => $serviceCatalog['serviceAreaOptions'],
+            'serviceGroups' => $serviceCatalog['serviceGroups'],
+            'servicePricing' => $serviceCatalog['servicePricing'],
+            'serviceRequirementCatalog' => $serviceCatalog['serviceRequirementCatalog'],
             'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
             'productPricing' => $productCatalog['productPricing'],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',

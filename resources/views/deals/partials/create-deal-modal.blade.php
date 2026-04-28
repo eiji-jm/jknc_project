@@ -6,6 +6,10 @@
     $panelTitle = $panelTitle ?? 'Create Deal';
     $panelSubtitle = $panelSubtitle ?? 'Select an existing client, then complete the consulting and deal form.';
     $draft = $dealDraft ?? [];
+    $contactRecords = $contactRecords ?? [];
+    $companyRecords = $companyRecords ?? [];
+    $serviceRequirementCatalog = $serviceRequirementCatalog ?? [];
+    $openDealModal = $openDealModal ?? false;
     $numericFieldValue = static function ($value): string {
         if ($value === null) {
             return '';
@@ -499,7 +503,7 @@
                                     <div id="service-area-options-grid" class="grid gap-2 sm:grid-cols-2">
                                         @foreach ($serviceAreaOptions as $option)
                                             <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) @if ($option === 'Others') data-other-target="service-area-other-wrapper" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) {{ $option === 'Others' ? 'data-other-target=service-area-other-wrapper' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                                 <span>{{ $option }}</span>
                                             </label>
                                         @endforeach
@@ -640,13 +644,17 @@
                                                     $current = $clientRequirementsOthersStatus;
                                                 }
                                             @endphp
-                                            <tr data-client-requirement-row="{{ $key }}" @if ($key === 'others') data-client-others-row @endif>
+                                            @if ($key === 'others')
+                                                <tr data-client-requirement-row="{{ $key }}" data-client-others-row>
+                                            @else
+                                                <tr data-client-requirement-row="{{ $key }}">
+                                            @endif
                                                 <td class="border border-gray-200 px-3 py-2 text-gray-700">{{ $label }}</td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="provided" @checked($current === 'provided') class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500" data-client-requirement-status="{{ $key }}:provided" {{ $key === 'others' ? 'data-client-others-radio' : '' }}>
                                                 </td>
                                                 <td class="border border-gray-200 px-3 py-2 text-center">
-                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" @if ($key === 'others') data-client-others-radio @endif>
+                                                    <input type="radio" name="requirements_status[{{ $key }}]" value="pending" @checked($current === 'pending') class="h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500" data-client-requirement-status="{{ $key }}:pending" {{ $key === 'others' ? 'data-client-others-radio' : '' }}>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -769,7 +777,7 @@
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach (['Full Payment Before Service', '50% Downpayment / 50% Completion', 'Milestone-Based Payment', 'Monthly Retainer', 'Others'] as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="payment_terms" value="{{ $option }}" @checked(old('payment_terms', $draft['payment_terms'] ?? '') === $option) @if ($option === 'Others') data-other-target="deal_payment_terms_other_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <input type="radio" name="payment_terms" value="{{ $option }}" @checked(old('payment_terms', $draft['payment_terms'] ?? '') === $option) {{ $option === 'Others' ? 'data-other-target=deal_payment_terms_other_wrap' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
@@ -861,7 +869,7 @@
                             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                                 @foreach (['Prepare Proposal', 'Prepare Engagement Letter', 'Schedule Client Consultation', 'Request Additional Documents', 'Decline Engagement'] as $option)
                                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                                        <input type="radio" name="proposal_decision" value="{{ $option }}" @checked(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option) @if ($option === 'Decline Engagement') data-other-target="deal_decline_reason_wrap" @endif class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <input type="radio" name="proposal_decision" value="{{ $option }}" @checked(old('proposal_decision', $draft['proposal_decision'] ?? '') === $option) {{ $option === 'Decline Engagement' ? 'data-other-target=deal_decline_reason_wrap' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span>{{ $option }}</span>
                                     </label>
                                 @endforeach
@@ -961,6 +969,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const productOptionsByServiceArea = @json($productOptionsByServiceArea);
     const invalidFieldMessages = @json($dealErrorMap);
     const invalidFieldKeys = @json($dealErrorKeys);
+    const shouldAutoOpenModal = @json($openDealModal || $errors->any());
     const customServicePrice = 2500;
     const customProductPrice = 350;
 
@@ -2361,8 +2370,8 @@ document.addEventListener('DOMContentLoaded', function () {
     applyOtherFieldToggles();
     recalculateTotal();
 
-    @if ($openDealModal || $errors->any())
+    if (shouldAutoOpenModal) {
         openModal();
-    @endif
+    }
 });
 </script>

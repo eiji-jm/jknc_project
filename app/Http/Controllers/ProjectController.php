@@ -3,26 +3,101 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\GeneratesPdfPreview;
+use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Deal;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectSow;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
+use App\Models\Service;
 use Illuminate\Support\Arr;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
     use GeneratesPdfPreview;
 
+    private const FALLBACK_SERVICE_AREA_OPTIONS = [
+        'Corporate & Regulatory Advisory',
+        'Governance & Policy Advisory',
+        'People & Talent Solutions',
+        'Strategic Situations Advisory',
+        'Accounting & Compliance Advisory',
+        'Business Strategy & Process Advisory',
+        'Learning & Capability Development',
+        'Others',
+    ];
+
+    private const FALLBACK_SERVICE_GROUPS = [
+        'Corporate & Regulatory Advisory' => [
+            'Business Registration (SEC / DTI / BIR)',
+            'Business Permit Processing / Renewal',
+            'Regulatory Compliance',
+            'Loan Application Assistance',
+            'Foreign Business Entry Support',
+        ],
+        'Accounting & Compliance Advisory' => [
+            'Bookkeeping Services',
+            'Tax Filing & Compliance (BIR)',
+            'AFS Preparation',
+            'Audit Support / Coordination',
+            'Accounting Services',
+        ],
+        'Governance & Policy Advisory' => [
+            'Corporate Secretary Services',
+            'Corporate Officers Services',
+            'Policy Development (HR, Finance, Ops)',
+            'Board Resolutions & Minutes',
+            'Risk & Internal Control Setup',
+        ],
+        'Business Strategy & Process Advisory' => [
+            'Business Consulting / Strategy',
+            'Process Improvement / SOP Development',
+            'Organizational Structuring',
+            'Digital Transformation',
+            'Financial Planning & Analysis',
+        ],
+        'Strategic Situations Advisory' => [
+            'Corporate Deadlock Resolution',
+            'Crisis Assessment & Stabilization',
+            'Business Restructuring Strategy',
+            'Stakeholder Negotiation Support',
+            'High-Risk / Complex Case Advisory',
+        ],
+        'People & Talent Solutions' => [
+            'Recruitment & Hiring Support',
+            'HR Structuring & Organization Design',
+            'KPI & Performance Management Systems',
+            'HR Documentation & Contracts',
+            'Executive / Virtual Assistant Support',
+        ],
+        'Learning & Capability Development' => [
+            'Accounting & Compliance Training',
+            'Corporate Governance Workshops',
+            'Business & Strategy Training',
+            'Client Capability Development Programs',
+            'JKNC Academy Courses',
+        ],
+    ];
+
     public function index(Request $request): View
     {
         $projects = collect();
+        $contactRecords = [];
+        $companyRecords = [];
+        $dealRecords = [];
+        $serviceCatalog = $this->projectServiceCatalog();
+        $productCatalog = $this->projectProductCatalog();
 
         if (Schema::hasTable('projects')) {
             $projects = Project::query()
@@ -31,6 +106,16 @@ class ProjectController extends Controller
                 ->get()
                 ->filter(fn (Project $project): bool => ! Str::contains(Str::lower(trim((string) $project->engagement_type)), 'regular'))
                 ->values();
+        }
+
+        try {
+            $contactRecords = $this->projectContactRecords();
+            $companyRecords = $this->projectCompanyRecords();
+            $dealRecords = $this->projectDealRecords();
+        } catch (Throwable) {
+            $contactRecords = [];
+            $companyRecords = [];
+            $dealRecords = [];
         }
 
         $stats = [
@@ -44,15 +129,37 @@ class ProjectController extends Controller
         return view('project.index', [
             'projects' => $projects,
             'stats' => $stats,
+            'contactRecords' => $contactRecords,
+            'companyRecords' => $companyRecords,
+            'dealRecords' => $dealRecords,
+            'serviceAreaOptions' => $serviceCatalog['serviceAreaOptions'],
+            'serviceGroups' => $serviceCatalog['serviceGroups'],
+            'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
         ]);
     }
 
     public function storeManual(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'source_mode' => ['nullable', Rule::in(['manual', 'deal'])],
+            'deal_id' => ['nullable', 'integer', 'exists:deals,id', 'unique:projects,deal_id'],
+            'contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255'],
             'client_name' => ['nullable', 'string', 'max:255'],
             'business_name' => ['nullable', 'string', 'max:255'],
+            'service_area_options' => ['nullable', 'array'],
+            'service_area_options.*' => ['nullable', 'string', 'max:255'],
+            'service_area_other' => ['nullable', 'array'],
+            'service_area_other.*' => ['nullable', 'string', 'max:255'],
+            'service_options' => ['nullable', 'array'],
+            'service_options.*' => ['nullable', 'string', 'max:255'],
+            'services_other' => ['nullable', 'array'],
+            'services_other.*' => ['nullable', 'string', 'max:255'],
+            'product_options' => ['nullable', 'array'],
+            'product_options.*' => ['nullable', 'string', 'max:255'],
+            'products_other_entries' => ['nullable', 'array'],
+            'products_other_entries.*' => ['nullable', 'string', 'max:255'],
             'service_area' => ['nullable', 'string', 'max:255'],
             'services' => ['nullable', 'string', 'max:1000'],
             'products' => ['nullable', 'string', 'max:1000'],
@@ -66,26 +173,103 @@ class ProjectController extends Controller
             'engagement_requirements_text' => ['nullable', 'string', 'max:4000'],
         ]);
 
+        $validated['service_area'] = $this->stringifySelectedValues(
+            $validated['service_area_options'] ?? [],
+            $validated['service_area_other'] ?? [],
+            'Others: '
+        ) ?: ($validated['service_area'] ?? null);
+
+        $validated['services'] = $this->stringifySelectedValues(
+            $validated['service_options'] ?? [],
+            $validated['services_other'] ?? [],
+            'Custom: ',
+            ['Others']
+        ) ?: ($validated['services'] ?? null);
+
+        $validated['products'] = $this->stringifySelectedValues(
+            $validated['product_options'] ?? [],
+            $validated['products_other_entries'] ?? [],
+            'Custom: ',
+            ['Others']
+        ) ?: ($validated['products'] ?? null);
+
+        $linkedDeal = ! empty($validated['deal_id']) ? Deal::query()->find($validated['deal_id']) : null;
+        $linkedContact = ! empty($validated['contact_id']) ? Contact::query()->find($validated['contact_id']) : null;
+        $linkedCompany = ! empty($validated['company_id']) ? Company::query()->find($validated['company_id']) : null;
+
+        if ($linkedDeal) {
+            $linkedContact ??= $linkedDeal->contact()->first();
+        }
+
+        if (! $linkedCompany && $linkedDeal) {
+            $linkedCompany = Company::query()
+                ->where('company_name', $linkedDeal->company_name ?: $linkedContact?->company_name)
+                ->first();
+        }
+
+        if (! $linkedCompany && $linkedContact && filled($linkedContact->company_name)) {
+            $linkedCompany = Company::query()->where('company_name', $linkedContact->company_name)->first();
+        }
+
+        $resolvedClientName = trim(collect([
+            $validated['client_name'] ?? null,
+        ])->filter()->implode(''));
+
+        if ($resolvedClientName === '') {
+            $resolvedClientName = trim(collect([
+                $linkedDeal?->first_name ?: $linkedContact?->first_name,
+                $linkedDeal?->middle_name ?: $linkedContact?->middle_name,
+                $linkedDeal?->last_name ?: $linkedContact?->last_name,
+            ])->filter()->implode(' '));
+        }
+
+        $resolvedBusinessName = trim((string) ($validated['business_name']
+            ?? $linkedDeal?->company_name
+            ?? $linkedContact?->company_name
+            ?? $linkedCompany?->company_name
+            ?? ''));
+
+        $resolvedServiceArea = $validated['service_area']
+            ?? $linkedDeal?->service_area
+            ?? null;
+
+        $resolvedServices = $validated['services']
+            ?? $linkedDeal?->services
+            ?? null;
+
+        $resolvedProducts = $validated['products']
+            ?? $linkedDeal?->products
+            ?? null;
+
+        $resolvedScopeSummary = $validated['scope_summary']
+            ?? $linkedDeal?->scope_of_work
+            ?? null;
+
         $project = Project::query()->create([
+            'deal_id' => $linkedDeal?->id,
+            'contact_id' => $linkedContact?->id,
+            'company_id' => $linkedCompany?->id,
             'name' => $validated['name'],
-            'engagement_type' => 'Project',
+            'engagement_type' => $linkedDeal?->engagement_type ?: 'Project',
             'status' => 'Start',
             'current_phase' => 'Start',
             'current_step' => 'START Checklist',
-            'planned_start_date' => $validated['planned_start_date'] ?? null,
-            'target_completion_date' => $validated['target_completion_date'] ?? null,
-            'assigned_project_manager' => $validated['assigned_project_manager'] ?? null,
-            'assigned_consultant' => $validated['assigned_consultant'] ?? null,
-            'assigned_associate' => $validated['assigned_associate'] ?? null,
-            'client_name' => $validated['client_name'] ?? null,
-            'business_name' => $validated['business_name'] ?? null,
-            'service_area' => $validated['service_area'] ?? null,
-            'services' => $validated['services'] ?? null,
-            'products' => $validated['products'] ?? null,
-            'scope_summary' => $validated['scope_summary'] ?? null,
-            'client_confirmation_name' => $validated['client_confirmation_name'] ?? ($validated['client_name'] ?? null),
+            'planned_start_date' => $validated['planned_start_date'] ?? $linkedDeal?->planned_start_date,
+            'target_completion_date' => $validated['target_completion_date'] ?? $linkedDeal?->estimated_completion_date,
+            'assigned_project_manager' => $validated['assigned_project_manager'] ?? $linkedDeal?->assigned_consultant,
+            'assigned_consultant' => $validated['assigned_consultant'] ?? $linkedDeal?->assigned_consultant,
+            'assigned_associate' => $validated['assigned_associate'] ?? $linkedDeal?->assigned_associate,
+            'client_name' => $resolvedClientName ?: null,
+            'business_name' => $resolvedBusinessName ?: null,
+            'service_area' => $resolvedServiceArea,
+            'services' => $resolvedServices,
+            'products' => $resolvedProducts,
+            'scope_summary' => $resolvedScopeSummary,
+            'deal_value' => $linkedDeal?->total_estimated_engagement_value,
+            'client_confirmation_name' => $validated['client_confirmation_name'] ?? ($resolvedClientName ?: null),
             'metadata' => [
-                'created_from' => 'project_dashboard_manual',
+                'created_from' => $linkedDeal ? 'project_dashboard_linked_deal' : 'project_dashboard_manual',
+                'source_mode' => $validated['source_mode'] ?? ($linkedDeal ? 'deal' : 'manual'),
             ],
             'opened_at' => now(),
         ]);
@@ -966,5 +1150,333 @@ class ProjectController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private function projectContactRecords(): array
+    {
+        if (! Schema::hasTable('contacts')) {
+            return [];
+        }
+
+        return Contact::query()
+            ->select([
+                'id',
+                'salutation',
+                'first_name',
+                'middle_initial',
+                'middle_name',
+                'last_name',
+                'name_extension',
+                'email',
+                'phone',
+                'contact_address',
+                'company_name',
+                'company_address',
+                'position',
+            ])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function (Contact $contact): array {
+                return [
+                    'id' => $contact->id,
+                    'label' => trim(collect([
+                        $contact->salutation,
+                        $contact->first_name,
+                        $contact->middle_name,
+                        $contact->last_name,
+                    ])->filter()->implode(' ')),
+                    'search_blob' => Str::lower(implode(' ', array_filter([
+                        $contact->first_name,
+                        $contact->middle_initial,
+                        $contact->middle_name,
+                        $contact->last_name,
+                        $contact->company_name,
+                        $contact->email,
+                        $contact->phone,
+                    ]))),
+                    'salutation' => $contact->salutation,
+                    'first_name' => $contact->first_name,
+                    'middle_initial' => $contact->middle_initial ?: (filled($contact->middle_name) ? mb_substr((string) $contact->middle_name, 0, 1) : null),
+                    'middle_name' => $contact->middle_name,
+                    'last_name' => $contact->last_name,
+                    'name_extension' => $contact->name_extension,
+                    'email' => $contact->email,
+                    'mobile' => $contact->phone,
+                    'address' => $contact->contact_address,
+                    'company_name' => $contact->company_name,
+                    'company_address' => $contact->company_address,
+                    'position' => $contact->position,
+                ];
+            })
+            ->filter(fn (array $record): bool => filled($record['label']) || filled($record['company_name']))
+            ->values()
+            ->all();
+    }
+
+    private function projectCompanyRecords(): array
+    {
+        if (! Schema::hasTable('companies')) {
+            return [];
+        }
+
+        return Company::query()
+            ->with([
+                'primaryContact:id,first_name,middle_name,last_name,email,phone,contact_address,position,company_name',
+            ])
+            ->select(['id', 'company_name', 'email', 'phone', 'address', 'owner_name', 'primary_contact_id'])
+            ->orderBy('company_name')
+            ->get()
+            ->map(function (Company $company): array {
+                $primaryContact = $company->primaryContact;
+
+                return [
+                    'id' => $company->id,
+                    'label' => $company->company_name,
+                    'search_blob' => Str::lower(implode(' ', array_filter([
+                        $company->company_name,
+                        $company->email,
+                        $company->phone,
+                        $company->address,
+                        $company->owner_name,
+                        $primaryContact?->first_name,
+                        $primaryContact?->middle_name,
+                        $primaryContact?->last_name,
+                        $primaryContact?->email,
+                        $primaryContact?->phone,
+                    ]))),
+                    'company_name' => $company->company_name,
+                    'company_address' => $company->address,
+                    'email' => $company->email,
+                    'mobile' => $company->phone,
+                    'owner_name' => $company->owner_name,
+                    'primary_contact_id' => $primaryContact?->id,
+                    'primary_contact_name' => trim(collect([
+                        $primaryContact?->first_name,
+                        $primaryContact?->middle_name,
+                        $primaryContact?->last_name,
+                    ])->filter()->implode(' ')),
+                    'primary_contact_email' => $primaryContact?->email,
+                    'primary_contact_mobile' => $primaryContact?->phone,
+                    'primary_contact_position' => $primaryContact?->position,
+                ];
+            })
+            ->filter(fn (array $record): bool => filled($record['company_name']))
+            ->values()
+            ->all();
+    }
+
+    private function projectDealRecords(): array
+    {
+        if (! Schema::hasTable('deals')) {
+            return [];
+        }
+
+        return Deal::query()
+            ->with(['contact:id,first_name,middle_name,last_name,email,phone,company_name,company_address,position'])
+            ->whereDoesntHave('project')
+            ->latest()
+            ->get()
+            ->map(function (Deal $deal): array {
+                $contact = $deal->contact;
+                $clientName = trim(collect([
+                    $deal->first_name ?: $contact?->first_name,
+                    $deal->middle_name ?: $contact?->middle_name,
+                    $deal->last_name ?: $contact?->last_name,
+                ])->filter()->implode(' '));
+
+                return [
+                    'id' => $deal->id,
+                    'label' => trim((string) ($deal->deal_code ?: $deal->deal_name ?: ('Deal #'.$deal->id))),
+                    'search_blob' => Str::lower(implode(' ', array_filter([
+                        $deal->deal_code,
+                        $deal->deal_name,
+                        $clientName,
+                        $deal->company_name ?: $contact?->company_name,
+                        $deal->service_area,
+                        $deal->services,
+                    ]))),
+                    'deal_code' => $deal->deal_code,
+                    'deal_name' => $deal->deal_name,
+                    'contact_id' => $deal->contact_id,
+                    'client_name' => $clientName,
+                    'business_name' => $deal->company_name ?: $contact?->company_name,
+                    'company_address' => $deal->company_address ?: $contact?->company_address,
+                    'email' => $deal->email ?: $contact?->email,
+                    'mobile' => $deal->mobile ?: $contact?->phone,
+                    'position' => $deal->position ?: $contact?->position,
+                    'service_area' => $deal->service_area,
+                    'services' => $deal->services,
+                    'products' => $deal->products,
+                    'scope_summary' => $deal->scope_of_work,
+                    'planned_start_date' => optional($deal->planned_start_date)->format('Y-m-d'),
+                    'target_completion_date' => optional($deal->estimated_completion_date)->format('Y-m-d'),
+                    'assigned_project_manager' => $deal->assigned_consultant,
+                    'assigned_consultant' => $deal->assigned_consultant,
+                    'assigned_associate' => $deal->assigned_associate,
+                    'client_confirmation_name' => $clientName,
+                    'engagement_type' => $deal->engagement_type,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function projectServiceCatalog(): array
+    {
+        $fallbackGroups = collect(self::FALLBACK_SERVICE_GROUPS)
+            ->map(fn (array $services): array => array_values(array_unique($services)))
+            ->all();
+
+        try {
+            if (! Schema::hasTable('services')) {
+                return [
+                    'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                    'serviceGroups' => $fallbackGroups,
+                ];
+            }
+
+            $services = Service::query()
+                ->select(['service_name', 'service_area', 'service_area_other', 'status'])
+                ->whereNotNull('service_name')
+                ->where('service_name', '!=', '')
+                ->when(Schema::hasColumn('services', 'status'), fn ($query) => $query->where('status', 'Active'))
+                ->orderBy('service_name')
+                ->get();
+
+            $serviceGroups = [];
+
+            foreach ($services as $service) {
+                $serviceName = trim((string) $service->service_name);
+                if ($serviceName === '') {
+                    continue;
+                }
+
+                $areas = collect($service->service_area ?? [])
+                    ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+                    ->map(fn ($value): string => trim((string) $value))
+                    ->values();
+
+                if ($areas->contains('Others') && filled($service->service_area_other)) {
+                    $areas = $areas
+                        ->reject(fn ($value): bool => $value === 'Others')
+                        ->push(trim((string) $service->service_area_other))
+                        ->values();
+                }
+
+                if ($areas->isEmpty() && filled($service->service_area_other)) {
+                    $areas = collect([trim((string) $service->service_area_other)]);
+                }
+
+                foreach ($areas as $area) {
+                    $serviceGroups[$area] ??= [];
+                    $serviceGroups[$area][] = $serviceName;
+                }
+            }
+
+            $serviceGroups = collect($serviceGroups)
+                ->map(fn (array $group): array => collect($group)->filter()->unique()->sort()->values()->all())
+                ->filter(fn (array $group): bool => $group !== [])
+                ->sortKeys()
+                ->all();
+
+            if ($serviceGroups === []) {
+                return [
+                    'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                    'serviceGroups' => $fallbackGroups,
+                ];
+            }
+
+            return [
+                'serviceAreaOptions' => array_values(array_unique(array_merge(array_keys($serviceGroups), self::FALLBACK_SERVICE_AREA_OPTIONS))),
+                'serviceGroups' => $serviceGroups,
+            ];
+        } catch (Throwable) {
+            return [
+                'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+                'serviceGroups' => $fallbackGroups,
+            ];
+        }
+    }
+
+    private function projectProductCatalog(): array
+    {
+        $fallbackGroups = [
+            'Corporate & Regulatory Advisory' => ['Printing', 'Photocopy', 'Drafting of Letters'],
+            'Accounting & Compliance Advisory' => ['Archive Retrieval', 'Digital Archive Copy', 'Drafting of Certifications'],
+            'Governance & Policy Advisory' => ['Document Delivery (Metro Cebu)', 'Drafting of Agreements / Simple Contracts', 'Drafting of Board Resolutions'],
+            'Business Strategy & Process Advisory' => ['Notarization - Simple Documents', 'Drafting of Reports / Formal Documents'],
+            'Strategic Situations Advisory' => ['Printing', 'Photocopy', 'Drafting of Demand Letters'],
+            'People & Talent Solutions' => ['Archive Retrieval', 'Drafting of Memorandum (Internal / External)'],
+            'Learning & Capability Development' => ['Document Delivery (Outside Metro Cebu/LBC)', 'Drafting of Endorsement / Request Letters'],
+        ];
+
+        try {
+            if (! Schema::hasTable('products')) {
+                return ['productOptionsByServiceArea' => $fallbackGroups];
+            }
+
+            $products = Product::query()
+                ->select(['product_name', 'product_area', 'status'])
+                ->whereNotNull('product_name')
+                ->where('product_name', '!=', '')
+                ->when(Schema::hasColumn('products', 'status'), fn ($query) => $query->whereIn('status', ['Pending Approval', 'Active']))
+                ->orderBy('product_name')
+                ->get();
+
+            $groups = [];
+
+            foreach ($products as $product) {
+                $productName = trim((string) $product->product_name);
+                if ($productName === '') {
+                    continue;
+                }
+
+                $areas = collect($product->product_area ?? [])
+                    ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+                    ->map(fn ($value): string => trim((string) $value))
+                    ->reject(fn (string $value): bool => $value === 'Others' || $value === 'None')
+                    ->values();
+
+                foreach ($areas as $area) {
+                    $groups[$area] ??= [];
+                    $groups[$area][] = $productName;
+                }
+            }
+
+            $groups = collect($groups)
+                ->map(fn (array $items): array => collect($items)->filter()->unique()->sort()->values()->all())
+                ->filter(fn (array $items): bool => $items !== [])
+                ->sortKeys()
+                ->all();
+
+            return ['productOptionsByServiceArea' => $groups === [] ? $fallbackGroups : $groups];
+        } catch (Throwable) {
+            return ['productOptionsByServiceArea' => $fallbackGroups];
+        }
+    }
+
+    private function stringifySelectedValues(array $selected, array $custom, string $customPrefix, array $ignored = []): ?string
+    {
+        $customBaseValues = collect($custom)
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+            ->map(fn ($value): string => trim((string) $value))
+            ->values();
+
+        $base = collect($selected)
+            ->filter(fn ($value): bool => is_string($value) && trim($value) !== '' && ! in_array(trim((string) $value), $ignored, true))
+            ->map(fn ($value): string => trim((string) $value))
+            ->reject(fn (string $value): bool => $customBaseValues->contains($value));
+
+        $customValues = $customBaseValues
+            ->map(fn ($value): string => $customPrefix.$value);
+
+        $value = $base
+            ->merge($customValues)
+            ->unique()
+            ->values()
+            ->implode(', ');
+
+        return $value !== '' ? Str::limit($value, 1000, '') : null;
     }
 }
