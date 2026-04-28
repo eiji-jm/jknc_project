@@ -35,9 +35,9 @@ class ProjectController extends Controller
 
         $stats = [
             'all' => $projects->count(),
-            'start' => $projects->where('current_phase', 'Start')->count(),
+            'start' => $projects->whereIn('current_phase', ['Start', 'SOW'])->count(),
             'planning' => $projects->where('current_phase', 'Planning')->count(),
-            'active' => $projects->whereIn('status', ['Start', 'Planning', 'For NTP Approval', 'Execution', 'Reporting', 'Delivery'])->count(),
+            'active' => $projects->whereIn('status', ['Start', 'SOW', 'Planning', 'For NTP Approval', 'Execution', 'Reporting', 'Delivery'])->count(),
             'completed' => $projects->where('status', 'Completed')->count(),
         ];
 
@@ -69,9 +69,9 @@ class ProjectController extends Controller
         $project = Project::query()->create([
             'name' => $validated['name'],
             'engagement_type' => 'Project',
-            'status' => 'Start',
-            'current_phase' => 'Start',
-            'current_step' => 'START Checklist',
+            'status' => 'SOW',
+            'current_phase' => 'SOW',
+            'current_step' => 'SOW Preparation',
             'planned_start_date' => $validated['planned_start_date'] ?? null,
             'target_completion_date' => $validated['target_completion_date'] ?? null,
             'assigned_project_manager' => $validated['assigned_project_manager'] ?? null,

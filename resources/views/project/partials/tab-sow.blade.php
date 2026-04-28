@@ -102,7 +102,7 @@
     }
     .project-sow-table {
         width: 100%;
-        min-width: 1080px;
+        min-width: 940px;
         border-collapse: collapse;
         table-layout: fixed;
         font-family: Georgia, "Times New Roman", serif;
@@ -115,7 +115,7 @@
     }
     .project-sow-table th {
         background: #fff;
-        padding: 8px 6px;
+        padding: 5px 4px;
         text-align: center;
         font-size: 0.78rem;
         font-weight: 400;
@@ -123,10 +123,10 @@
     }
     .project-sow-table input {
         width: 100%;
-        min-height: 34px;
+        min-height: 24px;
         border: 0;
         background: transparent;
-        padding: 6px 8px;
+        padding: 3px 6px;
         font-size: 0.82rem;
         color: #111827;
     }
@@ -136,10 +136,10 @@
     }
     .project-sow-table select {
         width: 100%;
-        min-height: 34px;
+        min-height: 24px;
         border: 0;
         background: white;
-        padding: 6px 8px;
+        padding: 3px 6px;
         font-size: 0.82rem;
         color: #111827;
         appearance: none;
@@ -148,7 +148,7 @@
         background-repeat: no-repeat;
         background-position: right 4px center;
         background-color: white;
-        padding-right: 20px;
+        padding-right: 16px;
         font-family: Georgia, "Times New Roman", serif;
     }
     .project-sow-table select:focus {
@@ -366,15 +366,15 @@
                         <table class="project-sow-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 18%;">Main Task Description</th>
-                                    <th style="width: 18%;">Sub Task Description</th>
-                                    <th style="width: 13%;">Responsible</th>
-                                    <th style="width: 12%;">Duration</th>
-                                    <th style="width: 12%;">Start Date</th>
-                                    <th style="width: 12%;">End Date</th>
-                                    <th style="width: 10%;">Status</th>
-                                    <th style="width: 12%;">Remarks</th>
-                                    <th style="width: 6%;">Action</th>
+                                    <th style="width: 23%;">Main Task Description</th>
+                                    <th style="width: 23%;">Sub Task Description</th>
+                                    <th style="width: 10%;">Responsible</th>
+                                    <th style="width: 5%;">Duration</th>
+                                    <th style="width: 10%;">Start Date</th>
+                                    <th style="width: 10%;">End Date</th>
+                                    <th style="width: 5%;">Status</th>
+                                    <th style="width: 10%;">Remarks</th>
+                                    <th style="width: 4%;">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="{{ $prefix }}-scope-table">
@@ -394,7 +394,7 @@
                                             </select>
                                         </td>
                                         <td><input name="{{ $prefix }}_remarks[]" value="{{ old($prefix.'_remarks.'.$index, $item['remarks'] ?? '') }}"></td>
-                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                                        <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 24px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -418,7 +418,7 @@
                                 </select>
                             </td>
                             <td><input name="{{ $prefix }}_remarks[]" value=""></td>
-                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 34px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
+                            <td style="text-align: center; padding: 0;"><button type="button" class="delete-row-btn" data-table="{{ $prefix }}-scope-table" style="width: 100%; height: 24px; border: 0; background: transparent; color: #dc2626; cursor: pointer; font-weight: bold; font-size: 18px;">×</button></td>
                         </tr>
                     </template>
                     <div class="project-sow-total">
