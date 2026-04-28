@@ -247,6 +247,53 @@
     .project-sow-record-date:last-child {
         border-bottom: 0;
     }
+    .project-doc-summary-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    .project-doc-summary-box {
+        border: 1px solid #dbe3f0;
+        background: #f8fbff;
+        padding: 12px;
+    }
+    .project-doc-summary-box span {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+    }
+    .project-doc-summary-box strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 1.4rem;
+        color: #0f172a;
+    }
+    .project-doc-section-body {
+        padding: 18px;
+        background: #fff;
+    }
+    .project-doc-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #475569;
+    }
+    .project-doc-textarea {
+        min-height: 96px;
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        padding: 9px 11px;
+        font-size: 0.9rem;
+        color: #0f172a;
+        white-space: pre-wrap;
+    }
     @media (max-width: 900px) {
         .project-sow-head,
         .project-sow-meta,
@@ -255,12 +302,20 @@
         .project-sow-record-grid {
             grid-template-columns: minmax(0, 1fr);
         }
+        .project-doc-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .project-sow-title {
             text-align: left;
         }
         .project-sow-approval-cell,
         .project-sow-record-box {
             border-right: 0;
+        }
+    }
+    @media (max-width: 640px) {
+        .project-doc-summary-grid {
+            grid-template-columns: minmax(0, 1fr);
         }
     }
 </style>
@@ -330,25 +385,23 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php $__empty_1 = true; $__currentLoopData = $section['rows']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                                        <?php if(filled($row['main_task_description'] ?? null) || filled($row['sub_task_description'] ?? null)): ?>
-                                            <tr>
-                                                <td><div class="project-sow-cell"><?php echo e($row['main_task_description'] ?? ''); ?></div></td>
-                                                <td><div class="project-sow-cell"><?php echo e($row['sub_task_description'] ?? ''); ?></div></td>
-                                                <td><div class="project-sow-cell"><?php echo e($row['responsible'] ?? ''); ?></div></td>
-                                                <td><div class="project-sow-cell center"><?php echo e($row['duration'] ?? ''); ?></div></td>
-                                                <td><div class="project-sow-cell center"><?php echo e($fmt($row['start_date'] ?? null)); ?></div></td>
-                                                <td><div class="project-sow-cell center"><?php echo e($fmt($row['end_date'] ?? null)); ?></div></td>
-                                                <td><div class="project-sow-cell center"><?php echo e(str_replace('_', ' ', (string) ($row['status'] ?? ''))); ?></div></td>
-                                                <td><div class="project-sow-cell"><?php echo e($row['remarks'] ?? ''); ?></div></td>
-                                            </tr>
-                                        <?php endif; ?>
-                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                                    <?php
+                                        $displayRows = collect($section['rows'])
+                                            ->filter(fn ($row) => filled($row['main_task_description'] ?? null) || filled($row['sub_task_description'] ?? null))
+                                            ->values();
+                                    ?>
+                                    <?php $__empty_1 = true; $__currentLoopData = $displayRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                                         <tr>
-                                            <td colspan="8"><div class="project-sow-empty">No <?php echo e(strtolower($section['label'])); ?> items recorded.</div></td>
+                                            <td><div class="project-sow-cell"><?php echo e($row['main_task_description'] ?? ''); ?></div></td>
+                                            <td><div class="project-sow-cell"><?php echo e($row['sub_task_description'] ?? ''); ?></div></td>
+                                            <td><div class="project-sow-cell"><?php echo e($row['responsible'] ?? ''); ?></div></td>
+                                            <td><div class="project-sow-cell center"><?php echo e($row['duration'] ?? ''); ?></div></td>
+                                            <td><div class="project-sow-cell center"><?php echo e($fmt($row['start_date'] ?? null)); ?></div></td>
+                                            <td><div class="project-sow-cell center"><?php echo e($fmt($row['end_date'] ?? null)); ?></div></td>
+                                            <td><div class="project-sow-cell center"><?php echo e(str_replace('_', ' ', (string) ($row['status'] ?? ''))); ?></div></td>
+                                            <td><div class="project-sow-cell"><?php echo e($row['remarks'] ?? ''); ?></div></td>
                                         </tr>
-                                    <?php endif; ?>
-                                    <?php if($section['count'] === 0): ?>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                                         <tr>
                                             <td colspan="8"><div class="project-sow-empty">No <?php echo e(strtolower($section['label'])); ?> items recorded.</div></td>
                                         </tr>
@@ -371,7 +424,7 @@
                             <?php $__currentLoopData = ['total_main_tasks' => 'Total Main Tasks','open' => 'Open','in_progress' => 'In Progress','delayed' => 'Delayed','completed' => 'Completed','on_hold' => 'On Hold']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <div class="project-doc-summary-box">
                                     <span><?php echo e($label); ?></span>
-                                    <div class="project-doc-input mt-2 bg-slate-50"><?php echo e((int) ($summary[$field] ?? 0)); ?></div>
+                                    <strong><?php echo e((int) ($summary[$field] ?? 0)); ?></strong>
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
