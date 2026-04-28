@@ -102,7 +102,7 @@ class AdminDashboardController extends Controller
                     'department' => $communication->department_stakeholder ?: 'Town Hall',
                     'uploaded_by' => $communication->from_name ?: ($communication->uploader->name ?? 'Unknown'),
                     'date_uploaded' => $this->displayDate($communication->communication_date ?: $communication->created_at),
-                    'approver' => $communication->approver?->name ?: '—',
+                    'approver' => $communication->approver?->name ?: '-',
                     'priority' => $communication->priority ?? ($status === 'Pending Approval' ? 'High' : 'Low'),
                     'status' => $status,
                     'show_route' => route('townhall.show', $communication->id),
@@ -136,7 +136,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Contacts',
                     'uploaded_by' => $contact->created_by ?: ($contact->owner_name ?: 'Unknown'),
                     'date_uploaded' => $this->displayDate($contact->cif_submitted_at ?: $contact->updated_at),
-                    'approver' => $contact->cif_reviewed_by ?: '—',
+                    'approver' => $contact->cif_reviewed_by ?: '-',
                     'priority' => strtolower((string) $contact->cif_status) === 'pending' ? 'High' : 'Low',
                     'status' => $this->normalizeStatusFromKey((string) $contact->cif_status),
                     'show_route' => route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']),
@@ -166,7 +166,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Corporate',
                     'uploaded_by' => $userNames->get((int) $bif->created_by, $bif->change_requested_by_name ?: 'Unknown'),
                     'date_uploaded' => $this->displayDate($bif->submitted_at ?: $bif->updated_at),
-                    'approver' => $bif->approved_by_name ?: ($bif->rejected_by_name ?: '—'),
+                    'approver' => $bif->approved_by_name ?: ($bif->rejected_by_name ?: '-'),
                     'priority' => $statusKey === 'pending_approval' ? 'High' : 'Low',
                     'status' => $this->normalizeStatusFromKey($statusKey),
                     'show_route' => route('company.kyc', ['company' => $bif->company_id, 'tab' => 'business-client-information']),
@@ -210,7 +210,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Contacts',
                     'uploaded_by' => trim((string) ($cifData['change_requested_by'] ?? '')) !== '' ? (string) $cifData['change_requested_by'] : ($contact->created_by ?: ($contact->owner_name ?: 'Unknown')),
                     'date_uploaded' => $this->displayDate($date),
-                    'approver' => trim((string) ($cifData['change_reviewed_by'] ?? '')) !== '' ? (string) $cifData['change_reviewed_by'] : '—',
+                    'approver' => trim((string) ($cifData['change_reviewed_by'] ?? '')) !== '' ? (string) $cifData['change_reviewed_by'] : '-',
                     'priority' => $statusKey === 'pending' ? 'High' : 'Low',
                     'status' => $this->normalizeStatusFromKey($statusKey),
                     'show_route' => route('contacts.show', ['contact' => $contact->id, 'tab' => 'kyc']),
@@ -242,7 +242,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Corporate',
                     'uploaded_by' => $bif->change_requested_by_name ?: $userNames->get((int) $bif->created_by, 'Unknown'),
                     'date_uploaded' => $this->displayDate($date),
-                    'approver' => $bif->change_reviewed_by_name ?: '—',
+                    'approver' => $bif->change_reviewed_by_name ?: '-',
                     'priority' => $statusKey === 'pending' ? 'High' : 'Low',
                     'status' => $this->normalizeStatusFromKey($statusKey),
                     'show_route' => route('company.kyc', ['company' => $bif->company_id, 'tab' => 'business-client-information']),
@@ -272,7 +272,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Deals',
                     'uploaded_by' => $deal->created_by ?: 'Unknown',
                     'date_uploaded' => $this->displayDate($deal->created_at),
-                    'approver' => $deal->approved_by_name ?: ($deal->rejected_by_name ?: '—'),
+                    'approver' => $deal->approved_by_name ?: ($deal->rejected_by_name ?: '-'),
                     'priority' => $statusKey === 'pending' ? 'High' : 'Low',
                     'status' => $this->normalizeStatusFromKey($statusKey),
                     'show_route' => route('deals.show', $deal->id),
@@ -302,7 +302,7 @@ class AdminDashboardController extends Controller
                     'department' => 'Services',
                     'uploaded_by' => $userNames->get((int) $service->created_by, $service->created_by ?: 'Unknown'),
                     'date_uploaded' => $this->displayDate($service->created_at),
-                    'approver' => $userNames->get((int) $service->approved_by, '—'),
+                    'approver' => $userNames->get((int) $service->approved_by, '-'),
                     'priority' => $status === 'Pending Approval' ? 'High' : 'Low',
                     'status' => $status,
                     'show_route' => route('services.show', $service->id),
@@ -358,11 +358,11 @@ class AdminDashboardController extends Controller
                 return (object) [
                     'ref_no' => strtoupper((string) $changeRequest->module).'-CR-'.$changeRequest->id,
                     'module' => $module,
-                    'file_name' => trim(($changeRequest->record_name ?: $module).' • '.ucfirst((string) $changeRequest->action).' request'),
+                    'file_name' => trim(($changeRequest->record_name ?: $module).' - '.ucfirst((string) $changeRequest->action).' request'),
                     'department' => $module,
                     'uploaded_by' => $changeRequest->submitter?->name ?: 'Unknown',
                     'date_uploaded' => $this->displayDate($changeRequest->updated_at),
-                    'approver' => $changeRequest->reviewer?->name ?: '—',
+                    'approver' => $changeRequest->reviewer?->name ?: '-',
                     'priority' => $status === 'Pending Approval' ? 'High' : 'Low',
                     'status' => $status,
                     'show_route' => $changeRequest->module === 'product'
@@ -448,19 +448,19 @@ class AdminDashboardController extends Controller
 
         $resolved = trim((string) $value);
 
-        return $resolved !== '' ? $resolved : '—';
+        return $resolved !== '' ? $resolved : '-';
     }
 
     private function displayDate(mixed $value): string
     {
         if (blank($value)) {
-            return '—';
+            return '-';
         }
 
         try {
             return Carbon::parse($value)->format('M d, Y');
         } catch (\Throwable) {
-            return '—';
+            return '-';
         }
     }
 

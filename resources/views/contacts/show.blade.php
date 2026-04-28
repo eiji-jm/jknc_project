@@ -333,7 +333,9 @@
                                                 id="viewCifSignedDocumentBtn"
                                                 type="button"
                                                 @if ($cifSignedRequirement['file'])
-                                                    onclick="openDocumentModal(@js($cifSignedRequirement['file']['file_path'] ?? $cifSignedRequirement['file']['path'] ?? ''), 'cif_signed_document')"
+                                                    data-document-trigger
+                                                    data-document-path="{{ $cifSignedRequirement['file']['file_path'] ?? $cifSignedRequirement['file']['path'] ?? '' }}"
+                                                    data-document-key="cif_signed_document"
                                                 @endif
                                                 class="{{ $actionBtn }} {{ $cifSignedRequirement['file'] ? '' : $disabledBtn }}"
                                             >
@@ -365,7 +367,11 @@
                                                     @foreach ($twoValidIds['files'] as $fileIndex => $file)
                                                         <button
                                                             type="button"
-                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'two_valid_ids', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))), {{ $fileIndex }})"
+                                                            data-document-trigger
+                                                            data-document-path="{{ $file['file_path'] ?? $file['path'] ?? '' }}"
+                                                            data-document-key="two_valid_ids"
+                                                            data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))) }}"
+                                                            data-document-index="{{ $fileIndex }}"
                                                             class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
                                                         >
                                                             File {{ $loop->iteration }}
@@ -389,7 +395,11 @@
                                             <button
                                                 type="button"
                                                 @if ($twoValidFirstFile)
-                                                    onclick="openDocumentModal(@js($twoValidFirstFile['file_path'] ?? $twoValidFirstFile['path'] ?? ''), 'two_valid_ids', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))), 0)"
+                                                    data-document-trigger
+                                                    data-document-path="{{ $twoValidFirstFile['file_path'] ?? $twoValidFirstFile['path'] ?? '' }}"
+                                                    data-document-key="two_valid_ids"
+                                                    data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $twoValidIds['files']))) }}"
+                                                    data-document-index="0"
                                                 @endif
                                                 class="{{ $actionBtn }} {{ $twoValidFirstFile ? '' : $disabledBtn }}"
                                             >
@@ -427,7 +437,11 @@
                                                     @foreach ($specimenRequirement['files'] as $fileIndex => $file)
                                                         <button
                                                             type="button"
-                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'specimen_signature_upload', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files']))), {{ $fileIndex }})"
+                                                            data-document-trigger
+                                                            data-document-path="{{ $file['file_path'] ?? $file['path'] ?? '' }}"
+                                                            data-document-key="specimen_signature_upload"
+                                                            data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files']))) }}"
+                                                            data-document-index="{{ $fileIndex }}"
                                                             class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
                                                         >
                                                             File {{ $loop->iteration }}
@@ -458,7 +472,11 @@
                                             <button
                                                 type="button"
                                                 @if ($specimenRequirement['file'])
-                                                    onclick="openDocumentModal(@js($specimenRequirement['file']['file_path'] ?? $specimenRequirement['file']['path'] ?? ''), 'specimen_signature_upload', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files'] ?? []))), 0)"
+                                                    data-document-trigger
+                                                    data-document-path="{{ $specimenRequirement['file']['file_path'] ?? $specimenRequirement['file']['path'] ?? '' }}"
+                                                    data-document-key="specimen_signature_upload"
+                                                    data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $specimenRequirement['files'] ?? []))) }}"
+                                                    data-document-index="0"
                                                 @endif
                                                 class="{{ $actionBtn }} {{ $specimenRequirement['file'] ? '' : $disabledBtn }}"
                                             >
@@ -494,7 +512,11 @@
                                                     @foreach ($tinRequirement['files'] as $fileIndex => $file)
                                                         <button
                                                             type="button"
-                                                            onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), 'tin_proof', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files']))), {{ $fileIndex }})"
+                                                            data-document-trigger
+                                                            data-document-path="{{ $file['file_path'] ?? $file['path'] ?? '' }}"
+                                                            data-document-key="tin_proof"
+                                                            data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files']))) }}"
+                                                            data-document-index="{{ $fileIndex }}"
                                                             class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
                                                         >
                                                             File {{ $loop->iteration }}
@@ -517,7 +539,11 @@
                                             <button
                                                 type="button"
                                                 @if ($tinRequirement['file'])
-                                                    onclick="openDocumentModal(@js($tinRequirement['file']['file_path'] ?? $tinRequirement['file']['path'] ?? ''), 'tin_proof', @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files'] ?? []))), 0)"
+                                                    data-document-trigger
+                                                    data-document-path="{{ $tinRequirement['file']['file_path'] ?? $tinRequirement['file']['path'] ?? '' }}"
+                                                    data-document-key="tin_proof"
+                                                    data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $tinRequirement['files'] ?? []))) }}"
+                                                    data-document-index="0"
                                                 @endif
                                                 class="{{ $actionBtn }} {{ $tinRequirement['file'] ? '' : $disabledBtn }}"
                                             >
@@ -562,7 +588,11 @@
                                                             @foreach ($foreignerFiles as $fileIndex => $file)
                                                                 <button
                                                                     type="button"
-                                                                    onclick="openDocumentModal(@js($file['file_path'] ?? $file['path'] ?? ''), @js($foreignerRequirementKey), @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))), {{ $fileIndex }})"
+                                                                    data-document-trigger
+                                                                    data-document-path="{{ $file['file_path'] ?? $file['path'] ?? '' }}"
+                                                                    data-document-key="{{ $foreignerRequirementKey }}"
+                                                                    data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))) }}"
+                                                                    data-document-index="{{ $fileIndex }}"
                                                                     class="rounded-md border border-gray-200 px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
                                                                 >
                                                                     File {{ $loop->iteration }}
@@ -583,7 +613,11 @@
                                                     <button
                                                         type="button"
                                                         @if ($foreignerPrimaryFile)
-                                                            onclick="openDocumentModal(@js($foreignerPrimaryFile['file_path'] ?? $foreignerPrimaryFile['path'] ?? ''), @js($foreignerRequirementKey), @js(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))), 0)"
+                                                            data-document-trigger
+                                                            data-document-path="{{ $foreignerPrimaryFile['file_path'] ?? $foreignerPrimaryFile['path'] ?? '' }}"
+                                                            data-document-key="{{ $foreignerRequirementKey }}"
+                                                            data-document-files="{{ json_encode(array_values(array_map(fn ($entry) => $entry['file_path'] ?? $entry['path'] ?? '', $foreignerFiles))) }}"
+                                                            data-document-index="0"
                                                         @endif
                                                         class="{{ $actionBtn }} {{ $foreignerPrimaryFile ? '' : $disabledBtn }}"
                                                     >
@@ -705,7 +739,7 @@
                         @csrf
                         @method('DELETE')
                     </form>
-                    <form id="removeKycDocumentForm" method="POST" action="" class="hidden">
+                    <form id="removeKycDocumentForm" method="POST" action="" data-action-template="{{ route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => '__REQUIREMENT__']) }}" class="hidden">
                         @csrf
                         @method('DELETE')
                         <input type="hidden" name="index" id="removeKycDocumentIndex" value="">
@@ -744,43 +778,77 @@
                             'issued_on' => ($cifData['cif_document_issued_on'] ?? null) ?: optional($contact->cif_form_sent_at)->toDateString(),
                             'issued_by' => $cifData['cif_document_issued_by'] ?? '',
                         ];
+                        $kycTabPayload = [
+                            'mockUser' => $contact->owner_name ?: 'John Admin',
+                            'statusRaw' => $status,
+                            'specimenSignatureExists' => (bool) $specimenSignature,
+                            'kycRequirementState' => $kycRequirements,
+                            'requiredKycRequirementKeys' => $requiredKycRequirementKeys,
+                            'kycRequirementLabels' => $kycRequirementLabels,
+                            'cifSignedDocument' => $cifSignedRequirement['file'] ?? null,
+                            'cifDocumentDefaults' => $cifDocumentDefaultsJs,
+                            'specimenSignatureRoutes' => [
+                                'create' => route('contacts.specimen-signature', ['id' => $contact->id]),
+                                'view' => route('contacts.specimen-signature', ['id' => $contact->id]),
+                                'edit' => route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1]),
+                                'download' => route('contacts.specimen-signature.download', ['id' => $contact->id]),
+                            ],
+                            'kyc' => [
+                                'cif' => $contact->cif_no ?: ($cifData['cif_no'] ?? ''),
+                                'tin' => $contact->tin ?: ($cifData['tin'] ?? ''),
+                                'dateVerified' => $cifData['date_verified'] ?? '',
+                                'verifiedBy' => $cifData['verified_by'] ?? '',
+                            ],
+                            'logs' => $kycActivityLogs ?? [],
+                        ];
                     @endphp
+                    <textarea id="kycTabPayload" class="hidden" hidden>{!! json_encode($kycTabPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}</textarea>
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {
                             const app = document.getElementById('kycTabApp');
                             if (!app) return;
                             const q = (id) => document.getElementById(id);
-                            const mockUser = @json($contact->owner_name ?: 'John Admin');
+                            const readJsonPayload = (id, fallback = {}) => {
+                                try {
+                                    return JSON.parse(document.getElementById(id)?.textContent || '');
+                                } catch (error) {
+                                    return fallback;
+                                }
+                            };
+                            const payload = readJsonPayload('kycTabPayload', {});
+                            const mockUser = payload.mockUser || 'John Admin';
                             const todayIso = new Date().toISOString().slice(0, 10);
                             const statusStyles = {'Not Submitted':'bg-gray-100 text-gray-600 border border-gray-200','Pending Verification':'bg-amber-100 text-amber-700 border border-amber-200','For Review':'bg-amber-100 text-amber-700 border border-amber-200','Approved':'bg-green-100 text-green-700 border border-green-200','Rejected':'bg-red-100 text-red-700 border border-red-200'};
-                            const statusRaw = @json($status);
+                            const statusRaw = payload.statusRaw || 'Not Submitted';
                             const statusInit = statusRaw === 'Verified' ? 'Approved' : statusRaw;
-                            const specimenSignatureExists = @json((bool) $specimenSignature);
-                            const kycRequirementState = @json($kycRequirements);
-                            const requiredKycRequirementKeys = @json($requiredKycRequirementKeys);
-                            const kycRequirementLabels = @json($kycRequirementLabels);
-                            const cifSignedDocument = @json($cifSignedRequirement['file'] ?? null);
-                            const cifDocumentDefaults = @json($cifDocumentDefaultsJs);
-                            const specimenSignatureRoutes = {
-                                create: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
-                                view: @json(route('contacts.specimen-signature', ['id' => $contact->id])),
-                                edit: @json(route('contacts.specimen-signature', ['id' => $contact->id, 'edit' => 1])),
-                                download: @json(route('contacts.specimen-signature.download', ['id' => $contact->id])),
-                            };
+                            const specimenSignatureExists = Boolean(payload.specimenSignatureExists);
+                            const kycRequirementState = payload.kycRequirementState || {};
+                            const requiredKycRequirementKeys = payload.requiredKycRequirementKeys || [];
+                            const kycRequirementLabels = payload.kycRequirementLabels || {};
+                            const cifSignedDocument = payload.cifSignedDocument || null;
+                            const cifDocumentDefaults = payload.cifDocumentDefaults || {};
+                            const specimenSignatureRoutes = payload.specimenSignatureRoutes || {};
                             let kyc = {
-                                cif: @json($contact->cif_no ?: ($cifData['cif_no'] ?? '')),
-                                tin: @json($contact->tin ?: ($cifData['tin'] ?? '')),
+                                cif: payload.kyc?.cif || '',
+                                tin: payload.kyc?.tin || '',
                                 status: statusInit || 'Not Submitted',
-                                dateVerified: @json($cifData['date_verified'] ?? ''),
-                                verifiedBy: @json($cifData['verified_by'] ?? ''),
+                                dateVerified: payload.kyc?.dateVerified || '',
+                                verifiedBy: payload.kyc?.verifiedBy || '',
                                 rejectionReason: '',
                                 submitted: ['Pending Verification','For Review','Approved','Rejected', 'Verified'].includes(statusInit)
                             };
-                            let logs = @json($kycActivityLogs ?? []);
+                            let logs = Array.isArray(payload.logs) ? payload.logs : [];
                             let activeDoc = null; let file = null; let fileUrl = '';
                             let currentFiles = [];
                             let currentIndex = 0;
                             let currentDocs = [];
+
+                            const node = (tag, className = '', text = null) => {
+                                const element = document.createElement(tag);
+                                if (className) element.className = className;
+                                if (text !== null && text !== undefined) element.textContent = text;
+                                return element;
+                            };
 
                             const fmtDate = (s) => { if (!s) return '-'; const d = new Date(s + 'T00:00:00'); return Number.isNaN(d.getTime()) ? s : new Intl.DateTimeFormat('en-US',{month:'short',day:'2-digit',year:'numeric'}).format(d); };
                             const fmtBytes = (n) => !n ? '-' : (n < 1024 ? `${n} B` : (n < 1048576 ? `${(n/1024).toFixed(1)} KB` : `${(n/1048576).toFixed(1)} MB`));
@@ -826,12 +894,14 @@
                                 q('kycVerifiedByValue').textContent = kyc.verifiedBy || '-';
                                 badge(q('kycCardStatusBadge'), kyc.status);
                                 if (q('contactKycHeaderBadge')) badge(q('contactKycHeaderBadge'), kyc.status);
-                                q('kycActionLogs').innerHTML = logs.slice(0, 7).map((entry) => `
-                                    <div class="space-y-0.5">
-                                        <p class="text-xs text-gray-600">${entry.message ?? ''}</p>
-                                        <p class="text-[11px] text-gray-400">${entry.timestamp ?? ''}</p>
-                                    </div>
-                                `).join('');
+                                q('kycActionLogs').replaceChildren(...logs.slice(0, 7).map((entry) => {
+                                    const wrapper = node('div', 'space-y-0.5');
+                                    wrapper.append(
+                                        node('p', 'text-xs text-gray-600', entry.message ?? ''),
+                                        node('p', 'text-[11px] text-gray-400', entry.timestamp ?? '')
+                                    );
+                                    return wrapper;
+                                }));
                                 const canReview = kyc.submitted && ['Pending Verification','For Review'].includes(kyc.status);
                                 const approveBtn = q('approveKycBtn');
                                 const rejectBtn = q('rejectKycBtn');
@@ -843,10 +913,53 @@
 
                             const renderPreview = (name, url, mime) => {
                                 const label = 'document';
-                                if (!name) { q('documentPreviewPanel').innerHTML = `<i class="far fa-file-pdf text-6xl text-gray-400"></i><p class="mt-2">No ${label.toLowerCase()} selected</p><p class="text-xs">Upload a PDF or image file to preview</p>`; return; }
-                                if ((mime || '').includes('pdf') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<iframe src="${url}" class="h-[620px] w-full rounded-lg border border-gray-200 bg-white"></iframe>`;
-                                else if ((mime || '').startsWith('image/') && url && url !== '#') q('documentPreviewPanel').innerHTML = `<img src="${url}" alt="Document preview" class="h-[620px] w-full rounded-lg border border-gray-200 bg-white object-contain">`;
-                                else q('documentPreviewPanel').innerHTML = `<div class="text-center"><i class="far fa-file text-5xl text-blue-600"></i><p class="mt-2 font-medium text-gray-800">${name}</p><p class="text-xs text-gray-500">${mime || 'Document file'}</p></div>`;
+                                const panel = q('documentPreviewPanel');
+                                if (!panel) return;
+
+                                panel.replaceChildren();
+
+                                if (!name) {
+                                    const icon = document.createElement('i');
+                                    icon.className = 'far fa-file-pdf text-6xl text-gray-400';
+                                    const title = document.createElement('p');
+                                    title.className = 'mt-2';
+                                    title.textContent = `No ${label.toLowerCase()} selected`;
+                                    const subtitle = document.createElement('p');
+                                    subtitle.className = 'text-xs';
+                                    subtitle.textContent = 'Upload a PDF or image file to preview';
+                                    panel.append(icon, title, subtitle);
+                                    return;
+                                }
+
+                                if ((mime || '').includes('pdf') && url && url !== '#') {
+                                    const frame = document.createElement('iframe');
+                                    frame.src = url;
+                                    frame.className = 'h-[620px] w-full rounded-lg border border-gray-200 bg-white';
+                                    panel.appendChild(frame);
+                                    return;
+                                }
+
+                                if ((mime || '').startsWith('image/') && url && url !== '#') {
+                                    const image = document.createElement('img');
+                                    image.src = url;
+                                    image.alt = 'Document preview';
+                                    image.className = 'h-[620px] w-full rounded-lg border border-gray-200 bg-white object-contain';
+                                    panel.appendChild(image);
+                                    return;
+                                }
+
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'text-center';
+                                const fileIcon = document.createElement('i');
+                                fileIcon.className = 'far fa-file text-5xl text-blue-600';
+                                const fileName = document.createElement('p');
+                                fileName.className = 'mt-2 font-medium text-gray-800';
+                                fileName.textContent = name;
+                                const fileMeta = document.createElement('p');
+                                fileMeta.className = 'text-xs text-gray-500';
+                                fileMeta.textContent = mime || 'Document file';
+                                wrapper.append(fileIcon, fileName, fileMeta);
+                                panel.appendChild(wrapper);
                             };
 
                             const normalizeDateInput = (value) => {
@@ -863,14 +976,17 @@
                                     q('documentPreviewPanel').insertAdjacentElement('afterend', switcher);
                                 }
                                 if (currentFiles.length <= 1) {
-                                    switcher.innerHTML = '';
+                                    switcher.replaceChildren();
                                     return;
                                 }
-                                switcher.innerHTML = currentFiles.map((_, index) => `
-                                    <button type="button" data-preview-index="${index}" class="rounded-md border px-2 py-1 text-xs ${index === currentIndex ? 'border-blue-200 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}">
-                                        ${index + 1}
-                                    </button>
-                                `).join('');
+                                switcher.replaceChildren(...currentFiles.map((_, index) => {
+                                    const button = document.createElement('button');
+                                    button.type = 'button';
+                                    button.dataset.previewIndex = String(index);
+                                    button.className = `rounded-md border px-2 py-1 text-xs ${index === currentIndex ? 'border-blue-200 bg-blue-100 text-blue-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`;
+                                    button.textContent = String(index + 1);
+                                    return button;
+                                }));
                                 switcher.querySelectorAll('[data-preview-index]').forEach((button) => {
                                     button.addEventListener('click', () => switchFile(Number(button.dataset.previewIndex)));
                                 });
@@ -924,6 +1040,24 @@
                             };
                             window.openDocumentModal = openDocumentModal;
 
+                            document.querySelectorAll('[data-document-trigger]').forEach((button) => {
+                                button.addEventListener('click', () => {
+                                    let files = [];
+                                    try {
+                                        files = JSON.parse(button.dataset.documentFiles || '[]');
+                                    } catch (error) {
+                                        files = [];
+                                    }
+
+                                    openDocumentModal(
+                                        button.dataset.documentPath || '',
+                                        button.dataset.documentKey || '',
+                                        Array.isArray(files) ? files : [],
+                                        Number(button.dataset.documentIndex || 0)
+                                    );
+                                });
+                            });
+
                             const openKycEditButton = q('openKycEditModal');
                             if (openKycEditButton) {
                                 openKycEditButton.addEventListener('click', () => { q('kycEditCif').value = kyc.cif; q('kycEditTin').value = kyc.tin; q('kycEditStatus').value = kyc.status; q('kycEditDateVerified').value = kyc.dateVerified; q('kycEditVerifiedBy').value = kyc.verifiedBy; ['kycErrorCif','kycErrorTin','kycErrorDateVerified','kycErrorVerifiedBy'].forEach((id) => q(id).classList.add('hidden')); open(q('kycEditModal')); });
@@ -967,7 +1101,7 @@
                                     q('removeCifSignedDocumentForm').submit();
                                     return;
                                 }
-                                q('removeKycDocumentForm').setAttribute('action', @js(route('contacts.kyc.requirements.remove', ['contact' => $contact->id, 'requirement' => '__REQUIREMENT__'])).replace('__REQUIREMENT__', activeDoc));
+                                q('removeKycDocumentForm').setAttribute('action', (q('removeKycDocumentForm').dataset.actionTemplate || '').replace('__REQUIREMENT__', activeDoc));
                                 q('removeKycDocumentIndex').value = String(currentIndex);
                                 q('removeKycDocumentForm').submit();
                             });
@@ -1279,6 +1413,14 @@
                     </div>
                 </div>
 
+                @php
+                    $consultationNotesPayload = [
+                        'defaultAuthor' => $contact->owner_name ?: 'John Admin',
+                        'notes' => $tabData['consultation-notes'],
+                    ];
+                @endphp
+                <textarea id="consultationNotesPayload" class="hidden" hidden>{!! json_encode($consultationNotesPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}</textarea>
+
                 <script>
                     document.addEventListener('DOMContentLoaded', function () {
                         const app = document.getElementById('consultationNotesApp');
@@ -1311,18 +1453,19 @@
                             body: document.getElementById('errorBody'),
                         };
 
-                        const defaultAuthor = @json($contact->owner_name ?: 'John Admin');
-                        let notes = @json($tabData['consultation-notes']);
+                        const readJsonPayload = (id, fallback = {}) => {
+                            try {
+                                return JSON.parse(document.getElementById(id)?.textContent || '');
+                            } catch (error) {
+                                return fallback;
+                            }
+                        };
+                        const consultationPayload = readJsonPayload('consultationNotesPayload', {});
+                        const defaultAuthor = consultationPayload.defaultAuthor || 'John Admin';
+                        let notes = Array.isArray(consultationPayload.notes) ? consultationPayload.notes : [];
                         let editNoteId = null;
                         let viewNoteId = null;
                         let formAttachments = [];
-
-                        const escapeHtml = (value) => String(value || '')
-                            .replaceAll('&', '&amp;')
-                            .replaceAll('<', '&lt;')
-                            .replaceAll('>', '&gt;')
-                            .replaceAll('"', '&quot;')
-                            .replaceAll("'", '&#039;');
 
                         const formatDate = (value) => {
                             if (!value) return '-';
@@ -1348,6 +1491,45 @@
                             return String(ext).toUpperCase();
                         };
 
+                        const node = (tag, className = '', text = null) => {
+                            const element = document.createElement(tag);
+                            if (className) element.className = className;
+                            if (text !== null && text !== undefined) element.textContent = text;
+                            return element;
+                        };
+
+                        const metaSpan = (iconClass, text) => {
+                            const span = node('span');
+                            const icon = node('i', `${iconClass} mr-1`);
+                            span.append(icon, document.createTextNode(text));
+                            return span;
+                        };
+
+                        const attachmentRow = (file, options = {}) => {
+                            const row = node('div', options.className || 'flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm');
+                            const detail = node('div', 'min-w-0');
+                            detail.append(
+                                node('p', 'truncate font-medium text-gray-800', file.name),
+                                node('p', 'text-xs text-gray-500', `${file.type || 'FILE'} | ${formatBytes(file.size)}`)
+                            );
+
+                            if (options.viewLink) {
+                                const link = node('a', 'text-sm text-blue-600 hover:text-blue-700', 'View');
+                                link.href = file.url || '#';
+                                link.target = '_blank';
+                                link.rel = 'noopener noreferrer';
+                                row.append(detail, link);
+                                return row;
+                            }
+
+                            const button = node('button', 'remove-attachment text-gray-500 hover:text-red-600');
+                            button.type = 'button';
+                            button.dataset.fileId = String(file.id);
+                            button.appendChild(node('i', 'fas fa-xmark'));
+                            row.append(detail, button);
+                            return row;
+                        };
+
                         const sortNotes = () => {
                             notes.sort((a, b) => {
                                 const left = new Date(b.consultationDate || 0).getTime();
@@ -1359,51 +1541,54 @@
 
                         const renderAttachmentsForForm = () => {
                             if (!formAttachments.length) {
-                                selectedAttachments.innerHTML = '<p class="text-xs text-gray-500">No files selected.</p>';
+                                selectedAttachments.replaceChildren(node('p', 'text-xs text-gray-500', 'No files selected.'));
                                 return;
                             }
-                            selectedAttachments.innerHTML = formAttachments.map((file) => `
-                                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                                    <div class="min-w-0">
-                                        <p class="truncate font-medium text-gray-800">${escapeHtml(file.name)}</p>
-                                        <p class="text-xs text-gray-500">${escapeHtml(file.type || 'FILE')} | ${escapeHtml(formatBytes(file.size))}</p>
-                                    </div>
-                                    <button type="button" class="remove-attachment text-gray-500 hover:text-red-600" data-file-id="${file.id}">
-                                        <i class="fas fa-xmark"></i>
-                                    </button>
-                                </div>
-                            `).join('');
+                            selectedAttachments.replaceChildren(...formAttachments.map((file) => attachmentRow(file)));
                         };
 
                         const renderNotes = () => {
                             sortNotes();
                             if (!notes.length) {
-                                notesList.innerHTML = '<div class="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">No consultation notes yet.</div>';
+                                notesList.replaceChildren(node('div', 'rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500', 'No consultation notes yet.'));
                                 return;
                             }
-                            notesList.innerHTML = notes.map((note) => {
+                            notesList.replaceChildren(...notes.map((note) => {
                                 const attachmentCount = (note.attachments || []).length;
                                 const attachmentLabel = `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}`;
-                                return `
-                                    <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div class="min-w-0">
-                                                <h3 class="text-xl font-semibold text-gray-900">${escapeHtml(note.title)}</h3>
-                                                <p class="mt-1 text-sm text-gray-600">${escapeHtml(note.summary || note.details || '')}</p>
-                                                <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                                    <span><i class="far fa-calendar mr-1"></i>${escapeHtml(formatDate(note.consultationDate))}</span>
-                                                    <span><i class="far fa-user mr-1"></i>${escapeHtml(note.author || defaultAuthor)}</span>
-                                                    <span><i class="fas fa-paperclip mr-1"></i>${attachmentLabel}</span>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center gap-3 text-gray-500">
-                                                <button type="button" class="note-view hover:text-blue-600" data-note-id="${note.id}" aria-label="View note"><i class="far fa-eye"></i></button>
-                                                <button type="button" class="note-edit hover:text-blue-600" data-note-id="${note.id}" aria-label="Edit note"><i class="far fa-pen-to-square"></i></button>
-                                            </div>
-                                        </div>
-                                    </article>
-                                `;
-                            }).join('');
+                                const article = node('article', 'rounded-xl border border-gray-200 bg-white p-4 shadow-sm');
+                                const layout = node('div', 'flex items-start justify-between gap-3');
+                                const body = node('div', 'min-w-0');
+                                const meta = node('div', 'mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500');
+                                meta.append(
+                                    metaSpan('far fa-calendar', formatDate(note.consultationDate)),
+                                    metaSpan('far fa-user', note.author || defaultAuthor),
+                                    metaSpan('fas fa-paperclip', attachmentLabel)
+                                );
+                                body.append(
+                                    node('h3', 'text-xl font-semibold text-gray-900', note.title),
+                                    node('p', 'mt-1 text-sm text-gray-600', note.summary || note.details || ''),
+                                    meta
+                                );
+
+                                const actions = node('div', 'flex items-center gap-3 text-gray-500');
+                                const viewButton = node('button', 'note-view hover:text-blue-600');
+                                viewButton.type = 'button';
+                                viewButton.dataset.noteId = String(note.id);
+                                viewButton.setAttribute('aria-label', 'View note');
+                                viewButton.appendChild(node('i', 'far fa-eye'));
+
+                                const editButton = node('button', 'note-edit hover:text-blue-600');
+                                editButton.type = 'button';
+                                editButton.dataset.noteId = String(note.id);
+                                editButton.setAttribute('aria-label', 'Edit note');
+                                editButton.appendChild(node('i', 'far fa-pen-to-square'));
+
+                                actions.append(viewButton, editButton);
+                                layout.append(body, actions);
+                                article.appendChild(layout);
+                                return article;
+                            }));
                         };
 
                         const showModal = (modal) => {
@@ -1492,17 +1677,12 @@
                             const viewAttachmentList = document.getElementById('viewConsultationAttachments');
                             const attachments = note.attachments || [];
                             if (!attachments.length) {
-                                viewAttachmentList.innerHTML = '<p class="text-xs text-gray-500">No attachments</p>';
+                                viewAttachmentList.replaceChildren(node('p', 'text-xs text-gray-500', 'No attachments'));
                             } else {
-                                viewAttachmentList.innerHTML = attachments.map((file) => `
-                                    <div class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-                                        <div class="min-w-0">
-                                            <p class="truncate font-medium text-gray-800">${escapeHtml(file.name)}</p>
-                                            <p class="text-xs text-gray-500">${escapeHtml(file.type || 'FILE')} | ${escapeHtml(formatBytes(file.size))}</p>
-                                        </div>
-                                        <a href="${escapeHtml(file.url || '#')}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:text-blue-700">View</a>
-                                    </div>
-                                `).join('');
+                                viewAttachmentList.replaceChildren(...attachments.map((file) => attachmentRow(file, {
+                                    className: 'flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2',
+                                    viewLink: true,
+                                })));
                             }
 
                             showModal(viewModal);
@@ -1859,12 +2039,22 @@
                         const buildPicklistOptionRow = (value = '') => {
                             const row = document.createElement('div');
                             row.className = 'flex items-center gap-2';
-                            row.innerHTML = `
-                                <input name="options[]" value="${value}" placeholder="Option value" class="h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                <button type="button" class="remove-picklist-option h-8 w-8 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50">
-                                    <i class="fas fa-minus text-xs"></i>
-                                </button>
-                            `;
+
+                            const input = document.createElement('input');
+                            input.name = 'options[]';
+                            input.value = value;
+                            input.placeholder = 'Option value';
+                            input.className = 'h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.className = 'remove-picklist-option h-8 w-8 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50';
+
+                            const icon = document.createElement('i');
+                            icon.className = 'fas fa-minus text-xs';
+                            button.appendChild(icon);
+
+                            row.append(input, button);
 
                             return row;
                         };
@@ -2285,6 +2475,8 @@
     </form>
 </x-slide-over>
 
+<span id="contactIntakeOldEditFlag" data-active="{{ old('_from_contact_intake_edit') ? '1' : '0' }}" hidden></span>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const contactIntakeModal = document.getElementById('contactIntakeModal');
@@ -2353,11 +2545,11 @@
         contactIntakeEditBtn?.addEventListener('click', () => setContactIntakeEditMode(true));
         contactIntakeCancelBtn?.addEventListener('click', () => resetContactIntakeForm());
 
-        @if (old('_from_contact_intake_edit'))
+        if (document.getElementById('contactIntakeOldEditFlag')?.dataset.active === '1') {
             setContactIntakeEditMode(true);
             syncContactIntakeConditionalFields();
             window.jkncSlideOver.open(contactIntakeModal);
-        @endif
+        }
 
         const bindSlideOver = (modalId, openSelector, closeSelector) => {
             const modal = document.getElementById(modalId);
