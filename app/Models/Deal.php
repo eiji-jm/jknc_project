@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
@@ -144,7 +145,25 @@ class Deal extends Model
 
     public function project(): HasOne
     {
-        return $this->hasOne(Project::class);
+        return $this->hasOne(Project::class)
+            ->where(function (Builder $workspaceQuery): void {
+                $workspaceQuery
+                    ->whereNull('engagement_type')
+                    ->orWhereRaw('LOWER(engagement_type) NOT LIKE ?', ['%regular%']);
+            })
+            ->latestOfMany();
+    }
+
+    public function regularProject(): HasOne
+    {
+        return $this->hasOne(Project::class)
+            ->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%'])
+            ->latestOfMany();
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
     }
 
     public function proposal(): HasOne

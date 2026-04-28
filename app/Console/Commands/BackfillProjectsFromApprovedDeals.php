@@ -26,7 +26,13 @@ class BackfillProjectsFromApprovedDeals extends Command
                 $query->where('engagement_type', 'like', '%Project%')
                     ->orWhere('engagement_type', 'like', '%Hybrid%');
             })
-            ->whereDoesntHave('project')
+            ->whereDoesntHave('projects', function ($query): void {
+                $query->where(function ($workspaceQuery): void {
+                    $workspaceQuery
+                        ->whereNull('engagement_type')
+                        ->orWhereRaw('LOWER(engagement_type) NOT LIKE ?', ['%regular%']);
+                });
+            })
             ->get();
 
         if ($candidateDeals->isEmpty()) {

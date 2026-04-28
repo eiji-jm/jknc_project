@@ -265,7 +265,7 @@ class RegularController extends Controller
         }
 
         Deal::query()
-            ->whereDoesntHave('project')
+            ->whereDoesntHave('projects', fn ($query) => $query->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%']))
             ->get()
             ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
             ->each(fn (Deal $deal) => $this->projectProvisioner->createOrSyncFromDeal($deal));
