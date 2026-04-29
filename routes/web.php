@@ -317,7 +317,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
+    Route::post('/project/{project}/sow/templates', [ProjectController::class, 'storeSowTemplate'])->name('project.sow.templates.store');
     Route::get('/project/{project}/sow/download', [ProjectController::class, 'downloadSowPdf'])->name('project.sow.download');
+    Route::get('/project/{project}/coc/preview', [ProjectController::class, 'showCocPreview'])->name('project.coc.preview');
+    Route::get('/project/{project}/coc/download', [ProjectController::class, 'downloadCocPdf'])->name('project.coc.download');
     Route::get('/project/{project}/ntp/download', [ProjectController::class, 'downloadNtpPdf'])->name('project.ntp.download');
     Route::get('/project/{project}/ntp/status', [ProjectController::class, 'ntpStatus'])->name('project.ntp.status');
     Route::get('/project/{project}/ntp/submission', [ProjectController::class, 'showNtpSubmission'])->name('project.ntp.submission');
@@ -331,6 +334,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/regular/manual', [RegularController::class, 'storeManual'])->name('regular.manual.store');
     Route::get('/regular/{regular}', [RegularController::class, 'show'])->name('regular.show');
     Route::post('/regular/{regular}/rsat', [RegularController::class, 'updateRsat'])->name('regular.rsat.update');
+    Route::post('/regular/{regular}/rsat/templates', [RegularController::class, 'storeRsatTemplate'])->name('regular.rsat.templates.store');
     Route::post('/regular/{regular}/report/generate', [RegularController::class, 'generateReport'])->name('regular.report.generate');
     Route::get('/regular/{regular}/report/{report}', [RegularController::class, 'showGeneratedReport'])->name('regular.report.preview');
     Route::post('/regular/{regular}/report/{report}/send', [RegularController::class, 'sendGeneratedReport'])->name('regular.report.send');
@@ -771,6 +775,8 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/transmittal', [TransmittalController::class, 'index'])->name('transmittal.index');
+    Route::get('/transmittal/create/project/{project}', [TransmittalController::class, 'createFromProject'])->name('transmittal.create.project');
+    Route::get('/transmittal/create/regular/{regular}', [TransmittalController::class, 'createFromRegular'])->name('transmittal.create.regular');
     Route::get('/transmittal/data', [TransmittalController::class, 'data'])->name('transmittal.data');
     Route::post('/transmittal', [TransmittalController::class, 'store'])->name('transmittal.store');
     Route::post('/transmittal/{id}/submit', [TransmittalController::class, 'submit'])->name('transmittal.submit');

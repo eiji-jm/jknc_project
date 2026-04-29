@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Deal;
 use App\Models\DealProposal;
 use App\Models\Company;
+use App\Models\Product;
+use App\Models\Service;
 use App\Services\DealProposalTemplateService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -323,7 +325,7 @@ class DealProposalController extends Controller
             'deal' => $deal,
             'proposal' => $proposal,
             'documentData' => $documentData,
-            'proposalDocumentHtml' => $this->renderProposalDocument($documentData),
+            'proposalDocumentHtml' => $this->resolveProposalDocumentHtml($documentData, $proposal->document_html, false),
             'generatedPdfUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath]) : null,
             'generatedPdfDownloadUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath, 'download' => 1]) : null,
             'requirementGroup' => $requirementGroup,
@@ -364,7 +366,7 @@ class DealProposalController extends Controller
         $pdfPath = $this->generateProposalPdf($documentData, $baseName);
 
         return response()->json([
-            'html' => $this->renderProposalDocument($documentData),
+            'html' => $this->resolveProposalDocumentHtml($documentData, $validated['document_html'] ?? null, false),
             'pdf_url' => $pdfPath ? route('uploads.show', ['path' => $pdfPath]) : null,
             'pdf_download_url' => $pdfPath ? route('uploads.show', ['path' => $pdfPath, 'download' => 1]) : null,
         ]);
@@ -379,10 +381,9 @@ class DealProposalController extends Controller
             $deal->last_name ?: $contact?->last_name,
         ])->filter()->implode(' '));
 
-        $serviceType = $deal->services ?: 'BIR Compliance Services';
-        $total = (float) ($deal->total_estimated_engagement_value ?? 0);
-        $down = round($total * 0.5, 2);
+        $serviceType = $deal->service_area ?: $deal->services ?: 'BIR Compliance Services';
         $requirementGroup = $this->selectedRequirementGroup($deal);
+        $defaultFees = $this->defaultProposalData($deal);
 
         return [
             'deal_id' => $deal->id,
@@ -401,13 +402,7 @@ class DealProposalController extends Controller
                 ? "Client Contact Form\nBusiness Information Form\nSEC / CDA Certificate of Registration\nBIR Certificate of Registration\nLatest GIS / Officers Information"
                 : '',
             'requirements_optional' => "Special Power of Attorney\nBoard Resolution / Secretary's Certificate\nAdditional supporting compliance records as may be required",
-            'price_regular' => $total,
-            'price_discount' => 0,
-            'price_subtotal' => $total,
-            'price_tax' => 0,
-            'price_total' => $total,
-            'price_down' => $down,
-            'price_balance' => max($total - $down, 0),
+            ...$defaultFees,
             'prepared_by_name' => $deal->assigned_consultant ?: (string) auth()->user()?->name,
             'prepared_by_id' => (string) auth()->id(),
         ];
@@ -435,12 +430,53 @@ class DealProposalController extends Controller
             $deal->last_name ?: $contact?->last_name,
         ])->filter()->implode(' '));
 
-        $serviceType = $proposal->service_type ?: ($deal->services ?: 'BIR Compliance Services');
+        $serviceType = $deal->service_area ?: ($proposal->service_type ?: ($deal->services ?: 'BIR Compliance Services'));
         $scope = $proposal->scope_of_service ?: '';
         $deliverables = $proposal->what_you_will_receive ?: '';
         $proposalText = $proposal->our_proposal_text ?: '';
         $location = $proposal->location ?: ($deal->company_address ?: $deal->address ?: 'Philippines');
         $requirementGroup = $this->selectedRequirementGroup($deal);
+        $serviceItems = $this->buildProposalLineItems(
+            $this->normalizeListValue($deal->services),
+            $scope ?: (string) $deal->scope_of_work,
+            $deliverables,
+            (string) ($deal->estimated_duration ?: 'As needed'),
+            optional($deal->estimated_completion_date)->format('F d, Y') ?: 'TBD'
+        );
+        $productItems = $this->buildProposalLineItems(
+            $this->normalizeListValue($deal->products),
+            $scope ?: 'Deliverables aligned with the approved engagement scope.',
+            $deliverables,
+            'Per engagement',
+            optional($deal->estimated_completion_date)->format('F d, Y') ?: 'TBD'
+        );
+        $requirementRows = $this->buildRequirementRows(
+            $requirementGroup === 'sole' ? ($proposal->requirements_sole ?: '') : '',
+            $requirementGroup === 'juridical' ? ($proposal->requirements_juridical ?: '') : '',
+            $proposal->requirements_optional ?: ''
+        );
+        $serviceTotal = $this->resolveAmount($proposal->price_regular, $deal->total_service_fee);
+        $productTotal = $this->resolveAmount(null, $deal->total_product_fee);
+        $discount = $this->resolveAmount($proposal->price_discount, null);
+        $tax = $this->resolveAmount($proposal->price_tax, null);
+        $serviceFeeRows = $this->buildFeeRows(
+            $this->normalizeListValue($deal->services),
+            $serviceTotal,
+            $this->serviceIdMap($deal->services),
+            'Custom / No master ID'
+        );
+        $productFeeRows = $this->buildFeeRows(
+            $this->normalizeListValue($deal->products),
+            $productTotal,
+            $this->productIdMap($deal->products),
+            'Custom / No master ID'
+        );
+        $computedSubtotal = max(($serviceTotal + $productTotal) - $discount, 0);
+        $computedTotal = $computedSubtotal + $tax;
+        $subtotal = $this->resolveAmount($proposal->price_subtotal, $computedSubtotal);
+        $total = $this->resolveAmount($proposal->price_total, $computedTotal);
+        $down = $this->resolveAmount($proposal->price_down, round($total * 0.5, 2));
+        $balance = $this->resolveAmount($proposal->price_balance, max($total - $down, 0));
 
         return [
             'year' => optional($proposal->proposal_date)->format('Y') ?: now()->format('Y'),
@@ -457,15 +493,22 @@ class DealProposalController extends Controller
             'requirements_sole' => $requirementGroup === 'sole' ? ($proposal->requirements_sole ?: '') : '',
             'requirements_juridical' => $requirementGroup === 'juridical' ? ($proposal->requirements_juridical ?: '') : '',
             'requirements_optional' => $proposal->requirements_optional ?: '',
-            'price_regular' => (float) ($proposal->price_regular ?? 0),
-            'price_discount' => (float) ($proposal->price_discount ?? 0),
-            'price_subtotal' => (float) ($proposal->price_subtotal ?? 0),
-            'price_tax' => (float) ($proposal->price_tax ?? 0),
-            'price_total' => (float) ($proposal->price_total ?? 0),
-            'price_down' => (float) ($proposal->price_down ?? 0),
-            'price_balance' => (float) ($proposal->price_balance ?? 0),
+            'service_items' => $serviceItems,
+            'product_items' => $productItems,
+            'requirement_rows' => $requirementRows,
+            'service_fee_rows' => $serviceFeeRows,
+            'product_fee_rows' => $productFeeRows,
+            'price_regular' => $serviceTotal,
+            'price_products' => $productTotal,
+            'price_discount' => $discount,
+            'price_subtotal' => $subtotal,
+            'price_tax' => $tax,
+            'price_total' => $total,
+            'price_down' => $down,
+            'price_balance' => $balance,
             'prepared_by_name' => $proposal->prepared_by_name ?: (string) auth()->user()?->name,
             'prepared_by_id' => $proposal->prepared_by_id ?: (string) auth()->id(),
+            'document_html' => $proposal->document_html,
             'company_phone' => self::COMPANY_PHONE,
             'company_email' => self::COMPANY_EMAIL,
             'company_website' => self::COMPANY_WEBSITE,
@@ -488,6 +531,149 @@ class DealProposalController extends Controller
             'requirements_note' => 'Additional requirements not listed above may be requested depending on the specific circumstances of the business and the requirements of the relevant government agency. Any such requirements will be communicated if and when identified. These requirements are determined by the applicable authority and are outside our control.',
             'system_note' => "This proposal is system-generated through the John Kelly & Company BIR Compliance Services Management System and was generated electronically under Reference ID: ".($proposal->crud_id ?: 'DEAL-'.$deal->id)." in the ordinary course of business; no handwritten or electronic signature is required for its validity, and this document shall be considered legally valid, binding for reference and evaluation purposes, and admissible as an official business record pursuant to applicable Philippine laws on electronic documents and electronic transactions, with any subsequent approval, payment, or engagement arising from this proposal to be governed by the final service agreement, official receipt, or written confirmation issued by John Kelly & Company.",
         ];
+    }
+
+    private function normalizeListValue(null|string|array $value): array
+    {
+        if (is_array($value)) {
+            return collect($value)
+                ->map(fn ($item) => trim((string) $item))
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(',', $value))
+            ->map(fn (string $item): string => trim($item))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function buildProposalLineItems(array $items, string $description, string $activityOutput, string $frequency, string $deadline): array
+    {
+        $cleanDescription = trim($description) !== '' ? trim($description) : 'To be finalized based on the approved engagement scope.';
+        $cleanActivityOutput = trim($activityOutput) !== '' ? trim($activityOutput) : 'Coordination, compliance support, and engagement deliverables.';
+        $cleanFrequency = trim($frequency) !== '' ? trim($frequency) : 'As needed';
+        $cleanDeadline = trim($deadline) !== '' ? trim($deadline) : 'TBD';
+
+        return collect($items)
+            ->values()
+            ->map(function (string $item, int $index) use ($cleanDescription, $cleanActivityOutput, $cleanFrequency, $cleanDeadline): array {
+                return [
+                    'item_no' => $index + 1,
+                    'name' => $item,
+                    'description' => $cleanDescription,
+                    'activity_output' => $cleanActivityOutput,
+                    'frequency' => $cleanFrequency,
+                    'deadline' => $cleanDeadline,
+                ];
+            })
+            ->all();
+    }
+
+    private function buildRequirementRows(string $sole, string $juridical, string $optional): array
+    {
+        $hasContent = filled($sole) || filled($juridical) || filled($optional);
+
+        if (! $hasContent) {
+            return [];
+        }
+
+        return [[
+            'item_no' => 1,
+            'name' => 'Client documentary requirements',
+            'sole' => $sole,
+            'juridical' => $juridical,
+            'optional' => $optional,
+        ]];
+    }
+
+    private function buildFeeRows(array $items, float $total, array $idMap, string $fallbackId): array
+    {
+        $cleanItems = collect($items)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values();
+
+        if ($cleanItems->isEmpty()) {
+            return [];
+        }
+
+        $count = $cleanItems->count();
+        $base = $count > 0 ? round($total / $count, 2) : 0.0;
+        $allocated = 0.0;
+
+        return $cleanItems->map(function (string $item, int $index) use ($count, $base, $total, &$allocated, $idMap, $fallbackId): array {
+            $amount = $index === $count - 1
+                ? round($total - $allocated, 2)
+                : $base;
+
+            $allocated += $amount;
+
+            return [
+                'item_no' => $index + 1,
+                'name' => $item,
+                'service_id' => $idMap[$this->normalizeLookupKey($item)] ?? $fallbackId,
+                'price' => max($amount, 0),
+            ];
+        })->all();
+    }
+
+    private function resolveAmount(mixed $preferred, mixed $fallback): float
+    {
+        if ($preferred !== null && $preferred !== '') {
+            return round((float) $preferred, 2);
+        }
+
+        if ($fallback !== null && $fallback !== '') {
+            return round((float) $fallback, 2);
+        }
+
+        return 0.0;
+    }
+
+    private function serviceIdMap(null|string|array $value): array
+    {
+        $names = $this->normalizeListValue($value);
+
+        if ($names === []) {
+            return [];
+        }
+
+        return Service::query()
+            ->whereIn('service_name', $names)
+            ->get(['service_name', 'service_id'])
+            ->mapWithKeys(fn (Service $service): array => [
+                $this->normalizeLookupKey((string) $service->service_name) => (string) $service->service_id,
+            ])
+            ->all();
+    }
+
+    private function productIdMap(null|string|array $value): array
+    {
+        $names = $this->normalizeListValue($value);
+
+        if ($names === []) {
+            return [];
+        }
+
+        return Product::query()
+            ->whereIn('product_name', $names)
+            ->get(['product_name', 'product_id'])
+            ->mapWithKeys(fn (Product $product): array => [
+                $this->normalizeLookupKey((string) $product->product_name) => (string) $product->product_id,
+            ])
+            ->all();
+    }
+
+    private function normalizeLookupKey(string $value): string
+    {
+        return Str::lower(trim($value));
     }
 
     private function validatedPayload(Request $request): array
@@ -513,7 +699,29 @@ class DealProposalController extends Controller
             'price_balance' => ['nullable', 'numeric'],
             'prepared_by_name' => ['nullable', 'string', 'max:255'],
             'prepared_by_id' => ['nullable', 'string', 'max:255'],
+            'document_html' => ['nullable', 'string'],
         ]);
+    }
+
+    private function defaultProposalData(Deal $deal): array
+    {
+        $serviceTotal = round((float) ($deal->total_service_fee ?? 0), 2);
+        $productTotal = round((float) ($deal->total_product_fee ?? 0), 2);
+        $discount = 0.0;
+        $tax = 0.0;
+        $subtotal = max(($serviceTotal + $productTotal) - $discount, 0);
+        $total = $subtotal + $tax;
+        $down = round($total * 0.5, 2);
+
+        return [
+            'price_regular' => $serviceTotal,
+            'price_discount' => $discount,
+            'price_subtotal' => $subtotal,
+            'price_tax' => $tax,
+            'price_total' => $total,
+            'price_down' => $down,
+            'price_balance' => max($total - $down, 0),
+        ];
     }
 
     private function selectedRequirementGroup(Deal $deal): string
@@ -575,7 +783,40 @@ class DealProposalController extends Controller
     {
         return ViewFacade::make('deals.proposal.partials.document', [
             'documentData' => $documentData,
+            'editable' => false,
         ])->render();
+    }
+
+    private function renderEditableProposalDocument(array $documentData): string
+    {
+        return ViewFacade::make('deals.proposal.partials.document', [
+            'documentData' => $documentData,
+            'editable' => true,
+        ])->render();
+    }
+
+    private function resolveProposalDocumentHtml(array $documentData, ?string $documentHtml, bool $editable): string
+    {
+        $html = filled($documentHtml)
+            ? $this->sanitizeProposalHtml($documentHtml, $editable)
+            : ($editable ? $this->renderEditableProposalDocument($documentData) : $this->renderProposalDocument($documentData));
+
+        return $html;
+    }
+
+    private function sanitizeProposalHtml(?string $html, bool $editable = false): string
+    {
+        $clean = (string) $html;
+        $clean = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $clean) ?? $clean;
+        $clean = preg_replace('/\son\w+="[^"]*"/i', '', $clean) ?? $clean;
+        $clean = preg_replace("/\son\w+='[^']*'/i", '', $clean) ?? $clean;
+
+        if (! $editable) {
+            $clean = preg_replace('/\scontenteditable="[^"]*"/i', '', $clean) ?? $clean;
+            $clean = preg_replace('/\sdata-[a-z0-9_-]+="[^"]*"/i', '', $clean) ?? $clean;
+        }
+
+        return $clean;
     }
 
     private function generateProposalPdf(array $documentData, string $docxFileName): ?string
@@ -585,6 +826,7 @@ class DealProposalController extends Controller
         try {
             $pdf = Pdf::loadView('deals.proposal.pdf', [
                 'documentData' => $documentData,
+                'proposalHtml' => $this->resolveProposalDocumentHtml($documentData, $documentData['document_html'] ?? null, false),
             ])->setPaper('a4', 'portrait');
 
             Storage::disk('public')->put($relativePdfPath, $pdf->output());

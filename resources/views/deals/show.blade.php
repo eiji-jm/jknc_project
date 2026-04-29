@@ -30,6 +30,44 @@
     $startSectionAvailable = isset($project) && $project && ! str_contains(strtolower(trim((string) $project->engagement_type)), 'regular');
 @endphp
 
+<style>
+    .deal-quick-actions {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    }
+    .deal-quick-title {
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    .deal-quick-grid {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+    }
+    .deal-quick-group {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px;
+        background: #fff;
+    }
+    .deal-quick-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+    }
+    .deal-quick-stack {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+    }
+</style>
+
 <div class="bg-[#f7f6f2] p-6">
     <div class="mx-auto max-w-[1500px] space-y-4">
         @if (session('success'))
@@ -50,47 +88,14 @@
             <span class="font-medium text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</span>
         </div>
 
-        <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
-            <div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
-                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $detail['deal_status'] ?? 'Pending' }}</span>
-                </div>
-                <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <span id="dealStageBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $stageBadgeClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $deal['stage'] }}</span>
-                    <span class="text-lg font-semibold text-gray-900">{{ $formatCurrency($deal['amount'] ?? 0) }}</span>
-                </div>
+        <div class="rounded-xl border border-gray-200 bg-white px-5 py-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
+                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $detail['deal_status'] ?? 'Pending' }}</span>
             </div>
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                @if ($startSectionAvailable)
-                    <a href="#deal-start-form" class="flex h-9 items-center rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
-                        <i class="fas fa-clipboard-check mr-1"></i>START Form
-                    </a>
-                @endif
-                @if (($deal['stage'] ?? '') === 'Proposal')
-                    <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-700 hover:bg-amber-100">
-                        <i class="fas fa-file-signature mr-1"></i>Create Proposal
-                    </a>
-                @endif
-                <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100">
-                    <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
-                </button>
-                <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <i class="far fa-pen-to-square mr-1"></i>Edit Deal
-                </button>
-                @if (data_get($detail, 'project.id'))
-                    <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
-                        <i class="fas fa-diagram-project mr-1"></i>Open Project Workspace
-                    </a>
-                @endif
-                @if (data_get($detail, 'regular_project.id'))
-                    <a href="{{ route('regular.show', data_get($detail, 'regular_project.id')) }}" class="flex h-9 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100">
-                        <i class="fas fa-clipboard-list mr-1"></i>Open Regular
-                    </a>
-                @endif
-                <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <i class="fas fa-file-pdf mr-1"></i>Download PDF
-                </a>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+                <span id="dealStageBadge" class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $stageBadgeClasses[$deal['stage']] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $deal['stage'] }}</span>
+                <span class="text-lg font-semibold text-gray-900">{{ $formatCurrency($deal['amount'] ?? 0) }}</span>
             </div>
         </div>
 
@@ -301,8 +306,59 @@
                 </article>
             </div>
 
-            <aside class="space-y-4">
-                <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <aside>
+                <div class="space-y-4 xl:sticky xl:top-6">
+                    <section class="deal-quick-actions rounded-2xl px-4 py-4">
+                        <p class="deal-quick-title">Quick Actions</p>
+                        <div class="deal-quick-grid">
+                            <div class="deal-quick-group">
+                                <p class="deal-quick-label">Deal Actions</p>
+                                <div class="deal-quick-stack">
+                                    @if ($startSectionAvailable)
+                                        <a href="#deal-start-form" class="flex h-9 items-center rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
+                                            <i class="fas fa-clipboard-check mr-1"></i>START Form
+                                        </a>
+                                    @endif
+                                    @if (($deal['stage'] ?? '') === 'Proposal')
+                                        <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-700 hover:bg-amber-100">
+                                            <i class="fas fa-file-signature mr-1"></i>Create Proposal
+                                        </a>
+                                    @endif
+                                    <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100 text-left">
+                                        <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
+                                    </button>
+                                    <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 text-left">
+                                        <i class="far fa-pen-to-square mr-1"></i>Edit Deal
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="deal-quick-group">
+                                <p class="deal-quick-label">Workspaces</p>
+                                <div class="deal-quick-stack">
+                                    @if (data_get($detail, 'project.id'))
+                                        <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                                            <i class="fas fa-diagram-project mr-1"></i>Open Project Workspace
+                                        </a>
+                                    @endif
+                                    @if (data_get($detail, 'regular_project.id'))
+                                        <a href="{{ route('regular.show', data_get($detail, 'regular_project.id')) }}" class="flex h-9 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100">
+                                            <i class="fas fa-clipboard-list mr-1"></i>Open Regular
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="deal-quick-group">
+                                <p class="deal-quick-label">Exports</p>
+                                <div class="deal-quick-stack">
+                                    <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                        <i class="fas fa-file-pdf mr-1"></i>Download PDF
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h3 class="mb-3 text-base font-semibold text-gray-900">Related Contact</h3>
                     <div class="flex items-start gap-3">
                         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">{{ $initials }}</span>
@@ -320,14 +376,13 @@
                             </a>
                         </div>
                     @endif
-                </article>
+                    </article>
 
-                <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <h3 class="mb-2 text-base font-semibold text-gray-900">Tags</h3>
-                    <button type="button" class="text-sm font-medium text-blue-600 hover:text-blue-700"><i class="fas fa-plus mr-1"></i>Add Tag</button>
-                </article>
-
-
+                    <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <h3 class="mb-2 text-base font-semibold text-gray-900">Tags</h3>
+                        <button type="button" class="text-sm font-medium text-blue-600 hover:text-blue-700"><i class="fas fa-plus mr-1"></i>Add Tag</button>
+                    </article>
+                </div>
             </aside>
         </div>
     </div>
