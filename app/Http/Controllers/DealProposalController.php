@@ -325,7 +325,7 @@ class DealProposalController extends Controller
             'deal' => $deal,
             'proposal' => $proposal,
             'documentData' => $documentData,
-            'proposalDocumentHtml' => $this->renderProposalDocument($documentData),
+            'proposalDocumentHtml' => $this->resolveProposalDocumentHtml($documentData, $proposal->document_html, false),
             'generatedPdfUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath]) : null,
             'generatedPdfDownloadUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath, 'download' => 1]) : null,
             'requirementGroup' => $requirementGroup,
@@ -366,7 +366,7 @@ class DealProposalController extends Controller
         $pdfPath = $this->generateProposalPdf($documentData, $baseName);
 
         return response()->json([
-            'html' => $this->renderProposalDocument($documentData),
+            'html' => $this->resolveProposalDocumentHtml($documentData, $validated['document_html'] ?? null, false),
             'pdf_url' => $pdfPath ? route('uploads.show', ['path' => $pdfPath]) : null,
             'pdf_download_url' => $pdfPath ? route('uploads.show', ['path' => $pdfPath, 'download' => 1]) : null,
         ]);
@@ -381,7 +381,7 @@ class DealProposalController extends Controller
             $deal->last_name ?: $contact?->last_name,
         ])->filter()->implode(' '));
 
-        $serviceType = $deal->services ?: 'BIR Compliance Services';
+        $serviceType = $deal->service_area ?: $deal->services ?: 'BIR Compliance Services';
         $requirementGroup = $this->selectedRequirementGroup($deal);
         $defaultFees = $this->defaultProposalData($deal);
 
@@ -430,7 +430,7 @@ class DealProposalController extends Controller
             $deal->last_name ?: $contact?->last_name,
         ])->filter()->implode(' '));
 
-        $serviceType = $proposal->service_type ?: ($deal->services ?: 'BIR Compliance Services');
+        $serviceType = $deal->service_area ?: ($proposal->service_type ?: ($deal->services ?: 'BIR Compliance Services'));
         $scope = $proposal->scope_of_service ?: '';
         $deliverables = $proposal->what_you_will_receive ?: '';
         $proposalText = $proposal->our_proposal_text ?: '';
@@ -508,6 +508,7 @@ class DealProposalController extends Controller
             'price_balance' => $balance,
             'prepared_by_name' => $proposal->prepared_by_name ?: (string) auth()->user()?->name,
             'prepared_by_id' => $proposal->prepared_by_id ?: (string) auth()->id(),
+            'document_html' => $proposal->document_html,
             'company_phone' => self::COMPANY_PHONE,
             'company_email' => self::COMPANY_EMAIL,
             'company_website' => self::COMPANY_WEBSITE,
@@ -698,6 +699,7 @@ class DealProposalController extends Controller
             'price_balance' => ['nullable', 'numeric'],
             'prepared_by_name' => ['nullable', 'string', 'max:255'],
             'prepared_by_id' => ['nullable', 'string', 'max:255'],
+            'document_html' => ['nullable', 'string'],
         ]);
     }
 
@@ -781,7 +783,40 @@ class DealProposalController extends Controller
     {
         return ViewFacade::make('deals.proposal.partials.document', [
             'documentData' => $documentData,
+            'editable' => false,
         ])->render();
+    }
+
+    private function renderEditableProposalDocument(array $documentData): string
+    {
+        return ViewFacade::make('deals.proposal.partials.document', [
+            'documentData' => $documentData,
+            'editable' => true,
+        ])->render();
+    }
+
+    private function resolveProposalDocumentHtml(array $documentData, ?string $documentHtml, bool $editable): string
+    {
+        $html = filled($documentHtml)
+            ? $this->sanitizeProposalHtml($documentHtml, $editable)
+            : ($editable ? $this->renderEditableProposalDocument($documentData) : $this->renderProposalDocument($documentData));
+
+        return $html;
+    }
+
+    private function sanitizeProposalHtml(?string $html, bool $editable = false): string
+    {
+        $clean = (string) $html;
+        $clean = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $clean) ?? $clean;
+        $clean = preg_replace('/\son\w+="[^"]*"/i', '', $clean) ?? $clean;
+        $clean = preg_replace("/\son\w+='[^']*'/i", '', $clean) ?? $clean;
+
+        if (! $editable) {
+            $clean = preg_replace('/\scontenteditable="[^"]*"/i', '', $clean) ?? $clean;
+            $clean = preg_replace('/\sdata-[a-z0-9_-]+="[^"]*"/i', '', $clean) ?? $clean;
+        }
+
+        return $clean;
     }
 
     private function generateProposalPdf(array $documentData, string $docxFileName): ?string
@@ -791,6 +826,7 @@ class DealProposalController extends Controller
         try {
             $pdf = Pdf::loadView('deals.proposal.pdf', [
                 'documentData' => $documentData,
+                'proposalHtml' => $this->resolveProposalDocumentHtml($documentData, $documentData['document_html'] ?? null, false),
             ])->setPaper('a4', 'portrait');
 
             Storage::disk('public')->put($relativePdfPath, $pdf->output());

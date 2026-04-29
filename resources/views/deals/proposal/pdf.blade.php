@@ -34,6 +34,7 @@
         .proposal-contact-inline span { display: inline-block; margin: 0 14px; }
         .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
         .proposal-page-footer { position: absolute; left: 22px; right: 22px; bottom: 0; font-size: 10px; line-height: 1.2; color: #111827; }
+        .proposal-page-number { position: absolute; top: 0; right: 22px; font-size: 11px; font-weight: 700; color: #111827; }
         .proposal-page-footer div { margin: 0; }
         .proposal-section-heading { margin: 10px 0 18px; font-size: 18px; line-height: 1.22; color: #0031af; font-style: italic; font-weight: 700; letter-spacing: 0.01em; }
         .proposal-section-number { display: inline-block; min-width: 34px; margin-right: 8px; }
@@ -94,6 +95,10 @@
     </style>
 </head>
 <body>
-    @include('deals.proposal.partials.document', ['documentData' => $documentData])
+    @if (!empty($proposalHtml ?? null))
+        {!! $proposalHtml !!}
+    @else
+        @include('deals.proposal.partials.document', ['documentData' => $documentData])
+    @endif
 </body>
 </html>

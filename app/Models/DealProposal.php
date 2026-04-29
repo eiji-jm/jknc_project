@@ -30,6 +30,7 @@ class DealProposal extends Model
         'price_balance',
         'prepared_by_name',
         'prepared_by_id',
+        'document_html',
     ];
 
     protected $casts = [
