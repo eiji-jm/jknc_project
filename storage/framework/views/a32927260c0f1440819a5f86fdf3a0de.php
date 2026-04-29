@@ -328,7 +328,7 @@
     }
 </style>
 
-<form method="POST" action="<?php echo e(route('project.sow.update', $project)); ?>" enctype="multipart/form-data">
+<form id="project-sow-form" method="POST" action="<?php echo e(route('project.sow.update', $project)); ?>" enctype="multipart/form-data">
     <?php echo csrf_field(); ?>
 
     <section class="project-sow-sheet">
@@ -552,11 +552,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="project-sow-actions" style="margin-top: 22px;">
-                <button type="submit" class="project-doc-primary">Save Scope of Work</button>
-                <button type="submit" formaction="<?php echo e(route('project.sow.generate', $project)); ?>" class="project-doc-action">Generate SOW Report</button>
             </div>
         </div>
     </section>

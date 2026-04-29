@@ -101,6 +101,19 @@ Route::post('/specimen/respond/{token}', [ContactsController::class, 'submitClie
 Route::get('/specimen/respond/{token}/preview', [ContactsController::class, 'previewClientSpecimenForm'])->name('contacts.specimen.client.preview');
 Route::get('/specimen/respond/{token}/download', [ContactsController::class, 'downloadClientSpecimenForm'])->name('contacts.specimen.client.download');
 
+Route::get('/project/report/respond/{token}', [ProjectController::class, 'clientSowReport'])->name('project.report.client.show');
+Route::post('/project/report/respond/{token}', [ProjectController::class, 'submitClientSowReport'])->name('project.report.client.submit');
+Route::get('/project/report/respond/{token}/download', [ProjectController::class, 'downloadClientSowReport'])->name('project.report.client.download');
+Route::get('/project/ntp/respond/{token}', [ProjectController::class, 'clientNtp'])->name('project.ntp.client.show');
+Route::post('/project/ntp/respond/{token}', [ProjectController::class, 'submitClientNtp'])->name('project.ntp.client.submit');
+Route::get('/project/ntp/respond/{token}/download', [ProjectController::class, 'downloadClientNtp'])->name('project.ntp.client.download');
+Route::get('/regular/report/respond/{token}', [RegularController::class, 'clientRsatReport'])->name('regular.report.client.show');
+Route::post('/regular/report/respond/{token}', [RegularController::class, 'submitClientRsatReport'])->name('regular.report.client.submit');
+Route::get('/regular/report/respond/{token}/download', [RegularController::class, 'downloadClientRsatReport'])->name('regular.report.client.download');
+Route::get('/regular/ntp/respond/{token}', [RegularController::class, 'clientNtp'])->name('regular.ntp.client.show');
+Route::post('/regular/ntp/respond/{token}', [RegularController::class, 'submitClientNtp'])->name('regular.ntp.client.submit');
+Route::get('/regular/ntp/respond/{token}/download', [RegularController::class, 'downloadClientNtp'])->name('regular.ntp.client.download');
+
 /*
 |--------------------------------------------------------------------------
 | ACTIVITIES PAGE + API
@@ -285,8 +298,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
+    Route::get('/project/{project}/sow/download', [ProjectController::class, 'downloadSowPdf'])->name('project.sow.download');
+    Route::get('/project/{project}/ntp/download', [ProjectController::class, 'downloadNtpPdf'])->name('project.ntp.download');
+    Route::get('/project/{project}/ntp/status', [ProjectController::class, 'ntpStatus'])->name('project.ntp.status');
+    Route::get('/project/{project}/ntp/submission', [ProjectController::class, 'showNtpSubmission'])->name('project.ntp.submission');
     Route::post('/project/{project}/sow/generate-report', [ProjectController::class, 'generateSowReport'])->name('project.sow.generate');
     Route::get('/project/{project}/report/{report}', [ProjectController::class, 'showGeneratedReport'])->name('project.report.preview');
+    Route::post('/project/{project}/report/{report}/send', [ProjectController::class, 'sendGeneratedReport'])->name('project.report.send');
+    Route::delete('/project/{project}/report/bulk-delete', [ProjectController::class, 'bulkDestroyGeneratedReports'])->name('project.report.bulk-delete');
     Route::post('/project/{project}/report', [ProjectController::class, 'updateReport'])->name('project.report.update');
 
     Route::get('/regular', [RegularController::class, 'index'])->name('regular.index');
@@ -295,8 +314,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/regular/{regular}/rsat', [RegularController::class, 'updateRsat'])->name('regular.rsat.update');
     Route::post('/regular/{regular}/report/generate', [RegularController::class, 'generateReport'])->name('regular.report.generate');
     Route::get('/regular/{regular}/report/{report}', [RegularController::class, 'showGeneratedReport'])->name('regular.report.preview');
+    Route::post('/regular/{regular}/report/{report}/send', [RegularController::class, 'sendGeneratedReport'])->name('regular.report.send');
+    Route::delete('/regular/{regular}/report/bulk-delete', [RegularController::class, 'bulkDestroyGeneratedReports'])->name('regular.report.bulk-delete');
     Route::post('/regular/{regular}/report', [RegularController::class, 'updateReport'])->name('regular.report.update');
     Route::get('/regular/{regular}/rsat/download', [RegularController::class, 'downloadRsatPdf'])->name('regular.rsat.download');
+    Route::get('/regular/{regular}/ntp/download', [RegularController::class, 'downloadNtpPdf'])->name('regular.ntp.download');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');

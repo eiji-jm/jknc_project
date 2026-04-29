@@ -10,6 +10,7 @@
     $summary = (array) ($report->status_summary ?? []);
     $approval = (array) ($report->internal_approval ?? []);
     $clientConfirmationName = $report->client_confirmation_name ?: $project->client_name;
+    $clientApprovalStatus = $report->client_response_status ?: 'pending';
 @endphp
 
 <style>
@@ -329,6 +330,43 @@
             <span class="mx-1">/</span><span class="font-medium text-gray-900">{{ $report->report_number ?: 'Generated Report' }}</span>
         </div>
 
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Client Approval Delivery</h2>
+                    <p class="mt-1 text-sm text-slate-500">Send or resend the secure client approval link for this generated report.</p>
+                </div>
+                <form method="POST" action="{{ route('project.report.send', ['project' => $project->id, 'report' => $report->id]) }}" class="flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
+                    @csrf
+                    <div class="flex-1">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Recipient Email</label>
+                        <input type="email" name="recipient_email" value="{{ old('recipient_email', $clientEmail) }}" class="h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-900">
+                        @error('recipient_email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl bg-[#21409a] px-5 text-sm font-semibold text-white hover:bg-[#1b367d]">Send Link</button>
+                </form>
+            </div>
+
+            <div class="mt-4 grid gap-3 md:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ \Illuminate\Support\Str::of($clientApprovalStatus)->replace('_', ' ')->title() }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sent To</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ $report->client_form_sent_to_email ?: '-' }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sent At</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ optional($report->client_form_sent_at)->format('M d, Y h:i A') ?: '-' }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Approved At</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900">{{ optional($report->client_approved_at)->format('M d, Y h:i A') ?: '-' }}</p>
+                </div>
+            </div>
+        </div>
+
         <section class="project-sow-sheet">
             <div class="project-sow-form">
                 <div class="project-sow-head">
@@ -465,6 +503,16 @@
                     <div class="mt-4 project-sow-meta-row">
                         <span class="project-sow-meta-label">Client Confirmation Name:</span>
                         <span class="project-sow-line">{{ $clientConfirmationName ?: '-' }}</span>
+                    </div>
+                    <div class="mt-4 project-sow-meta-row">
+                        <span class="project-sow-meta-label">Client Attachment:</span>
+                        <span class="project-sow-line">
+                            @if ($report->client_attachment_path)
+                                <a href="{{ route('uploads.show', ['path' => $report->client_attachment_path, 'download' => 1]) }}" class="text-blue-700 hover:text-blue-800">Download uploaded attachment</a>
+                            @else
+                                -
+                            @endif
+                        </span>
                     </div>
                 </div>
 

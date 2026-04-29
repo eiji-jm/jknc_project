@@ -4,6 +4,8 @@
     $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' ')) ?: '-';
     $reportRows = collect($report?->within_scope_items ?? []);
     $reportApproval = (array) ($report?->internal_approval ?? []);
+    $filledRows = $reportRows->filter(fn ($item) => filled($item['service'] ?? null) || filled($item['activity_output'] ?? null))->values();
+    $clientApprovalStatus = $report->client_response_status ?: 'pending';
 ?>
 
 <style>
@@ -31,6 +33,20 @@
         text-align: right;
     }
     .rsat-form-code, .rsat-meta-label, .rsat-approval-label { color: #64748b; }
+    .rsat-intro {
+        margin-top: 16px;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: #334155;
+    }
+    .rsat-notice {
+        margin-top: 14px;
+        border: 1px solid #dbe7f6;
+        background: #f8fbff;
+        padding: 14px 16px;
+        font-size: 0.88rem;
+        color: #334155;
+    }
     .rsat-meta-grid, .rsat-approval-grid, .rsat-footer-grid { display: grid; gap: 12px 26px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .rsat-meta-item, .rsat-approval-pair, .rsat-footer-pair {
         display: grid;
@@ -113,6 +129,50 @@
             <span class="mx-1">/</span><span class="font-medium text-gray-900"><?php echo e($report->report_number ?: 'Preview'); ?></span>
         </div>
 
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Client Approval Delivery</h2>
+                    <p class="mt-1 text-sm text-slate-500">Send or resend the secure client approval link for this generated RSAT report.</p>
+                </div>
+                <form method="POST" action="<?php echo e(route('regular.report.send', ['regular' => $regular->id, 'report' => $report->id])); ?>" class="flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
+                    <?php echo csrf_field(); ?>
+                    <div class="flex-1">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Recipient Email</label>
+                        <input type="email" name="recipient_email" value="<?php echo e(old('recipient_email', $clientEmail)); ?>" class="h-11 w-full rounded-xl border border-slate-300 px-4 text-sm text-slate-900">
+                        <?php $__errorArgs = ['recipient_email'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?><p class="mt-1 text-sm text-red-600"><?php echo e($message); ?></p><?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                    </div>
+                    <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl bg-[#21409a] px-5 text-sm font-semibold text-white hover:bg-[#1b367d]">Send Link</button>
+                </form>
+            </div>
+
+            <div class="mt-4 grid gap-3 md:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900"><?php echo e(\Illuminate\Support\Str::of($clientApprovalStatus)->replace('_', ' ')->title()); ?></p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sent To</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900"><?php echo e($report->client_form_sent_to_email ?: '-'); ?></p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Sent At</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900"><?php echo e(optional($report->client_form_sent_at)->format('M d, Y h:i A') ?: '-'); ?></p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Approved At</p>
+                    <p class="mt-2 text-sm font-semibold text-slate-900"><?php echo e(optional($report->client_approved_at)->format('M d, Y h:i A') ?: '-'); ?></p>
+                </div>
+            </div>
+        </div>
+
         <section class="rsat-sheet overflow-hidden p-6">
             <div class="rsat-form">
                 <div class="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -123,6 +183,14 @@
                         <div class="rsat-title">REGULAR SERVICE ACTIVITY<br>TRACKER REPORT (RSAT REPORT)</div>
                         <div class="rsat-form-code">Generated Report Preview</div>
                     </div>
+                </div>
+
+                <div class="rsat-intro">
+                    This generated RSAT report follows the same formal document layout and branding used throughout the regular service workflow.
+                </div>
+
+                <div class="rsat-notice">
+                    Please review the report details below before sharing, printing, or using it for client-facing confirmation.
                 </div>
 
                 <div class="rsat-section-title">REPORT INFORMATION</div>
@@ -174,7 +242,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <?php $__empty_1 = true; $__currentLoopData = $reportRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                            <?php $__empty_1 = true; $__currentLoopData = $filledRows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                                 <tr>
                                     <td class="center"><?php echo e($index + 1); ?></td>
                                     <td><?php echo e($item['service'] ?? ''); ?></td>
@@ -185,17 +253,11 @@
                                     <td><?php echo e(\Illuminate\Support\Str::of((string) ($item['status'] ?? 'open'))->replace('_', ' ')->title()); ?></td>
                                 </tr>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                                <?php for($i = 1; $i <= 10; $i++): ?>
-                                    <tr>
-                                        <td class="center"><?php echo e($i === 1 ? '1' : ''); ?></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                    </tr>
-                                <?php endfor; ?>
+                                <tr>
+                                    <td colspan="7" class="center" style="padding: 14px 12px; color: #64748b; font-family: Arial, Helvetica, sans-serif;">
+                                        No RSAT report rows recorded yet.
+                                    </td>
+                                </tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -204,6 +266,19 @@
                 <div class="rsat-signature">
                     <div class="rsat-signature-line"><?php echo e($report->client_confirmation_name ?: '-'); ?></div>
                     <div class="rsat-signature-label">Client Fullname &amp; Signature</div>
+                </div>
+
+                <div class="mt-4 rsat-meta-grid">
+                    <div class="rsat-meta-item">
+                        <div class="rsat-meta-label">Client Attachment:</div>
+                        <div class="rsat-line-value">
+                            <?php if($report->client_attachment_path): ?>
+                                <a href="<?php echo e(route('uploads.show', ['path' => $report->client_attachment_path, 'download' => 1])); ?>" class="text-blue-700 hover:text-blue-800">Download uploaded attachment</a>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="rsat-section-title">INTERNAL APPROVAL</div>

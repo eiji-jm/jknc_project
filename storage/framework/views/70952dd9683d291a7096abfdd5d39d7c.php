@@ -1,12 +1,20 @@
 <?php
     $reports = $project->sowReports()->latest('date_prepared')->latest()->get();
     $statusClasses = [
-        'Sent to Client' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-        'Generated' => 'bg-blue-50 text-blue-700 border border-blue-200',
+        'Approved' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        'Pending' => 'bg-amber-50 text-amber-700 border border-amber-200',
     ];
 ?>
 
 <div class="space-y-5">
+    <div id="projectReportSelectionBar" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+        <div class="flex items-center gap-2 text-sm">
+            <span class="font-medium text-slate-800"><span id="projectReportSelectedCount">0</span> selected</span>
+            <button id="projectReportOpenDeleteModal" type="button" class="h-8 rounded-md border border-red-200 bg-white px-3 text-red-600 hover:bg-red-50">Delete Selected</button>
+            <button id="projectReportClearSelection" type="button" class="ml-auto text-slate-700 hover:underline">Clear</button>
+        </div>
+    </div>
+
     <section class="project-top-card rounded-2xl px-6 py-5">
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -39,28 +47,35 @@
             <table class="min-w-full text-sm">
                 <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     <tr>
+                        <th class="w-10 px-3 py-4 text-left"><input id="projectReportSelectAll" type="checkbox" class="h-4 w-4 rounded border-slate-300"></th>
                         <th class="px-6 py-4 text-left">Report No.</th>
                         <th class="px-6 py-4 text-left">Date of Reporting</th>
                         <th class="px-6 py-4 text-left">Date Sent to Client</th>
+                        <th class="px-6 py-4 text-left">Date Approved</th>
                         <th class="px-6 py-4 text-left">Status</th>
                     </tr>
                 </thead>
                 <tbody id="projectReportTableBody" class="divide-y divide-slate-100 bg-white">
                     <?php $__empty_1 = true; $__currentLoopData = $reports; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <?php
-                            $statusLabel = 'Sent to Client';
+                            $isApproved = $item->client_response_status === 'approved' && $item->client_approved_at;
+                            $statusLabel = $isApproved ? 'Approved' : 'Pending';
                             $previewUrl = route('project.report.preview', ['project' => $project->id, 'report' => $item->id]);
                         ?>
                         <tr
                             class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
-                            data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) )); ?>"
+                            data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y'), optional($item->client_approved_at)->format('M d, Y')])) )); ?>"
                             onclick="window.location='<?php echo e($previewUrl); ?>'"
                         >
+                            <td class="px-3 py-4" onclick="event.stopPropagation()">
+                                <input type="checkbox" value="<?php echo e($item->id); ?>" class="project-report-row-checkbox h-4 w-4 rounded border-slate-300">
+                            </td>
                             <td class="px-6 py-4">
                                 <span class="font-semibold text-blue-700 hover:text-blue-800"><?php echo e($item->report_number ?: 'Report-'.$item->id); ?></span>
                             </td>
                             <td class="px-6 py-4"><?php echo e(optional($item->date_prepared)->format('M d, Y') ?: '-'); ?></td>
                             <td class="px-6 py-4"><?php echo e(optional($item->created_at)->format('M d, Y') ?: '-'); ?></td>
+                            <td class="px-6 py-4"><?php echo e(optional($item->client_approved_at)->format('M d, Y') ?: '-'); ?></td>
                             <td class="px-6 py-4">
                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium <?php echo e($statusClasses[$statusLabel] ?? 'bg-slate-100 text-slate-700 border border-slate-200'); ?>">
                                     <?php echo e($statusLabel); ?>
@@ -70,7 +85,7 @@
                         </tr>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <tr>
-                            <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
+                            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">
                                 No generated SOW reports yet. Use <span class="font-semibold text-slate-700">Generate SOW Report</span> in the Scope of Work tab.
                             </td>
                         </tr>
@@ -81,23 +96,133 @@
     </section>
 </div>
 
+<div id="projectReportDeleteModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+    <button id="projectReportDeleteOverlay" type="button" aria-label="Close delete reports modal" class="absolute inset-0 bg-slate-900/45"></button>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div class="border-b border-slate-100 px-6 py-5">
+                <h2 class="text-xl font-semibold text-slate-900">Delete Selected SOW Reports</h2>
+                <p class="mt-1 text-sm text-slate-500">This action will permanently delete the selected report records.</p>
+            </div>
+            <form id="projectReportBulkDeleteForm" method="POST" action="<?php echo e(route('project.report.bulk-delete', $project)); ?>">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('DELETE'); ?>
+                <div id="projectReportDeleteSelectedInputs"></div>
+                <div class="px-6 py-5 text-sm text-slate-700">
+                    Are you sure you want to delete <span id="projectReportDeleteCountText" class="font-semibold text-slate-900">0 reports</span>?
+                </div>
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button id="projectReportCancelDeleteModal" type="button" class="h-10 rounded-lg border border-slate-300 px-4 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" class="h-10 rounded-lg bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-700">Delete Selected</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     (() => {
         const searchInput = document.getElementById('projectReportSearch');
         const rows = Array.from(document.querySelectorAll('#projectReportTableBody tr[data-report-search]'));
+        const selectAll = document.getElementById('projectReportSelectAll');
+        const rowChecks = Array.from(document.querySelectorAll('.project-report-row-checkbox'));
+        const selectionBar = document.getElementById('projectReportSelectionBar');
+        const selectedCount = document.getElementById('projectReportSelectedCount');
+        const clearSelection = document.getElementById('projectReportClearSelection');
+        const openDeleteModalButton = document.getElementById('projectReportOpenDeleteModal');
+        const deleteModal = document.getElementById('projectReportDeleteModal');
+        const deleteOverlay = document.getElementById('projectReportDeleteOverlay');
+        const cancelDeleteModalButton = document.getElementById('projectReportCancelDeleteModal');
+        const deleteSelectedInputs = document.getElementById('projectReportDeleteSelectedInputs');
+        const deleteCountText = document.getElementById('projectReportDeleteCountText');
 
-        if (!searchInput || rows.length === 0) {
-            return;
+        if (searchInput && rows.length > 0) {
+            searchInput.addEventListener('input', () => {
+                const keyword = String(searchInput.value || '').trim().toLowerCase();
+
+                rows.forEach((row) => {
+                    const blob = String(row.dataset.reportSearch || '').toLowerCase();
+                    row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+                });
+            });
         }
 
-        searchInput.addEventListener('input', () => {
-            const keyword = String(searchInput.value || '').trim().toLowerCase();
+        const syncSelectionUi = () => {
+            const selected = rowChecks.filter((item) => item.checked);
 
-            rows.forEach((row) => {
-                const blob = String(row.dataset.reportSearch || '').toLowerCase();
-                row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+            if (selectionBar) {
+                selectionBar.classList.toggle('hidden', selected.length === 0);
+            }
+
+            if (selectedCount) {
+                selectedCount.textContent = String(selected.length);
+            }
+
+            if (selectAll) {
+                selectAll.checked = rowChecks.length > 0 && selected.length === rowChecks.length;
+                selectAll.indeterminate = selected.length > 0 && selected.length < rowChecks.length;
+            }
+        };
+
+        const closeDeleteModal = () => {
+            if (!deleteModal) {
+                return;
+            }
+
+            deleteModal.classList.add('hidden');
+            deleteModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const openDeleteModal = () => {
+            const selected = rowChecks.filter((item) => item.checked);
+
+            if (selected.length === 0 || !deleteModal) {
+                return;
+            }
+
+            if (deleteSelectedInputs) {
+                deleteSelectedInputs.innerHTML = selected
+                    .map((item) => `<input type="hidden" name="selected_reports[]" value="${item.value}">`)
+                    .join('');
+            }
+
+            if (deleteCountText) {
+                deleteCountText.textContent = `${selected.length} ${selected.length === 1 ? 'report' : 'reports'}`;
+            }
+
+            deleteModal.classList.remove('hidden');
+            deleteModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        selectAll?.addEventListener('change', () => {
+            rowChecks.forEach((item) => {
+                item.checked = selectAll.checked;
             });
+            syncSelectionUi();
         });
+
+        rowChecks.forEach((item) => {
+            item.addEventListener('change', syncSelectionUi);
+        });
+
+        clearSelection?.addEventListener('click', () => {
+            rowChecks.forEach((item) => {
+                item.checked = false;
+            });
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+            syncSelectionUi();
+        });
+
+        openDeleteModalButton?.addEventListener('click', openDeleteModal);
+        deleteOverlay?.addEventListener('click', closeDeleteModal);
+        cancelDeleteModalButton?.addEventListener('click', closeDeleteModal);
+
+        syncSelectionUi();
     })();
 </script>
 <?php /**PATH D:\School\OJT\JK&CDealsContacts\jknc_project\resources\views/project/partials/tab-report.blade.php ENDPATH**/ ?>

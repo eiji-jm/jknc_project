@@ -10,6 +10,10 @@ trait GeneratesPdfPreview
 {
     protected function generatePdfPreview(string $view, array $data, string $targetPath): ?string
     {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(120);
+        }
+
         $browserBinary = $this->previewBrowserBinary();
 
         if (!$browserBinary) {

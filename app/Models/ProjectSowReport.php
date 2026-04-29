@@ -22,6 +22,15 @@ class ProjectSowReport extends Model
         'way_forward',
         'client_confirmation_name',
         'internal_approval',
+        'client_access_token',
+        'client_access_expires_at',
+        'client_form_sent_to_email',
+        'client_form_sent_at',
+        'client_response_status',
+        'client_approved_at',
+        'client_approved_name',
+        'client_response_notes',
+        'client_attachment_path',
     ];
 
     protected $casts = [
@@ -31,6 +40,9 @@ class ProjectSowReport extends Model
         'status_summary' => 'array',
         'internal_approval' => 'array',
         'project_completion_percentage' => 'decimal:2',
+        'client_access_expires_at' => 'datetime',
+        'client_form_sent_at' => 'datetime',
+        'client_approved_at' => 'datetime',
     ];
 
     protected static function booted(): void

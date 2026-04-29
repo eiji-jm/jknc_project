@@ -8,14 +8,17 @@ use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectNtp;
 use App\Models\ProjectSow;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
 use App\Models\Service;
 use Illuminate\Support\Arr;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -26,6 +29,8 @@ use Illuminate\View\View;
 class ProjectController extends Controller
 {
     use GeneratesPdfPreview;
+
+    private const CLIENT_LINK_TTL_DAYS = 14;
 
     private const FALLBACK_SERVICE_AREA_OPTIONS = [
         'Corporate & Regulatory Advisory',
@@ -347,11 +352,12 @@ class ProjectController extends Controller
     {
         $payload = $this->buildProjectDocumentPayload($project);
         extract($payload);
+        $ntpRecord = $project->ntps()->latest()->first();
         $tab = in_array((string) $request->query('tab', 'sow'), ['sow', 'report'], true)
             ? (string) $request->query('tab', 'sow')
             : 'sow';
 
-        return view('project.show', compact('project', 'start', 'sow', 'report', 'tab'));
+        return view('project.show', compact('project', 'start', 'sow', 'report', 'ntpRecord', 'tab'));
     }
 
     public function downloadStartPdf(Project $project)
@@ -505,6 +511,127 @@ class ProjectController extends Controller
             ->with('success', 'Scope of Work updated successfully.');
     }
 
+    public function downloadSowPdf(Project $project)
+    {
+        $project->loadMissing([
+            'deal:id,deal_code',
+            'company:id,company_name',
+            'contact:id,first_name,last_name',
+            'sows' => fn ($query) => $query->latest(),
+        ]);
+
+        $sow = $project->sows->first();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+        $within = collect($sow?->within_scope_items ?? [])->filter(fn ($row) => filled($row['main_task_description'] ?? null))->values();
+        $out = collect($sow?->out_of_scope_items ?? [])->filter(fn ($row) => filled($row['main_task_description'] ?? null))->values();
+
+        $targetPath = 'generated-previews/project/sow/' . ($project->project_code ?: $project->id) . '-scope-of-work.pdf';
+        $pdfPath = $this->generatePdfPreview('project.pdf.sow', compact(
+            'project',
+            'sow',
+            'contactName',
+            'within',
+            'out'
+        ), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate SOW PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
+    public function downloadNtpPdf(Project $project): RedirectResponse
+    {
+        $ntpRecord = $this->generateAndSendProjectNtp($project);
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
+            ->with('success', 'NTP generated successfully.'.($ntpRecord->client_form_sent_to_email ? ' NTP link sent to '.$ntpRecord->client_form_sent_to_email.'.' : ''))
+            ->with('ntp_status', 'Waiting for client signed NTP upload.');
+    }
+
+    public function ntpStatus(Project $project): JsonResponse
+    {
+        $ntpRecord = $project->ntps()->latest()->first();
+
+        return response()->json($this->buildProjectNtpStatusPayload($project, $ntpRecord));
+    }
+
+    public function showNtpSubmission(Project $project): View
+    {
+        $ntpRecord = $project->ntps()->latest()->firstOrFail();
+        $project->loadMissing(['deal:id,deal_code', 'contact:id,first_name,last_name,email', 'company:id,company_name']);
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: 'Client');
+
+        return view('project.ntp-submission', [
+            'project' => $project,
+            'ntpRecord' => $ntpRecord,
+            'ntp' => $ntpRecord->payload ?? [],
+            'contactName' => $contactName,
+        ]);
+    }
+
+    public function clientNtp(string $token): View
+    {
+        $ntpRecord = $this->findNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        $project = $ntpRecord->project()->with(['deal:id,deal_code', 'contact:id,first_name,last_name,email', 'company:id,company_name'])->firstOrFail();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: 'Client');
+
+        return view('documents.client-ntp-form', [
+            'project' => $project,
+            'ntpRecord' => $ntpRecord,
+            'ntp' => $ntpRecord->payload ?? [],
+            'contactName' => $contactName,
+            'clientFormAction' => route('project.ntp.client.submit', ['token' => $token]),
+            'clientDownloadUrl' => route('project.ntp.client.download', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientNtp(Request $request, string $token): RedirectResponse
+    {
+        $ntpRecord = $this->findNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        $validated = $request->validate([
+            'client_approval_name' => ['required', 'string', 'max:255'],
+            'client_approval' => ['accepted'],
+            'client_response_notes' => ['nullable', 'string', 'max:4000'],
+            'client_attachment' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+        ], [
+            'client_approval.accepted' => 'Please confirm approval before submitting.',
+            'client_attachment.required' => 'Please upload the signed NTP file before submitting.',
+        ]);
+
+        if ($ntpRecord->client_attachment_path && Storage::disk('public')->exists($ntpRecord->client_attachment_path)) {
+            Storage::disk('public')->delete($ntpRecord->client_attachment_path);
+        }
+
+        $ntpRecord->fill([
+            'client_response_status' => 'approved_to_proceed',
+            'client_approved_at' => now(),
+            'client_approved_name' => $validated['client_approval_name'],
+            'client_response_notes' => $validated['client_response_notes'] ?? null,
+            'client_attachment_path' => $request->file('client_attachment')->store("projects/{$ntpRecord->project_id}/ntp", 'public'),
+        ]);
+        $ntpRecord->save();
+
+        return redirect()
+            ->route('project.ntp.client.show', ['token' => $token])
+            ->with('success', 'Approved to proceed. The signed NTP was submitted successfully.');
+    }
+
+    public function downloadClientNtp(string $token): RedirectResponse
+    {
+        $ntpRecord = $this->findNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        return $this->downloadNtpPdfFromRecord($ntpRecord, 'project');
+    }
+
     public function generateSowReport(Request $request, Project $project): RedirectResponse
     {
         $validated = $this->validateSowPayload($request);
@@ -526,9 +653,17 @@ class ProjectController extends Controller
             'internal_approval' => $sow->internal_approval ?? [],
         ]);
 
+        $recipientEmail = $this->resolveProjectClientEmail($project);
+        $emailSentMessage = null;
+
+        if ($recipientEmail !== null && $this->supportsProjectSowReportClientPortal()) {
+            $this->sendSowReportClientLink($project, $report, $recipientEmail);
+            $emailSentMessage = " Client approval link sent to {$recipientEmail}.";
+        }
+
         return redirect()
-            ->route('project.show', ['project' => $project->id, 'tab' => 'report'])
-            ->with('success', 'SOW report generated and recorded successfully.');
+            ->route('project.report.preview', ['project' => $project->id, 'report' => $report->id])
+            ->with('success', 'SOW report generated successfully.'.$emailSentMessage);
     }
 
     public function showGeneratedReport(Project $project, ProjectSowReport $report): View
@@ -539,8 +674,133 @@ class ProjectController extends Controller
         $sow = $project->sows()->latest()->first();
         $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
             ?: ($project->client_name ?: '-');
+        $clientEmail = $this->resolveProjectClientEmail($project);
 
-        return view('project.report-preview', compact('project', 'report', 'sow', 'contactName'));
+        return view('project.report-preview', compact('project', 'report', 'sow', 'contactName', 'clientEmail'));
+    }
+
+    public function sendGeneratedReport(Project $project, ProjectSowReport $report, Request $request): RedirectResponse
+    {
+        abort_unless($report->project_id === $project->id, 404);
+
+        if (! $this->supportsProjectSowReportClientPortal()) {
+            return redirect()
+                ->route('project.report.preview', ['project' => $project->id, 'report' => $report->id])
+                ->with('success', 'The report was generated, but client sending is not available until the latest project report migration is run.');
+        }
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $recipientEmail = trim((string) $validated['recipient_email']);
+        $this->sendSowReportClientLink($project, $report, $recipientEmail);
+
+        return redirect()
+            ->route('project.report.preview', ['project' => $project->id, 'report' => $report->id])
+            ->with('success', "SOW report client approval link sent to {$recipientEmail}.");
+    }
+
+    public function bulkDestroyGeneratedReports(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_reports' => ['required', 'array', 'min:1'],
+            'selected_reports.*' => ['required', 'integer'],
+        ]);
+
+        $reports = $project->sowReports()
+            ->whereIn('id', $validated['selected_reports'])
+            ->get();
+
+        foreach ($reports as $report) {
+            if ($report->client_attachment_path && Storage::disk('public')->exists($report->client_attachment_path)) {
+                Storage::disk('public')->delete($report->client_attachment_path);
+            }
+        }
+
+        $deletedCount = $project->sowReports()
+            ->whereIn('id', $validated['selected_reports'])
+            ->delete();
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'report'])
+            ->with('success', $deletedCount === 1 ? '1 SOW report deleted successfully.' : "{$deletedCount} SOW reports deleted successfully.");
+    }
+
+    public function clientSowReport(string $token): View
+    {
+        abort_unless($this->supportsProjectSowReportClientPortal(), 404);
+
+        $report = $this->findReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This SOW report link has expired.');
+
+        $project = $report->project()->with(['deal:id,deal_code', 'contact:id,first_name,last_name,email', 'company:id,company_name'])->firstOrFail();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: 'Client');
+
+        return view('project.client-report-form', [
+            'project' => $project,
+            'report' => $report,
+            'contactName' => $contactName,
+            'clientFormAction' => route('project.report.client.submit', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientSowReport(Request $request, string $token): RedirectResponse
+    {
+        abort_unless($this->supportsProjectSowReportClientPortal(), 404);
+
+        $report = $this->findReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This SOW report link has expired.');
+
+        $validated = $request->validate([
+            'client_approval_name' => ['required', 'string', 'max:255'],
+            'client_approval' => ['accepted'],
+            'client_response_notes' => ['nullable', 'string', 'max:4000'],
+            'client_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+        ], [
+            'client_approval.accepted' => 'Please confirm your approval before submitting.',
+        ]);
+
+        if ($request->hasFile('client_attachment')) {
+            if ($report->client_attachment_path && Storage::disk('public')->exists($report->client_attachment_path)) {
+                Storage::disk('public')->delete($report->client_attachment_path);
+            }
+
+            $report->client_attachment_path = $request->file('client_attachment')->store("projects/{$report->project_id}/reports", 'public');
+        }
+
+        $report->fill([
+            'client_response_status' => 'approved',
+            'client_approved_at' => now(),
+            'client_approved_name' => $validated['client_approval_name'],
+            'client_response_notes' => $validated['client_response_notes'] ?? null,
+            'client_confirmation_name' => $validated['client_approval_name'],
+        ]);
+        $report->save();
+
+        return redirect()
+            ->route('project.report.client.show', ['token' => $token])
+            ->with('success', 'Your approval has been recorded successfully.');
+    }
+
+    public function downloadClientSowReport(string $token): RedirectResponse
+    {
+        abort_unless($this->supportsProjectSowReportClientPortal(), 404);
+
+        $report = $this->findReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This SOW report link has expired.');
+
+        $project = $report->project()->with(['deal:id,deal_code', 'contact:id,first_name,last_name', 'company:id,company_name'])->firstOrFail();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        $targetPath = 'generated-previews/project/sow-report/' . ($project->project_code ?: $project->id) . '-' . ($report->report_number ?: $report->id) . '.pdf';
+        $pdfPath = $this->generatePdfPreview('project.pdf.sow-report', compact('project', 'report', 'contactName'), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate SOW report PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
     }
 
     public function updateReport(Request $request, Project $project): RedirectResponse
@@ -876,6 +1136,7 @@ class ProjectController extends Controller
             'starts' => fn ($query) => $query->latest(),
             'sows' => fn ($query) => $query->latest(),
             'sowReports' => fn ($query) => $query->latest(),
+            'ntps' => fn ($query) => $query->latest(),
         ]);
 
         $start = $project->starts->first();
@@ -888,6 +1149,30 @@ class ProjectController extends Controller
             'start' => $start,
             'sow' => $project->sows->first(),
             'report' => $project->sowReports->first(),
+            'ntpRecord' => $project->ntps->first(),
+        ];
+    }
+
+    private function buildProjectNtpStatusPayload(Project $project, ?ProjectNtp $ntpRecord): array
+    {
+        $isApproved = $ntpRecord?->client_response_status === 'approved_to_proceed' && $ntpRecord?->client_approved_at;
+
+        return [
+            'exists' => $ntpRecord !== null,
+            'is_approved' => (bool) $isApproved,
+            'status_label' => $isApproved
+                ? 'Client approved NTP'
+                : ($ntpRecord?->client_form_sent_at ? 'Waiting for client signed NTP upload' : 'NTP not generated'),
+            'button_label' => $isApproved ? 'View Approved NTP' : 'Generate NTP',
+            'button_icon' => $isApproved ? 'fas fa-check-circle' : 'fas fa-file-signature',
+            'button_class' => $isApproved
+                ? 'project-doc-action project-doc-action-approved'
+                : 'project-doc-action',
+            'action_url' => $isApproved
+                ? route('project.ntp.submission', $project)
+                : route('project.ntp.download', $project),
+            'approved_at' => optional($ntpRecord?->client_approved_at)->format('M d, Y h:i A'),
+            'approved_name' => $ntpRecord?->client_approved_name,
         ];
     }
 
@@ -1560,6 +1845,189 @@ class ProjectController extends Controller
         } catch (Throwable) {
             return ['productOptionsByServiceArea' => $fallbackGroups];
         }
+    }
+
+    private function resolveProjectClientEmail(Project $project): ?string
+    {
+        $project->loadMissing([
+            'contact:id,email,first_name,last_name',
+            'company.primaryContact:id,email,first_name,last_name',
+        ]);
+
+        $email = trim((string) ($project->contact?->email
+            ?: $project->company?->primaryContact?->email
+            ?: ''));
+
+        return $email !== '' ? $email : null;
+    }
+
+    private function supportsProjectSowReportClientPortal(): bool
+    {
+        return Schema::hasColumns('project_sow_reports', [
+            'client_access_token',
+            'client_access_expires_at',
+            'client_form_sent_to_email',
+            'client_form_sent_at',
+            'client_response_status',
+            'client_approved_at',
+            'client_approved_name',
+            'client_response_notes',
+            'client_attachment_path',
+        ]);
+    }
+
+    private function sendSowReportClientLink(Project $project, ProjectSowReport $report, string $recipientEmail): void
+    {
+        $project->loadMissing([
+            'deal:id,deal_code',
+            'contact:id,first_name,last_name,email',
+            'company:id,company_name',
+        ]);
+
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $clientUrl = route('project.report.client.show', ['token' => $token]);
+        $clientName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: 'Client');
+
+        $report->fill([
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+        ]);
+        $report->save();
+
+        $emailHtml = view('emails.project.sow-report-client-link', [
+            'project' => $project,
+            'report' => $report,
+            'clientName' => $clientName,
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $project, $report) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("SOW Report Approval for {$project->name} ({$report->report_number})");
+        });
+    }
+
+    private function findReportByClientToken(string $token): ProjectSowReport
+    {
+        return ProjectSowReport::query()
+            ->where('client_access_token', $token)
+            ->firstOrFail();
+    }
+
+    private function buildProjectNtpPayload(Project $project): array
+    {
+        $project->loadMissing([
+            'deal:id,deal_code',
+            'contact:id,first_name,last_name',
+            'sows' => fn ($query) => $query->latest(),
+        ]);
+
+        $sow = $project->sows->first();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        return [
+            'title' => 'NOTICE TO PROCEED',
+            'form_code' => 'ENG-F-001-v1.0-03.16.26',
+            'date_issued' => now()->format('F d, Y'),
+            'ntp_no' => null,
+            'engagement_type' => $project->engagement_type ?: 'Project',
+            'condeal_reference_no' => $project->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $project->business_name ?: '-',
+            'engagement_reference_label' => 'SOW Ref No.:',
+            'engagement_reference_no' => $sow?->sow_number ?: '-',
+            'approved_start_date' => optional($project->planned_start_date)->format('F d, Y') ?: '-',
+            'target_completion_date' => optional($project->target_completion_date)->format('F d, Y') ?: '-',
+            'client_representative' => $project->client_name ?: $contactName,
+            'lead_consultant' => $project->assigned_consultant ?: ($project->assigned_project_manager ?: ''),
+            'associate' => $project->assigned_associate ?: '',
+        ];
+    }
+
+    private function generateAndSendProjectNtp(Project $project): ProjectNtp
+    {
+        $ntpPayload = $this->buildProjectNtpPayload($project);
+        $sow = $project->sows()->latest()->first();
+
+        $ntpRecord = $project->ntps()->latest()->first() ?: new ProjectNtp(['project_id' => $project->id]);
+        $ntpRecord->fill([
+            'reference_type' => 'sow',
+            'reference_number' => $sow?->sow_number,
+            'date_issued' => now()->toDateString(),
+            'payload' => $ntpPayload,
+        ]);
+        $ntpRecord->project_id = $project->id;
+        $ntpRecord->save();
+
+        $payload = $ntpRecord->payload ?? [];
+        $payload['ntp_no'] = $ntpRecord->ntp_number;
+        $ntpRecord->payload = $payload;
+        $ntpRecord->save();
+
+        $recipientEmail = $this->resolveProjectClientEmail($project);
+        if ($recipientEmail !== null) {
+            $this->sendNtpClientLink($project, $ntpRecord, $recipientEmail);
+        }
+
+        return $ntpRecord->fresh();
+    }
+
+    private function sendNtpClientLink(Project $project, ProjectNtp $ntpRecord, string $recipientEmail): void
+    {
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $clientUrl = route('project.ntp.client.show', ['token' => $token]);
+        $clientName = data_get($ntpRecord->payload, 'client_name', $project->client_name ?: 'Client');
+
+        $ntpRecord->fill([
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+        ]);
+        $ntpRecord->save();
+
+        $emailHtml = view('emails.documents.ntp-client-link', [
+            'project' => $project,
+            'ntpRecord' => $ntpRecord,
+            'clientName' => $clientName,
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $project, $ntpRecord) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("Notice To Proceed for {$project->name} ({$ntpRecord->ntp_number})");
+        });
+    }
+
+    private function findNtpByClientToken(string $token): ProjectNtp
+    {
+        return ProjectNtp::query()
+            ->where('client_access_token', $token)
+            ->firstOrFail();
+    }
+
+    private function downloadNtpPdfFromRecord(ProjectNtp $ntpRecord, string $folderPrefix): RedirectResponse
+    {
+        $ntp = $ntpRecord->payload ?? [];
+        $ntp['ntp_no'] = $ntpRecord->ntp_number;
+        $targetPath = "generated-previews/{$folderPrefix}/ntp/" . ($ntpRecord->project?->project_code ?: $ntpRecord->project_id) . '-' . $ntpRecord->ntp_number . '.pdf';
+        $pdfPath = $this->generatePdfPreview('documents.pdf.ntp', compact('ntp'), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate NTP PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
     }
 
     private function stringifySelectedValues(array $selected, array $custom, string $customPrefix, array $ignored = []): ?string

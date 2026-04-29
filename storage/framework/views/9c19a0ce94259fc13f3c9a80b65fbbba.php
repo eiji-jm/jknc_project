@@ -45,6 +45,60 @@
         font-weight: 600;
         color: #1e3a5f;
     }
+    .rsat-tab-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #cfd9e7;
+        background: #fff;
+        padding: 10px 18px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1e3a5f;
+        transition: all 0.16s ease;
+    }
+    .rsat-tab-link.active {
+        border-color: #1c4587;
+        background: #1c4587;
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(28, 69, 135, 0.18);
+    }
+    .rsat-tab-link:hover {
+        border-color: #9eb2cf;
+        color: #1c4587;
+    }
+    .rsat-linked-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    }
+    .rsat-linked-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .rsat-doc-action {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        padding: 9px 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #334155;
+    }
+    .rsat-doc-primary {
+        display: inline-flex;
+        align-items: center;
+        background: #21409a;
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
     .rsat-sheet {
         border: 1px solid #d7deea;
         background: #fff;
@@ -251,13 +305,6 @@
         display: grid;
         gap: 8px;
     }
-    .rsat-actions {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-top: 22px;
-    }
     .rsat-tab {
         display: inline-flex;
         align-items: center;
@@ -316,9 +363,8 @@
                 </div>
             </div>
             <div class="mt-5 flex flex-wrap gap-2">
-                <button type="button" class="rsat-tab <?php echo e($tab === 'rsat' ? 'is-active' : ''); ?>" data-tab-button="rsat">RSAT Form</button>
-                <button type="button" class="rsat-tab <?php echo e($tab === 'report' ? 'is-active' : ''); ?>" data-tab-button="report">RSAT Report</button>
-                <a href="<?php echo e(route('regular.rsat.download', $regular)); ?>" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Download RSAT PDF</a>
+                <a href="<?php echo e(route('regular.show', ['regular' => $regular->id, 'tab' => 'rsat'])); ?>" class="rsat-tab-link <?php echo e($tab === 'rsat' ? 'active' : ''); ?>">RSAT Form</a>
+                <a href="<?php echo e(route('regular.show', ['regular' => $regular->id, 'tab' => 'report'])); ?>" class="rsat-tab-link <?php echo e($tab === 'report' ? 'active' : ''); ?>">RSAT Report</a>
             </div>
         </div>
 
@@ -326,19 +372,29 @@
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><?php echo e(session('success')); ?></div>
         <?php endif; ?>
 
-        <div class="rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
-            <div class="flex flex-wrap gap-x-8 gap-y-2">
-                <p>Deal: <a href="<?php echo e(route('deals.show', $regular->deal_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($regular->deal?->deal_code ?? 'View linked deal'); ?></a></p>
-                <?php if($regular->company_id): ?>
-                    <p>Company: <a href="<?php echo e(route('company.show', $regular->company_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($regular->company?->company_name ?? 'View company'); ?></a></p>
-                <?php endif; ?>
-                <?php if($regular->contact_id): ?>
-                    <p>Contact: <a href="<?php echo e(route('contacts.show', $regular->contact_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($contactName); ?></a></p>
-                <?php endif; ?>
+        <div class="rsat-linked-card rounded-2xl px-5 py-4 text-sm text-gray-600">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="flex flex-wrap gap-x-8 gap-y-2">
+                    <p>Deal: <a href="<?php echo e(route('deals.show', $regular->deal_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($regular->deal?->deal_code ?? 'View linked deal'); ?></a></p>
+                    <?php if($regular->company_id): ?>
+                        <p>Company: <a href="<?php echo e(route('company.show', $regular->company_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($regular->company?->company_name ?? 'View company'); ?></a></p>
+                    <?php endif; ?>
+                    <?php if($regular->contact_id): ?>
+                        <p>Contact: <a href="<?php echo e(route('contacts.show', $regular->contact_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($contactName); ?></a></p>
+                    <?php endif; ?>
+                </div>
+                <div class="rsat-linked-actions">
+                    <?php if($tab === 'rsat'): ?>
+                        <button type="submit" form="regular-rsat-form" class="rsat-doc-primary">Save RSAT</button>
+                        <button type="submit" form="regular-rsat-form" formaction="<?php echo e(route('regular.report.generate', $regular)); ?>" class="rsat-doc-action">Generate RSAT Report</button>
+                        <a href="<?php echo e(route('regular.ntp.download', $regular)); ?>" class="rsat-doc-action">Generate NTP</a>
+                        <a href="<?php echo e(route('regular.rsat.download', $regular)); ?>" class="rsat-doc-action">Download PDF</a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
-        <form method="POST" action="<?php echo e(route('regular.rsat.update', $regular)); ?>" enctype="multipart/form-data" class="rsat-sheet overflow-hidden p-6 <?php echo e($tab !== 'rsat' ? 'hidden' : ''); ?>" data-tab-panel="rsat">
+        <form id="regular-rsat-form" method="POST" action="<?php echo e(route('regular.rsat.update', $regular)); ?>" enctype="multipart/form-data" class="rsat-sheet overflow-hidden p-6 <?php echo e($tab !== 'rsat' ? 'hidden' : ''); ?>" data-tab-panel="rsat">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="status" value="<?php echo e(old('status', $rsat?->status ?? 'pending')); ?>">
             <input type="hidden" name="form_date" value="<?php echo e($formDate); ?>">
@@ -607,16 +663,17 @@
                 <input type="hidden" name="approval_date_time_done[]" value="<?php echo e(old('approval_date_time_done.1', '')); ?>">
             </div>
 
-            <div class="rsat-actions">
-                <div></div>
-                <div class="flex gap-3">
-                    <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT</button>
-                    <button type="submit" formaction="<?php echo e(route('regular.report.generate', $regular)); ?>" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">Generate RSAT Report</button>
-                </div>
-            </div>
         </form>
 
         <div class="space-y-5 <?php echo e($tab !== 'report' ? 'hidden' : ''); ?>" data-tab-panel="report">
+            <div id="regularReportSelectionBar" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="font-medium text-slate-800"><span id="regularReportSelectedCount">0</span> selected</span>
+                    <button id="regularReportOpenDeleteModal" type="button" class="h-8 rounded-md border border-red-200 bg-white px-3 text-red-600 hover:bg-red-50">Delete Selected</button>
+                    <button id="regularReportClearSelection" type="button" class="ml-auto text-slate-700 hover:underline">Clear</button>
+                </div>
+            </div>
+
             <section class="rsat-top-card rounded-2xl px-6 py-5">
                 <div class="flex flex-wrap items-end justify-between gap-4">
                     <div>
@@ -649,30 +706,40 @@
                     <table class="min-w-full text-sm">
                         <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                             <tr>
+                                <th class="w-10 px-3 py-4 text-left"><input id="regularReportSelectAll" type="checkbox" class="h-4 w-4 rounded border-slate-300"></th>
                                 <th class="px-6 py-4 text-left">Report No.</th>
                                 <th class="px-6 py-4 text-left">Date of Reporting</th>
                                 <th class="px-6 py-4 text-left">Date Sent to Client</th>
+                                <th class="px-6 py-4 text-left">Date Approved</th>
                                 <th class="px-6 py-4 text-left">Status</th>
                             </tr>
                         </thead>
                         <tbody id="regularReportTableBody" class="divide-y divide-slate-100 bg-white">
                             <?php $__empty_1 = true; $__currentLoopData = $generatedReports; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                                 <?php
-                                    $statusLabel = 'Sent to Client';
+                                    $isApproved = $item->client_response_status === 'approved' && $item->client_approved_at;
+                                    $statusLabel = $isApproved ? 'Approved' : 'Pending';
+                                    $statusClass = $isApproved
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200';
                                     $previewUrl = route('regular.report.preview', ['regular' => $regular->id, 'report' => $item->id]);
                                 ?>
                                 <tr
                                     class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
-                                    data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) )); ?>"
+                                    data-report-search="<?php echo e(\Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y'), optional($item->client_approved_at)->format('M d, Y')])) )); ?>"
                                     onclick="window.location='<?php echo e($previewUrl); ?>'"
                                 >
+                                    <td class="px-3 py-4" onclick="event.stopPropagation()">
+                                        <input type="checkbox" value="<?php echo e($item->id); ?>" class="regular-report-row-checkbox h-4 w-4 rounded border-slate-300">
+                                    </td>
                                     <td class="px-6 py-4">
                                         <span class="font-semibold text-blue-700 hover:text-blue-800"><?php echo e($item->report_number ?: 'Report-'.$item->id); ?></span>
                                     </td>
                                     <td class="px-6 py-4"><?php echo e(optional($item->date_prepared)->format('M d, Y') ?: '-'); ?></td>
                                     <td class="px-6 py-4"><?php echo e(optional($item->created_at)->format('M d, Y') ?: '-'); ?></td>
+                                    <td class="px-6 py-4"><?php echo e(optional($item->client_approved_at)->format('M d, Y') ?: '-'); ?></td>
                                     <td class="px-6 py-4">
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium <?php echo e($statusClass); ?>">
                                             <?php echo e($statusLabel); ?>
 
                                         </span>
@@ -680,7 +747,7 @@
                                 </tr>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                                 <tr>
-                                    <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
+                                    <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">
                                         No generated RSAT reports yet. Use <span class="font-semibold text-slate-700">Generate RSAT Report</span> in the RSAT Form tab.
                                     </td>
                                 </tr>
@@ -689,6 +756,30 @@
                     </table>
                 </div>
             </section>
+        </div>
+    </div>
+</div>
+
+<div id="regularReportDeleteModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+    <button id="regularReportDeleteOverlay" type="button" aria-label="Close delete reports modal" class="absolute inset-0 bg-slate-900/45"></button>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div class="border-b border-slate-100 px-6 py-5">
+                <h2 class="text-xl font-semibold text-slate-900">Delete Selected RSAT Reports</h2>
+                <p class="mt-1 text-sm text-slate-500">This action will permanently delete the selected report records.</p>
+            </div>
+            <form id="regularReportBulkDeleteForm" method="POST" action="<?php echo e(route('regular.report.bulk-delete', $regular)); ?>">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('DELETE'); ?>
+                <div id="regularReportDeleteSelectedInputs"></div>
+                <div class="px-6 py-5 text-sm text-slate-700">
+                    Are you sure you want to delete <span id="regularReportDeleteCountText" class="font-semibold text-slate-900">0 reports</span>?
+                </div>
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button id="regularReportCancelDeleteModal" type="button" class="h-10 rounded-lg border border-slate-300 px-4 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" class="h-10 rounded-lg bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-700">Delete Selected</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -821,19 +912,105 @@ document.addEventListener('DOMContentLoaded', () => {
     (() => {
         const searchInput = document.getElementById('regularReportSearch');
         const rows = Array.from(document.querySelectorAll('#regularReportTableBody tr[data-report-search]'));
+        const selectAll = document.getElementById('regularReportSelectAll');
+        const rowChecks = Array.from(document.querySelectorAll('.regular-report-row-checkbox'));
+        const selectionBar = document.getElementById('regularReportSelectionBar');
+        const selectedCount = document.getElementById('regularReportSelectedCount');
+        const clearSelection = document.getElementById('regularReportClearSelection');
+        const openDeleteModalButton = document.getElementById('regularReportOpenDeleteModal');
+        const deleteModal = document.getElementById('regularReportDeleteModal');
+        const deleteOverlay = document.getElementById('regularReportDeleteOverlay');
+        const cancelDeleteModalButton = document.getElementById('regularReportCancelDeleteModal');
+        const deleteSelectedInputs = document.getElementById('regularReportDeleteSelectedInputs');
+        const deleteCountText = document.getElementById('regularReportDeleteCountText');
 
-        if (!searchInput || rows.length === 0) {
-            return;
+        if (searchInput && rows.length > 0) {
+            searchInput.addEventListener('input', () => {
+                const keyword = String(searchInput.value || '').trim().toLowerCase();
+
+                rows.forEach((row) => {
+                    const blob = String(row.dataset.reportSearch || '').toLowerCase();
+                    row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+                });
+            });
         }
 
-        searchInput.addEventListener('input', () => {
-            const keyword = String(searchInput.value || '').trim().toLowerCase();
+        const syncSelectionUi = () => {
+            const selected = rowChecks.filter((item) => item.checked);
 
-            rows.forEach((row) => {
-                const blob = String(row.dataset.reportSearch || '').toLowerCase();
-                row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+            if (selectionBar) {
+                selectionBar.classList.toggle('hidden', selected.length === 0);
+            }
+
+            if (selectedCount) {
+                selectedCount.textContent = String(selected.length);
+            }
+
+            if (selectAll) {
+                selectAll.checked = rowChecks.length > 0 && selected.length === rowChecks.length;
+                selectAll.indeterminate = selected.length > 0 && selected.length < rowChecks.length;
+            }
+        };
+
+        const closeDeleteModal = () => {
+            if (!deleteModal) {
+                return;
+            }
+
+            deleteModal.classList.add('hidden');
+            deleteModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const openDeleteModal = () => {
+            const selected = rowChecks.filter((item) => item.checked);
+
+            if (selected.length === 0 || !deleteModal) {
+                return;
+            }
+
+            if (deleteSelectedInputs) {
+                deleteSelectedInputs.innerHTML = selected
+                    .map((item) => `<input type="hidden" name="selected_reports[]" value="${item.value}">`)
+                    .join('');
+            }
+
+            if (deleteCountText) {
+                deleteCountText.textContent = `${selected.length} ${selected.length === 1 ? 'report' : 'reports'}`;
+            }
+
+            deleteModal.classList.remove('hidden');
+            deleteModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        selectAll?.addEventListener('change', () => {
+            rowChecks.forEach((item) => {
+                item.checked = selectAll.checked;
             });
+            syncSelectionUi();
         });
+
+        rowChecks.forEach((item) => {
+            item.addEventListener('change', syncSelectionUi);
+        });
+
+        clearSelection?.addEventListener('click', () => {
+            rowChecks.forEach((item) => {
+                item.checked = false;
+            });
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+            syncSelectionUi();
+        });
+
+        openDeleteModalButton?.addEventListener('click', openDeleteModal);
+        deleteOverlay?.addEventListener('click', closeDeleteModal);
+        cancelDeleteModalButton?.addEventListener('click', closeDeleteModal);
+
+        syncSelectionUi();
     })();
 
     syncRowNumbers(requirementsContainer);
