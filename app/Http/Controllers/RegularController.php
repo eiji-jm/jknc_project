@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\Deal;
 use App\Models\Project;
+use App\Models\ProjectNtp;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
 use App\Services\ProjectProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,6 +20,8 @@ use Illuminate\View\View;
 class RegularController extends Controller
 {
     use GeneratesPdfPreview;
+
+    private const CLIENT_LINK_TTL_DAYS = 14;
 
     public function __construct(private readonly ProjectProvisioner $projectProvisioner)
     {
@@ -204,6 +208,17 @@ class RegularController extends Controller
         return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
     }
 
+    public function downloadNtpPdf(Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        $ntpRecord = $this->generateAndSendRegularNtp($regular);
+
+        return redirect()
+            ->route('regular.show', ['regular' => $regular->id, 'tab' => 'rsat'])
+            ->with('success', 'NTP generated successfully.'.($ntpRecord->client_form_sent_to_email ? ' NTP link sent to '.$ntpRecord->client_form_sent_to_email.'.' : ''))
+            ->with('ntp_status', 'Waiting for client signed NTP upload.');
+    }
+
     public function updateReport(Request $request, Project $regular): RedirectResponse
     {
         abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
@@ -221,9 +236,9 @@ class RegularController extends Controller
         $validated = $this->validateRsatPayload($request);
         $rsat = $this->persistRsatDocument($request, $regular, $validated);
 
-        ProjectSowReport::query()->create([
+        $report = ProjectSowReport::query()->create([
             'project_id' => $regular->id,
-            'report_number' => null,
+            'report_number' => ProjectSowReport::generateNextRsatCode(),
             'date_prepared' => now()->toDateString(),
             'within_scope_items' => $this->buildReportRowsFromRsat($rsat),
             'out_of_scope_items' => [],
@@ -236,7 +251,17 @@ class RegularController extends Controller
             ]),
         ]);
 
-        return redirect()->route('regular.show', ['regular' => $regular, 'tab' => 'report'])->with('success', 'RSAT report generated and recorded successfully.');
+        $recipientEmail = $this->resolveRegularClientEmail($regular);
+        $emailSentMessage = null;
+
+        if ($recipientEmail !== null && $this->supportsRegularReportClientPortal()) {
+            $this->sendRsatReportClientLink($regular, $report, $recipientEmail);
+            $emailSentMessage = " Client approval link sent to {$recipientEmail}.";
+        }
+
+        return redirect()
+            ->route('regular.report.preview', ['regular' => $regular->id, 'report' => $report->id])
+            ->with('success', 'RSAT report generated successfully.'.$emailSentMessage);
     }
 
     public function showGeneratedReport(Project $regular, ProjectSowReport $report): View
@@ -254,8 +279,208 @@ class RegularController extends Controller
         ]);
 
         $rsat = $regular->starts->first() ?: new ProjectStart(['project_id' => $regular->id]);
+        $clientEmail = $this->resolveRegularClientEmail($regular);
+        $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: '-');
 
-        return view('regular.report-preview', compact('regular', 'rsat', 'report'));
+        return view('regular.report-preview', compact('regular', 'rsat', 'report', 'clientEmail', 'contactName'));
+    }
+
+    public function sendGeneratedReport(Project $regular, ProjectSowReport $report, Request $request): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        abort_unless($report->project_id === $regular->id, 404);
+
+        if (! $this->supportsRegularReportClientPortal()) {
+            return redirect()
+                ->route('regular.report.preview', ['regular' => $regular->id, 'report' => $report->id])
+                ->with('success', 'The report was generated, but client sending is not available until the latest project report migration is run.');
+        }
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $recipientEmail = trim((string) $validated['recipient_email']);
+        $this->sendRsatReportClientLink($regular, $report, $recipientEmail);
+
+        return redirect()
+            ->route('regular.report.preview', ['regular' => $regular->id, 'report' => $report->id])
+            ->with('success', "RSAT report client approval link sent to {$recipientEmail}.");
+    }
+
+    public function bulkDestroyGeneratedReports(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        $validated = $request->validate([
+            'selected_reports' => ['required', 'array', 'min:1'],
+            'selected_reports.*' => ['required', 'integer'],
+        ]);
+
+        $reports = $regular->sowReports()
+            ->whereIn('id', $validated['selected_reports'])
+            ->get();
+
+        foreach ($reports as $report) {
+            if ($report->client_attachment_path && Storage::disk('public')->exists($report->client_attachment_path)) {
+                Storage::disk('public')->delete($report->client_attachment_path);
+            }
+        }
+
+        $deletedCount = $regular->sowReports()
+            ->whereIn('id', $validated['selected_reports'])
+            ->delete();
+
+        return redirect()
+            ->route('regular.show', ['regular' => $regular->id, 'tab' => 'report'])
+            ->with('success', $deletedCount === 1 ? '1 RSAT report deleted successfully.' : "{$deletedCount} RSAT reports deleted successfully.");
+    }
+
+    public function clientRsatReport(string $token): View
+    {
+        abort_unless($this->supportsRegularReportClientPortal(), 404);
+
+        $report = $this->findRegularReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This RSAT report link has expired.');
+
+        $regular = $report->project()->with(['deal:id,deal_code', 'contact:id,first_name,last_name,email', 'company:id,company_name'])->firstOrFail();
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: 'Client');
+
+        return view('regular.client-report-form', [
+            'regular' => $regular,
+            'report' => $report,
+            'contactName' => $contactName,
+            'clientFormAction' => route('regular.report.client.submit', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientRsatReport(Request $request, string $token): RedirectResponse
+    {
+        abort_unless($this->supportsRegularReportClientPortal(), 404);
+
+        $report = $this->findRegularReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This RSAT report link has expired.');
+
+        $validated = $request->validate([
+            'client_approval_name' => ['required', 'string', 'max:255'],
+            'client_approval' => ['accepted'],
+            'client_response_notes' => ['nullable', 'string', 'max:4000'],
+            'client_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+        ], [
+            'client_approval.accepted' => 'Please confirm your approval before submitting.',
+        ]);
+
+        if ($request->hasFile('client_attachment')) {
+            if ($report->client_attachment_path && Storage::disk('public')->exists($report->client_attachment_path)) {
+                Storage::disk('public')->delete($report->client_attachment_path);
+            }
+
+            $report->client_attachment_path = $request->file('client_attachment')->store("regular/{$report->project_id}/reports", 'public');
+        }
+
+        $report->fill([
+            'client_response_status' => 'approved',
+            'client_approved_at' => now(),
+            'client_approved_name' => $validated['client_approval_name'],
+            'client_response_notes' => $validated['client_response_notes'] ?? null,
+            'client_confirmation_name' => $validated['client_approval_name'],
+        ]);
+        $report->save();
+
+        return redirect()
+            ->route('regular.report.client.show', ['token' => $token])
+            ->with('success', 'Your approval has been recorded successfully.');
+    }
+
+    public function downloadClientRsatReport(string $token): RedirectResponse
+    {
+        abort_unless($this->supportsRegularReportClientPortal(), 404);
+
+        $report = $this->findRegularReportByClientToken($token);
+        abort_if($report->client_access_expires_at && $report->client_access_expires_at->isPast(), 403, 'This RSAT report link has expired.');
+
+        $regular = $report->project()->with([
+            'deal:id,deal_code,customer_type,engagement_type',
+            'contact:id,first_name,last_name,email,phone,company_name',
+            'company:id,company_name',
+            'company.latestBif',
+            'starts' => fn ($query) => $query->latest(),
+        ])->firstOrFail();
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $rsat = $regular->starts->first() ?: new ProjectStart(['project_id' => $regular->id]);
+        $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: '-');
+
+        $targetPath = 'generated-previews/regular/rsat-report/' . ($regular->project_code ?: $regular->id) . '-' . ($report->report_number ?: $report->id) . '.pdf';
+        $pdfPath = $this->generatePdfPreview('regular.pdf.rsat-report', compact('regular', 'rsat', 'report', 'contactName'), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate RSAT report PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
+    public function clientNtp(string $token): View
+    {
+        $ntpRecord = $this->findRegularNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        $regular = $ntpRecord->project()->with(['deal:id,deal_code', 'contact:id,first_name,last_name,email', 'company:id,company_name'])->firstOrFail();
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: 'Client');
+
+        return view('documents.client-ntp-form', [
+            'project' => $regular,
+            'ntpRecord' => $ntpRecord,
+            'ntp' => $ntpRecord->payload ?? [],
+            'contactName' => $contactName,
+            'clientFormAction' => route('regular.ntp.client.submit', ['token' => $token]),
+            'clientDownloadUrl' => route('regular.ntp.client.download', ['token' => $token]),
+        ]);
+    }
+
+    public function submitClientNtp(Request $request, string $token): RedirectResponse
+    {
+        $ntpRecord = $this->findRegularNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        $validated = $request->validate([
+            'client_approval_name' => ['required', 'string', 'max:255'],
+            'client_approval' => ['accepted'],
+            'client_response_notes' => ['nullable', 'string', 'max:4000'],
+            'client_attachment' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:10240'],
+        ], [
+            'client_approval.accepted' => 'Please confirm approval before submitting.',
+            'client_attachment.required' => 'Please upload the signed NTP file before submitting.',
+        ]);
+
+        if ($ntpRecord->client_attachment_path && Storage::disk('public')->exists($ntpRecord->client_attachment_path)) {
+            Storage::disk('public')->delete($ntpRecord->client_attachment_path);
+        }
+
+        $ntpRecord->fill([
+            'client_response_status' => 'approved_to_proceed',
+            'client_approved_at' => now(),
+            'client_approved_name' => $validated['client_approval_name'],
+            'client_response_notes' => $validated['client_response_notes'] ?? null,
+            'client_attachment_path' => $request->file('client_attachment')->store("regular/{$ntpRecord->project_id}/ntp", 'public'),
+        ]);
+        $ntpRecord->save();
+
+        return redirect()
+            ->route('regular.ntp.client.show', ['token' => $token])
+            ->with('success', 'Approved to proceed. The signed NTP was submitted successfully.');
+    }
+
+    public function downloadClientNtp(string $token): RedirectResponse
+    {
+        $ntpRecord = $this->findRegularNtpByClientToken($token);
+        abort_if($ntpRecord->client_access_expires_at && $ntpRecord->client_access_expires_at->isPast(), 403, 'This NTP link has expired.');
+
+        return $this->downloadRegularNtpPdfFromRecord($ntpRecord);
     }
 
     private function provisionMissingRegularRecords(): void
@@ -265,7 +490,7 @@ class RegularController extends Controller
         }
 
         Deal::query()
-            ->whereDoesntHave('project')
+            ->whereDoesntHave('projects', fn ($query) => $query->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%']))
             ->get()
             ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
             ->each(fn (Deal $deal) => $this->projectProvisioner->createOrSyncFromDeal($deal));
@@ -297,6 +522,10 @@ class RegularController extends Controller
             'engagement_assigned_to.*' => ['nullable', 'string', 'max:255'],
             'engagement_timeline' => ['nullable', 'array'],
             'engagement_timeline.*' => ['nullable', 'string', 'max:255'],
+            'engagement_status' => ['nullable', 'array'],
+            'engagement_status.*' => ['nullable', 'in:open,in_progress,delayed,completed,on_hold'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,ppt,pptx,txt', 'max:10240'],
             'approval_requirement' => ['nullable', 'array'],
             'approval_requirement.*' => ['nullable', 'string', 'max:255'],
             'approval_responsible_person' => ['nullable', 'array'],
@@ -335,6 +564,7 @@ class RegularController extends Controller
             'date_completed' => $validated['date_completed'] ?? null,
             'status' => $validated['status'],
             'engagement_requirements' => $this->buildRequirementRows($request, 'engagement'),
+            'attachments' => $this->storeRsatAttachments($request, $regular, $rsat),
             'approval_steps' => $this->buildApprovalRows($request),
             'clearance' => $this->buildClearancePayload($validated),
             'rejection_reason' => $validated['rejection_reason'] ?? null,
@@ -421,7 +651,8 @@ class RegularController extends Controller
         ];
 
         $report->fill([
-            'report_number' => $validated['report_number'] ?? null,
+            'report_number' => $validated['report_number']
+                ?: ($report->report_number ?: ProjectSowReport::generateNextRsatCode()),
             'date_prepared' => $validated['date_prepared'] ?? null,
             'within_scope_items' => $this->buildReportRows($request),
             'out_of_scope_items' => [],
@@ -443,8 +674,9 @@ class RegularController extends Controller
         $submittedTo = (array) $request->input("{$prefix}_submitted_to", []);
         $assigned = (array) $request->input("{$prefix}_assigned_to", []);
         $timelines = (array) $request->input("{$prefix}_timeline", []);
+        $statuses = (array) $request->input("{$prefix}_status", []);
 
-        return collect($requirements)->map(function ($value, $index) use ($notes, $purposes, $providedBy, $submittedTo, $assigned, $timelines) {
+        return collect($requirements)->map(function ($value, $index) use ($notes, $purposes, $providedBy, $submittedTo, $assigned, $timelines, $statuses) {
             $requirement = trim((string) $value);
             if ($requirement === '') {
                 return null;
@@ -459,6 +691,9 @@ class RegularController extends Controller
                 'submitted_to' => trim((string) ($submittedTo[$index] ?? '')),
                 'assigned_to' => trim((string) ($assigned[$index] ?? '')),
                 'timeline' => trim((string) ($timelines[$index] ?? '')),
+                'status' => in_array(($statuses[$index] ?? 'open'), ['open', 'in_progress', 'delayed', 'completed', 'on_hold'], true)
+                    ? (string) ($statuses[$index] ?? 'open')
+                    : 'open',
             ];
         })->filter()->values()->all();
     }
@@ -510,15 +745,17 @@ class RegularController extends Controller
         $frequencies = (array) $request->input('report_frequency', []);
         $reminders = (array) $request->input('report_reminder_lead_time', []);
         $deadlines = (array) $request->input('report_deadline', []);
+        $statuses = (array) $request->input('report_status', []);
 
-        return collect($activities)->map(function ($value, $index) use ($services, $frequencies, $reminders, $deadlines) {
+        return collect($activities)->map(function ($value, $index) use ($services, $frequencies, $reminders, $deadlines, $statuses) {
             $service = trim((string) ($services[$index] ?? ''));
             $activity = trim((string) $value);
             $frequency = trim((string) ($frequencies[$index] ?? ''));
             $reminder = trim((string) ($reminders[$index] ?? ''));
             $deadline = trim((string) ($deadlines[$index] ?? ''));
+            $status = trim((string) ($statuses[$index] ?? 'open'));
 
-            if ($service === '' && $activity === '' && $frequency === '' && $reminder === '' && $deadline === '') {
+            if ($service === '' && $activity === '' && $frequency === '' && $reminder === '' && $deadline === '' && $status === '') {
                 return null;
             }
 
@@ -528,6 +765,7 @@ class RegularController extends Controller
                 'frequency' => $frequency,
                 'reminder_lead_time' => $reminder,
                 'deadline' => $deadline,
+                'status' => in_array($status, ['open', 'in_progress', 'delayed', 'completed', 'on_hold'], true) ? $status : 'open',
             ];
         })->filter()->values()->all();
     }
@@ -541,6 +779,7 @@ class RegularController extends Controller
                 'frequency' => trim((string) ($row['notes'] ?? '')),
                 'reminder_lead_time' => trim((string) ($row['timeline'] ?? '')),
                 'deadline' => trim((string) ($row['submitted_to'] ?? '')),
+                'status' => trim((string) ($row['status'] ?? 'open')),
             ])
             ->filter(fn (array $row): bool => collect($row)->contains(fn ($value) => $value !== ''))
             ->values()
@@ -573,6 +812,33 @@ class RegularController extends Controller
         ];
     }
 
+    private function storeRsatAttachments(Request $request, Project $regular, ProjectStart $rsat): array
+    {
+        $existing = collect($rsat->attachments ?? [])
+            ->filter(fn ($item): bool => is_array($item) && filled($item['path'] ?? null))
+            ->values();
+
+        if (! $request->hasFile('attachments')) {
+            return $existing->all();
+        }
+
+        $newFiles = collect($request->file('attachments', []))
+            ->filter()
+            ->map(function ($file) use ($regular): array {
+                $path = $file->store("regular/{$regular->id}/rsat-attachments", 'public');
+
+                return [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_at' => now()->toDateTimeString(),
+                ];
+            });
+
+        return $existing->concat($newFiles)->values()->all();
+    }
+
     private function buildManualRequirementRows(string $rawRequirements, string $assignedTo): array
     {
         $rows = collect(preg_split('/[\r\n]+/', trim($rawRequirements)))
@@ -588,6 +854,7 @@ class RegularController extends Controller
                 'submitted_to' => 'Sales & Marketing',
                 'assigned_to' => $assignedTo,
                 'timeline' => 'Recurring schedule',
+                'status' => 'open',
             ])
             ->all();
 
@@ -604,6 +871,7 @@ class RegularController extends Controller
             'submitted_to' => 'Sales & Marketing',
             'assigned_to' => $assignedTo,
             'timeline' => 'Recurring schedule',
+            'status' => 'open',
         ]];
     }
 
@@ -636,5 +904,196 @@ class RegularController extends Controller
             'date_recorded' => now()->toDateString(),
             'date_signed' => null,
         ];
+    }
+
+    private function resolveRegularClientEmail(Project $regular): ?string
+    {
+        $regular->loadMissing([
+            'contact:id,email,first_name,last_name',
+            'company.primaryContact:id,email,first_name,last_name',
+        ]);
+
+        $email = trim((string) ($regular->contact?->email
+            ?: $regular->company?->primaryContact?->email
+            ?: ''));
+
+        return $email !== '' ? $email : null;
+    }
+
+    private function supportsRegularReportClientPortal(): bool
+    {
+        return Schema::hasColumns('project_sow_reports', [
+            'client_access_token',
+            'client_access_expires_at',
+            'client_form_sent_to_email',
+            'client_form_sent_at',
+            'client_response_status',
+            'client_approved_at',
+            'client_approved_name',
+            'client_response_notes',
+            'client_attachment_path',
+        ]);
+    }
+
+    private function sendRsatReportClientLink(Project $regular, ProjectSowReport $report, string $recipientEmail): void
+    {
+        $regular->loadMissing([
+            'deal:id,deal_code',
+            'contact:id,first_name,last_name,email',
+            'company:id,company_name',
+        ]);
+
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $clientUrl = route('regular.report.client.show', ['token' => $token]);
+        $clientName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: 'Client');
+
+        $report->fill([
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+        ]);
+        $report->save();
+
+        $emailHtml = view('emails.regular.rsat-report-client-link', [
+            'regular' => $regular,
+            'report' => $report,
+            'clientName' => $clientName,
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $regular, $report) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("RSAT Report Approval for {$regular->name} ({$report->report_number})");
+        });
+    }
+
+    private function findRegularReportByClientToken(string $token): ProjectSowReport
+    {
+        return ProjectSowReport::query()
+            ->where('client_access_token', $token)
+            ->firstOrFail();
+    }
+
+    private function buildRegularNtpPayload(Project $regular): array
+    {
+        $regular->loadMissing([
+            'deal:id,deal_code',
+            'contact:id,first_name,last_name',
+            'sowReports' => fn ($query) => $query->latest(),
+        ]);
+
+        $report = $regular->sowReports()
+            ->whereJsonContains('internal_approval->__meta->generated', true)
+            ->latest('date_prepared')
+            ->latest()
+            ->first();
+        $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' '))
+            ?: ($regular->client_name ?: '-');
+
+        return [
+            'title' => 'NOTICE TO PROCEED',
+            'form_code' => 'ENG-F-001-v1.0-03.16.26',
+            'date_issued' => now()->format('F d, Y'),
+            'ntp_no' => null,
+            'engagement_type' => $regular->engagement_type ?: 'Regular Retainer',
+            'condeal_reference_no' => $regular->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $regular->business_name ?: '-',
+            'engagement_reference_label' => 'RSAT Ref No.:',
+            'engagement_reference_no' => $report?->report_number ?: '-',
+            'approved_start_date' => optional($regular->planned_start_date)->format('F d, Y') ?: '-',
+            'target_completion_date' => optional($regular->target_completion_date)->format('F d, Y') ?: '-',
+            'client_representative' => $regular->client_name ?: $contactName,
+            'lead_consultant' => $regular->assigned_consultant ?: ($regular->assigned_project_manager ?: ''),
+            'associate' => $regular->assigned_associate ?: '',
+        ];
+    }
+
+    private function generateAndSendRegularNtp(Project $regular): ProjectNtp
+    {
+        $payload = $this->buildRegularNtpPayload($regular);
+        $report = $regular->sowReports()
+            ->whereJsonContains('internal_approval->__meta->generated', true)
+            ->latest('date_prepared')
+            ->latest()
+            ->first();
+
+        $ntpRecord = $regular->ntps()->latest()->first() ?: new ProjectNtp(['project_id' => $regular->id]);
+        $ntpRecord->fill([
+            'reference_type' => 'rsat',
+            'reference_number' => $report?->report_number,
+            'date_issued' => now()->toDateString(),
+            'payload' => $payload,
+        ]);
+        $ntpRecord->project_id = $regular->id;
+        $ntpRecord->save();
+
+        $payload = $ntpRecord->payload ?? [];
+        $payload['ntp_no'] = $ntpRecord->ntp_number;
+        $ntpRecord->payload = $payload;
+        $ntpRecord->save();
+
+        $recipientEmail = $this->resolveRegularClientEmail($regular);
+        if ($recipientEmail !== null) {
+            $this->sendRegularNtpClientLink($regular, $ntpRecord, $recipientEmail);
+        }
+
+        return $ntpRecord->fresh();
+    }
+
+    private function sendRegularNtpClientLink(Project $regular, ProjectNtp $ntpRecord, string $recipientEmail): void
+    {
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $clientUrl = route('regular.ntp.client.show', ['token' => $token]);
+        $clientName = data_get($ntpRecord->payload, 'client_name', $regular->client_name ?: 'Client');
+
+        $ntpRecord->fill([
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+        ]);
+        $ntpRecord->save();
+
+        $emailHtml = view('emails.documents.ntp-client-link', [
+            'project' => $regular,
+            'ntpRecord' => $ntpRecord,
+            'clientName' => $clientName,
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $regular, $ntpRecord) {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject("Notice To Proceed for {$regular->name} ({$ntpRecord->ntp_number})");
+        });
+    }
+
+    private function findRegularNtpByClientToken(string $token): ProjectNtp
+    {
+        return ProjectNtp::query()
+            ->where('client_access_token', $token)
+            ->firstOrFail();
+    }
+
+    private function downloadRegularNtpPdfFromRecord(ProjectNtp $ntpRecord): RedirectResponse
+    {
+        $ntp = $ntpRecord->payload ?? [];
+        $ntp['ntp_no'] = $ntpRecord->ntp_number;
+        $targetPath = 'generated-previews/regular/ntp/' . ($ntpRecord->project?->project_code ?: $ntpRecord->project_id) . '-' . $ntpRecord->ntp_number . '.pdf';
+        $pdfPath = $this->generatePdfPreview('documents.pdf.ntp', compact('ntp'), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate NTP PDF preview.');
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
     }
 }

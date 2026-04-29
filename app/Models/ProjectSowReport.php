@@ -22,6 +22,15 @@ class ProjectSowReport extends Model
         'way_forward',
         'client_confirmation_name',
         'internal_approval',
+        'client_access_token',
+        'client_access_expires_at',
+        'client_form_sent_to_email',
+        'client_form_sent_at',
+        'client_response_status',
+        'client_approved_at',
+        'client_approved_name',
+        'client_response_notes',
+        'client_attachment_path',
     ];
 
     protected $casts = [
@@ -31,6 +40,9 @@ class ProjectSowReport extends Model
         'status_summary' => 'array',
         'internal_approval' => 'array',
         'project_completion_percentage' => 'decimal:2',
+        'client_access_expires_at' => 'datetime',
+        'client_form_sent_at' => 'datetime',
+        'client_approved_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -44,17 +56,28 @@ class ProjectSowReport extends Model
 
     public static function generateNextCode(?int $year = null): string
     {
-        $year ??= (int) now()->format('Y');
-        $prefix = sprintf('SOWR-%d-', $year);
+        return static::generateNextCodeForPrefix('SOWR', $year);
+    }
 
-        $nextNumber = DB::transaction(function () use ($prefix): int {
+    public static function generateNextRsatCode(?int $year = null): string
+    {
+        return static::generateNextCodeForPrefix('RSATR', $year);
+    }
+
+    private static function generateNextCodeForPrefix(string $prefixKey, ?int $year = null): string
+    {
+        $year ??= (int) now()->format('Y');
+        $prefix = sprintf('%s-%d-', $prefixKey, $year);
+        $pattern = sprintf('/^%s-\d{4}-\d{3}$/', preg_quote($prefixKey, '/'));
+
+        $nextNumber = DB::transaction(function () use ($prefix, $pattern): int {
             $latestCode = static::query()
                 ->where('report_number', 'like', $prefix.'%')
                 ->orderByDesc('report_number')
                 ->lockForUpdate()
                 ->value('report_number');
 
-            if (! is_string($latestCode) || ! preg_match('/^SOWR-\d{4}-\d{3}$/', $latestCode)) {
+            if (! is_string($latestCode) || ! preg_match($pattern, $latestCode)) {
                 return 1;
             }
 

@@ -29,6 +29,7 @@ class ProjectProvisioner
         $engagementType = Str::lower(trim((string) ($deal->engagement_type ?? '')));
         $isRegular = Str::contains($engagementType, 'regular');
         $isProject = Str::contains($engagementType, 'project') || Str::contains($engagementType, 'hybrid');
+        $isHybrid = Str::contains($engagementType, 'hybrid');
 
         if (! $isRegular && ! $isProject) {
             return null;
@@ -42,17 +43,44 @@ class ProjectProvisioner
             $deal->last_name ?: $contact?->last_name,
         ])->filter()->implode(' '));
 
+        $projectWorkspace = null;
+
+        if ($isProject) {
+            $projectWorkspace = $this->createOrSyncWorkspace($deal, $contact, $company, $clientName, regular: false, hybrid: $isHybrid);
+        }
+
+        if ($isRegular || $isHybrid) {
+            $this->createOrSyncWorkspace($deal, $contact, $company, $clientName, regular: true, hybrid: $isHybrid);
+        }
+
+        return $projectWorkspace;
+    }
+
+    private function createOrSyncWorkspace(
+        Deal $deal,
+        ?Contact $contact,
+        ?Company $company,
+        string $clientName,
+        bool $regular,
+        bool $hybrid,
+    ): Project {
         $scopeItems = $this->defaultScopeItems($deal);
         $internalApproval = $this->defaultInternalApprovalPayload($deal);
+        $workspaceType = $regular ? 'regular' : 'project';
+        $workspaceEngagementType = $regular
+            ? ($hybrid ? 'Hybrid Regular' : ($deal->engagement_type ?: 'Regular Retainer'))
+            : ($hybrid ? 'Hybrid Project' : $deal->engagement_type);
+        $workspaceNameSuffix = $regular ? 'Regular' : 'Project';
+
         $projectAttributes = [
             'deal_id' => $deal->id,
             'contact_id' => $deal->contact_id,
             'company_id' => $company?->id,
-            'name' => $deal->deal_code ?: ('Project for '.($deal->company_name ?: $clientName ?: 'Client')),
-            'engagement_type' => $deal->engagement_type,
-            'status' => $isRegular ? 'RSAT' : 'SOW',
-            'current_phase' => $isRegular ? 'RSAT' : 'SOW',
-            'current_step' => $isRegular ? 'RSAT Checklist' : 'SOW Preparation',
+            'name' => ($deal->deal_code ?: ('Project for '.($deal->company_name ?: $clientName ?: 'Client'))).' - '.$workspaceNameSuffix,
+            'engagement_type' => $workspaceEngagementType,
+            'status' => $regular ? 'RSAT' : 'SOW',
+            'current_phase' => $regular ? 'RSAT' : 'SOW',
+            'current_step' => $regular ? 'RSAT Checklist' : 'SOW Preparation',
             'planned_start_date' => $deal->planned_start_date,
             'target_completion_date' => $deal->estimated_completion_date,
             'client_preferred_completion_date' => $deal->client_preferred_completion_date,
@@ -70,68 +98,91 @@ class ProjectProvisioner
             'metadata' => [
                 'created_from' => 'deal_approval',
                 'deal_stage_at_creation' => $deal->stage,
+                'workspace_type' => $workspaceType,
+                'source_engagement_type' => $deal->engagement_type,
             ],
             'opened_at' => now(),
         ];
 
-        $existingProject = Project::query()->where('deal_id', $deal->id)->first();
+        $existingProject = Project::query()
+            ->where('deal_id', $deal->id)
+            ->when(
+                $regular,
+                fn ($query) => $query->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%']),
+                fn ($query) => $query->where(function ($workspaceQuery): void {
+                    $workspaceQuery
+                        ->whereNull('engagement_type')
+                        ->orWhereRaw('LOWER(engagement_type) NOT LIKE ?', ['%regular%']);
+                })
+            )
+            ->orderBy('id')
+            ->first();
+
         if ($existingProject) {
             $existingProject->fill([
                 ...$projectAttributes,
                 'opened_at' => $existingProject->opened_at ?: now(),
             ])->save();
 
-            return $existingProject;
+            $project = $existingProject;
+        } else {
+            $project = Project::query()->create($projectAttributes);
         }
 
-        $project = Project::query()->create($projectAttributes);
+        $project->starts()->firstOrCreate(
+            ['project_id' => $project->id],
+            [
+                'form_date' => now()->toDateString(),
+                'date_started' => now()->toDateString(),
+                'status' => 'pending',
+                'checklist' => $this->defaultStartChecklist($deal, $contact, $company, $regular),
+                'kyc_requirements' => $this->defaultStartKycRequirements($deal, $contact, $company),
+                'engagement_requirements' => $this->defaultStartEngagementRequirements($deal),
+                'approval_steps' => $this->defaultStartApprovalSteps($deal, $regular),
+                'routing' => $this->defaultStartRouting(),
+                'clearance' => $this->defaultStartClearance($deal),
+            ]
+        );
 
-        ProjectStart::query()->create([
-            'project_id' => $project->id,
-            'form_date' => now()->toDateString(),
-            'date_started' => now()->toDateString(),
-            'status' => 'pending',
-            'checklist' => $this->defaultStartChecklist($deal, $contact, $company, $isRegular),
-            'kyc_requirements' => $this->defaultStartKycRequirements($deal, $contact, $company),
-            'engagement_requirements' => $this->defaultStartEngagementRequirements($deal),
-            'approval_steps' => $this->defaultStartApprovalSteps($deal, $isRegular),
-            'routing' => $this->defaultStartRouting(),
-            'clearance' => $this->defaultStartClearance($deal),
-        ]);
+        if (! $regular) {
+            $project->sows()->firstOrCreate(
+                ['project_id' => $project->id],
+                [
+                    'version_number' => '1.0',
+                    'date_prepared' => now()->toDateString(),
+                    'within_scope_items' => $scopeItems,
+                    'out_of_scope_items' => [],
+                    'client_confirmation_name' => $clientName,
+                    'internal_approval' => $internalApproval,
+                    'approval_status' => 'draft',
+                    'ntp_status' => 'pending',
+                ]
+            );
+        }
 
-        ProjectSow::query()->create([
-            'project_id' => $project->id,
-            'version_number' => '1.0',
-            'date_prepared' => now()->toDateString(),
-            'within_scope_items' => $scopeItems,
-            'out_of_scope_items' => [],
-            'client_confirmation_name' => $clientName,
-            'internal_approval' => $internalApproval,
-            'approval_status' => 'draft',
-            'ntp_status' => 'pending',
-        ]);
-
-        ProjectSowReport::query()->create([
-            'project_id' => $project->id,
-            'version_number' => '1.0',
-            'date_prepared' => now()->toDateString(),
-            'within_scope_items' => $scopeItems,
-            'out_of_scope_items' => [],
-            'status_summary' => [
-                'total_main_tasks' => count($scopeItems),
-                'open' => count($scopeItems),
-                'in_progress' => 0,
-                'delayed' => 0,
-                'completed' => 0,
-                'on_hold' => 0,
-            ],
-            'project_completion_percentage' => 0,
-            'key_issues' => null,
-            'recommendations' => null,
-            'way_forward' => null,
-            'client_confirmation_name' => $clientName,
-            'internal_approval' => $internalApproval,
-        ]);
+        $project->sowReports()->firstOrCreate(
+            ['project_id' => $project->id],
+            [
+                'version_number' => '1.0',
+                'date_prepared' => now()->toDateString(),
+                'within_scope_items' => $scopeItems,
+                'out_of_scope_items' => [],
+                'status_summary' => [
+                    'total_main_tasks' => count($scopeItems),
+                    'open' => count($scopeItems),
+                    'in_progress' => 0,
+                    'delayed' => 0,
+                    'completed' => 0,
+                    'on_hold' => 0,
+                ],
+                'project_completion_percentage' => 0,
+                'key_issues' => null,
+                'recommendations' => null,
+                'way_forward' => null,
+                'client_confirmation_name' => $clientName,
+                'internal_approval' => $internalApproval,
+            ]
+        );
 
         return $project;
     }

@@ -108,4 +108,9 @@ class Project extends Model
     {
         return $this->hasMany(ProjectSowReport::class);
     }
+
+    public function ntps(): HasMany
+    {
+        return $this->hasMany(ProjectNtp::class);
+    }
 }

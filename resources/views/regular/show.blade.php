@@ -4,7 +4,7 @@
 @php
     $fmt = fn ($v) => $v ? \Illuminate\Support\Carbon::parse($v)->format('M d, Y') : '-';
     $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' ')) ?: '-';
-    $rsatRequirements = collect($rsat?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '']]));
+    $rsatRequirements = collect($rsat?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '', 'status' => 'open']]));
     $rsatClearance = (array) ($rsat?->clearance ?? []);
     $formDate = old('form_date', optional($rsat?->form_date ?? $rsat?->created_at)->format('Y-m-d'));
     $dateStarted = old('date_started', optional($rsat?->date_started)->format('Y-m-d'));
@@ -21,6 +21,7 @@
     $recordedDate = old('clearance_date_recorded', $rsatClearance['date_recorded'] ?? '');
     $signedDate = old('clearance_date_signed', $rsatClearance['date_signed'] ?? '');
     $generatedReports = $generatedReports ?? collect();
+    $rsatAttachments = collect($rsat?->attachments ?? []);
 @endphp
 
 <style>
@@ -45,6 +46,60 @@
         font-size: 0.85rem;
         font-weight: 600;
         color: #1e3a5f;
+    }
+    .rsat-tab-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #cfd9e7;
+        background: #fff;
+        padding: 10px 18px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1e3a5f;
+        transition: all 0.16s ease;
+    }
+    .rsat-tab-link.active {
+        border-color: #1c4587;
+        background: #1c4587;
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(28, 69, 135, 0.18);
+    }
+    .rsat-tab-link:hover {
+        border-color: #9eb2cf;
+        color: #1c4587;
+    }
+    .rsat-linked-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    }
+    .rsat-linked-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .rsat-doc-action {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        padding: 9px 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #334155;
+    }
+    .rsat-doc-primary {
+        display: inline-flex;
+        align-items: center;
+        background: #21409a;
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
     }
     .rsat-sheet {
         border: 1px solid #d7deea;
@@ -194,6 +249,10 @@
         width: min(100%, 420px);
         border-bottom: 1px solid #111827;
         min-height: 36px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        text-align: center;
     }
     .rsat-signature-label {
         font-family: Georgia, "Times New Roman", serif;
@@ -247,13 +306,6 @@
     .rsat-footer-note {
         display: grid;
         gap: 8px;
-    }
-    .rsat-actions {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-top: 22px;
     }
     .rsat-tab {
         display: inline-flex;
@@ -313,9 +365,8 @@
                 </div>
             </div>
             <div class="mt-5 flex flex-wrap gap-2">
-                <button type="button" class="rsat-tab {{ $tab === 'rsat' ? 'is-active' : '' }}" data-tab-button="rsat">RSAT Form</button>
-                <button type="button" class="rsat-tab {{ $tab === 'report' ? 'is-active' : '' }}" data-tab-button="report">RSAT Report</button>
-                <a href="{{ route('regular.rsat.download', $regular) }}" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Download RSAT PDF</a>
+                <a href="{{ route('regular.show', ['regular' => $regular->id, 'tab' => 'rsat']) }}" class="rsat-tab-link {{ $tab === 'rsat' ? 'active' : '' }}">RSAT Form</a>
+                <a href="{{ route('regular.show', ['regular' => $regular->id, 'tab' => 'report']) }}" class="rsat-tab-link {{ $tab === 'report' ? 'active' : '' }}">RSAT Report</a>
             </div>
         </div>
 
@@ -323,19 +374,29 @@
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
         @endif
 
-        <div class="rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
-            <div class="flex flex-wrap gap-x-8 gap-y-2">
-                <p>Deal: <a href="{{ route('deals.show', $regular->deal_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $regular->deal?->deal_code ?? 'View linked deal' }}</a></p>
-                @if ($regular->company_id)
-                    <p>Company: <a href="{{ route('company.show', $regular->company_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $regular->company?->company_name ?? 'View company' }}</a></p>
-                @endif
-                @if ($regular->contact_id)
-                    <p>Contact: <a href="{{ route('contacts.show', $regular->contact_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $contactName }}</a></p>
-                @endif
+        <div class="rsat-linked-card rounded-2xl px-5 py-4 text-sm text-gray-600">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="flex flex-wrap gap-x-8 gap-y-2">
+                    <p>Deal: <a href="{{ route('deals.show', $regular->deal_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $regular->deal?->deal_code ?? 'View linked deal' }}</a></p>
+                    @if ($regular->company_id)
+                        <p>Company: <a href="{{ route('company.show', $regular->company_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $regular->company?->company_name ?? 'View company' }}</a></p>
+                    @endif
+                    @if ($regular->contact_id)
+                        <p>Contact: <a href="{{ route('contacts.show', $regular->contact_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $contactName }}</a></p>
+                    @endif
+                </div>
+                <div class="rsat-linked-actions">
+                    @if ($tab === 'rsat')
+                        <button type="submit" form="regular-rsat-form" class="rsat-doc-primary">Save RSAT</button>
+                        <button type="submit" form="regular-rsat-form" formaction="{{ route('regular.report.generate', $regular) }}" class="rsat-doc-action">Generate RSAT Report</button>
+                        <a href="{{ route('regular.ntp.download', $regular) }}" class="rsat-doc-action">Generate NTP</a>
+                        <a href="{{ route('regular.rsat.download', $regular) }}" class="rsat-doc-action">Download PDF</a>
+                    @endif
+                </div>
             </div>
         </div>
 
-        <form method="POST" action="{{ route('regular.rsat.update', $regular) }}" class="rsat-sheet overflow-hidden p-6 {{ $tab !== 'rsat' ? 'hidden' : '' }}" data-tab-panel="rsat">
+        <form id="regular-rsat-form" method="POST" action="{{ route('regular.rsat.update', $regular) }}" enctype="multipart/form-data" class="rsat-sheet overflow-hidden p-6 {{ $tab !== 'rsat' ? 'hidden' : '' }}" data-tab-panel="rsat">
             @csrf
             <input type="hidden" name="status" value="{{ old('status', $rsat?->status ?? 'pending') }}">
             <input type="hidden" name="form_date" value="{{ $formDate }}">
@@ -413,12 +474,13 @@
                     <table class="rsat-table">
                         <thead>
                             <tr>
-                                <th style="width: 6%;">Item #</th>
-                                <th style="width: 16%;">Service</th>
-                                <th style="width: 34%;">Activity / Output</th>
-                                <th style="width: 16%;">Frequency</th>
-                                <th style="width: 16%;">Reminder Lead Time</th>
+                                <th style="width: 5%;">Item #</th>
+                                <th style="width: 18%;">Service</th>
+                                <th style="width: 26%;">Activity / Output</th>
+                                <th style="width: 12%;">Frequency</th>
+                                <th style="width: 14%;">Reminder Lead Time</th>
                                 <th style="width: 10%;">Deadline</th>
+                                <th style="width: 9%;">Status</th>
                                 <th style="width: 6%;">Action</th>
                             </tr>
                         </thead>
@@ -441,6 +503,13 @@
                                     <td>
                                         <input name="engagement_submitted_to[]" value="{{ old('engagement_submitted_to.'.$index, $item['submitted_to'] ?? '') }}" class="rsat-row-input">
                                     </td>
+                                    <td>
+                                        <select name="engagement_status[]" class="rsat-row-input" style="appearance: none;">
+                                            @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
+                                                <option value="{{ $statusValue }}" @selected(old('engagement_status.'.$index, $item['status'] ?? 'open') === $statusValue)>{{ $statusLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                     <td style="text-align: center;">
                                         <button type="button" class="rsat-row-delete" data-delete-row>&times;</button>
                                     </td>
@@ -456,8 +525,60 @@
                     <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-requirements">Add RSAT Row</button>
                 </div>
 
+                <div class="rsat-section-title">ATTACHMENTS</div>
+                <div class="mt-5 space-y-4">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Upload Supporting Files</label>
+                        <div id="rsat-attachments-inputs" class="space-y-3">
+                            <div class="flex items-center gap-3" data-attachment-input-row>
+                                <input
+                                    type="file"
+                                    name="attachments[]"
+                                    accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                                    class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                                >
+                                <button type="button" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100" data-remove-attachment-input>
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">Attach images, PDFs, Office files, or text files up to 10MB each.</p>
+                        <div class="mt-3">
+                            <button type="button" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" id="add-rsat-attachment-input">
+                                Add More
+                            </button>
+                        </div>
+                    </div>
+
+                    @if ($rsatAttachments->isNotEmpty())
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-700">Attached Files</p>
+                            <div class="mt-3 space-y-2">
+                                @foreach ($rsatAttachments as $attachment)
+                                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-medium text-slate-800">{{ $attachment['name'] ?? 'Attachment' }}</p>
+                                            <p class="text-xs text-slate-500">
+                                                {{ strtoupper(pathinfo((string) ($attachment['name'] ?? ''), PATHINFO_EXTENSION) ?: 'FILE') }}
+                                                @if (filled($attachment['size'] ?? null))
+                                                    • {{ number_format(((int) $attachment['size']) / 1024, 1) }} KB
+                                                @endif
+                                            </p>
+                                        </div>
+                                        @if (filled($attachment['path'] ?? null))
+                                            <a href="{{ route('uploads.show', ['path' => $attachment['path'], 'download' => 1]) }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                                Download
+                                            </a>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
                 <div class="rsat-signature">
-                    <div class="rsat-signature-line"></div>
+                    <div class="rsat-signature-line">{{ $regular->client_name ?: $contactName }}</div>
                     <div class="rsat-signature-label">Client Fullname &amp; Signature</div>
                 </div>
 
@@ -543,16 +664,17 @@
                 <input type="hidden" name="approval_date_time_done[]" value="{{ old('approval_date_time_done.1', '') }}">
             </div>
 
-            <div class="rsat-actions">
-                <div></div>
-                <div class="flex gap-3">
-                    <button type="submit" class="inline-flex items-center bg-[#21409a] px-4 py-2 text-sm font-medium text-white">Save RSAT</button>
-                    <button type="submit" formaction="{{ route('regular.report.generate', $regular) }}" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">Generate RSAT Report</button>
-                </div>
-            </div>
         </form>
 
         <div class="space-y-5 {{ $tab !== 'report' ? 'hidden' : '' }}" data-tab-panel="report">
+            <div id="regularReportSelectionBar" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="font-medium text-slate-800"><span id="regularReportSelectedCount">0</span> selected</span>
+                    <button id="regularReportOpenDeleteModal" type="button" class="h-8 rounded-md border border-red-200 bg-white px-3 text-red-600 hover:bg-red-50">Delete Selected</button>
+                    <button id="regularReportClearSelection" type="button" class="ml-auto text-slate-700 hover:underline">Clear</button>
+                </div>
+            </div>
+
             <section class="rsat-top-card rounded-2xl px-6 py-5">
                 <div class="flex flex-wrap items-end justify-between gap-4">
                     <div>
@@ -585,37 +707,47 @@
                     <table class="min-w-full text-sm">
                         <thead class="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                             <tr>
+                                <th class="w-10 px-3 py-4 text-left"><input id="regularReportSelectAll" type="checkbox" class="h-4 w-4 rounded border-slate-300"></th>
                                 <th class="px-6 py-4 text-left">Report No.</th>
                                 <th class="px-6 py-4 text-left">Date of Reporting</th>
                                 <th class="px-6 py-4 text-left">Date Sent to Client</th>
+                                <th class="px-6 py-4 text-left">Date Approved</th>
                                 <th class="px-6 py-4 text-left">Status</th>
                             </tr>
                         </thead>
                         <tbody id="regularReportTableBody" class="divide-y divide-slate-100 bg-white">
                             @forelse ($generatedReports as $item)
                                 @php
-                                    $statusLabel = 'Sent to Client';
+                                    $isApproved = $item->client_response_status === 'approved' && $item->client_approved_at;
+                                    $statusLabel = $isApproved ? 'Approved' : 'Pending';
+                                    $statusClass = $isApproved
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-200';
                                     $previewUrl = route('regular.report.preview', ['regular' => $regular->id, 'report' => $item->id]);
                                 @endphp
                                 <tr
                                     class="cursor-pointer text-slate-700 transition hover:bg-slate-50"
-                                    data-report-search="{{ \Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y')])) ) }}"
+                                    data-report-search="{{ \Illuminate\Support\Str::lower(implode(' ', array_filter([$item->report_number, $statusLabel, optional($item->date_prepared)->format('M d, Y'), optional($item->client_approved_at)->format('M d, Y')])) ) }}"
                                     onclick="window.location='{{ $previewUrl }}'"
                                 >
+                                    <td class="px-3 py-4" onclick="event.stopPropagation()">
+                                        <input type="checkbox" value="{{ $item->id }}" class="regular-report-row-checkbox h-4 w-4 rounded border-slate-300">
+                                    </td>
                                     <td class="px-6 py-4">
                                         <span class="font-semibold text-blue-700 hover:text-blue-800">{{ $item->report_number ?: 'Report-'.$item->id }}</span>
                                     </td>
                                     <td class="px-6 py-4">{{ optional($item->date_prepared)->format('M d, Y') ?: '-' }}</td>
                                     <td class="px-6 py-4">{{ optional($item->created_at)->format('M d, Y') ?: '-' }}</td>
+                                    <td class="px-6 py-4">{{ optional($item->client_approved_at)->format('M d, Y') ?: '-' }}</td>
                                     <td class="px-6 py-4">
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $statusClass }}">
                                             {{ $statusLabel }}
                                         </span>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">
+                                    <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">
                                         No generated RSAT reports yet. Use <span class="font-semibold text-slate-700">Generate RSAT Report</span> in the RSAT Form tab.
                                     </td>
                                 </tr>
@@ -628,6 +760,30 @@
     </div>
 </div>
 
+<div id="regularReportDeleteModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
+    <button id="regularReportDeleteOverlay" type="button" aria-label="Close delete reports modal" class="absolute inset-0 bg-slate-900/45"></button>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div class="border-b border-slate-100 px-6 py-5">
+                <h2 class="text-xl font-semibold text-slate-900">Delete Selected RSAT Reports</h2>
+                <p class="mt-1 text-sm text-slate-500">This action will permanently delete the selected report records.</p>
+            </div>
+            <form id="regularReportBulkDeleteForm" method="POST" action="{{ route('regular.report.bulk-delete', $regular) }}">
+                @csrf
+                @method('DELETE')
+                <div id="regularReportDeleteSelectedInputs"></div>
+                <div class="px-6 py-5 text-sm text-slate-700">
+                    Are you sure you want to delete <span id="regularReportDeleteCountText" class="font-semibold text-slate-900">0 reports</span>?
+                </div>
+                <div class="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+                    <button id="regularReportCancelDeleteModal" type="button" class="h-10 rounded-lg border border-slate-300 px-4 text-sm text-slate-700 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" class="h-10 rounded-lg bg-red-600 px-5 text-sm font-medium text-white hover:bg-red-700">Delete Selected</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <template id="regular-requirement-row-template">
     <tr class="rsat-matrix-row">
         <td><div class="rsat-index"></div></td>
@@ -636,16 +792,42 @@
         <td><input name="engagement_notes[]" class="rsat-row-input"></td>
         <td><input name="engagement_timeline[]" class="rsat-row-input"></td>
         <td><input name="engagement_submitted_to[]" class="rsat-row-input"></td>
+        <td>
+            <select name="engagement_status[]" class="rsat-row-input" style="appearance: none;">
+                <option value="open" selected>Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="delayed">Delayed</option>
+                <option value="completed">Completed</option>
+                <option value="on_hold">On Hold</option>
+            </select>
+        </td>
         <td style="text-align: center;"><button type="button" class="rsat-row-delete" data-delete-row>&times;</button></td>
         <input type="hidden" name="engagement_provided_by[]" value="">
         <input type="hidden" name="engagement_assigned_to[]" value="">
     </tr>
 </template>
 
+<template id="rsat-attachment-input-template">
+    <div class="flex items-center gap-3" data-attachment-input-row>
+        <input
+            type="file"
+            name="attachments[]"
+            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        >
+        <button type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100" data-remove-attachment-input>
+            Remove
+        </button>
+    </div>
+</template>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const requirementsContainer = document.getElementById('regular-requirements');
     const rowTemplate = document.getElementById('regular-requirement-row-template');
+    const attachmentInputsContainer = document.getElementById('rsat-attachments-inputs');
+    const attachmentInputTemplate = document.getElementById('rsat-attachment-input-template');
+    const addAttachmentInputButton = document.getElementById('add-rsat-attachment-input');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
 
@@ -687,6 +869,33 @@ document.addEventListener('DOMContentLoaded', () => {
         syncRowNumbers(requirementsContainer);
     });
 
+    addAttachmentInputButton?.addEventListener('click', () => {
+        attachmentInputsContainer?.insertAdjacentHTML('beforeend', attachmentInputTemplate.innerHTML);
+    });
+
+    attachmentInputsContainer?.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-remove-attachment-input]');
+        if (!trigger) {
+            return;
+        }
+
+        const row = trigger.closest('[data-attachment-input-row]');
+        if (!row) {
+            return;
+        }
+
+        const rows = attachmentInputsContainer.querySelectorAll('[data-attachment-input-row]');
+        if (rows.length <= 1) {
+            const input = row.querySelector('input[type="file"]');
+            if (input) {
+                input.value = '';
+            }
+            return;
+        }
+
+        row.remove();
+    });
+
     const activateTab = (tabKey) => {
         tabButtons.forEach((button) => {
             button.classList.toggle('is-active', button.dataset.tabButton === tabKey);
@@ -703,19 +912,105 @@ document.addEventListener('DOMContentLoaded', () => {
     (() => {
         const searchInput = document.getElementById('regularReportSearch');
         const rows = Array.from(document.querySelectorAll('#regularReportTableBody tr[data-report-search]'));
+        const selectAll = document.getElementById('regularReportSelectAll');
+        const rowChecks = Array.from(document.querySelectorAll('.regular-report-row-checkbox'));
+        const selectionBar = document.getElementById('regularReportSelectionBar');
+        const selectedCount = document.getElementById('regularReportSelectedCount');
+        const clearSelection = document.getElementById('regularReportClearSelection');
+        const openDeleteModalButton = document.getElementById('regularReportOpenDeleteModal');
+        const deleteModal = document.getElementById('regularReportDeleteModal');
+        const deleteOverlay = document.getElementById('regularReportDeleteOverlay');
+        const cancelDeleteModalButton = document.getElementById('regularReportCancelDeleteModal');
+        const deleteSelectedInputs = document.getElementById('regularReportDeleteSelectedInputs');
+        const deleteCountText = document.getElementById('regularReportDeleteCountText');
 
-        if (!searchInput || rows.length === 0) {
-            return;
+        if (searchInput && rows.length > 0) {
+            searchInput.addEventListener('input', () => {
+                const keyword = String(searchInput.value || '').trim().toLowerCase();
+
+                rows.forEach((row) => {
+                    const blob = String(row.dataset.reportSearch || '').toLowerCase();
+                    row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+                });
+            });
         }
 
-        searchInput.addEventListener('input', () => {
-            const keyword = String(searchInput.value || '').trim().toLowerCase();
+        const syncSelectionUi = () => {
+            const selected = rowChecks.filter((item) => item.checked);
 
-            rows.forEach((row) => {
-                const blob = String(row.dataset.reportSearch || '').toLowerCase();
-                row.classList.toggle('hidden', keyword !== '' && !blob.includes(keyword));
+            if (selectionBar) {
+                selectionBar.classList.toggle('hidden', selected.length === 0);
+            }
+
+            if (selectedCount) {
+                selectedCount.textContent = String(selected.length);
+            }
+
+            if (selectAll) {
+                selectAll.checked = rowChecks.length > 0 && selected.length === rowChecks.length;
+                selectAll.indeterminate = selected.length > 0 && selected.length < rowChecks.length;
+            }
+        };
+
+        const closeDeleteModal = () => {
+            if (!deleteModal) {
+                return;
+            }
+
+            deleteModal.classList.add('hidden');
+            deleteModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const openDeleteModal = () => {
+            const selected = rowChecks.filter((item) => item.checked);
+
+            if (selected.length === 0 || !deleteModal) {
+                return;
+            }
+
+            if (deleteSelectedInputs) {
+                deleteSelectedInputs.innerHTML = selected
+                    .map((item) => `<input type="hidden" name="selected_reports[]" value="${item.value}">`)
+                    .join('');
+            }
+
+            if (deleteCountText) {
+                deleteCountText.textContent = `${selected.length} ${selected.length === 1 ? 'report' : 'reports'}`;
+            }
+
+            deleteModal.classList.remove('hidden');
+            deleteModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        selectAll?.addEventListener('change', () => {
+            rowChecks.forEach((item) => {
+                item.checked = selectAll.checked;
             });
+            syncSelectionUi();
         });
+
+        rowChecks.forEach((item) => {
+            item.addEventListener('change', syncSelectionUi);
+        });
+
+        clearSelection?.addEventListener('click', () => {
+            rowChecks.forEach((item) => {
+                item.checked = false;
+            });
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+            }
+            syncSelectionUi();
+        });
+
+        openDeleteModalButton?.addEventListener('click', openDeleteModal);
+        deleteOverlay?.addEventListener('click', closeDeleteModal);
+        cancelDeleteModalButton?.addEventListener('click', closeDeleteModal);
+
+        syncSelectionUi();
     })();
 
     syncRowNumbers(requirementsContainer);
