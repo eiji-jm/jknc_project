@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\Transmittal;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -10,9 +12,42 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class TransmittalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('transmittal.index');
+        $prefill = $request->query('prefill');
+
+        if (is_string($prefill)) {
+            $decodedPrefill = json_decode($prefill, true);
+            $prefill = is_array($decodedPrefill) ? $decodedPrefill : null;
+        }
+
+        return view('transmittal.index', [
+            'prefill' => is_array($prefill) ? $prefill : null,
+        ]);
+    }
+
+    public function createFromProject(Project $project): RedirectResponse
+    {
+        $project->loadMissing([
+            'contact:id,first_name,last_name,email,company_name',
+            'company:id,company_name',
+        ]);
+
+        return redirect()->route('transmittal.index', [
+            'prefill' => json_encode($this->buildProjectPrefill($project, 'SOW')),
+        ]);
+    }
+
+    public function createFromRegular(Project $regular): RedirectResponse
+    {
+        $regular->loadMissing([
+            'contact:id,first_name,last_name,email,company_name',
+            'company:id,company_name',
+        ]);
+
+        return redirect()->route('transmittal.index', [
+            'prefill' => json_encode($this->buildProjectPrefill($regular, 'RSAT')),
+        ]);
     }
 
     public function data(Request $request)
@@ -272,5 +307,65 @@ class TransmittalController extends Controller
             ->setPaper($customPaper);
 
         return $pdf->stream('receipt-' . $transmittal->receipt->receipt_no . '.pdf');
+    }
+
+    private function buildProjectPrefill(Project $project, string $sourceLabel): array
+    {
+        $contactName = trim(collect([
+            $project->contact?->first_name,
+            $project->contact?->last_name,
+        ])->filter()->implode(' '));
+
+        $externalParty = $contactName
+            ?: ($project->client_name ?: ($project->company?->company_name ?: ''));
+
+        $officeName = $project->business_name
+            ?: ($project->company?->company_name ?: 'John Kelly & Company');
+
+        $projectCode = $project->project_code ?: ('PROJECT-' . $project->id);
+        $clientEmail = $project->contact?->email;
+        $services = trim((string) $project->services);
+        $products = trim((string) $project->products);
+        $scopeSummary = trim((string) $project->scope_summary);
+
+        $descriptionParts = array_values(array_filter([
+            $project->name ? "Engagement: {$project->name}" : null,
+            $services !== '' ? "Services: {$services}" : null,
+            $products !== '' ? "Products: {$products}" : null,
+            $scopeSummary !== '' ? "Scope: {$scopeSummary}" : null,
+        ]));
+
+        return [
+            'source_type' => strtolower($sourceLabel),
+            'source_id' => $project->id,
+            'source_label' => $sourceLabel,
+            'transmittal_date' => now()->toDateString(),
+            'mode' => 'SEND',
+            'party_name' => $externalParty,
+            'office_name' => $officeName,
+            'address' => '',
+            'delivery_type' => $clientEmail ? 'Electronic' : '',
+            'electronic_method' => $clientEmail ? 'Email' : '',
+            'recipient_email' => $clientEmail,
+            'action_delivery' => false,
+            'action_pick_up' => false,
+            'action_drop_off' => false,
+            'action_email' => (bool) $clientEmail,
+            'prepared_by_name' => (string) ($project->assigned_associate ?: ''),
+            'approved_by_name' => (string) ($project->assigned_consultant ?: ''),
+            'approved_position' => 'Lead Consultant',
+            'document_custodian' => (string) ($project->assigned_associate ?: ''),
+            'delivered_by' => '',
+            'received_by' => $externalParty,
+            'received_at' => '',
+            'items' => [[
+                'no' => 1,
+                'particular' => "{$sourceLabel} Documents",
+                'unique_id' => $projectCode,
+                'qty' => 1,
+                'description' => implode(' | ', $descriptionParts),
+                'remarks' => "{$sourceLabel} generated from {$projectCode}",
+            ]],
+        ];
     }
 }

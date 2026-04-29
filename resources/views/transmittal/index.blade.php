@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $transmittalPrefill = $prefill ?? null;
+@endphp
 <div
     id="transmittal-page"
     class="w-full h-full px-6 py-5"
@@ -739,6 +742,78 @@
 <script>
 let currentWorkflowFilter = 'uploaded';
 let transmittalRows = [];
+const transmittalPrefill = @json($transmittalPrefill);
+
+function defaultTransmittalItem(index = 0) {
+    return { no: index + 1, particular: '', unique_id: '', qty: '', description: '', remarks: '', file: null };
+}
+
+function resetTransmittalForm() {
+    const alpineData = getAlpineData();
+    if (!alpineData) return;
+
+    alpineData.previewRef = 'AUTO-INCREMENT';
+    alpineData.previewDate = '{{ now()->format('Y-m-d') }}';
+    alpineData.transmittalMode = 'SEND';
+    alpineData.partyName = '';
+    alpineData.officeName = '';
+    alpineData.previewAddress = '452 D.M. Cortes St Mandaue, Central Visayas';
+    alpineData.deliveryType = '';
+    alpineData.byPersonWho = '';
+    alpineData.registeredMailProvider = '';
+    alpineData.electronicMethod = '';
+    alpineData.recipientEmail = '';
+    alpineData.actionDelivery = false;
+    alpineData.actionPickUp = false;
+    alpineData.actionDropOff = false;
+    alpineData.actionEmail = false;
+    alpineData.previewPreparedBy = 'ANGELIE AVENIDO';
+    alpineData.previewApprovedBy = 'MA. LOURDES MATA';
+    alpineData.previewApprovedPosition = 'Branch OIC';
+    alpineData.previewCustodian = 'ANGELIE AVENIDO';
+    alpineData.previewDeliveredBy = 'Carmela Ortiz';
+    alpineData.previewReceivedBy = '';
+    alpineData.previewReceivedAt = '';
+    alpineData.previewItems = [defaultTransmittalItem(0)];
+}
+
+function applyTransmittalPrefill(prefill) {
+    const alpineData = getAlpineData();
+    if (!alpineData || !prefill) return;
+
+    alpineData.previewDate = prefill.transmittal_date || alpineData.previewDate;
+    alpineData.transmittalMode = prefill.mode || 'SEND';
+    alpineData.partyName = prefill.party_name || '';
+    alpineData.officeName = prefill.office_name || '';
+    alpineData.previewAddress = prefill.address || '';
+    alpineData.deliveryType = prefill.delivery_type || '';
+    alpineData.byPersonWho = prefill.by_person_who || '';
+    alpineData.registeredMailProvider = prefill.registered_mail_provider || '';
+    alpineData.electronicMethod = prefill.electronic_method || '';
+    alpineData.recipientEmail = prefill.recipient_email || '';
+    alpineData.actionDelivery = !!prefill.action_delivery;
+    alpineData.actionPickUp = !!prefill.action_pick_up;
+    alpineData.actionDropOff = !!prefill.action_drop_off;
+    alpineData.actionEmail = !!prefill.action_email;
+    alpineData.previewPreparedBy = prefill.prepared_by_name || '';
+    alpineData.previewApprovedBy = prefill.approved_by_name || '';
+    alpineData.previewApprovedPosition = prefill.approved_position || '';
+    alpineData.previewCustodian = prefill.document_custodian || '';
+    alpineData.previewDeliveredBy = prefill.delivered_by || '';
+    alpineData.previewReceivedBy = prefill.received_by || '';
+    alpineData.previewReceivedAt = prefill.received_at || '';
+    alpineData.previewItems = Array.isArray(prefill.items) && prefill.items.length
+        ? prefill.items.map((item, index) => ({
+            no: index + 1,
+            particular: item.particular || '',
+            unique_id: item.unique_id || '',
+            qty: item.qty || '',
+            description: item.description || '',
+            remarks: item.remarks || '',
+            file: null
+        }))
+        : [defaultTransmittalItem(0)];
+}
 
 function getAlpineData() {
     const root = document.getElementById('transmittal-page');
@@ -784,7 +859,10 @@ function applyWorkflowFilter(filterValue) {
     renderTable();
 }
 
-function openAddSection() {
+function openAddSection(shouldReset = true) {
+    if (shouldReset) {
+        resetTransmittalForm();
+    }
     const alpineData = getAlpineData();
     if (alpineData) {
         alpineData.showSlideOver = true;
@@ -1016,6 +1094,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     });
+
+    if (transmittalPrefill) {
+        resetTransmittalForm();
+        applyTransmittalPrefill(transmittalPrefill);
+        openAddSection(false);
+    }
 
     renderTable();
 });

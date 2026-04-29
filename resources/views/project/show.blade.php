@@ -77,6 +77,13 @@
         flex-wrap: wrap;
         gap: 10px;
     }
+    .project-work-grid { display: grid; gap: 20px; align-items: start; }
+    .project-quick-actions { border: 1px solid #d8e1ee; background: rgba(255, 255, 255, 0.96); box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04); }
+    .project-quick-title { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; }
+    .project-quick-grid { display: grid; gap: 12px; margin-top: 14px; }
+    .project-quick-group { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; background: #fff; }
+    .project-quick-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
+    .project-quick-stack { display: grid; gap: 10px; margin-top: 10px; }
     .project-doc-shell { border: 1px solid #cbd5e1; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06); }
     .project-doc-topbar { height: 8px; background: #102d79; }
     .project-doc-header { display: grid; gap: 18px; padding: 18px 22px; border-bottom: 1px solid #dbe3f0; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); }
@@ -119,6 +126,17 @@
     .project-ntp-close { display: inline-flex; align-items: center; justify-content: center; min-width: 120px; border: 1px solid #cbd5e1; background: #fff; padding: 10px 14px; font-size: .84rem; font-weight: 700; color: #0f172a; }
     .project-ntp-sheet { border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05); }
     .project-ntp-doc { padding: 32px 34px 36px; border: 2px solid #1c4587; }
+    .project-doc-view-shell { border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05); overflow: hidden; }
+    .project-doc-view-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px 22px; border-bottom: 1px solid #dbe3f0; background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%); }
+    .project-doc-view-eyebrow { font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #64748b; }
+    .project-doc-view-title { margin-top: 6px; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
+    .project-doc-view-copy { margin-top: 6px; max-width: 620px; font-size: .88rem; line-height: 1.45; color: #64748b; }
+    .project-doc-view-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+    .project-doc-view-action { display: inline-flex; align-items: center; justify-content: center; min-width: 132px; border: 1px solid #cbd5e1; background: #fff; padding: 10px 14px; font-size: .84rem; font-weight: 700; color: #0f172a; text-decoration: none; }
+    .project-doc-view-action.primary { border-color: #1c4587; background: #1c4587; color: #fff; }
+    .project-doc-view-body { max-height: calc(100vh - 210px); overflow-y: auto; padding: 24px; background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%); }
+    .project-doc-view-sheet { display: flex; justify-content: center; }
+    .project-doc-view-paper { width: min(100%, 860px); border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); padding: 30px 34px 34px; }
     .project-ntp-title { font-family: Georgia, "Times New Roman", serif; font-size: 18pt; font-weight: 700; line-height: 1.05; }
     .project-ntp-code { margin-bottom: 24px; font-family: Georgia, "Times New Roman", serif; font-size: 8pt; font-weight: 700; }
     .project-ntp-issued { margin: 18px 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 12pt; font-weight: 700; }
@@ -137,19 +155,29 @@
     .project-ntp-value-box { min-height: 44px; border: 1px solid #cbd5e1; background: #fff; padding: 10px 12px; font-size: .95rem; box-sizing: border-box; }
     .project-ntp-attachment-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid #1c4587; background: #1c4587; padding: 0 18px; font-size: .9rem; font-weight: 700; color: #fff; text-decoration: none; }
     @media (max-width: 1280px) {
+        .project-work-grid { grid-template-columns: 1fr; }
+        .project-quick-grid { grid-template-columns: 1fr; }
         .project-doc-grid, .project-doc-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1281px) {
+        .project-work-grid { grid-template-columns: 232px minmax(0, 1fr); }
+        .project-quick-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
         .project-doc-grid, .project-doc-summary-grid { grid-template-columns: minmax(0, 1fr); }
         .project-doc-brand { flex-direction: column; }
         .project-doc-title { text-align: left; }
         .project-ntp-doc { padding: 20px 18px 24px; }
+        .project-doc-view-header { flex-direction: column; }
+        .project-doc-view-actions { width: 100%; justify-content: flex-start; }
+        .project-doc-view-body { padding: 14px; }
+        .project-doc-view-paper { padding: 20px 18px 22px; }
         .project-ntp-grid { grid-template-columns: minmax(0, 1fr); }
     }
 </style>
 
 <div class="project-workspace p-6">
-    <div class="mx-auto max-w-[1320px] space-y-4">
+    <div class="mx-auto max-w-[1600px] space-y-4">
         <div class="project-top-card rounded-2xl px-5 py-4 text-sm text-gray-600">
             <a href="{{ route('project.index') }}" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Project</a>
             <span class="mx-1">/</span><span class="font-medium text-gray-900">{{ $project->project_code }}</span>
@@ -188,29 +216,62 @@
                         <p>Contact: <a href="{{ route('contacts.show', $project->contact_id) }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $contactName }}</a></p>
                     @endif
                 </div>
-                <div class="project-linked-actions">
-                    @if ($tab === 'sow')
-                        <span id="projectNtpStatusChip" class="project-doc-status-chip {{ $ntpApproved ? 'approved' : '' }}">
-                            <i id="projectNtpStatusIcon" class="{{ $ntpApproved ? 'fas fa-check-circle' : 'fas fa-hourglass-half' }}"></i>
-                            <span id="projectNtpStatusText">{{ $ntpStatusLabel }}</span>
-                        </span>
-                        <button type="submit" form="project-sow-form" class="project-doc-primary">Save Scope of Work</button>
-                        <button type="submit" form="project-sow-form" formaction="{{ route('project.sow.generate', $project) }}" class="project-doc-action">Generate SOW Report</button>
-                        <a
-                            id="projectNtpAction"
-                            href="{{ $ntpApproved ? route('project.ntp.submission', $project) : route('project.ntp.download', $project) }}"
-                            data-approved-view="{{ $ntpApproved ? 'true' : 'false' }}"
-                            data-status-url="{{ route('project.ntp.status', $project) }}"
-                            class="{{ $ntpApproved ? 'project-doc-action project-doc-action-approved' : 'project-doc-action' }}"
-                        ><i id="projectNtpActionIcon" class="{{ $ntpApproved ? 'fas fa-check-circle' : 'fas fa-file-signature' }}"></i><span id="projectNtpActionText">{{ $ntpApproved ? 'View Approved NTP' : 'Generate NTP' }}</span></a>
-                        <a href="{{ route('project.sow.download', $project) }}" class="project-doc-action">Download PDF</a>
-                    @endif
-                </div>
+                <div class="project-linked-actions"></div>
             </div>
         </div>
-        <div class="space-y-4">
-            @include('project.partials.tab-'.$tab, compact('project', 'sow', 'report', 'contactName', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
-        </div>
+        @if ($tab === 'sow')
+            <div class="project-work-grid">
+                <aside class="project-quick-actions rounded-2xl px-4 py-4 xl:sticky xl:top-6">
+                    <p class="project-quick-title">Quick Actions</p>
+                    <div class="project-quick-grid">
+                        <div class="project-quick-group">
+                            <p class="project-quick-label">Status</p>
+                            <div class="project-quick-stack">
+                                <span id="projectNtpStatusChip" class="project-doc-status-chip {{ $ntpApproved ? 'approved' : '' }}">
+                                    <i id="projectNtpStatusIcon" class="{{ $ntpApproved ? 'fas fa-check-circle' : 'fas fa-hourglass-half' }}"></i>
+                                    <span id="projectNtpStatusText">{{ $ntpStatusLabel }}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="project-quick-group">
+                            <p class="project-quick-label">Document Actions</p>
+                            <div class="project-quick-stack">
+                                <button type="submit" form="project-sow-form" class="project-doc-primary">Save Scope of Work</button>
+                                <button type="submit" form="project-sow-form" formaction="{{ route('project.sow.generate', $project) }}" class="project-doc-action">Generate SOW Report</button>
+                                <button type="button" id="projectCocAction" class="project-doc-action">Generate COC</button>
+                                <a href="{{ route('transmittal.create.project', $project) }}" class="project-doc-action">Generate Transmital</a>
+                                <a
+                                    id="projectNtpAction"
+                                    href="{{ $ntpApproved ? route('project.ntp.submission', $project) : route('project.ntp.download', $project) }}"
+                                    data-approved-view="{{ $ntpApproved ? 'true' : 'false' }}"
+                                    data-status-url="{{ route('project.ntp.status', $project) }}"
+                                    class="{{ $ntpApproved ? 'project-doc-action project-doc-action-approved' : 'project-doc-action' }}"
+                                ><i id="projectNtpActionIcon" class="{{ $ntpApproved ? 'fas fa-check-circle' : 'fas fa-file-signature' }}"></i><span id="projectNtpActionText">{{ $ntpApproved ? 'View Approved NTP' : 'Generate NTP' }}</span></a>
+                                <a href="{{ route('project.sow.download', $project) }}" class="project-doc-action">Download PDF</a>
+                            </div>
+                        </div>
+                        <div class="project-quick-group">
+                            <p class="project-quick-label">Templates</p>
+                            <div class="project-quick-stack">
+                                <button type="button" id="projectMakeTemplateButton" class="project-doc-action">Make a Template</button>
+                                @if ($sowTemplates->isNotEmpty())
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                                        {{ $sowTemplates->count() }} saved SOW template{{ $sowTemplates->count() === 1 ? '' : 's' }} available in Create Project.
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+                <div class="min-w-0">
+                    @include('project.partials.tab-'.$tab, compact('project', 'sow', 'report', 'contactName', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
+                </div>
+            </div>
+        @else
+            <div class="space-y-4">
+                @include('project.partials.tab-'.$tab, compact('project', 'sow', 'report', 'contactName', 'sowWithin', 'sowOut', 'repWithin', 'repOut', 'sowApproval', 'repApproval', 'repSummary'))
+            </div>
+        @endif
     </div>
 </div>
 @if ($tab === 'sow' && $ntpApproved && $ntpRecord)
@@ -218,10 +279,46 @@
     <button id="projectApprovedNtpOverlay" type="button" class="project-ntp-overlay" aria-label="Close approved NTP view"></button>
     <div class="project-ntp-frame">
         <div class="project-ntp-shell">
-            <div class="project-ntp-toolbar">
-                <button id="projectApprovedNtpClose" type="button" class="project-ntp-close">Close View</button>
+            <div class="project-doc-view-shell">
+                <div class="project-doc-view-header">
+                    <div>
+                        <p class="project-doc-view-eyebrow">Project Document Viewer</p>
+                        <h2 class="project-doc-view-title">Notice to Proceed</h2>
+                        <p class="project-doc-view-copy">Review the approved NTP in the same branded viewer used across the project workspace. The original document structure is preserved.</p>
+                    </div>
+                    <div class="project-doc-view-actions">
+                        <button id="projectApprovedNtpClose" type="button" class="project-doc-view-action">Close View</button>
+                    </div>
+                </div>
+                <div class="project-doc-view-body">
+                    @include('project.partials.approved-ntp-document', ['ntp' => $ntpRecord->payload ?? [], 'ntpRecord' => $ntpRecord, 'contactName' => $contactName])
+                </div>
             </div>
-            @include('project.partials.approved-ntp-document', ['ntp' => $ntpRecord->payload ?? [], 'ntpRecord' => $ntpRecord, 'contactName' => $contactName])
+        </div>
+    </div>
+</div>
+@endif
+@if ($tab === 'sow')
+<div id="projectCocModal" class="project-ntp-modal" aria-hidden="true">
+    <button id="projectCocOverlay" type="button" class="project-ntp-overlay" aria-label="Close certificate preview"></button>
+    <div class="project-ntp-frame">
+        <div class="project-ntp-shell">
+            <div class="project-doc-view-shell">
+                <div class="project-doc-view-header">
+                    <div>
+                        <p class="project-doc-view-eyebrow">Project Document Viewer</p>
+                        <h2 class="project-doc-view-title">Certificate of Completion</h2>
+                        <p class="project-doc-view-copy">Preview the completion certificate with the same workspace styling and branding while keeping the certificate form itself unchanged.</p>
+                    </div>
+                    <div class="project-doc-view-actions">
+                        <a href="{{ route('project.coc.download', $project) }}" class="project-doc-view-action primary">Download PDF</a>
+                        <button id="projectCocClose" type="button" class="project-doc-view-action">Close View</button>
+                    </div>
+                </div>
+                <div class="project-doc-view-body">
+                    @include('project.partials.approved-coc-document', ['coc' => $coc ?? []])
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -230,6 +327,7 @@
 <script>
     (() => {
         const action = document.getElementById('projectNtpAction');
+        const cocAction = document.getElementById('projectCocAction');
         const statusChip = document.getElementById('projectNtpStatusChip');
         const statusIcon = document.getElementById('projectNtpStatusIcon');
         const statusText = document.getElementById('projectNtpStatusText');
@@ -238,6 +336,11 @@
         const approvedNtpModal = document.getElementById('projectApprovedNtpModal');
         const approvedNtpOverlay = document.getElementById('projectApprovedNtpOverlay');
         const approvedNtpClose = document.getElementById('projectApprovedNtpClose');
+        const cocModal = document.getElementById('projectCocModal');
+        const cocOverlay = document.getElementById('projectCocOverlay');
+        const cocClose = document.getElementById('projectCocClose');
+        const makeTemplateButton = document.getElementById('projectMakeTemplateButton');
+        const sowForm = document.getElementById('project-sow-form');
 
         if (!action) {
             return;
@@ -260,6 +363,26 @@
 
             approvedNtpModal.classList.remove('is-open');
             approvedNtpModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const openCocModal = () => {
+            if (!cocModal) {
+                return;
+            }
+
+            cocModal.classList.add('is-open');
+            cocModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        const closeCocModal = () => {
+            if (!cocModal) {
+                return;
+            }
+
+            cocModal.classList.remove('is-open');
+            cocModal.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('overflow-hidden');
         };
 
@@ -311,8 +434,36 @@
             }
         });
 
+        cocAction?.addEventListener('click', () => {
+            openCocModal();
+        });
+
+        makeTemplateButton?.addEventListener('click', () => {
+            if (!sowForm) {
+                return;
+            }
+
+            const templateName = window.prompt('Template name');
+            if (!templateName || templateName.trim() === '') {
+                return;
+            }
+
+            const templateInput = sowForm.querySelector('input[name="template_name"]');
+            const previousAction = sowForm.getAttribute('action');
+
+            if (templateInput) {
+                templateInput.value = templateName.trim();
+            }
+
+            sowForm.setAttribute('action', @json(route('project.sow.templates.store', $project)));
+            sowForm.submit();
+            sowForm.setAttribute('action', previousAction || '');
+        });
+
         approvedNtpOverlay?.addEventListener('click', closeApprovedNtpModal);
         approvedNtpClose?.addEventListener('click', closeApprovedNtpModal);
+        cocOverlay?.addEventListener('click', closeCocModal);
+        cocClose?.addEventListener('click', closeCocModal);
 
         const intervalId = window.setInterval(pollStatus, 15000);
     })();

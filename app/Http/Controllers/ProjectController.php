@@ -12,7 +12,9 @@ use App\Models\ProjectNtp;
 use App\Models\ProjectSow;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
+use App\Models\FormTemplate;
 use App\Models\Service;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Arr;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -101,6 +103,7 @@ class ProjectController extends Controller
         $contactRecords = [];
         $companyRecords = [];
         $dealRecords = [];
+        $sowTemplates = collect();
         $serviceCatalog = $this->projectServiceCatalog();
         $productCatalog = $this->projectProductCatalog();
 
@@ -123,6 +126,13 @@ class ProjectController extends Controller
             $dealRecords = [];
         }
 
+        if (Schema::hasTable('form_templates')) {
+            $sowTemplates = FormTemplate::query()
+                ->where('type', 'project_sow')
+                ->orderBy('name')
+                ->get();
+        }
+
         $stats = [
             'all' => $projects->count(),
             'start' => $projects->whereIn('current_phase', ['Start', 'SOW'])->count(),
@@ -137,6 +147,7 @@ class ProjectController extends Controller
             'contactRecords' => $contactRecords,
             'companyRecords' => $companyRecords,
             'dealRecords' => $dealRecords,
+            'sowTemplates' => $sowTemplates,
             'serviceAreaOptions' => $serviceCatalog['serviceAreaOptions'],
             'serviceGroups' => $serviceCatalog['serviceGroups'],
             'productOptionsByServiceArea' => $productCatalog['productOptionsByServiceArea'],
@@ -176,6 +187,9 @@ class ProjectController extends Controller
             'client_confirmation_name' => ['nullable', 'string', 'max:255'],
             'scope_summary' => ['nullable', 'string', 'max:2000'],
             'engagement_requirements_text' => ['nullable', 'string', 'max:4000'],
+            'template_id' => Schema::hasTable('form_templates')
+                ? ['nullable', 'integer', Rule::exists('form_templates', 'id')->where(fn ($query) => $query->where('type', 'project_sow'))]
+                : ['nullable'],
         ]);
 
         $validated['service_area'] = $this->stringifySelectedValues(
@@ -250,6 +264,13 @@ class ProjectController extends Controller
             ?? $linkedDeal?->scope_of_work
             ?? null;
 
+        $selectedTemplate = ! empty($validated['template_id'])
+            ? FormTemplate::query()
+                ->where('type', 'project_sow')
+                ->find($validated['template_id'])
+            : null;
+        $templatePayload = (array) ($selectedTemplate?->payload ?? []);
+
         $project = Project::query()->create([
             'deal_id' => $linkedDeal?->id,
             'contact_id' => $linkedContact?->id,
@@ -274,6 +295,8 @@ class ProjectController extends Controller
             'metadata' => [
                 'created_from' => $linkedDeal ? 'project_dashboard_linked_deal' : 'project_dashboard_manual',
                 'source_mode' => $validated['source_mode'] ?? ($linkedDeal ? 'deal' : 'manual'),
+                'template_id' => $selectedTemplate?->id,
+                'template_name' => $selectedTemplate?->name,
             ],
             'opened_at' => now(),
         ]);
@@ -305,31 +328,44 @@ class ProjectController extends Controller
             ),
         ]);
 
-        $scopeRows = $this->manualScopeRows($validated);
-        $internalApproval = $this->manualInternalApprovalPayload(
-            $validated['assigned_project_manager'] ?? null,
-            $validated['assigned_consultant'] ?? null,
-            $validated['assigned_associate'] ?? null
+        $scopeRows = collect($templatePayload['within_scope_items'] ?? [])
+            ->filter(fn ($row) => is_array($row))
+            ->values()
+            ->all();
+        if ($scopeRows === []) {
+            $scopeRows = $this->manualScopeRows($validated);
+        }
+        $outScopeRows = collect($templatePayload['out_of_scope_items'] ?? [])
+            ->filter(fn ($row) => is_array($row))
+            ->values()
+            ->all();
+        $internalApproval = $this->mergeProjectTemplateApprovalPayload(
+            (array) ($templatePayload['internal_approval'] ?? []),
+            $validated
         );
 
         ProjectSow::query()->create([
             'project_id' => $project->id,
-            'version_number' => '1.0',
+            'version_number' => (string) ($templatePayload['version_number'] ?? '1.0'),
             'date_prepared' => now()->toDateString(),
             'within_scope_items' => $scopeRows,
-            'out_of_scope_items' => [],
+            'out_of_scope_items' => $outScopeRows,
             'client_confirmation_name' => $project->client_confirmation_name,
             'internal_approval' => $internalApproval,
-            'approval_status' => 'draft',
-            'ntp_status' => 'pending',
+            'approval_status' => in_array(($templatePayload['approval_status'] ?? 'draft'), ['draft', 'pending_review', 'approved'], true)
+                ? (string) $templatePayload['approval_status']
+                : 'draft',
+            'ntp_status' => in_array(($templatePayload['ntp_status'] ?? 'pending'), ['pending', 'approved', 'rejected'], true)
+                ? (string) $templatePayload['ntp_status']
+                : 'pending',
         ]);
 
         ProjectSowReport::query()->create([
             'project_id' => $project->id,
-            'version_number' => '1.0',
+            'version_number' => (string) ($templatePayload['version_number'] ?? '1.0'),
             'date_prepared' => now()->toDateString(),
             'within_scope_items' => $scopeRows,
-            'out_of_scope_items' => [],
+            'out_of_scope_items' => $outScopeRows,
             'status_summary' => [
                 'total_main_tasks' => count($scopeRows),
                 'open' => count($scopeRows),
@@ -353,11 +389,19 @@ class ProjectController extends Controller
         $payload = $this->buildProjectDocumentPayload($project);
         extract($payload);
         $ntpRecord = $project->ntps()->latest()->first();
+        $coc = null;
+        $sowTemplates = Schema::hasTable('form_templates')
+            ? FormTemplate::query()->where('type', 'project_sow')->orderBy('name')->get()
+            : collect();
         $tab = in_array((string) $request->query('tab', 'sow'), ['sow', 'report'], true)
             ? (string) $request->query('tab', 'sow')
             : 'sow';
 
-        return view('project.show', compact('project', 'start', 'sow', 'report', 'ntpRecord', 'tab'));
+        if ($tab === 'sow') {
+            [, $coc] = $this->buildProjectCocPreviewData($project);
+        }
+
+        return view('project.show', compact('project', 'start', 'sow', 'report', 'ntpRecord', 'sowTemplates', 'tab', 'coc'));
     }
 
     public function downloadStartPdf(Project $project)
@@ -550,6 +594,23 @@ class ProjectController extends Controller
             ->with('ntp_status', 'Waiting for client signed NTP upload.');
     }
 
+    public function showCocPreview(Project $project): View
+    {
+        [$project, $coc] = $this->buildProjectCocPreviewData($project);
+
+        return view('project.coc-preview', compact('project', 'coc'));
+    }
+
+    public function downloadCocPdf(Project $project)
+    {
+        [$project, $coc] = $this->buildProjectCocPreviewData($project);
+
+        $pdf = Pdf::loadView('project.coc-preview', compact('project', 'coc'))
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download(Str::slug((string) ($project->project_code ?: 'project')).'-certificate-of-completion.pdf');
+    }
+
     public function ntpStatus(Project $project): JsonResponse
     {
         $ntpRecord = $project->ntps()->latest()->first();
@@ -699,6 +760,38 @@ class ProjectController extends Controller
         return redirect()
             ->route('project.report.preview', ['project' => $project->id, 'report' => $report->id])
             ->with('success', "SOW report client approval link sent to {$recipientEmail}.");
+    }
+
+    public function storeSowTemplate(Request $request, Project $project): RedirectResponse
+    {
+        abort_if(! Schema::hasTable('form_templates'), 500, 'Templates table is not available.');
+
+        $validated = array_merge(
+            $this->validateSowPayload($request),
+            $request->validate([
+                'template_name' => ['required', 'string', 'max:255'],
+            ])
+        );
+
+        $sow = $this->persistSowDocument($request, $project, $validated);
+
+        FormTemplate::query()->create([
+            'type' => 'project_sow',
+            'name' => trim((string) $validated['template_name']),
+            'payload' => [
+                'version_number' => $sow->version_number,
+                'within_scope_items' => $sow->within_scope_items ?? [],
+                'out_of_scope_items' => $sow->out_of_scope_items ?? [],
+                'internal_approval' => $sow->internal_approval ?? [],
+                'approval_status' => $sow->approval_status,
+                'ntp_status' => $sow->ntp_status,
+            ],
+            'created_by' => auth()->id(),
+        ]);
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
+            ->with('success', 'SOW template saved successfully.');
     }
 
     public function bulkDestroyGeneratedReports(Request $request, Project $project): RedirectResponse
@@ -877,6 +970,53 @@ class ProjectController extends Controller
         ]);
         $report->project_id = $project->id;
         $report->save();
+    }
+
+    private function buildProjectCocPreviewData(Project $project): array
+    {
+        $project->loadMissing([
+            'deal:id,deal_code,engagement_type',
+            'company:id,company_name',
+            'contact:id,first_name,last_name,email,company_name',
+            'sows' => fn ($query) => $query->latest(),
+            'sowReports' => fn ($query) => $query->latest('date_prepared')->latest(),
+            'ntps' => fn ($query) => $query->latest(),
+        ]);
+
+        $sow = $project->sows->first();
+        $latestReport = $project->sowReports->first();
+        $ntpRecord = $project->ntps->first();
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+        $approvedStartDate = optional($project->planned_start_date)->format('M d, Y') ?: '-';
+        $targetCompletionDate = optional($project->target_completion_date)->format('M d, Y') ?: '-';
+        $actualCompletionDate = optional($latestReport?->date_prepared)->format('M d, Y')
+            ?: optional($latestReport?->updated_at)->format('M d, Y')
+            ?: now()->format('M d, Y');
+        $leadConsultant = $project->assigned_consultant ?: data_get($sow?->internal_approval, 'lead_consultant') ?: '';
+        $associate = $project->assigned_associate ?: data_get($sow?->internal_approval, 'lead_associate_assigned') ?: '';
+
+        $coc = [
+            'title' => 'CERTIFICATE OF COMPLETION',
+            'form_code' => 'ENG-F-002-v1.0-03.16.26',
+            'date_issued' => now()->format('M d, Y'),
+            'coc_no' => 'COC-' . now()->format('Y') . '-' . str_pad((string) $project->id, 3, '0', STR_PAD_LEFT),
+            'ntp_no' => $ntpRecord?->ntp_number ?: '-',
+            'engagement_type' => $project->engagement_type ?: ($project->deal?->engagement_type ?: '-'),
+            'condeal_reference_no' => $project->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $project->business_name ?: ($project->company?->company_name ?: '-'),
+            'engagement_reference_label' => 'RSAT / SOW Ref No.:',
+            'engagement_reference_no' => $sow?->sow_number ?: '-',
+            'approved_start_date' => $approvedStartDate,
+            'target_completion_date' => $targetCompletionDate,
+            'actual_completion_date' => $actualCompletionDate,
+            'client_confirmation_name' => $sow?->client_confirmation_name ?: $contactName,
+            'lead_consultant' => $leadConsultant,
+            'associate' => $associate,
+        ];
+
+        return [$project, $coc];
     }
 
     private function validateSowPayload(Request $request): array
@@ -1174,6 +1314,17 @@ class ProjectController extends Controller
             'approved_at' => optional($ntpRecord?->client_approved_at)->format('M d, Y h:i A'),
             'approved_name' => $ntpRecord?->client_approved_name,
         ];
+    }
+
+    private function mergeProjectTemplateApprovalPayload(array $templateApproval, array $validated): array
+    {
+        $fallback = $this->manualInternalApprovalPayload(
+            $validated['assigned_project_manager'] ?? null,
+            $validated['assigned_consultant'] ?? null,
+            $validated['assigned_associate'] ?? null
+        );
+
+        return array_replace_recursive($fallback, array_filter($templateApproval, fn ($value) => $value !== null));
     }
 
     private function defaultStartKycRequirementsForProject(Project $project): array

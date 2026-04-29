@@ -168,7 +168,7 @@
     <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
         <div>
             <h2 class="text-lg font-semibold text-gray-900">Create Project</h2>
-            <p class="mt-1 text-sm text-gray-500">Manually create a project record and open the RSAT form to fill out details, scope, activities, and requirements.</p> 
+            <p class="mt-1 text-sm text-gray-500">Manually create a project record and open the SOW form to fill out details, scope, activities, and requirements.</p> 
         </div>
         <button type="button" class="rounded-full p-2 text-gray-500 hover:bg-gray-100" onclick="window.jkncSlideOver.close(document.getElementById('projectManualCreateDrawer'))">
             <span class="sr-only">Close</span>
@@ -191,7 +191,7 @@
                         <span class="mt-1 block text-xs text-gray-500">Pick an open deal and preload its client, company, scope, and staffing details.</span>
                     </button>
                     <button type="button" data-project-source-option="manual" class="project-source-option rounded-2xl border px-4 py-4 text-left transition {{ $oldSourceMode !== 'deal' ? 'border-[#102d79] bg-white ring-2 ring-[#102d79]/10' : 'border-gray-200 bg-white hover:border-gray-300' }}">
-                        <span class="block text-sm font-semibold text-gray-900">Pure Manual</span>
+                        <span class="block text-sm font-semibold text-gray-900">Manual</span>
                         <span class="mt-1 block text-xs text-gray-500">Start manually, then optionally select an existing contact or company to fill the client details.</span>
                     </button>
                 </div>
@@ -246,6 +246,16 @@
             </section>
 
             <div class="grid gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">SOW Template</label>
+                    <select name="template_id" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                        <option value="">Start from blank/default</option>
+                        @foreach ($sowTemplates as $template)
+                            <option value="{{ $template->id }}" @selected((string) old('template_id') === (string) $template->id)>{{ $template->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-2 text-xs text-gray-500">Choose a saved SOW template to prefill the first Scope of Work document for this new project.</p>
+                </div>
                 <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700">Project Name</label>
                     <input name="name" id="project_name" value="{{ old('name') }}" required class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">

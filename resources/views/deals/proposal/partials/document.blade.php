@@ -173,14 +173,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
+                @forelse (($d['service_items'] ?? []) as $item)
+                    <tr>
+                        <td>{{ $item['item_no'] ?? '' }}</td>
+                        <td>{{ $item['name'] ?? '' }}</td>
+                        <td>{!! nl2br(e($item['description'] ?? '')) !!}</td>
+                        <td>{!! nl2br(e($item['activity_output'] ?? '')) !!}</td>
+                        <td>{{ $item['frequency'] ?? '' }}</td>
+                        <td>{{ $item['deadline'] ?? '' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>No service selected</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>TBD</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -197,14 +208,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
+                @forelse (($d['product_items'] ?? []) as $item)
+                    <tr>
+                        <td>{{ $item['item_no'] ?? '' }}</td>
+                        <td>{{ $item['name'] ?? '' }}</td>
+                        <td>{!! nl2br(e($item['description'] ?? '')) !!}</td>
+                        <td>{!! nl2br(e($item['activity_output'] ?? '')) !!}</td>
+                        <td>{{ $item['frequency'] ?? '' }}</td>
+                        <td>{{ $item['deadline'] ?? '' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>No product selected</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>TBD</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -223,14 +245,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td>{!! $paragraphs($d['requirements_sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td>{!! $paragraphs($d['requirements_juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td>{!! $paragraphs($d['requirements_optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td></td>
-                </tr>
+                @forelse (($d['requirement_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td>{!! $paragraphs($row['sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td>{!! $paragraphs($row['juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td>{!! $paragraphs($row['optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td></td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>Client documentary requirements</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -248,8 +281,17 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
-                <tr><td></td><td></td><td>Total</td><td></td></tr>
+                @forelse (($d['service_fee_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td>{{ $row['service_id'] ?? '' }}</td>
+                        <td>{{ $money($row['price'] ?? 0) }}</td>
+                    </tr>
+                @empty
+                    <tr><td>1</td><td>No service selected</td><td></td><td>{{ $money(0) }}</td></tr>
+                @endforelse
+                <tr><td></td><td></td><td>Total</td><td>{{ $money($d['price_regular'] ?? 0) }}</td></tr>
             </tbody>
         </table>
 
@@ -264,8 +306,17 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
-                <tr><td></td><td></td><td>Total</td><td></td></tr>
+                @forelse (($d['product_fee_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td>{{ $row['service_id'] ?? '' }}</td>
+                        <td>{{ $money($row['price'] ?? 0) }}</td>
+                    </tr>
+                @empty
+                    <tr><td>1</td><td>No product selected</td><td></td><td>{{ $money(0) }}</td></tr>
+                @endforelse
+                <tr><td></td><td></td><td>Total</td><td>{{ $money($d['price_products'] ?? 0) }}</td></tr>
             </tbody>
         </table>
 
@@ -277,8 +328,8 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Total Services</td><td></td></tr>
-                <tr><td>Total Product</td><td></td></tr>
+                <tr><td>Total Services</td><td>{{ $money($d['price_regular'] ?? 0) }}</td></tr>
+                <tr><td>Total Product</td><td>{{ $money($d['price_products'] ?? 0) }}</td></tr>
                 <tr><td>Discount</td><td>{{ $money($d['price_discount'] ?? 0) }}</td></tr>
                 <tr><td>Subtotal (After Discount)</td><td>{{ $money($d['price_subtotal'] ?? 0) }}</td></tr>
                 <tr><td>Tax (if applicable)</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>

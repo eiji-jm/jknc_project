@@ -102,7 +102,7 @@
     }
     .project-sow-table {
         width: 100%;
-        min-width: 940px;
+        min-width: 860px;
         border-collapse: collapse;
         table-layout: fixed;
         font-family: Georgia, "Times New Roman", serif;
@@ -115,9 +115,9 @@
     }
     .project-sow-table th {
         background: #fff;
-        padding: 5px 4px;
+        padding: 5px 3px;
         text-align: center;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         font-weight: 400;
         color: #111827;
     }
@@ -126,8 +126,8 @@
         min-height: 24px;
         border: 0;
         background: transparent;
-        padding: 3px 6px;
-        font-size: 0.82rem;
+        padding: 3px 4px;
+        font-size: 0.76rem;
         color: #111827;
     }
     .project-sow-table input:focus {
@@ -139,8 +139,8 @@
         min-height: 24px;
         border: 0;
         background: white;
-        padding: 3px 6px;
-        font-size: 0.82rem;
+        padding: 3px 4px;
+        font-size: 0.74rem;
         color: #111827;
         appearance: none;
         cursor: pointer;
@@ -148,7 +148,7 @@
         background-repeat: no-repeat;
         background-position: right 4px center;
         background-color: white;
-        padding-right: 16px;
+        padding-right: 14px;
         font-family: Georgia, "Times New Roman", serif;
     }
     .project-sow-table select:focus {
@@ -330,6 +330,7 @@
 
 <form id="project-sow-form" method="POST" action="<?php echo e(route('project.sow.update', $project)); ?>" enctype="multipart/form-data">
     <?php echo csrf_field(); ?>
+    <input type="hidden" name="template_name" value="">
 
     <section class="project-sow-sheet">
         <div class="project-sow-form">

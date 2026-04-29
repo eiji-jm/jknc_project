@@ -45,6 +45,10 @@
         font-weight: 600;
         color: #1e3a5f;
     }
+    .rsat-pill .label {
+        color: #94a3b8;
+        font-weight: 700;
+    }
     .rsat-tab-link {
         display: inline-flex;
         align-items: center;
@@ -80,6 +84,13 @@
         flex-wrap: wrap;
         gap: 10px;
     }
+    .rsat-work-grid { display: grid; gap: 20px; align-items: start; }
+    .rsat-quick-actions { border: 1px solid #d8e1ee; background: rgba(255, 255, 255, 0.96); box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04); }
+    .rsat-quick-title { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; }
+    .rsat-quick-grid { display: grid; gap: 12px; margin-top: 14px; }
+    .rsat-quick-group { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; background: #fff; }
+    .rsat-quick-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
+    .rsat-quick-stack { display: grid; gap: 10px; margin-top: 10px; }
     .rsat-doc-action {
         display: inline-flex;
         align-items: center;
@@ -186,7 +197,7 @@
     }
     .rsat-table {
         width: 100%;
-        min-width: 1080px;
+        min-width: 900px;
         border-collapse: collapse;
         table-layout: fixed;
         font-family: Georgia, "Times New Roman", serif;
@@ -200,18 +211,18 @@
     .rsat-table th {
         background: #1c4587;
         color: #fff;
-        padding: 6px 4px;
+        padding: 6px 3px;
         text-align: center;
-        font-size: 0.76rem;
+        font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.03em;
     }
     .rsat-table .rsat-index {
         min-height: 32px;
-        padding: 6px 4px;
+        padding: 6px 3px;
         text-align: center;
         color: #111827;
-        font-size: 0.82rem;
+        font-size: 0.76rem;
     }
     .rsat-row-delete {
         width: 100%;
@@ -229,9 +240,9 @@
         min-height: 32px;
         border: 0;
         background: transparent;
-        padding: 6px 8px;
+        padding: 5px 6px;
         color: #111827;
-        font-size: 0.82rem;
+        font-size: 0.74rem;
     }
     .rsat-row-input:focus {
         outline: none;
@@ -325,6 +336,8 @@
         box-shadow: 0 10px 24px rgba(28, 69, 135, 0.18);
     }
     @media (max-width: 1024px) {
+        .rsat-work-grid { grid-template-columns: 1fr; }
+        .rsat-quick-grid { grid-template-columns: 1fr; }
         .rsat-meta-grid,
         .rsat-approval-grid,
         .rsat-footer-grid {
@@ -339,10 +352,14 @@
             padding: 20px 18px 24px;
         }
     }
+    @media (min-width: 1025px) {
+        .rsat-work-grid { grid-template-columns: 232px minmax(0, 1fr); }
+        .rsat-quick-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
 <div class="rsat-workspace p-6">
-    <div class="mx-auto max-w-[1380px] space-y-4">
+    <div class="mx-auto max-w-[1600px] space-y-4">
         <div class="rsat-top-card rounded-2xl px-5 py-4 text-sm text-gray-600">
             <a href="<?php echo e(route('regular.index')); ?>" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Regular</a>
             <span class="mx-1">/</span><span class="font-medium text-gray-900"><?php echo e($regular->project_code); ?></span>
@@ -355,11 +372,11 @@
                     <h1 class="mt-2 text-2xl font-semibold text-gray-900"><?php echo e($regular->name); ?></h1>
                     <p class="mt-2 text-sm text-gray-500"><?php echo e($regular->project_code); ?> - <?php echo e($regular->deal?->deal_code ?? 'No linked deal code'); ?></p>
                 </div>
-                <div class="grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-                    <div><span class="text-gray-400">Business:</span> <?php echo e($regular->business_name ?: '-'); ?></div>
-                    <div><span class="text-gray-400">Client:</span> <?php echo e($contactName); ?></div>
-                    <div><span class="text-gray-400">Planned Start:</span> <?php echo e($fmt($regular->planned_start_date)); ?></div>
-                    <div><span class="text-gray-400">Target Completion:</span> <?php echo e($fmt($regular->target_completion_date)); ?></div>
+                <div class="flex flex-wrap gap-2">
+                    <span class="rsat-pill"><span class="label">Business</span> <?php echo e($regular->business_name ?: '-'); ?></span>
+                    <span class="rsat-pill"><span class="label">Client</span> <?php echo e($contactName); ?></span>
+                    <span class="rsat-pill"><span class="label">Planned Start</span> <?php echo e($fmt($regular->planned_start_date)); ?></span>
+                    <span class="rsat-pill"><span class="label">Target Completion</span> <?php echo e($fmt($regular->target_completion_date)); ?></span>
                 </div>
             </div>
             <div class="mt-5 flex flex-wrap gap-2">
@@ -383,19 +400,42 @@
                         <p>Contact: <a href="<?php echo e(route('contacts.show', $regular->contact_id)); ?>" class="font-medium text-blue-700 hover:text-blue-800"><?php echo e($contactName); ?></a></p>
                     <?php endif; ?>
                 </div>
-                <div class="rsat-linked-actions">
-                    <?php if($tab === 'rsat'): ?>
-                        <button type="submit" form="regular-rsat-form" class="rsat-doc-primary">Save RSAT</button>
-                        <button type="submit" form="regular-rsat-form" formaction="<?php echo e(route('regular.report.generate', $regular)); ?>" class="rsat-doc-action">Generate RSAT Report</button>
-                        <a href="<?php echo e(route('regular.ntp.download', $regular)); ?>" class="rsat-doc-action">Generate NTP</a>
-                        <a href="<?php echo e(route('regular.rsat.download', $regular)); ?>" class="rsat-doc-action">Download PDF</a>
-                    <?php endif; ?>
-                </div>
+                <div class="rsat-linked-actions"></div>
             </div>
         </div>
 
-        <form id="regular-rsat-form" method="POST" action="<?php echo e(route('regular.rsat.update', $regular)); ?>" enctype="multipart/form-data" class="rsat-sheet overflow-hidden p-6 <?php echo e($tab !== 'rsat' ? 'hidden' : ''); ?>" data-tab-panel="rsat">
+        <?php if($tab === 'rsat'): ?>
+        <div class="rsat-work-grid" data-tab-panel="rsat">
+            <aside class="rsat-quick-actions rounded-2xl px-4 py-4 xl:sticky xl:top-6">
+                <p class="rsat-quick-title">Quick Actions</p>
+                <div class="rsat-quick-grid">
+                    <div class="rsat-quick-group">
+                        <p class="rsat-quick-label">Document Actions</p>
+                        <div class="rsat-quick-stack">
+                            <button type="submit" form="regular-rsat-form" class="rsat-doc-primary">Save RSAT</button>
+                            <button type="submit" form="regular-rsat-form" formaction="<?php echo e(route('regular.report.generate', $regular)); ?>" class="rsat-doc-action">Generate RSAT Report</button>
+                            <a href="<?php echo e(route('transmittal.create.regular', $regular)); ?>" class="rsat-doc-action">Generate Transmital</a>
+                            <a href="<?php echo e(route('regular.ntp.download', $regular)); ?>" class="rsat-doc-action">Generate NTP</a>
+                            <a href="<?php echo e(route('regular.rsat.download', $regular)); ?>" class="rsat-doc-action">Download PDF</a>
+                        </div>
+                    </div>
+                    <div class="rsat-quick-group">
+                        <p class="rsat-quick-label">Templates</p>
+                        <div class="rsat-quick-stack">
+                            <button type="button" id="regularMakeTemplateButton" class="rsat-doc-action">Make a Template</button>
+                            <?php if($rsatTemplates->isNotEmpty()): ?>
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                                    <?php echo e($rsatTemplates->count()); ?> saved RSAT template<?php echo e($rsatTemplates->count() === 1 ? '' : 's'); ?> available in Create Regular.
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+        <form id="regular-rsat-form" method="POST" action="<?php echo e(route('regular.rsat.update', $regular)); ?>" enctype="multipart/form-data" class="rsat-sheet min-w-0 overflow-hidden p-6" data-tab-panel="rsat">
             <?php echo csrf_field(); ?>
+            <input type="hidden" name="template_name" value="">
             <input type="hidden" name="status" value="<?php echo e(old('status', $rsat?->status ?? 'pending')); ?>">
             <input type="hidden" name="form_date" value="<?php echo e($formDate); ?>">
             <input type="hidden" name="clearance_assigned_team_lead_signature" value="<?php echo e(old('clearance_assigned_team_lead_signature', $rsatClearance['assigned_team_lead_signature'] ?? '')); ?>">
@@ -664,6 +704,8 @@
             </div>
 
         </form>
+        </div>
+        <?php endif; ?>
 
         <div class="space-y-5 <?php echo e($tab !== 'report' ? 'hidden' : ''); ?>" data-tab-panel="report">
             <div id="regularReportSelectionBar" class="hidden rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
@@ -912,6 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
     (() => {
         const searchInput = document.getElementById('regularReportSearch');
         const rows = Array.from(document.querySelectorAll('#regularReportTableBody tr[data-report-search]'));
+        const makeTemplateButton = document.getElementById('regularMakeTemplateButton');
+        const rsatForm = document.getElementById('regular-rsat-form');
         const selectAll = document.getElementById('regularReportSelectAll');
         const rowChecks = Array.from(document.querySelectorAll('.regular-report-row-checkbox'));
         const selectionBar = document.getElementById('regularReportSelectionBar');
@@ -1009,6 +1053,28 @@ document.addEventListener('DOMContentLoaded', () => {
         openDeleteModalButton?.addEventListener('click', openDeleteModal);
         deleteOverlay?.addEventListener('click', closeDeleteModal);
         cancelDeleteModalButton?.addEventListener('click', closeDeleteModal);
+
+        makeTemplateButton?.addEventListener('click', () => {
+            if (!rsatForm) {
+                return;
+            }
+
+            const templateName = window.prompt('Template name');
+            if (!templateName || templateName.trim() === '') {
+                return;
+            }
+
+            const templateInput = rsatForm.querySelector('input[name="template_name"]');
+            const previousAction = rsatForm.getAttribute('action');
+
+            if (templateInput) {
+                templateInput.value = templateName.trim();
+            }
+
+            rsatForm.setAttribute('action', <?php echo json_encode(route('regular.rsat.templates.store', $regular), 512) ?>);
+            rsatForm.submit();
+            rsatForm.setAttribute('action', previousAction || '');
+        });
 
         syncSelectionUi();
     })();
