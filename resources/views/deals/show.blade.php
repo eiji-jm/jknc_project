@@ -79,13 +79,13 @@
                     <i class="far fa-pen-to-square mr-1"></i>Edit Deal
                 </button>
                 @if (data_get($detail, 'project.id'))
-                    @php
-                        $linkedEngagementType = strtolower(trim((string) data_get($detail, 'service.engagement_type', '')));
-                        $linkedRoute = str_contains($linkedEngagementType, 'regular') ? 'regular.show' : 'project.show';
-                        $linkedLabel = str_contains($linkedEngagementType, 'regular') ? 'Open Regular' : 'Open Project Workspace';
-                    @endphp
-                    <a href="{{ route($linkedRoute, data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
-                        <i class="fas fa-diagram-project mr-1"></i>{{ $linkedLabel }}
+                    <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                        <i class="fas fa-diagram-project mr-1"></i>Open Project Workspace
+                    </a>
+                @endif
+                @if (data_get($detail, 'regular_project.id'))
+                    <a href="{{ route('regular.show', data_get($detail, 'regular_project.id')) }}" class="flex h-9 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100">
+                        <i class="fas fa-clipboard-list mr-1"></i>Open Regular
                     </a>
                 @endif
                 <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">

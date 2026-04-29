@@ -1263,7 +1263,7 @@ class DealController extends Controller
     public function show(int $id): View|RedirectResponse
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'proposal'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'regularProject', 'proposal'])->find($id);
             if ($storedDeal) {
                 $stages = $this->dealStages();
                 $currentStage = null;
@@ -1366,6 +1366,11 @@ class DealController extends Controller
                         'id' => $storedDeal->project?->id,
                         'code' => $storedDeal->project?->project_code,
                         'status' => $storedDeal->project?->status,
+                    ],
+                    'regular_project' => [
+                        'id' => $storedDeal->regularProject?->id,
+                        'code' => $storedDeal->regularProject?->project_code,
+                        'status' => $storedDeal->regularProject?->status,
                     ],
                     'progress' => [
                         'stages' => $stages,

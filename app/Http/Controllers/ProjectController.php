@@ -1374,7 +1374,13 @@ class ProjectController extends Controller
 
         return Deal::query()
             ->with(['contact:id,first_name,middle_name,last_name,email,phone,company_name,company_address,position'])
-            ->whereDoesntHave('project')
+            ->whereDoesntHave('projects', function ($query): void {
+                $query->where(function ($workspaceQuery): void {
+                    $workspaceQuery
+                        ->whereNull('engagement_type')
+                        ->orWhereRaw('LOWER(engagement_type) NOT LIKE ?', ['%regular%']);
+                });
+            })
             ->latest()
             ->get()
             ->map(function (Deal $deal): array {

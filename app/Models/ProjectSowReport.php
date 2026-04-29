@@ -44,17 +44,28 @@ class ProjectSowReport extends Model
 
     public static function generateNextCode(?int $year = null): string
     {
-        $year ??= (int) now()->format('Y');
-        $prefix = sprintf('SOWR-%d-', $year);
+        return static::generateNextCodeForPrefix('SOWR', $year);
+    }
 
-        $nextNumber = DB::transaction(function () use ($prefix): int {
+    public static function generateNextRsatCode(?int $year = null): string
+    {
+        return static::generateNextCodeForPrefix('RSATR', $year);
+    }
+
+    private static function generateNextCodeForPrefix(string $prefixKey, ?int $year = null): string
+    {
+        $year ??= (int) now()->format('Y');
+        $prefix = sprintf('%s-%d-', $prefixKey, $year);
+        $pattern = sprintf('/^%s-\d{4}-\d{3}$/', preg_quote($prefixKey, '/'));
+
+        $nextNumber = DB::transaction(function () use ($prefix, $pattern): int {
             $latestCode = static::query()
                 ->where('report_number', 'like', $prefix.'%')
                 ->orderByDesc('report_number')
                 ->lockForUpdate()
                 ->value('report_number');
 
-            if (! is_string($latestCode) || ! preg_match('/^SOWR-\d{4}-\d{3}$/', $latestCode)) {
+            if (! is_string($latestCode) || ! preg_match($pattern, $latestCode)) {
                 return 1;
             }
 

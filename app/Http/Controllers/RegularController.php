@@ -223,7 +223,7 @@ class RegularController extends Controller
 
         ProjectSowReport::query()->create([
             'project_id' => $regular->id,
-            'report_number' => null,
+            'report_number' => ProjectSowReport::generateNextRsatCode(),
             'date_prepared' => now()->toDateString(),
             'within_scope_items' => $this->buildReportRowsFromRsat($rsat),
             'out_of_scope_items' => [],
@@ -265,7 +265,7 @@ class RegularController extends Controller
         }
 
         Deal::query()
-            ->whereDoesntHave('project')
+            ->whereDoesntHave('projects', fn ($query) => $query->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%']))
             ->get()
             ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
             ->each(fn (Deal $deal) => $this->projectProvisioner->createOrSyncFromDeal($deal));
@@ -297,6 +297,10 @@ class RegularController extends Controller
             'engagement_assigned_to.*' => ['nullable', 'string', 'max:255'],
             'engagement_timeline' => ['nullable', 'array'],
             'engagement_timeline.*' => ['nullable', 'string', 'max:255'],
+            'engagement_status' => ['nullable', 'array'],
+            'engagement_status.*' => ['nullable', 'in:open,in_progress,delayed,completed,on_hold'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,gif,webp,doc,docx,xls,xlsx,ppt,pptx,txt', 'max:10240'],
             'approval_requirement' => ['nullable', 'array'],
             'approval_requirement.*' => ['nullable', 'string', 'max:255'],
             'approval_responsible_person' => ['nullable', 'array'],
@@ -335,6 +339,7 @@ class RegularController extends Controller
             'date_completed' => $validated['date_completed'] ?? null,
             'status' => $validated['status'],
             'engagement_requirements' => $this->buildRequirementRows($request, 'engagement'),
+            'attachments' => $this->storeRsatAttachments($request, $regular, $rsat),
             'approval_steps' => $this->buildApprovalRows($request),
             'clearance' => $this->buildClearancePayload($validated),
             'rejection_reason' => $validated['rejection_reason'] ?? null,
@@ -421,7 +426,8 @@ class RegularController extends Controller
         ];
 
         $report->fill([
-            'report_number' => $validated['report_number'] ?? null,
+            'report_number' => $validated['report_number']
+                ?: ($report->report_number ?: ProjectSowReport::generateNextRsatCode()),
             'date_prepared' => $validated['date_prepared'] ?? null,
             'within_scope_items' => $this->buildReportRows($request),
             'out_of_scope_items' => [],
@@ -443,8 +449,9 @@ class RegularController extends Controller
         $submittedTo = (array) $request->input("{$prefix}_submitted_to", []);
         $assigned = (array) $request->input("{$prefix}_assigned_to", []);
         $timelines = (array) $request->input("{$prefix}_timeline", []);
+        $statuses = (array) $request->input("{$prefix}_status", []);
 
-        return collect($requirements)->map(function ($value, $index) use ($notes, $purposes, $providedBy, $submittedTo, $assigned, $timelines) {
+        return collect($requirements)->map(function ($value, $index) use ($notes, $purposes, $providedBy, $submittedTo, $assigned, $timelines, $statuses) {
             $requirement = trim((string) $value);
             if ($requirement === '') {
                 return null;
@@ -459,6 +466,9 @@ class RegularController extends Controller
                 'submitted_to' => trim((string) ($submittedTo[$index] ?? '')),
                 'assigned_to' => trim((string) ($assigned[$index] ?? '')),
                 'timeline' => trim((string) ($timelines[$index] ?? '')),
+                'status' => in_array(($statuses[$index] ?? 'open'), ['open', 'in_progress', 'delayed', 'completed', 'on_hold'], true)
+                    ? (string) ($statuses[$index] ?? 'open')
+                    : 'open',
             ];
         })->filter()->values()->all();
     }
@@ -510,15 +520,17 @@ class RegularController extends Controller
         $frequencies = (array) $request->input('report_frequency', []);
         $reminders = (array) $request->input('report_reminder_lead_time', []);
         $deadlines = (array) $request->input('report_deadline', []);
+        $statuses = (array) $request->input('report_status', []);
 
-        return collect($activities)->map(function ($value, $index) use ($services, $frequencies, $reminders, $deadlines) {
+        return collect($activities)->map(function ($value, $index) use ($services, $frequencies, $reminders, $deadlines, $statuses) {
             $service = trim((string) ($services[$index] ?? ''));
             $activity = trim((string) $value);
             $frequency = trim((string) ($frequencies[$index] ?? ''));
             $reminder = trim((string) ($reminders[$index] ?? ''));
             $deadline = trim((string) ($deadlines[$index] ?? ''));
+            $status = trim((string) ($statuses[$index] ?? 'open'));
 
-            if ($service === '' && $activity === '' && $frequency === '' && $reminder === '' && $deadline === '') {
+            if ($service === '' && $activity === '' && $frequency === '' && $reminder === '' && $deadline === '' && $status === '') {
                 return null;
             }
 
@@ -528,6 +540,7 @@ class RegularController extends Controller
                 'frequency' => $frequency,
                 'reminder_lead_time' => $reminder,
                 'deadline' => $deadline,
+                'status' => in_array($status, ['open', 'in_progress', 'delayed', 'completed', 'on_hold'], true) ? $status : 'open',
             ];
         })->filter()->values()->all();
     }
@@ -541,6 +554,7 @@ class RegularController extends Controller
                 'frequency' => trim((string) ($row['notes'] ?? '')),
                 'reminder_lead_time' => trim((string) ($row['timeline'] ?? '')),
                 'deadline' => trim((string) ($row['submitted_to'] ?? '')),
+                'status' => trim((string) ($row['status'] ?? 'open')),
             ])
             ->filter(fn (array $row): bool => collect($row)->contains(fn ($value) => $value !== ''))
             ->values()
@@ -573,6 +587,33 @@ class RegularController extends Controller
         ];
     }
 
+    private function storeRsatAttachments(Request $request, Project $regular, ProjectStart $rsat): array
+    {
+        $existing = collect($rsat->attachments ?? [])
+            ->filter(fn ($item): bool => is_array($item) && filled($item['path'] ?? null))
+            ->values();
+
+        if (! $request->hasFile('attachments')) {
+            return $existing->all();
+        }
+
+        $newFiles = collect($request->file('attachments', []))
+            ->filter()
+            ->map(function ($file) use ($regular): array {
+                $path = $file->store("regular/{$regular->id}/rsat-attachments", 'public');
+
+                return [
+                    'name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'mime_type' => $file->getClientMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_at' => now()->toDateTimeString(),
+                ];
+            });
+
+        return $existing->concat($newFiles)->values()->all();
+    }
+
     private function buildManualRequirementRows(string $rawRequirements, string $assignedTo): array
     {
         $rows = collect(preg_split('/[\r\n]+/', trim($rawRequirements)))
@@ -588,6 +629,7 @@ class RegularController extends Controller
                 'submitted_to' => 'Sales & Marketing',
                 'assigned_to' => $assignedTo,
                 'timeline' => 'Recurring schedule',
+                'status' => 'open',
             ])
             ->all();
 
@@ -604,6 +646,7 @@ class RegularController extends Controller
             'submitted_to' => 'Sales & Marketing',
             'assigned_to' => $assignedTo,
             'timeline' => 'Recurring schedule',
+            'status' => 'open',
         ]];
     }
 

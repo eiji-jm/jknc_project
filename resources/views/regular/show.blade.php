@@ -4,7 +4,7 @@
 @php
     $fmt = fn ($v) => $v ? \Illuminate\Support\Carbon::parse($v)->format('M d, Y') : '-';
     $contactName = trim(collect([$regular->contact?->first_name, $regular->contact?->last_name])->filter()->implode(' ')) ?: '-';
-    $rsatRequirements = collect($rsat?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '']]));
+    $rsatRequirements = collect($rsat?->engagement_requirements ?? [])->whenEmpty(fn () => collect([['number' => 1, 'requirement' => '', 'notes' => '', 'purpose' => '', 'provided_by' => '', 'submitted_to' => '', 'assigned_to' => '', 'timeline' => '', 'status' => 'open']]));
     $rsatClearance = (array) ($rsat?->clearance ?? []);
     $formDate = old('form_date', optional($rsat?->form_date ?? $rsat?->created_at)->format('Y-m-d'));
     $dateStarted = old('date_started', optional($rsat?->date_started)->format('Y-m-d'));
@@ -21,6 +21,7 @@
     $recordedDate = old('clearance_date_recorded', $rsatClearance['date_recorded'] ?? '');
     $signedDate = old('clearance_date_signed', $rsatClearance['date_signed'] ?? '');
     $generatedReports = $generatedReports ?? collect();
+    $rsatAttachments = collect($rsat?->attachments ?? []);
 @endphp
 
 <style>
@@ -194,6 +195,10 @@
         width: min(100%, 420px);
         border-bottom: 1px solid #111827;
         min-height: 36px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        text-align: center;
     }
     .rsat-signature-label {
         font-family: Georgia, "Times New Roman", serif;
@@ -335,7 +340,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('regular.rsat.update', $regular) }}" class="rsat-sheet overflow-hidden p-6 {{ $tab !== 'rsat' ? 'hidden' : '' }}" data-tab-panel="rsat">
+        <form method="POST" action="{{ route('regular.rsat.update', $regular) }}" enctype="multipart/form-data" class="rsat-sheet overflow-hidden p-6 {{ $tab !== 'rsat' ? 'hidden' : '' }}" data-tab-panel="rsat">
             @csrf
             <input type="hidden" name="status" value="{{ old('status', $rsat?->status ?? 'pending') }}">
             <input type="hidden" name="form_date" value="{{ $formDate }}">
@@ -413,12 +418,13 @@
                     <table class="rsat-table">
                         <thead>
                             <tr>
-                                <th style="width: 6%;">Item #</th>
-                                <th style="width: 16%;">Service</th>
-                                <th style="width: 34%;">Activity / Output</th>
-                                <th style="width: 16%;">Frequency</th>
-                                <th style="width: 16%;">Reminder Lead Time</th>
+                                <th style="width: 5%;">Item #</th>
+                                <th style="width: 18%;">Service</th>
+                                <th style="width: 26%;">Activity / Output</th>
+                                <th style="width: 12%;">Frequency</th>
+                                <th style="width: 14%;">Reminder Lead Time</th>
                                 <th style="width: 10%;">Deadline</th>
+                                <th style="width: 9%;">Status</th>
                                 <th style="width: 6%;">Action</th>
                             </tr>
                         </thead>
@@ -441,6 +447,13 @@
                                     <td>
                                         <input name="engagement_submitted_to[]" value="{{ old('engagement_submitted_to.'.$index, $item['submitted_to'] ?? '') }}" class="rsat-row-input">
                                     </td>
+                                    <td>
+                                        <select name="engagement_status[]" class="rsat-row-input" style="appearance: none;">
+                                            @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
+                                                <option value="{{ $statusValue }}" @selected(old('engagement_status.'.$index, $item['status'] ?? 'open') === $statusValue)>{{ $statusLabel }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                     <td style="text-align: center;">
                                         <button type="button" class="rsat-row-delete" data-delete-row>&times;</button>
                                     </td>
@@ -456,8 +469,60 @@
                     <button type="button" class="inline-flex items-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700" data-add-row="regular-requirements">Add RSAT Row</button>
                 </div>
 
+                <div class="rsat-section-title">ATTACHMENTS</div>
+                <div class="mt-5 space-y-4">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Upload Supporting Files</label>
+                        <div id="rsat-attachments-inputs" class="space-y-3">
+                            <div class="flex items-center gap-3" data-attachment-input-row>
+                                <input
+                                    type="file"
+                                    name="attachments[]"
+                                    accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                                    class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                                >
+                                <button type="button" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100" data-remove-attachment-input>
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">Attach images, PDFs, Office files, or text files up to 10MB each.</p>
+                        <div class="mt-3">
+                            <button type="button" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" id="add-rsat-attachment-input">
+                                Add More
+                            </button>
+                        </div>
+                    </div>
+
+                    @if ($rsatAttachments->isNotEmpty())
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-700">Attached Files</p>
+                            <div class="mt-3 space-y-2">
+                                @foreach ($rsatAttachments as $attachment)
+                                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                                        <div class="min-w-0">
+                                            <p class="truncate font-medium text-slate-800">{{ $attachment['name'] ?? 'Attachment' }}</p>
+                                            <p class="text-xs text-slate-500">
+                                                {{ strtoupper(pathinfo((string) ($attachment['name'] ?? ''), PATHINFO_EXTENSION) ?: 'FILE') }}
+                                                @if (filled($attachment['size'] ?? null))
+                                                    • {{ number_format(((int) $attachment['size']) / 1024, 1) }} KB
+                                                @endif
+                                            </p>
+                                        </div>
+                                        @if (filled($attachment['path'] ?? null))
+                                            <a href="{{ route('uploads.show', ['path' => $attachment['path'], 'download' => 1]) }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                                Download
+                                            </a>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
                 <div class="rsat-signature">
-                    <div class="rsat-signature-line"></div>
+                    <div class="rsat-signature-line">{{ $regular->client_name ?: $contactName }}</div>
                     <div class="rsat-signature-label">Client Fullname &amp; Signature</div>
                 </div>
 
@@ -636,16 +701,42 @@
         <td><input name="engagement_notes[]" class="rsat-row-input"></td>
         <td><input name="engagement_timeline[]" class="rsat-row-input"></td>
         <td><input name="engagement_submitted_to[]" class="rsat-row-input"></td>
+        <td>
+            <select name="engagement_status[]" class="rsat-row-input" style="appearance: none;">
+                <option value="open" selected>Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="delayed">Delayed</option>
+                <option value="completed">Completed</option>
+                <option value="on_hold">On Hold</option>
+            </select>
+        </td>
         <td style="text-align: center;"><button type="button" class="rsat-row-delete" data-delete-row>&times;</button></td>
         <input type="hidden" name="engagement_provided_by[]" value="">
         <input type="hidden" name="engagement_assigned_to[]" value="">
     </tr>
 </template>
 
+<template id="rsat-attachment-input-template">
+    <div class="flex items-center gap-3" data-attachment-input-row>
+        <input
+            type="file"
+            name="attachments[]"
+            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+        >
+        <button type="button" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100" data-remove-attachment-input>
+            Remove
+        </button>
+    </div>
+</template>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const requirementsContainer = document.getElementById('regular-requirements');
     const rowTemplate = document.getElementById('regular-requirement-row-template');
+    const attachmentInputsContainer = document.getElementById('rsat-attachments-inputs');
+    const attachmentInputTemplate = document.getElementById('rsat-attachment-input-template');
+    const addAttachmentInputButton = document.getElementById('add-rsat-attachment-input');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
 
@@ -685,6 +776,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         row.remove();
         syncRowNumbers(requirementsContainer);
+    });
+
+    addAttachmentInputButton?.addEventListener('click', () => {
+        attachmentInputsContainer?.insertAdjacentHTML('beforeend', attachmentInputTemplate.innerHTML);
+    });
+
+    attachmentInputsContainer?.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-remove-attachment-input]');
+        if (!trigger) {
+            return;
+        }
+
+        const row = trigger.closest('[data-attachment-input-row]');
+        if (!row) {
+            return;
+        }
+
+        const rows = attachmentInputsContainer.querySelectorAll('[data-attachment-input-row]');
+        if (rows.length <= 1) {
+            const input = row.querySelector('input[type="file"]');
+            if (input) {
+                input.value = '';
+            }
+            return;
+        }
+
+        row.remove();
     });
 
     const activateTab = (tabKey) => {

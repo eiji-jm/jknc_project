@@ -45,7 +45,8 @@
                     <th style="width:28%;">Activity / Output</th>
                     <th style="width:16%;">Frequency</th>
                     <th style="width:16%;">Reminder Lead Time</th>
-                    <th style="width:16%;">Deadline</th>
+                    <th style="width:12%;">Deadline</th>
+                    <th style="width:12%;">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,6 +58,7 @@
                         <td>{{ $item['notes'] ?? '' }}</td>
                         <td>{{ $item['timeline'] ?? '' }}</td>
                         <td>{{ $item['submitted_to'] ?? '' }}</td>
+                        <td>{{ \Illuminate\Support\Str::of((string) ($item['status'] ?? 'open'))->replace('_', ' ')->title() }}</td>
                     </tr>
                 @endforeach
             </tbody>

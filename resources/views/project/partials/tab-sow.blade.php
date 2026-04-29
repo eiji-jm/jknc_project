@@ -4,7 +4,7 @@
     $ntpStatus = old('ntp_status', $sow?->ntp_status ?? 'pending');
     $withinCount = $sowWithin->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
     $outCount = $sowOut->filter(fn ($row) => filled($row['main_task_description'] ?? null))->count();
-    $clientConfirmationName = old('client_confirmation_name', $sow?->client_confirmation_name ?: $project->client_name);
+    $clientConfirmationName = old('client_confirmation_name', $sow?->client_confirmation_name ?: ($project->client_name ?: $contactName));
 @endphp
 
 <style>
@@ -208,7 +208,8 @@
         border-top: 0;
         min-height: 66px;
         display: flex;
-        align-items: flex-end;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
         padding: 10px 16px;
         font-family: Georgia, "Times New Roman", serif;
@@ -216,6 +217,17 @@
         font-style: italic;
         color: #111827;
         text-align: center;
+    }
+    .project-sow-signature-name {
+        min-width: min(100%, 420px);
+        border-bottom: 1px solid #111827;
+        padding: 0 12px 6px;
+        font-size: 0.95rem;
+        font-style: normal;
+        text-align: center;
+    }
+    .project-sow-signature-label {
+        margin-top: 8px;
     }
     .project-sow-approval-grid {
         display: grid;
@@ -383,9 +395,9 @@
                                         <td><input name="{{ $prefix }}_main_task_description[]" value="{{ old($prefix.'_main_task_description.'.$index, $item['main_task_description'] ?? '') }}"></td>
                                         <td><input name="{{ $prefix }}_sub_task_description[]" value="{{ old($prefix.'_sub_task_description.'.$index, $item['sub_task_description'] ?? '') }}"></td>
                                         <td><input name="{{ $prefix }}_responsible[]" value="{{ old($prefix.'_responsible.'.$index, $item['responsible'] ?? '') }}"></td>
-                                        <td><input name="{{ $prefix }}_duration[]" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}"></td>
+                                        <td><input name="{{ $prefix }}_duration[]" type="number" min="0" step="1" value="{{ old($prefix.'_duration.'.$index, $item['duration'] ?? '') }}"></td>
                                         <td><input type="date" name="{{ $prefix }}_start_date[]" value="{{ old($prefix.'_start_date.'.$index, $item['start_date'] ?? '') }}"></td>
-                                        <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}"></td>
+                                        <td><input type="date" name="{{ $prefix }}_end_date[]" value="{{ old($prefix.'_end_date.'.$index, $item['end_date'] ?? '') }}" readonly></td>
                                         <td>
                                             <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
                                                 @foreach (['open' => 'Open', 'in_progress' => 'In Progress', 'delayed' => 'Delayed', 'completed' => 'Completed', 'on_hold' => 'On Hold'] as $statusValue => $statusLabel)
@@ -405,9 +417,9 @@
                             <td><input name="{{ $prefix }}_main_task_description[]" value=""></td>
                             <td><input name="{{ $prefix }}_sub_task_description[]" value=""></td>
                             <td><input name="{{ $prefix }}_responsible[]" value=""></td>
-                            <td><input name="{{ $prefix }}_duration[]" value=""></td>
+                            <td><input name="{{ $prefix }}_duration[]" type="number" min="0" step="1" value=""></td>
                             <td><input type="date" name="{{ $prefix }}_start_date[]" value=""></td>
-                            <td><input type="date" name="{{ $prefix }}_end_date[]" value=""></td>
+                            <td><input type="date" name="{{ $prefix }}_end_date[]" value="" readonly></td>
                             <td>
                                 <select name="{{ $prefix }}_status[]" class="task-status-select" style="appearance: none;">
                                     <option value="open" selected>Open</option>
@@ -485,20 +497,10 @@
             <div class="project-sow-section">
                 <div class="project-sow-section-title">CLIENT CONFIRMATION</div>
                 <div class="project-sow-signature-box">
-                    Client Fullname &amp; Signature
+                    <div class="project-sow-signature-name">{{ $clientConfirmationName }}</div>
+                    <div class="project-sow-signature-label">Client Fullname &amp; Signature</div>
                 </div>
-                <div class="project-sow-upload">
-                    <div class="project-sow-meta-row">
-                        <span class="project-sow-meta-label">Client Confirmation Name:</span>
-                        <input name="client_confirmation_name" value="{{ $clientConfirmationName }}" class="project-sow-line-input">
-                    </div>
-                    <div>
-                        <input type="file" name="client_signed_attachment" class="project-sow-file">
-                        @if ($sow?->client_signed_attachment_path)
-                            <a href="{{ route('uploads.show', ['path' => $sow->client_signed_attachment_path]) }}" target="_blank" class="mt-2 inline-block text-sm font-medium text-blue-700 hover:text-blue-800">View uploaded signed file</a>
-                        @endif
-                    </div>
-                </div>
+                <input type="hidden" name="client_confirmation_name" value="{{ $clientConfirmationName }}">
             </div>
 
             <div class="project-sow-section">
@@ -606,6 +608,94 @@
                 }
             }
 
+            function calculateEndDate(startDate, durationDays) {
+                if (!startDate || durationDays === '' || durationDays === null) {
+                    return '';
+                }
+
+                const start = new Date(`${startDate}T00:00:00`);
+                const duration = Number(durationDays);
+
+                if (Number.isNaN(start.getTime()) || Number.isNaN(duration) || duration < 0) {
+                    return '';
+                }
+
+                const end = new Date(start);
+                end.setDate(end.getDate() + duration);
+
+                const year = end.getFullYear();
+                const month = String(end.getMonth() + 1).padStart(2, '0');
+                const day = String(end.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            }
+
+            function todayDateString() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            }
+
+            function updateRowEndDate(row) {
+                if (!row) {
+                    return;
+                }
+
+                const startInput = row.querySelector('input[name*="_start_date[]"]');
+                const durationInput = row.querySelector('input[name*="_duration[]"]');
+                const endInput = row.querySelector('input[name*="_end_date[]"]');
+
+                if (!startInput || !endInput || !durationInput) {
+                    return;
+                }
+
+                endInput.value = calculateEndDate(startInput.value, durationInput.value);
+            }
+
+            function autoUpdateRowStatus(row) {
+                if (!row) {
+                    return;
+                }
+
+                const startInput = row.querySelector('input[name*="_start_date[]"]');
+                const endInput = row.querySelector('input[name*="_end_date[]"]');
+                const statusSelect = row.querySelector('.task-status-select');
+
+                if (!startInput || !endInput || !statusSelect) {
+                    return;
+                }
+
+                const currentStatus = statusSelect.value;
+                const startDate = startInput.value;
+                const endDate = endInput.value;
+
+                if (!startDate || !endDate) {
+                    return;
+                }
+
+                const today = todayDateString();
+
+                if ((currentStatus === 'open' || currentStatus === 'in_progress') && today > endDate) {
+                    statusSelect.value = 'delayed';
+                    return;
+                }
+
+                if (currentStatus === 'delayed' && today <= endDate) {
+                    statusSelect.value = today >= startDate ? 'in_progress' : 'open';
+                }
+            }
+
+            function updateAllEndDates() {
+                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(updateRowEndDate);
+            }
+
+            function updateAllAutoStatuses() {
+                document.querySelectorAll('tbody[id$="-scope-table"] tr').forEach(autoUpdateRowStatus);
+            }
+
             function updateTotalMainTasks() {
                 const totalMainTasks = Array.from(document.querySelectorAll('input[name*="_main_task_description[]"]')).filter(input => input.value.trim() !== '').length;
                 const totalField = document.querySelector('input[name="total_main_tasks"]');
@@ -627,6 +717,7 @@
                     const prefix = targetId.replace('-scope-table', '');
                     const newRow = createScopeRow(prefix);
                     tbody.appendChild(newRow);
+                    updateRowEndDate(newRow);
                     updateProjectSummary();
                     updateTotalMainTasks();
                 }
@@ -643,19 +734,44 @@
                 }
             });
 
-            document.addEventListener('change', function(e) {
-                if (e.target.classList.contains('task-status-select')) {
-                    updateProjectSummary();
+            function isScopeField(target) {
+                return Boolean(target?.name) && (
+                    target.name.includes('_main_task_description[]') ||
+                    target.name.includes('_sub_task_description[]') ||
+                    target.name.includes('_responsible[]') ||
+                    target.name.includes('_duration[]') ||
+                    target.name.includes('_start_date[]') ||
+                    target.name.includes('_end_date[]') ||
+                    target.name.includes('_status[]') ||
+                    target.name.includes('_remarks[]')
+                );
+            }
+
+            function refreshScopeDerivedState(target) {
+                if (!isScopeField(target)) {
+                    return;
                 }
-            });
+
+                if (target.name.includes('_start_date[]') || target.name.includes('_duration[]')) {
+                    updateRowEndDate(target.closest('tr'));
+                }
+
+                autoUpdateRowStatus(target.closest('tr'));
+
+                updateProjectSummary();
+                updateTotalMainTasks();
+            }
 
             document.addEventListener('input', function(e) {
-                if (e.target.name && e.target.name.includes('_main_task_description[]')) {
-                    updateProjectSummary();
-                    updateTotalMainTasks();
-                }
+                refreshScopeDerivedState(e.target);
             });
 
+            document.addEventListener('change', function(e) {
+                refreshScopeDerivedState(e.target);
+            });
+
+            updateAllEndDates();
+            updateAllAutoStatuses();
             updateProjectSummary();
             updateTotalMainTasks();
         });
