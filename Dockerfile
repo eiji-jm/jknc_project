@@ -17,8 +17,21 @@ WORKDIR /var/www
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader \
-    && php artisan storage:link
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader
+
+# 🔥 FIX: Create required Laravel folders
+RUN mkdir -p storage/framework/views \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/logs \
+    bootstrap/cache
+
+# 🔥 FIX: Set permissions
+RUN chmod -R 775 storage bootstrap/cache
+
+# 🔥 OPTIONAL but good: link storage
+RUN php artisan storage:link || true
 
 EXPOSE 10000
 
