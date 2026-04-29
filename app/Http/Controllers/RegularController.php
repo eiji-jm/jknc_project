@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\GeneratesPdfPreview;
+use App\Models\Company;
+use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Project;
 use App\Models\ProjectNtp;
 use App\Models\ProjectSowReport;
 use App\Models\ProjectStart;
+use App\Models\FormTemplate;
 use App\Services\ProjectProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +26,68 @@ class RegularController extends Controller
     use GeneratesPdfPreview;
 
     private const CLIENT_LINK_TTL_DAYS = 14;
+    private const FALLBACK_SERVICE_AREA_OPTIONS = [
+        'Corporate & Regulatory Advisory',
+        'Governance & Policy Advisory',
+        'People & Talent Solutions',
+        'Strategic Situations Advisory',
+        'Accounting & Compliance Advisory',
+        'Business Strategy & Process Advisory',
+        'Learning & Capability Development',
+        'Others',
+    ];
+
+    private const FALLBACK_SERVICE_GROUPS = [
+        'Corporate & Regulatory Advisory' => [
+            'Business Registration (SEC / DTI / BIR)',
+            'Business Permit Processing / Renewal',
+            'Regulatory Compliance',
+            'Loan Application Assistance',
+            'Foreign Business Entry Support',
+        ],
+        'Accounting & Compliance Advisory' => [
+            'Bookkeeping Services',
+            'Tax Filing & Compliance (BIR)',
+            'AFS Preparation',
+            'Audit Support / Coordination',
+            'Accounting Services',
+        ],
+        'Governance & Policy Advisory' => [
+            'Corporate Secretary Services',
+            'Corporate Officers Services',
+            'Policy Development (HR, Finance, Ops)',
+            'Board Resolutions & Minutes',
+            'Risk & Internal Control Setup',
+        ],
+        'Business Strategy & Process Advisory' => [
+            'Business Consulting / Strategy',
+            'Process Improvement / SOP Development',
+            'Organizational Structuring',
+            'Digital Transformation',
+            'Financial Planning & Analysis',
+        ],
+        'Strategic Situations Advisory' => [
+            'Corporate Deadlock Resolution',
+            'Crisis Assessment & Stabilization',
+            'Business Restructuring Strategy',
+            'Stakeholder Negotiation Support',
+            'High-Risk / Complex Case Advisory',
+        ],
+        'People & Talent Solutions' => [
+            'Recruitment & Hiring Support',
+            'HR Structuring & Organization Design',
+            'KPI & Performance Management Systems',
+            'HR Documentation & Contracts',
+            'Executive / Virtual Assistant Support',
+        ],
+        'Learning & Capability Development' => [
+            'Accounting & Compliance Training',
+            'Corporate Governance Workshops',
+            'Business & Strategy Training',
+            'Client Capability Development Programs',
+            'JKNC Academy Courses',
+        ],
+    ];
 
     public function __construct(private readonly ProjectProvisioner $projectProvisioner)
     {
@@ -32,6 +98,9 @@ class RegularController extends Controller
         $this->provisionMissingRegularRecords();
 
         $regulars = collect();
+        $contactRecords = [];
+        $companyRecords = [];
+        $dealRecords = [];
 
         if (Schema::hasTable('projects')) {
             $regulars = Project::query()
@@ -50,15 +119,57 @@ class RegularController extends Controller
             'completed' => $regulars->where('status', 'Completed')->count(),
         ];
 
-        return view('regular.index', compact('regulars', 'stats'));
+        $rsatTemplates = Schema::hasTable('form_templates')
+            ? FormTemplate::query()->where('type', 'regular_rsat')->orderBy('name')->get()
+            : collect();
+
+        $serviceCatalog = $this->regularServiceCatalog();
+        $productCatalog = $this->regularProductCatalog();
+
+        try {
+            $contactRecords = $this->regularContactRecords();
+            $companyRecords = $this->regularCompanyRecords();
+            $dealRecords = $this->regularDealRecords();
+        } catch (\Throwable) {
+            $contactRecords = [];
+            $companyRecords = [];
+            $dealRecords = [];
+        }
+
+        return view('regular.index', compact(
+            'regulars',
+            'stats',
+            'rsatTemplates',
+            'contactRecords',
+            'companyRecords',
+            'dealRecords',
+            'serviceCatalog',
+            'productCatalog'
+        ));
     }
 
     public function storeManual(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'source_mode' => ['nullable', Rule::in(['manual', 'deal'])],
+            'deal_id' => ['nullable', 'integer', 'exists:deals,id', 'unique:projects,deal_id'],
+            'contact_id' => ['nullable', 'integer', 'exists:contacts,id'],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255'],
             'client_name' => ['nullable', 'string', 'max:255'],
             'business_name' => ['nullable', 'string', 'max:255'],
+            'service_area_options' => ['nullable', 'array'],
+            'service_area_options.*' => ['nullable', 'string', 'max:255'],
+            'service_area_other' => ['nullable', 'array'],
+            'service_area_other.*' => ['nullable', 'string', 'max:255'],
+            'service_options' => ['nullable', 'array'],
+            'service_options.*' => ['nullable', 'string', 'max:255'],
+            'services_other' => ['nullable', 'array'],
+            'services_other.*' => ['nullable', 'string', 'max:255'],
+            'product_options' => ['nullable', 'array'],
+            'product_options.*' => ['nullable', 'string', 'max:255'],
+            'products_other_entries' => ['nullable', 'array'],
+            'products_other_entries.*' => ['nullable', 'string', 'max:255'],
             'service_area' => ['nullable', 'string', 'max:255'],
             'services' => ['nullable', 'string', 'max:1000'],
             'products' => ['nullable', 'string', 'max:1000'],
@@ -69,9 +180,60 @@ class RegularController extends Controller
             'assigned_associate' => ['nullable', 'string', 'max:255'],
             'client_confirmation_name' => ['nullable', 'string', 'max:255'],
             'engagement_requirements_text' => ['nullable', 'string', 'max:4000'],
+            'template_id' => Schema::hasTable('form_templates')
+                ? ['nullable', 'integer', Rule::exists('form_templates', 'id')->where(fn ($query) => $query->where('type', 'regular_rsat'))]
+                : ['nullable'],
         ]);
 
+        $validated['service_area'] = $this->stringifySelectedValues(
+            $validated['service_area_options'] ?? [],
+            $validated['service_area_other'] ?? [],
+            'Others: '
+        ) ?: ($validated['service_area'] ?? null);
+
+        $validated['services'] = $this->stringifySelectedValues(
+            $validated['service_options'] ?? [],
+            $validated['services_other'] ?? [],
+            'Custom: ',
+            ['Others']
+        ) ?: ($validated['services'] ?? null);
+
+        $validated['products'] = $this->stringifySelectedValues(
+            $validated['product_options'] ?? [],
+            $validated['products_other_entries'] ?? [],
+            'Custom: ',
+            ['Others']
+        ) ?: ($validated['products'] ?? null);
+
+        $selectedTemplate = ! empty($validated['template_id'])
+            ? FormTemplate::query()
+                ->where('type', 'regular_rsat')
+                ->find($validated['template_id'])
+            : null;
+        $templatePayload = (array) ($selectedTemplate?->payload ?? []);
+
+        $linkedDeal = ! empty($validated['deal_id']) ? Deal::query()->find($validated['deal_id']) : null;
+        $linkedContact = ! empty($validated['contact_id']) ? Contact::query()->find($validated['contact_id']) : null;
+        $linkedCompany = ! empty($validated['company_id']) ? Company::query()->find($validated['company_id']) : null;
+
+        if ($linkedDeal) {
+            $linkedContact ??= $linkedDeal->contact()->first();
+        }
+
+        if (! $linkedCompany && $linkedDeal) {
+            $linkedCompany = Company::query()
+                ->where('company_name', $linkedDeal->company_name ?: $linkedContact?->company_name)
+                ->first();
+        }
+
+        if (! $linkedCompany && $linkedContact && filled($linkedContact->company_name)) {
+            $linkedCompany = Company::query()->where('company_name', $linkedContact->company_name)->first();
+        }
+
         $regular = Project::query()->create([
+            'deal_id' => $linkedDeal?->id,
+            'contact_id' => $linkedContact?->id,
+            'company_id' => $linkedCompany?->id,
             'name' => $validated['name'],
             'engagement_type' => 'Regular Retainer',
             'status' => 'RSAT',
@@ -89,25 +251,38 @@ class RegularController extends Controller
             'products' => $validated['products'] ?? null,
             'client_confirmation_name' => $validated['client_confirmation_name'] ?? ($validated['client_name'] ?? null),
             'metadata' => [
-                'created_from' => 'regular_dashboard_manual',
+                'created_from' => $linkedDeal ? 'regular_dashboard_linked_deal' : 'regular_dashboard_manual',
+                'source_mode' => $validated['source_mode'] ?? ($linkedDeal ? 'deal' : 'manual'),
+                'template_id' => $selectedTemplate?->id,
+                'template_name' => $selectedTemplate?->name,
             ],
             'opened_at' => now(),
         ]);
+
+        $rsatRequirements = collect($templatePayload['engagement_requirements'] ?? [])
+            ->filter(fn ($row) => is_array($row))
+            ->values()
+            ->all();
+        if ($rsatRequirements === []) {
+            $rsatRequirements = $this->buildManualRequirementRows(
+                $validated['engagement_requirements_text'] ?? '',
+                $validated['assigned_associate'] ?? ($validated['assigned_consultant'] ?? ($validated['assigned_project_manager'] ?? 'Assigned team'))
+            );
+        }
 
         ProjectStart::query()->create([
             'project_id' => $regular->id,
             'form_date' => now()->toDateString(),
             'date_started' => $validated['planned_start_date'] ?? now()->toDateString(),
             'status' => 'pending',
-            'engagement_requirements' => $this->buildManualRequirementRows(
-                $validated['engagement_requirements_text'] ?? '',
-                $validated['assigned_associate'] ?? ($validated['assigned_consultant'] ?? ($validated['assigned_project_manager'] ?? 'Assigned team'))
-            ),
-            'approval_steps' => $this->buildManualApprovalSteps(
+            'engagement_requirements' => $rsatRequirements,
+            'approval_steps' => $this->mergeRegularTemplateApprovalSteps(
+                (array) ($templatePayload['approval_steps'] ?? []),
                 $validated['assigned_consultant'] ?? null,
                 $validated['assigned_associate'] ?? null
             ),
-            'clearance' => $this->buildManualClearancePayload(
+            'clearance' => $this->mergeRegularTemplateClearancePayload(
+                (array) ($templatePayload['clearance'] ?? []),
                 $validated['assigned_project_manager'] ?? ($validated['assigned_consultant'] ?? null),
                 $validated['assigned_consultant'] ?? null,
                 $validated['assigned_associate'] ?? null
@@ -167,11 +342,14 @@ class RegularController extends Controller
             ->latest('date_prepared')
             ->latest()
             ->get();
+        $rsatTemplates = Schema::hasTable('form_templates')
+            ? FormTemplate::query()->where('type', 'regular_rsat')->orderBy('name')->get()
+            : collect();
         $tab = in_array((string) $request->query('tab', 'rsat'), ['rsat', 'report'], true)
             ? (string) $request->query('tab', 'rsat')
             : 'rsat';
 
-        return view('regular.show', compact('regular', 'rsat', 'report', 'generatedReports', 'tab'));
+        return view('regular.show', compact('regular', 'rsat', 'report', 'generatedReports', 'rsatTemplates', 'tab'));
     }
 
     public function updateRsat(Request $request, Project $regular): RedirectResponse
@@ -307,6 +485,36 @@ class RegularController extends Controller
         return redirect()
             ->route('regular.report.preview', ['regular' => $regular->id, 'report' => $report->id])
             ->with('success', "RSAT report client approval link sent to {$recipientEmail}.");
+    }
+
+    public function storeRsatTemplate(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+        abort_if(! Schema::hasTable('form_templates'), 500, 'Templates table is not available.');
+
+        $validated = array_merge(
+            $this->validateRsatPayload($request),
+            $request->validate([
+                'template_name' => ['required', 'string', 'max:255'],
+            ])
+        );
+
+        $rsat = $this->persistRsatDocument($request, $regular, $validated);
+
+        FormTemplate::query()->create([
+            'type' => 'regular_rsat',
+            'name' => trim((string) $validated['template_name']),
+            'payload' => [
+                'engagement_requirements' => $rsat->engagement_requirements ?? [],
+                'approval_steps' => $rsat->approval_steps ?? [],
+                'clearance' => $rsat->clearance ?? [],
+            ],
+            'created_by' => auth()->id(),
+        ]);
+
+        return redirect()
+            ->route('regular.show', ['regular' => $regular->id, 'tab' => 'rsat'])
+            ->with('success', 'RSAT template saved successfully.');
     }
 
     public function bulkDestroyGeneratedReports(Request $request, Project $regular): RedirectResponse
@@ -784,6 +992,198 @@ class RegularController extends Controller
             ->filter(fn (array $row): bool => collect($row)->contains(fn ($value) => $value !== ''))
             ->values()
             ->all();
+    }
+
+    private function mergeRegularTemplateApprovalSteps(array $templateSteps, ?string $consultant, ?string $associate): array
+    {
+        $fallback = $this->buildManualApprovalSteps($consultant, $associate);
+
+        return collect($templateSteps)
+            ->filter(fn ($row) => is_array($row))
+            ->values()
+            ->all() ?: $fallback;
+    }
+
+    private function mergeRegularTemplateClearancePayload(array $templateClearance, ?string $preparedBy, ?string $consultant, ?string $associate): array
+    {
+        $fallback = $this->buildManualClearancePayload($preparedBy, $consultant, $associate);
+
+        return array_replace_recursive($fallback, array_filter($templateClearance, fn ($value) => $value !== null));
+    }
+
+    private function regularContactRecords(): array
+    {
+        if (! Schema::hasTable('contacts')) {
+            return [];
+        }
+
+        return Contact::query()
+            ->select(['id', 'salutation', 'first_name', 'middle_initial', 'middle_name', 'last_name', 'name_extension', 'email', 'phone', 'contact_address', 'company_name', 'company_address', 'position'])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function (Contact $contact): array {
+                return [
+                    'id' => $contact->id,
+                    'label' => trim(collect([$contact->salutation, $contact->first_name, $contact->middle_name, $contact->last_name])->filter()->implode(' ')),
+                    'search_blob' => Str::lower(implode(' ', array_filter([$contact->first_name, $contact->middle_initial, $contact->middle_name, $contact->last_name, $contact->company_name, $contact->email, $contact->phone]))),
+                    'salutation' => $contact->salutation,
+                    'first_name' => $contact->first_name,
+                    'middle_initial' => $contact->middle_initial ?: (filled($contact->middle_name) ? mb_substr((string) $contact->middle_name, 0, 1) : null),
+                    'middle_name' => $contact->middle_name,
+                    'last_name' => $contact->last_name,
+                    'name_extension' => $contact->name_extension,
+                    'email' => $contact->email,
+                    'mobile' => $contact->phone,
+                    'address' => $contact->contact_address,
+                    'company_name' => $contact->company_name,
+                    'company_address' => $contact->company_address,
+                    'position' => $contact->position,
+                ];
+            })
+            ->filter(fn (array $record): bool => filled($record['label']) || filled($record['company_name']))
+            ->values()
+            ->all();
+    }
+
+    private function regularCompanyRecords(): array
+    {
+        if (! Schema::hasTable('companies')) {
+            return [];
+        }
+
+        return Company::query()
+            ->with(['primaryContact:id,first_name,middle_name,last_name,email,phone,contact_address,position,company_name'])
+            ->select(['id', 'company_name', 'email', 'phone', 'address', 'owner_name', 'primary_contact_id'])
+            ->orderBy('company_name')
+            ->get()
+            ->map(function (Company $company): array {
+                $primaryContact = $company->primaryContact;
+
+                return [
+                    'id' => $company->id,
+                    'label' => $company->company_name,
+                    'search_blob' => Str::lower(implode(' ', array_filter([
+                        $company->company_name,
+                        $company->email,
+                        $company->phone,
+                        $company->address,
+                        $company->owner_name,
+                        $primaryContact?->first_name,
+                        $primaryContact?->middle_name,
+                        $primaryContact?->last_name,
+                        $primaryContact?->email,
+                        $primaryContact?->phone,
+                    ]))),
+                    'company_name' => $company->company_name,
+                    'company_address' => $company->address,
+                    'email' => $company->email,
+                    'mobile' => $company->phone,
+                    'owner_name' => $company->owner_name,
+                    'primary_contact_id' => $primaryContact?->id,
+                    'primary_contact_name' => trim(collect([$primaryContact?->first_name, $primaryContact?->middle_name, $primaryContact?->last_name])->filter()->implode(' ')),
+                    'primary_contact_email' => $primaryContact?->email,
+                    'primary_contact_mobile' => $primaryContact?->phone,
+                    'primary_contact_position' => $primaryContact?->position,
+                ];
+            })
+            ->filter(fn (array $record): bool => filled($record['company_name']))
+            ->values()
+            ->all();
+    }
+
+    private function regularDealRecords(): array
+    {
+        if (! Schema::hasTable('deals')) {
+            return [];
+        }
+
+        return Deal::query()
+            ->with(['contact:id,first_name,middle_name,last_name,email,phone,company_name,company_address,position'])
+            ->whereDoesntHave('projects', fn ($query) => $query->whereRaw('LOWER(COALESCE(engagement_type, "")) LIKE ?', ['%regular%']))
+            ->latest()
+            ->get()
+            ->filter(fn (Deal $deal): bool => $this->isRegularEngagement($deal->engagement_type))
+            ->map(function (Deal $deal): array {
+                $contact = $deal->contact;
+                $clientName = trim(collect([
+                    $deal->first_name ?: $contact?->first_name,
+                    $deal->middle_name ?: $contact?->middle_name,
+                    $deal->last_name ?: $contact?->last_name,
+                ])->filter()->implode(' '));
+
+                return [
+                    'id' => $deal->id,
+                    'label' => trim((string) ($deal->deal_code ?: $deal->deal_name ?: ('Deal #'.$deal->id))),
+                    'search_blob' => Str::lower(implode(' ', array_filter([
+                        $deal->deal_code,
+                        $deal->deal_name,
+                        $clientName,
+                        $deal->company_name ?: $contact?->company_name,
+                        $deal->service_area,
+                        $deal->services,
+                    ]))),
+                    'deal_code' => $deal->deal_code,
+                    'deal_name' => $deal->deal_name,
+                    'contact_id' => $deal->contact_id,
+                    'client_name' => $clientName,
+                    'business_name' => $deal->company_name ?: $contact?->company_name,
+                    'company_address' => $deal->company_address ?: $contact?->company_address,
+                    'email' => $deal->email ?: $contact?->email,
+                    'mobile' => $deal->mobile ?: $contact?->phone,
+                    'position' => $deal->position ?: $contact?->position,
+                    'service_area' => $deal->service_area,
+                    'services' => $deal->services,
+                    'products' => $deal->products,
+                    'planned_start_date' => optional($deal->planned_start_date)->format('Y-m-d'),
+                    'target_completion_date' => optional($deal->estimated_completion_date)->format('Y-m-d'),
+                    'assigned_project_manager' => $deal->assigned_consultant,
+                    'assigned_consultant' => $deal->assigned_consultant,
+                    'assigned_associate' => $deal->assigned_associate,
+                    'client_confirmation_name' => $clientName,
+                    'engagement_type' => $deal->engagement_type,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function regularServiceCatalog(): array
+    {
+        return [
+            'serviceAreaOptions' => self::FALLBACK_SERVICE_AREA_OPTIONS,
+            'serviceGroups' => self::FALLBACK_SERVICE_GROUPS,
+        ];
+    }
+
+    private function regularProductCatalog(): array
+    {
+        $productOptionsByServiceArea = collect(self::FALLBACK_SERVICE_GROUPS)
+            ->map(fn (array $services, string $group): array => array_values(array_map(
+                fn (string $service): string => $service.' Product',
+                $services
+            )))
+            ->all();
+
+        return ['productOptionsByServiceArea' => $productOptionsByServiceArea];
+    }
+
+    private function stringifySelectedValues(array $selected, array $custom, string $customPrefix, array $ignored = []): ?string
+    {
+        $base = collect($selected)
+            ->map(fn ($value): string => trim((string) $value))
+            ->filter(fn (string $value): bool => $value !== '' && ! in_array($value, $ignored, true) && $value !== 'Others')
+            ->values();
+
+        $customValues = collect($custom)
+            ->map(fn ($value): string => trim((string) $value))
+            ->filter()
+            ->map(fn (string $value): string => $customPrefix.$value)
+            ->values();
+
+        $values = $base->concat($customValues)->unique()->values();
+
+        return $values->isEmpty() ? null : $values->implode(', ');
     }
 
     private function buildReportApprovalFromRsat(Project $regular, ProjectStart $rsat): array

@@ -1,5 +1,6 @@
 @php
     $d = $documentData;
+    $editableMode = (bool) ($editable ?? false);
 
     $paragraphs = function ($value) {
         return collect(preg_split("/\r\n|\n|\r/", (string) $value) ?: [])
@@ -9,6 +10,9 @@
     };
 
     $money = fn ($value) => number_format((float) $value, 2);
+    $textEditorClasses = 'proposal-inline-editor proposal-inline-editor-text';
+    $blockEditorClasses = 'proposal-inline-editor proposal-inline-editor-block';
+    $numberEditorClasses = 'proposal-inline-editor proposal-inline-editor-number';
 
     $requirements = collect([
         ['label' => 'For Sole Proprietor / Professional / Individual', 'items' => $paragraphs($d['requirements_sole'] ?? '')],
@@ -52,16 +56,19 @@
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
 
-    $totalPages = 8;
-    $renderPageFooter = function (int $pageNumber) use ($d, $totalPages) {
+    $totalPages = 7;
+    $renderPageFooter = function () use ($d) {
         return '
             <div class="proposal-page-footer">
                 <div>John Kelly &amp; Company</div>
                 <div>'.e($d['company_address'] ?? '').'</div>
                 <div>Email: '.e($d['company_email'] ?? '').' &bull; Website: '.e($d['company_website'] ?? '').' &bull; Phone: '.e($d['company_phone'] ?? '').'</div>
-                <div>Page '.$pageNumber.' of '.$totalPages.'</div>
             </div>
         ';
+    };
+
+    $renderPageNumber = function (int $pageNumber) use ($totalPages) {
+        return '<div class="proposal-page-number">Page '.$pageNumber.' of '.$totalPages.'</div>';
     };
 @endphp
 
@@ -73,13 +80,19 @@
 
         <div class="proposal-cover-body">
             <div class="proposal-cover-year">{{ $d['year'] ?? now()->format('Y') }}</div>
-            <div class="proposal-cover-title">{{ $d['service_type'] ?? 'BIR Compliance Services' }}</div>
+            <div
+                class="proposal-cover-title @if($editableMode) {{ $textEditorClasses }} @endif"
+                @if($editableMode) contenteditable="true" data-proposal-field="service_type" data-proposal-editor="text" @endif
+            >{{ $d['service_type'] ?? 'BIR Compliance Services' }}</div>
             <div class="proposal-cover-date">{{ $d['date'] ?? now()->format('F d, Y') }}</div>
 
             <div class="proposal-presented-label">Presented For:</div>
             <div class="proposal-presented-name">{{ $d['client_name'] ?? 'Client Name' }}</div>
             <div class="proposal-presented-name">{{ $d['business_name'] ?? 'Business Name' }}</div>
-            <div class="proposal-presented-location">{{ $d['location'] ?? 'Philippines' }}</div>
+            <div
+                class="proposal-presented-location @if($editableMode) {{ $textEditorClasses }} @endif"
+                @if($editableMode) contenteditable="true" data-proposal-field="location" data-proposal-editor="text" @endif
+            >{{ $d['location'] ?? 'Philippines' }}</div>
         </div>
 
         <div class="proposal-cover-footer">
@@ -97,6 +110,7 @@
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(1) !!}
         <div class="proposal-page-body">
         @foreach (collect($sections)->take(2) as $index => $section)
             <h2 class="proposal-section-heading">
@@ -109,10 +123,11 @@
             @endforeach
         @endforeach
         </div>
-        {!! $renderPageFooter(2) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(2) !!}
         <div class="proposal-page-body">
         @php($thirdSection = $sections[2])
         <h2 class="proposal-section-heading">
@@ -149,16 +164,20 @@
             </tbody>
         </table>
         </div>
-        {!! $renderPageFooter(3) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(3) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(4) }}.</span>
             <span>{{ $d['proposal_intro'] ?? 'Our Proposal' }}</span>
         </h2>
-        <p class="proposal-paragraph">{{ $d['our_proposal_text'] ?? '' }}</p>
+        <div
+            class="proposal-paragraph @if($editableMode) {{ $blockEditorClasses }} @endif"
+            @if($editableMode) contenteditable="true" data-proposal-field="our_proposal_text" data-proposal-editor="multiline" @endif
+        >{!! nl2br(e($d['our_proposal_text'] ?? '')) !!}</div>
 
         <h3 class="proposal-subheading proposal-subheading-blue proposal-block-spaced">Services Availed</h3>
         <table class="proposal-data-table proposal-availed-table">
@@ -173,14 +192,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
+                @forelse (($d['service_items'] ?? []) as $item)
+                    <tr>
+                        <td>{{ $item['item_no'] ?? '' }}</td>
+                        <td>{{ $item['name'] ?? '' }}</td>
+                        <td>{!! nl2br(e($item['description'] ?? '')) !!}</td>
+                        <td>{!! nl2br(e($item['activity_output'] ?? '')) !!}</td>
+                        <td>{{ $item['frequency'] ?? '' }}</td>
+                        <td>{{ $item['deadline'] ?? '' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>No service selected</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>TBD</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -197,14 +227,25 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
+                @forelse (($d['product_items'] ?? []) as $item)
+                    <tr>
+                        <td>{{ $item['item_no'] ?? '' }}</td>
+                        <td>{{ $item['name'] ?? '' }}</td>
+                        <td>{!! nl2br(e($item['description'] ?? '')) !!}</td>
+                        <td>{!! nl2br(e($item['activity_output'] ?? '')) !!}</td>
+                        <td>{{ $item['frequency'] ?? '' }}</td>
+                        <td>{{ $item['deadline'] ?? '' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>No product selected</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>TBD</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -223,14 +264,31 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>***N/A***</td>
-                    <td></td>
-                    <td>{!! $paragraphs($d['requirements_sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td>{!! $paragraphs($d['requirements_juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td>{!! $paragraphs($d['requirements_optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
-                    <td></td>
-                </tr>
+                @forelse (($d['requirement_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td
+                            @if($editableMode) contenteditable="true" class="{{ $blockEditorClasses }}" data-proposal-field="requirements_sole" data-proposal-editor="multiline" @endif
+                        >{!! $paragraphs($row['sole'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td
+                            @if($editableMode) contenteditable="true" class="{{ $blockEditorClasses }}" data-proposal-field="requirements_juridical" data-proposal-editor="multiline" @endif
+                        >{!! $paragraphs($row['juridical'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td
+                            @if($editableMode) contenteditable="true" class="{{ $blockEditorClasses }}" data-proposal-field="requirements_optional" data-proposal-editor="multiline" @endif
+                        >{!! $paragraphs($row['optional'] ?? '')->map(fn ($line) => e($line))->implode('<br>') !!}</td>
+                        <td></td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td>1</td>
+                        <td>Client documentary requirements</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 
@@ -248,8 +306,24 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
-                <tr><td></td><td></td><td>Total</td><td></td></tr>
+                @forelse (($d['service_fee_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td>{{ $row['service_id'] ?? '' }}</td>
+                        <td>{{ $money($row['price'] ?? 0) }}</td>
+                    </tr>
+                @empty
+                    <tr><td>1</td><td>No service selected</td><td></td><td>{{ $money(0) }}</td></tr>
+                @endforelse
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td>Total</td>
+                    <td
+                        @if($editableMode) contenteditable="true" class="{{ $numberEditorClasses }}" data-proposal-field="price_regular" data-proposal-editor="number" @endif
+                    >{{ $money($d['price_regular'] ?? 0) }}</td>
+                </tr>
             </tbody>
         </table>
 
@@ -264,8 +338,17 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>***N/A***</td><td></td><td></td><td></td></tr>
-                <tr><td></td><td></td><td>Total</td><td></td></tr>
+                @forelse (($d['product_fee_rows'] ?? []) as $row)
+                    <tr>
+                        <td>{{ $row['item_no'] ?? '' }}</td>
+                        <td>{{ $row['name'] ?? '' }}</td>
+                        <td>{{ $row['service_id'] ?? '' }}</td>
+                        <td>{{ $money($row['price'] ?? 0) }}</td>
+                    </tr>
+                @empty
+                    <tr><td>1</td><td>No product selected</td><td></td><td>{{ $money(0) }}</td></tr>
+                @endforelse
+                <tr><td></td><td></td><td>Total</td><td data-proposal-display="price_products">{{ $money($d['price_products'] ?? 0) }}</td></tr>
             </tbody>
         </table>
 
@@ -277,22 +360,33 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>Total Services</td><td></td></tr>
-                <tr><td>Total Product</td><td></td></tr>
-                <tr><td>Discount</td><td>{{ $money($d['price_discount'] ?? 0) }}</td></tr>
-                <tr><td>Subtotal (After Discount)</td><td>{{ $money($d['price_subtotal'] ?? 0) }}</td></tr>
-                <tr><td>Tax (if applicable)</td><td>{{ $money($d['price_tax'] ?? 0) }}</td></tr>
-                <tr class="is-total"><td>Total Fees</td><td>{{ $money($d['price_total'] ?? 0) }}</td></tr>
-                <tr><td>Down Payment (50%)</td><td>{{ $money($d['price_down'] ?? 0) }}</td></tr>
-                <tr><td>Balance Payable Upon Completion (50%)</td><td>{{ $money($d['price_balance'] ?? 0) }}</td></tr>
+                <tr><td>Total Services</td><td data-proposal-display="price_regular">{{ $money($d['price_regular'] ?? 0) }}</td></tr>
+                <tr><td>Total Product</td><td data-proposal-display="price_products">{{ $money($d['price_products'] ?? 0) }}</td></tr>
+                <tr>
+                    <td>Discount</td>
+                    <td
+                        @if($editableMode) contenteditable="true" class="{{ $numberEditorClasses }}" data-proposal-field="price_discount" data-proposal-editor="number" @endif
+                    >{{ $money($d['price_discount'] ?? 0) }}</td>
+                </tr>
+                <tr><td>Subtotal (After Discount)</td><td data-proposal-display="price_subtotal">{{ $money($d['price_subtotal'] ?? 0) }}</td></tr>
+                <tr>
+                    <td>Tax (if applicable)</td>
+                    <td
+                        @if($editableMode) contenteditable="true" class="{{ $numberEditorClasses }}" data-proposal-field="price_tax" data-proposal-editor="number" @endif
+                    >{{ $money($d['price_tax'] ?? 0) }}</td>
+                </tr>
+                <tr class="is-total"><td>Total Fees</td><td data-proposal-display="price_total">{{ $money($d['price_total'] ?? 0) }}</td></tr>
+                <tr><td>Down Payment (50%)</td><td data-proposal-display="price_down">{{ $money($d['price_down'] ?? 0) }}</td></tr>
+                <tr><td>Balance Payable Upon Completion (50%)</td><td data-proposal-display="price_balance">{{ $money($d['price_balance'] ?? 0) }}</td></tr>
             </tbody>
         </table>
         <p class="proposal-note">{{ $d['supplemental_fee_note'] ?? '' }}</p>
         </div>
-        {!! $renderPageFooter(4) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(4) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
@@ -348,10 +442,11 @@
             </tbody>
         </table>
         </div>
-        {!! $renderPageFooter(5) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(5) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(8) }}.</span>
@@ -386,10 +481,11 @@
             </div>
         @endforeach
         </div>
-        {!! $renderPageFooter(6) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(6) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(9) }}.</span>
@@ -420,10 +516,11 @@
         <p class="proposal-end-note">-End-</p>
         <p class="proposal-system-note">{{ $d['system_note'] ?? '' }}</p>
         </div>
-        {!! $renderPageFooter(7) !!}
+        {!! $renderPageFooter() !!}
     </section>
 
     <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(7) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(10) }}.</span>
@@ -439,12 +536,15 @@
             </div>
             <div class="proposal-signature-block">
                 <div class="proposal-signature-label">For John Kelly &amp; Company</div>
-                <div class="proposal-signature-line">{{ $d['prepared_by_name'] ?? '' }}</div>
+                <div
+                    class="proposal-signature-line @if($editableMode) {{ $textEditorClasses }} @endif"
+                    @if($editableMode) contenteditable="true" data-proposal-field="prepared_by_name" data-proposal-editor="text" @endif
+                >{{ $d['prepared_by_name'] ?? '' }}</div>
                 <div class="proposal-signature-subline">ID Number: {{ $d['prepared_by_id'] ?? '' }}</div>
             </div>
         </div>
 
         </div>
-        {!! $renderPageFooter(8) !!}
+        {!! $renderPageFooter() !!}
     </section>
 </div>

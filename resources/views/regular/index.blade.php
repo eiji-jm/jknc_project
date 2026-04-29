@@ -12,6 +12,68 @@
         'Delivery' => 'bg-violet-50 text-violet-700 border border-violet-200',
         'Completed' => 'bg-green-50 text-green-700 border border-green-200',
     ];
+    $serviceAreaOptions = $serviceCatalog['serviceAreaOptions'] ?? [];
+    $serviceGroups = $serviceCatalog['serviceGroups'] ?? [];
+    $productOptionsByServiceArea = $productCatalog['productOptionsByServiceArea'] ?? [];
+    $oldSourceMode = old('source_mode', 'manual');
+    $selectedServiceAreas = collect(old('service_area_options', preg_split('/,\s*/', (string) old('service_area', '')) ?: []))
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    $serviceAreaOtherEntries = collect(old('service_area_other', []))
+        ->whenEmpty(function ($collection) use ($selectedServiceAreas) {
+            return collect($selectedServiceAreas)
+                ->filter(fn ($value): bool => \Illuminate\Support\Str::startsWith($value, 'Others: '))
+                ->map(fn ($value): string => trim(\Illuminate\Support\Str::after($value, 'Others: ')))
+                ->values();
+        })
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    $selectedServiceAreas = collect($selectedServiceAreas)
+        ->reject(fn ($value): bool => \Illuminate\Support\Str::startsWith($value, 'Others: '))
+        ->values()
+        ->all();
+    if ($serviceAreaOtherEntries !== [] && ! in_array('Others', $selectedServiceAreas, true)) {
+        $selectedServiceAreas[] = 'Others';
+    }
+    $selectedServices = collect(old('service_options', preg_split('/,\s*/', (string) old('services', '')) ?: []))
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '' && ! \Illuminate\Support\Str::startsWith(trim((string) $value), 'Custom: '))
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    $serviceCustomEntries = collect(old('services_other', []))
+        ->whenEmpty(function () {
+            return collect(preg_split('/,\s*/', (string) old('services', '')) ?: [])
+                ->filter(fn ($value): bool => is_string($value) && \Illuminate\Support\Str::startsWith(trim((string) $value), 'Custom: '))
+                ->map(fn ($value): string => trim(\Illuminate\Support\Str::after(trim((string) $value), 'Custom: ')))
+                ->values();
+        })
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    $selectedProducts = collect(old('product_options', preg_split('/,\s*/', (string) old('products', '')) ?: []))
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '' && ! \Illuminate\Support\Str::startsWith(trim((string) $value), 'Custom: '))
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    $productCustomEntries = collect(old('products_other_entries', []))
+        ->whenEmpty(function () {
+            return collect(preg_split('/,\s*/', (string) old('products', '')) ?: [])
+                ->filter(fn ($value): bool => is_string($value) && \Illuminate\Support\Str::startsWith(trim((string) $value), 'Custom: '))
+                ->map(fn ($value): string => trim(\Illuminate\Support\Str::after(trim((string) $value), 'Custom: ')))
+                ->values();
+        })
+        ->filter(fn ($value): bool => is_string($value) && trim($value) !== '')
+        ->map(fn ($value): string => trim((string) $value))
+        ->values()
+        ->all();
+    if ($productCustomEntries !== [] && ! in_array('Others', $selectedProducts, true)) {
+        $selectedProducts[] = 'Others';
+    }
 @endphp
 
 <div class="px-6 py-6 lg:px-8">
@@ -118,61 +180,169 @@
 
     <form method="POST" action="{{ route('regular.manual.store') }}" class="flex h-full flex-col overflow-hidden">
         @csrf
-        <div class="flex-1 space-y-6 overflow-y-auto px-6 py-5">          
+        <input type="hidden" name="source_mode" id="regular_source_mode" value="{{ $oldSourceMode === 'deal' ? 'deal' : 'manual' }}">
+        <input type="hidden" name="deal_id" id="regular_deal_id" value="{{ old('deal_id') }}">
+        <input type="hidden" name="contact_id" id="regular_contact_id" value="{{ old('contact_id') }}">
+        <input type="hidden" name="company_id" id="regular_company_id" value="{{ old('company_id') }}">
+        <div class="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <section class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <p class="text-sm font-semibold text-gray-900">How do you want to create this regular engagement?</p>
+                <div class="mt-3 grid gap-3 md:grid-cols-2">
+                    <button type="button" data-regular-source-option="deal" class="regular-source-option rounded-2xl border px-4 py-4 text-left transition {{ $oldSourceMode === 'deal' ? 'border-[#102d79] bg-white ring-2 ring-[#102d79]/10' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                        <span class="block text-sm font-semibold text-gray-900">Link Existing Deal</span>
+                        <span class="mt-1 block text-xs text-gray-500">Pick a regular deal and preload its client, company, and staffing details.</span>
+                    </button>
+                    <button type="button" data-regular-source-option="manual" class="regular-source-option rounded-2xl border px-4 py-4 text-left transition {{ $oldSourceMode !== 'deal' ? 'border-[#102d79] bg-white ring-2 ring-[#102d79]/10' : 'border-gray-200 bg-white hover:border-gray-300' }}">
+                        <span class="block text-sm font-semibold text-gray-900">Manual</span>
+                        <span class="mt-1 block text-xs text-gray-500">Start manually, then optionally select an existing contact or company.</span>
+                    </button>
+                </div>
+            </section>
+
+            <section id="regularDealLinkSection" class="space-y-3 {{ $oldSourceMode === 'deal' ? '' : 'hidden' }}">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Search Existing Deal</label>
+                    <input id="regularDealSearch" type="text" placeholder="Type deal code, deal name, client, or company..." autocomplete="off" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <p class="mt-2 text-xs text-gray-500">Only regular deals without a linked regular workspace are shown here.</p>
+                </div>
+                <div id="regularDealResults" class="hidden max-h-64 overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm"></div>
+                <div id="regularDealSelectionSummary" class="{{ old('deal_id') ? '' : 'hidden' }} rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"></div>
+            </section>
+
+            <section id="regularManualLinkSection" class="space-y-4 {{ $oldSourceMode === 'deal' ? 'hidden' : '' }}">
+                <div class="rounded-2xl border border-gray-200 p-4">
+                    <h3 class="text-base font-semibold text-gray-900">Customer Type</h3>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        @foreach (['business' => 'Business', 'individual' => 'Individual'] as $value => $label)
+                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                <input type="radio" name="regular_customer_type" value="{{ $value }}" @checked(old('regular_customer_type', 'individual') === $value) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div>
+                    <h3 id="regularSelectionSectionTitle" class="text-base font-semibold text-gray-900">Select Existing Contact / Client</h3>
+                    <p id="regularSearchHelpText" class="mt-1 text-xs text-gray-500">Select a customer type, then search the matching records.</p>
+                </div>
+                <div class="relative">
+                    <label id="regularContactSearchLabel" class="mb-2 block text-sm font-medium text-gray-700" for="regularContactSearch">Search Existing Client</label>
+                    <input id="regularContactSearch" type="text" placeholder="Type name, company, email, or mobile..." autocomplete="off" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <div id="regularContactResults" class="mt-2 hidden max-h-64 overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm"></div>
+                </div>
+                <div id="regularManualSelectionSummary" class="{{ old('contact_id') || old('company_id') ? '' : 'hidden' }} rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"></div>
+            </section>
+
             <div class="grid gap-4 md:grid-cols-2">
                 <div class="md:col-span-2">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">RSAT Template</label>
+                    <select name="template_id" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                        <option value="">Start from blank/default</option>
+                        @foreach ($rsatTemplates as $template)
+                            <option value="{{ $template->id }}" @selected((string) old('template_id') === (string) $template->id)>{{ $template->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700">Regular Name</label>
-                    <input name="name" value="{{ old('name') }}" required class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <input name="name" id="regular_name" value="{{ old('name') }}" required class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">Client Name</label>
-                    <input name="client_name" value="{{ old('client_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <input name="client_name" id="regular_client_name" value="{{ old('client_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">Business Name</label>
-                    <input name="business_name" value="{{ old('business_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <input name="business_name" id="regular_business_name" value="{{ old('business_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Date Started</label>
-                    <input type="date" name="planned_start_date" value="{{ old('planned_start_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Planned Start</label>
+                    <input type="date" name="planned_start_date" id="regular_planned_start_date" value="{{ old('planned_start_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">Target Completion</label>
-                    <input type="date" name="target_completion_date" value="{{ old('target_completion_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <input type="date" name="target_completion_date" id="regular_target_completion_date" value="{{ old('target_completion_date') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Service Area</label>
-                    <input name="service_area" value="{{ old('service_area') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Client Confirmation Name</label>
+                    <input name="client_confirmation_name" id="regular_client_confirmation_name" value="{{ old('client_confirmation_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Client Signature Name</label>
-                    <input name="client_confirmation_name" value="{{ old('client_confirmation_name') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
-                </div>
-                <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Prepared By</label>
-                    <input name="assigned_project_manager" value="{{ old('assigned_project_manager') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <label class="mb-2 block text-sm font-medium text-gray-700">Project Manager</label>
+                    <input name="assigned_project_manager" id="regular_assigned_project_manager" value="{{ old('assigned_project_manager') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div>
                     <label class="mb-2 block text-sm font-medium text-gray-700">Lead Consultant</label>
-                    <input name="assigned_consultant" value="{{ old('assigned_consultant') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
+                    <input name="assigned_consultant" id="regular_assigned_consultant" value="{{ old('assigned_consultant') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700">Lead Associate</label>
-                    <input name="assigned_associate" value="{{ old('assigned_associate') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Services</label>
-                    <textarea name="services" rows="3" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('services') }}</textarea>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="mb-2 block text-sm font-medium text-gray-700">Products</label>
-                    <textarea name="products" rows="2" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900">{{ old('products') }}</textarea>
+                    <input name="assigned_associate" id="regular_assigned_associate" value="{{ old('assigned_associate') }}" class="h-11 w-full rounded-xl border border-gray-300 px-4 text-sm text-gray-900">
                 </div>
                 <div class="md:col-span-2">
                     <label class="mb-2 block text-sm font-medium text-gray-700">RSAT Activities / Requirements</label>
-                    <textarea name="engagement_requirements_text" rows="6" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900" placeholder="One activity or requirement per line">{{ old('engagement_requirements_text') }}</textarea>
+                    <textarea name="engagement_requirements_text" rows="5" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900" placeholder="One requirement per line">{{ old('engagement_requirements_text') }}</textarea>
                 </div>
+                <input type="hidden" name="service_area" id="regular_service_area" value="{{ old('service_area') }}">
+                <textarea name="services" id="regular_services" class="hidden">{{ old('services') }}</textarea>
+                <textarea name="products" id="regular_products" class="hidden">{{ old('products') }}</textarea>
             </div>
+
+            <section class="rounded-2xl border border-gray-200 p-4">
+                <h3 class="text-base font-semibold text-gray-900">Service Identification</h3>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-gray-700">Service Area</label>
+                        <div id="regular-service-area-options-grid" class="grid gap-2 sm:grid-cols-2">
+                            @foreach ($serviceAreaOptions as $option)
+                                <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="service_area_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServiceAreas, true)) {{ $option === 'Others' ? 'data-other-target=regular-service-area-other-wrapper' : '' }} class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span>{{ $option }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div id="regular-service-area-other-wrapper" class="{{ (in_array('Others', $selectedServiceAreas, true) || count($serviceAreaOtherEntries) > 0) ? '' : 'hidden' }} mt-2">
+                            <input id="regular-service-area-other-input" type="text" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm" placeholder="Enter custom service area and press Enter">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Services</label>
+                        <div id="regularServicesGrid" class="mt-3 grid gap-4 lg:grid-cols-2 {{ count($selectedServiceAreas) > 0 ? '' : 'hidden' }}">
+                            @foreach ($serviceGroups as $group => $options)
+                                <div class="rounded-xl border border-gray-200 bg-gray-50/60 p-3 {{ in_array($group, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-regular-service-group="{{ $group }}">
+                                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $group }}</p>
+                                    <div class="space-y-2">
+                                        @foreach ($options as $option)
+                                            <label class="flex items-start gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" name="service_options[]" value="{{ $option }}" @checked(in_array($option, $selectedServices, true)) class="mt-0.5 h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span>{{ $option }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Products</label>
+                        <div id="regular-product-options-grid" class="mt-3 grid gap-4">
+                            @foreach ($productOptionsByServiceArea as $serviceArea => $options)
+                                <div class="{{ in_array($serviceArea, $selectedServiceAreas, true) ? '' : 'hidden' }}" data-regular-product-group="{{ $serviceArea }}">
+                                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">{{ $serviceArea }}</p>
+                                    <div class="grid gap-2 sm:grid-cols-2">
+                                        @foreach ($options as $option)
+                                            <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                                <input type="checkbox" name="product_options[]" value="{{ $option }}" @checked(in_array($option, $selectedProducts, true)) class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                <span>{{ $option }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <div class="border-t border-gray-200 px-6 py-4">
@@ -183,4 +353,156 @@
         </div>
     </form>
 </x-slide-over>
+
+<script>
+    (() => {
+        const dealRecords = @json($dealRecords ?? []);
+        const contactRecords = @json($contactRecords ?? []);
+        const companyRecords = @json($companyRecords ?? []);
+        const sourceModeInput = document.getElementById('regular_source_mode');
+        const dealIdInput = document.getElementById('regular_deal_id');
+        const contactIdInput = document.getElementById('regular_contact_id');
+        const companyIdInput = document.getElementById('regular_company_id');
+        const dealSection = document.getElementById('regularDealLinkSection');
+        const manualSection = document.getElementById('regularManualLinkSection');
+        const dealSearch = document.getElementById('regularDealSearch');
+        const dealResults = document.getElementById('regularDealResults');
+        const dealSummary = document.getElementById('regularDealSelectionSummary');
+        const contactSearch = document.getElementById('regularContactSearch');
+        const contactResults = document.getElementById('regularContactResults');
+        const manualSummary = document.getElementById('regularManualSelectionSummary');
+        const sourceButtons = Array.from(document.querySelectorAll('[data-regular-source-option]'));
+        const serviceAreaChecks = Array.from(document.querySelectorAll('input[name="service_area_options[]"]'));
+        const serviceChecks = Array.from(document.querySelectorAll('input[name="service_options[]"]'));
+        const productChecks = Array.from(document.querySelectorAll('input[name="product_options[]"]'));
+
+        const setValue = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value ?? '';
+        };
+
+        const applyCommonValues = (record) => {
+            setValue('regular_client_name', record.client_name || record.label || '');
+            setValue('regular_business_name', record.business_name || record.company_name || '');
+            setValue('regular_planned_start_date', record.planned_start_date || '');
+            setValue('regular_target_completion_date', record.target_completion_date || '');
+            setValue('regular_assigned_project_manager', record.assigned_project_manager || '');
+            setValue('regular_assigned_consultant', record.assigned_consultant || '');
+            setValue('regular_assigned_associate', record.assigned_associate || '');
+            setValue('regular_client_confirmation_name', record.client_confirmation_name || record.client_name || '');
+            setValue('regular_service_area', record.service_area || '');
+            setValue('regular_services', record.services || '');
+            setValue('regular_products', record.products || '');
+        };
+
+        const setSourceMode = (mode) => {
+            if (sourceModeInput) sourceModeInput.value = mode;
+            dealSection?.classList.toggle('hidden', mode !== 'deal');
+            manualSection?.classList.toggle('hidden', mode === 'deal');
+            sourceButtons.forEach((button) => {
+                const active = button.dataset.regularSourceOption === mode;
+                button.classList.toggle('border-[#102d79]', active);
+                button.classList.toggle('ring-2', active);
+                button.classList.toggle('ring-[#102d79]/10', active);
+            });
+        };
+
+        const renderDealResults = (keyword) => {
+            const term = String(keyword || '').trim().toLowerCase();
+            const matches = dealRecords.filter((record) => term === '' || String(record.search_blob || '').includes(term)).slice(0, 8);
+            if (!dealResults) return;
+            if (matches.length === 0) {
+                dealResults.classList.add('hidden');
+                dealResults.innerHTML = '';
+                return;
+            }
+            dealResults.classList.remove('hidden');
+            dealResults.innerHTML = matches.map((record) => `
+                <button type="button" class="block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50" data-regular-deal-id="${record.id}">
+                    <div class="text-sm font-semibold text-gray-900">${record.deal_code || record.label}</div>
+                    <div class="text-xs text-gray-500">${record.client_name || ''} ${record.business_name ? '• ' + record.business_name : ''}</div>
+                </button>
+            `).join('');
+            dealResults.querySelectorAll('[data-regular-deal-id]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const record = matches.find((item) => String(item.id) === String(button.dataset.regularDealId));
+                    if (!record) return;
+                    dealIdInput.value = record.id;
+                    contactIdInput.value = record.contact_id || '';
+                    applyCommonValues(record);
+                    if (dealSummary) {
+                        dealSummary.classList.remove('hidden');
+                        dealSummary.textContent = `${record.deal_code || record.label} linked. Client and service details were prefilled.`;
+                    }
+                    dealResults.classList.add('hidden');
+                });
+            });
+        };
+
+        const renderContactResults = (keyword) => {
+            const term = String(keyword || '').trim().toLowerCase();
+            const matches = [...contactRecords, ...companyRecords].filter((record) => term === '' || String(record.search_blob || '').includes(term)).slice(0, 8);
+            if (!contactResults) return;
+            if (matches.length === 0) {
+                contactResults.classList.add('hidden');
+                contactResults.innerHTML = '';
+                return;
+            }
+            contactResults.classList.remove('hidden');
+            contactResults.innerHTML = matches.map((record) => `
+                <button type="button" class="block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50">
+                    <div class="text-sm font-semibold text-gray-900">${record.label || record.company_name || ''}</div>
+                    <div class="text-xs text-gray-500">${record.company_name || record.email || ''}</div>
+                </button>
+            `).join('');
+            contactResults.querySelectorAll('button').forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    const record = matches[index];
+                    if (!record) return;
+                    if (record.primary_contact_id || record.company_name) {
+                        companyIdInput.value = record.id;
+                    } else {
+                        contactIdInput.value = record.id;
+                    }
+                    applyCommonValues({
+                        client_name: record.label,
+                        business_name: record.company_name,
+                        client_confirmation_name: record.label,
+                    });
+                    if (manualSummary) {
+                        manualSummary.classList.remove('hidden');
+                        manualSummary.textContent = `${record.label || record.company_name} selected.`;
+                    }
+                    contactResults.classList.add('hidden');
+                });
+            });
+        };
+
+        const syncSelections = () => {
+            const areas = serviceAreaChecks.filter((item) => item.checked).map((item) => item.value);
+            const services = serviceChecks.filter((item) => item.checked).map((item) => item.value);
+            const products = productChecks.filter((item) => item.checked).map((item) => item.value);
+            setValue('regular_service_area', areas.join(', '));
+            setValue('regular_services', services.join(', '));
+            setValue('regular_products', products.join(', '));
+            document.querySelectorAll('[data-regular-service-group]').forEach((group) => {
+                group.classList.toggle('hidden', !areas.includes(group.dataset.regularServiceGroup));
+            });
+            document.querySelectorAll('[data-regular-product-group]').forEach((group) => {
+                group.classList.toggle('hidden', !areas.includes(group.dataset.regularProductGroup));
+            });
+            document.getElementById('regularServicesGrid')?.classList.toggle('hidden', areas.length === 0);
+        };
+
+        sourceButtons.forEach((button) => button.addEventListener('click', () => setSourceMode(button.dataset.regularSourceOption)));
+        dealSearch?.addEventListener('input', () => renderDealResults(dealSearch.value));
+        contactSearch?.addEventListener('input', () => renderContactResults(contactSearch.value));
+        serviceAreaChecks.forEach((item) => item.addEventListener('change', syncSelections));
+        serviceChecks.forEach((item) => item.addEventListener('change', syncSelections));
+        productChecks.forEach((item) => item.addEventListener('change', syncSelections));
+
+        setSourceMode(sourceModeInput?.value || 'manual');
+        syncSelections();
+    })();
+</script>
 @endsection
