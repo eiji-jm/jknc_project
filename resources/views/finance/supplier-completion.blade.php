@@ -24,7 +24,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('finance.supplier.completion.submit', $record['share_token'] ?? '') }}" class="px-6 py-6">
+            <form method="POST" action="{{ route('finance.supplier.completion.submit', $record['share_token'] ?? '') }}" enctype="multipart/form-data" class="px-6 py-6">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -142,6 +142,39 @@
                         <label class="block text-sm font-medium mb-1">Remarks</label>
                         <textarea name="data[remarks]" rows="3" class="w-full border rounded-md p-2">{{ old('data.remarks', $record['data']['remarks'] ?? '') }}</textarea>
                     </div>
+                </div>
+
+                <div class="mt-6 rounded-lg border border-blue-100 bg-blue-50/40 p-4">
+                    <label class="block text-sm font-medium mb-1 text-blue-700">Attachments</label>
+                    <select name="attachment_category" class="mb-2 w-full border border-blue-200 rounded-md p-2 bg-white text-sm">
+                        <option value="Supporting Document">Supporting Document</option>
+                        <option value="Invoice">Invoice</option>
+                        <option value="OR">OR</option>
+                        <option value="DR">DR</option>
+                        <option value="Contract">Contract</option>
+                    </select>
+                    <input
+                        name="attachments[]"
+                        type="file"
+                        multiple
+                        class="w-full border border-blue-200 rounded-md p-2 bg-white"
+                    >
+                    <p class="mt-2 text-xs text-gray-500">Attach supplier documents such as permits, accreditation files, bank details, invoices, or supporting files.</p>
+                    @error('attachments.*')
+                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                    @enderror
+
+                    @if(!empty($record['attachments']))
+                        <div class="mt-4 space-y-2">
+                            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Uploaded Files</p>
+                            @foreach($record['attachments'] as $attachment)
+                                <a href="{{ $attachment['url'] ?? '#' }}" target="_blank" class="flex items-center justify-between gap-3 rounded-md border border-blue-100 bg-white px-3 py-2 text-sm hover:bg-blue-50">
+                                    <span class="truncate">{{ $attachment['name'] ?? 'Attachment' }}</span>
+                                    <span class="shrink-0 text-xs text-blue-700">{{ $attachment['category'] ?? 'Supporting Document' }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 <div class="mt-8 flex items-center justify-between gap-4">

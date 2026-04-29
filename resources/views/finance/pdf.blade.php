@@ -672,6 +672,37 @@
             </div>
         </div>
 
+        @if($record->module_key === 'dv')
+            @php
+                $dvLineItems = array_values(array_filter((array) data_get($record->data, 'line_items', []), fn ($item) => is_array($item) && collect($item)->contains(fn ($value) => !blank($value))));
+            @endphp
+            <div class="section-box">
+                <div class="section-title">Breakdown / Line Items</div>
+                <div class="section-body">
+                    @if(count($dvLineItems))
+                        <table class="detail-table">
+                            <tr>
+                                <td><div class="detail-label">Description</div></td>
+                                <td><div class="detail-label">Account Code</div></td>
+                                <td><div class="detail-label">Debit</div></td>
+                                <td><div class="detail-label">Credit</div></td>
+                            </tr>
+                            @foreach($dvLineItems as $item)
+                                <tr>
+                                    <td><div class="detail-value">{{ data_get($item, 'description') ?: 'N/A' }}</div></td>
+                                    <td><div class="detail-value">{{ data_get($item, 'account_code') ?: 'N/A' }}</div></td>
+                                    <td><div class="detail-value">{{ number_format((float) data_get($item, 'debit', 0), 2) }}</div></td>
+                                    <td><div class="detail-value">{{ number_format((float) data_get($item, 'credit', 0), 2) }}</div></td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    @else
+                        <div class="muted">No line items added.</div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @if($record->module_key === 'lr')
             <div class="section-box">
                 <div class="section-title">Liquidation Report</div>
@@ -815,6 +846,14 @@
                                             <div class="pr-line-field">
                                                 <div class="pr-field-label">Line Total</div>
                                                 <div class="pr-field-value">{{ $item['total'] }}</div>
+                                            </div>
+                                            <div class="pr-line-field">
+                                                <div class="pr-field-label">Supplier</div>
+                                                <div class="pr-field-value">{{ $item['supplier_label'] ?? '' }}</div>
+                                            </div>
+                                            <div class="pr-line-field">
+                                                <div class="pr-field-label">Client</div>
+                                                <div class="pr-field-value">{{ $item['client_label'] ?? '' }}</div>
                                             </div>
                                         </div>
                                         <div class="pr-line-summary">
