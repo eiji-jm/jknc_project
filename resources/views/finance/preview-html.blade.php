@@ -754,16 +754,26 @@
                                                         <div class="pr-summary-row">
                                                             <div class="pr-field-card">
                                                                 <p class="pr-field-label">Discount</p>
-                                                                <p class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</p>
+                                                                <p class="pr-field-value">{{ $item['discount'] ?? '0%' }}</p>
                                                             </div>
                                                             <div class="pr-field-card">
-                                                                <p class="pr-field-label">Shipping</p>
-                                                                <p class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</p>
+                                                                <p class="pr-field-label">Discount Amount</p>
+                                                                <p class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</p>
                                                             </div>
                                                         </div>
                                                         <div class="pr-summary-row">
                                                             <div class="pr-field-card">
-                                                                <p class="pr-field-label">Tax</p>
+                                                                <p class="pr-field-label">Shipping</p>
+                                                                <p class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</p>
+                                                            </div>
+                                                            <div class="pr-field-card">
+                                                                <p class="pr-field-label">Tax (VAT/Non-VAT/N/A)</p>
+                                                                <p class="pr-field-value">{{ $item['tax_type'] ?? 'N/A' }}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div class="pr-summary-row">
+                                                            <div class="pr-field-card">
+                                                                <p class="pr-field-label">Tax Amount</p>
                                                                 <p class="pr-field-value">{{ $item['tax_amount'] ?? '0.00' }}</p>
                                                             </div>
                                                             <div class="pr-field-card">
@@ -772,7 +782,7 @@
                                                             </div>
                                                         </div>
                                                         <div class="pr-summary-full pr-field-card">
-                                                            <p class="pr-field-label">Line Total</p>
+                                                            <p class="pr-field-label">Grand Total</p>
                                                             <p class="pr-field-value">{{ $item['total'] }}</p>
                                                         </div>
                                                         <div class="pr-summary-formula">{{ $item['quantity'] }} x {{ $item['amount'] }} = {{ $item['total'] }}</div>
@@ -823,6 +833,14 @@
                                             <div class="lr-metric">
                                                 <p class="lr-metric-label">Line Items Total</p>
                                                 <p class="lr-metric-value">{{ $liquidationReport['line_items_total'] ?? '0.00' }}</p>
+                                            </div>
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">For Client?</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['for_client'] ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="lr-metric">
+                                                <p class="lr-metric-label">Client Name(s)</p>
+                                                <p class="lr-metric-value">{{ $liquidationReport['client_names'] ?? 'N/A' }}</p>
                                             </div>
                                             <div class="lr-metric">
                                                 <p class="lr-metric-label">Actual Expenses</p>

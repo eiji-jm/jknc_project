@@ -12,6 +12,7 @@
     const checkboxField = (name, label, options = {}) => ({ name, label, type: 'checkbox', ...options });
     const checkboxGroupField = (name, label, options = {}) => ({ name, label, type: 'checkbox-group', options: [], fullWidth: true, ...options });
     const radioGroupField = (name, label, options = {}) => ({ name, label, type: 'radio-group', options: [], fullWidth: true, ...options });
+    const calculationField = (name, label, options = {}) => ({ name, label, type: 'calculation', readOnly: true, ...options });
 
     const friendlyFieldLabels = {
         'module_key': 'Finance section',
@@ -28,6 +29,13 @@
         'data.linked_coa_id': 'Linked chart of account',
         'data.linked_pr_id': 'Linked PR',
         'data.linked_ca_id': 'Linked CA',
+        'data.release_schedule': 'Release schedule',
+        'data.release_count': 'Number of releases',
+        'data.amount_per_release': 'Amount per release',
+        'data.liquidation_calculation': 'Liquidation calculation',
+        'data.cash_release_date': 'Cash release date',
+        'data.cash_release_time': 'Cash release time',
+        'data.paid_through': 'Paid through',
         'data.linked_lr_id': 'Linked LR',
         'data.linked_po_id': 'Linked PO',
         'data.linked_dv_id': 'Linked DV',
@@ -761,6 +769,20 @@
                 }),
                 textField('client_names', 'Client Name(s)', { fullWidth: true }),
                 numberField('amount_requested', 'Amount Requested', { required: true }),
+                selectField('release_schedule', 'Release Schedule', {
+                    options: [
+                        { value: 'Full Release', label: 'Full Release' },
+                        { value: 'Staggered Release', label: 'Staggered Release' },
+                    ],
+                }),
+                numberField('release_count', 'Number of Releases', { help: 'Used to compute Amount per Release.' }),
+                numberField('amount_per_release', 'Amount per Release', { readOnly: true }),
+                calculationField('liquidation_calculation', 'Liquidation Calculation', {
+                    fullWidth: true,
+                    help: 'Shows how the cash advance release is computed and how the liquidation balance will be read in the liquidation report.',
+                }),
+                dateField('cash_release_date', 'Cash Release Date'),
+                timeField('cash_release_time', 'Cash Release Time'),
                 selectField('mode_of_release', 'Mode of Release', {
                     options: [
                         { value: 'Cash', label: 'Cash' },
@@ -768,17 +790,7 @@
                         { value: 'Check', label: 'Check' },
                     ],
                 }),
-                selectField('paid_through', 'Paid Through', {
-                    options: [
-                        { value: 'Bank', label: 'Bank' },
-                        { value: 'Gcash Earl', label: 'Gcash Earl' },
-                        { value: 'NA', label: 'NA' },
-                        { value: 'Petty Cash Fund', label: 'Petty Cash Fund' },
-                        { value: 'Salary Deduction', label: 'Salary Deduction' },
-                        { value: 'UB jknc', label: 'UB jknc' },
-                        { value: 'Others (specify)', label: 'Others (specify)' },
-                    ],
-                }),
+                selectField('paid_through', 'Paid Through', { source: 'chart_account', placeholder: 'Select chart of account' }),
                 checkboxField('official_business_cash_advance', 'Official Business Cash Advance', { fullWidth: true, help: 'I acknowledge that this cash advance is granted for official company-related purposes and that liquidation is required within three (3) business days from receipt of the cash advance.' }),
                 checkboxField('employee_cash_advance_personal', 'Employee Cash Advance - Personal Purpose', { fullWidth: true, help: 'I acknowledge that this cash advance is granted for personal use, is not subject to liquidation, and shall be recovered through payroll deduction in accordance with the approved schedule.' }),
                 checkboxField('liquidation_non_compliance', 'Liquidation Non-Compliance', { fullWidth: true, help: 'I understand that failure to liquidate an Official Business Cash Advance within three (3) business days constitutes non-compliance with Company policy.' }),
@@ -814,6 +826,8 @@
                 textField('department', 'Department'),
                 textField('superior', 'Superior'),
                 textField('superior_email', 'Superior Email'),
+                textField('for_client', 'For Client?', { readOnly: true }),
+                textField('client_names', 'Client Name(s)', { readOnly: true, fullWidth: true }),
             ],
         },
         err: {
@@ -832,8 +846,11 @@
                     required: true,
                 }),
                 textField('requestor', 'Requestor', { required: true }),
+                selectField('linked_lr_id', 'Linked LR', { source: 'lr_shortage', required: true }),
                 textareaField('expense_details', 'Expense Details'),
                 numberField('amount', 'Amount', { required: true }),
+                textField('reimbursement_payment_details', 'Reimbursement Payment Details', { fullWidth: true }),
+                checkboxField('manual_liquidation_entry', 'Manually edit reimbursement details', { fullWidth: true, help: 'Use this when the linked liquidation needs to be reviewed or entered again manually.' }),
                 selectField('supplier_id', 'Supplier', { source: 'supplier' }),
                 selectField('coa_id', 'Account from Chart of Accounts', { source: 'chart_account' }),
                 selectField('reimbursement_mode', 'Mode of Reimbursement', {
@@ -954,6 +971,7 @@
                 textField('requestor', 'Returnee', { required: true }),
                 selectField('linked_lr_id', 'Linked LR', { source: 'lr_overage', required: true }),
                 numberField('amount_returned', 'Amount Returned', { required: true }),
+                checkboxField('manual_liquidation_entry', 'Manually edit return details', { fullWidth: true, help: 'Use this when the linked liquidation needs to be reviewed or entered again manually.' }),
                 selectField('mode_of_return', 'Mode of Return', {
                     options: [
                         { value: 'Cash', label: 'Cash' },
@@ -1048,6 +1066,17 @@
         return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function getCashAdvanceLiquidationCalculation(values = {}) {
+        const rawAmount = values['data[amount_requested]'] ?? values.amount_requested ?? 0;
+        const amount = Number(rawAmount) || 0;
+        const rawCount = values['data[release_count]'] ?? values.release_count ?? 1;
+        const releaseCount = Math.max(parseInt(rawCount || '1', 10) || 1, 1);
+        const amountPerRelease = amount / releaseCount;
+        const releaseLabel = releaseCount === 1 ? 'release' : 'releases';
+
+        return `CA ${formatCurrency(amount)} / ${releaseCount} ${releaseLabel} = ${formatCurrency(amountPerRelease)} per release. LR: CA - actual expenses = balance.`;
+    }
+
     function formatDate(value) {
         return value || 'N/A';
     }
@@ -1104,6 +1133,7 @@
         const lookupMap = {
             supplier_id: 'supplier',
             coa_id: 'chart_account',
+            paid_through: 'chart_account',
             parent_account_id: 'chart_account',
             linked_coa_id: 'chart_account',
             bank_account_id: 'bank_account',
@@ -1124,7 +1154,7 @@
             if (!value) return '';
             if (key.endsWith('_id')) {
                 const lookup = (config.summaryLookupSources && config.summaryLookupSources[key]) || lookupMap[key] || key.replace('_id', '');
-                return getLookupLabel(lookup, value) || String(value);
+                return getLookupLabel(lookup, value) || getLookupLabel('lr_shortage', value) || getLookupLabel('lr_overage', value) || String(value);
             }
             return String(value);
         }).filter(Boolean);
@@ -1460,6 +1490,7 @@
                     coa_id: linkedLrRecord?.data?.coa_id || '',
                     reimbursement_mode: linkedLrRecord?.data?.mode_of_release || 'Bank Transfer',
                     bank_account_id: linkedLrRecord?.data?.bank_account_id || '',
+                    reimbursement_payment_details: `Pay reimbursement for shortage amount ${amount} from ${linkedCaLabel}.`,
                     remarks: linkedLrRecord?.data?.remarks || 'Auto-filled from shortage liquidation.',
                 },
             };
@@ -1487,7 +1518,98 @@
         return null;
     }
 
+    function getLinkedLiquidationRecord(linkedLrId, expectedIndicator = '') {
+        const record = getRecordById(linkedLrId) || getRecordByLookupValue('lr', linkedLrId);
+        if (!record || record.module_key !== 'lr') return null;
+        if (expectedIndicator && String(record.data?.variance_indicator || '') !== expectedIndicator) return null;
+        return record;
+    }
+
+    function getLiquidationBranchPrefill(moduleKey, linkedLrRecord) {
+        const branchDraft = buildLiquidationBranchDraft(linkedLrRecord);
+        if (!branchDraft || branchDraft.moduleKey !== moduleKey) return {};
+        return branchDraft.prefill || {};
+    }
+
+    function renderLinkedLiquidationBranchPanel(linkedLrRecord, moduleKey, values = {}) {
+        if (!linkedLrRecord) return '';
+
+        const indicator = linkedLrRecord.data?.variance_indicator || 'Balanced';
+        const isShortage = indicator === 'Shortage';
+        const borderClass = isShortage ? 'border-red-100 bg-red-50/40' : 'border-emerald-100 bg-emerald-50/40';
+        const titleClass = isShortage ? 'text-red-700' : 'text-emerald-700';
+        const routeLabel = isShortage ? 'ERR' : 'Cash Return';
+        const expectedLabel = moduleKey === 'err' ? 'shortage' : 'overage';
+
+        return `
+            <div class="md:col-span-2 rounded-xl border ${borderClass} p-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h4 class="text-sm font-semibold uppercase tracking-[0.24em] ${titleClass}">Linked Liquidation</h4>
+                        <p class="mt-2 text-sm text-gray-700">
+                            This LR is marked as <span class="font-semibold">${escapeHtml(indicator)}</span> and routes to <span class="font-semibold">${escapeHtml(routeLabel)}</span>.
+                        </p>
+                    </div>
+                    <span class="rounded-full border border-white/80 bg-white px-3 py-1 text-xs font-semibold text-gray-700">${escapeHtml(expectedLabel)}</span>
+                </div>
+                <div class="mt-4 space-y-4">
+                    ${renderLiquidationReportSection(linkedLrRecord, values)}
+                    ${renderLiquidationPreviewTable(linkedLrRecord)}
+                    ${renderLiquidationPreviewSummary(linkedLrRecord)}
+                </div>
+            </div>
+        `;
+    }
+
+    function syncLiquidationBranchFromSelection(moduleKey, linkedLrId, { preserveManual = false } = {}) {
+        const expectedIndicator = moduleKey === 'err' ? 'Shortage' : 'Overage';
+        const linkedLrRecord = getLinkedLiquidationRecord(linkedLrId, expectedIndicator);
+        if (!linkedLrRecord) return null;
+
+        const prefill = getLiquidationBranchPrefill(moduleKey, linkedLrRecord);
+        const form = $('financeForm');
+        if (!form) return linkedLrRecord;
+
+        const manualInput = form.querySelector('input[name="data[manual_liquidation_entry]"]');
+        const isManual = preserveManual && manualInput?.checked;
+
+        Object.entries(prefill).forEach(([name, value]) => {
+            const input = form.querySelector(`[name="data[${name}]"]`);
+            if (!input) return;
+            if (isManual && ['amount', 'amount_returned', 'expense_details', 'remarks'].includes(name)) return;
+            input.value = value ?? '';
+        });
+
+        return linkedLrRecord;
+    }
+
+    function buildCurrentLiquidationDraft() {
+        const form = $('financeForm');
+        if (!form || currentModuleKey !== 'lr') return null;
+
+        const data = {};
+        new FormData(form).forEach((value, key) => {
+            const match = String(key).match(/^data\[([^\]]+)\]$/);
+            if (match) {
+                data[match[1]] = value;
+            }
+        });
+
+        data.line_items = Array.isArray(financeFormValues?.line_items) ? financeFormValues.line_items : [];
+
+        return buildLiquidationBranchDraft({
+            id: currentEditRecordId || data.linked_lr_id || '',
+            record_number: data.record_number || '',
+            record_title: data.employee_name || data.requestor || '',
+            data,
+        });
+    }
+
     function openPendingLiquidationBranch() {
+        if (!pendingLiquidationBranchDraft && currentModuleKey === 'lr') {
+            pendingLiquidationBranchDraft = buildCurrentLiquidationDraft();
+        }
+
         if (!pendingLiquidationBranchDraft) {
             showFinanceToast('No linked liquidation route is ready yet.', 'warning');
             return;
@@ -1502,7 +1624,7 @@
             showFinanceToast(
                 branchDraft.moduleKey === 'err'
                     ? 'Opening ERR with the calculated shortage details.'
-                    : 'Opening CRF with the calculated overage details.',
+                    : 'Opening Cash Return with the calculated overage details.',
                 'success'
             );
         });
@@ -1534,7 +1656,7 @@
                 bg: 'bg-emerald-50',
                 badge: 'bg-emerald-100 text-emerald-700',
                 text: 'text-emerald-700',
-                message: 'The CA has excess funds and should route to CRF.',
+                message: 'The CA has excess funds and should route to Cash Return.',
                 amountLabel: 'Overage amount',
                 amountValue: numericVariance,
             };
@@ -2051,6 +2173,15 @@
                     </button>
                 </div>
             `;
+        } else if (field.type === 'calculation') {
+            const displayValue = field.name === 'liquidation_calculation'
+                ? getCashAdvanceLiquidationCalculation(formValues)
+                : (value || 'N/A');
+            control = `
+                <div class="w-full rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900">
+                    ${escapeHtml(displayValue)}
+                </div>
+            `;
         } else if (field.type === 'select') {
             const options = getFieldOptions(field, formValues)
                 .map((option) => `<option value="${escapeHtml(option.id ?? option.value)}" ${String(value) === String(option.id ?? option.value) ? 'selected' : ''}>${escapeHtml(option.label ?? option.value)}</option>`)
@@ -2238,7 +2369,9 @@
             const field = (moduleConfig.fields || []).find((item) => item.name === fieldName);
             if (!field) return '';
 
-            let fieldValue = record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || '');
+            let fieldValue = field.type === 'calculation'
+                ? getFormDisplayValue(field, '', record ? (record.data || {}) : values)
+                : (record ? getModuleFieldValue(record, field) : (values[`data[${field.name}]`] || ''));
             if (!fieldValue && field.autoFillCurrentUser) {
                 fieldValue = bootstrap.currentUserName || '';
             }
@@ -2801,6 +2934,46 @@
         renderDrawerPreview();
     }
 
+    function getBankAccountCodeValue(bankAccountId) {
+        const bankRecord = getRecordById(bankAccountId) || getRecordByLookupValue('bank_account', bankAccountId);
+        const linkedCoaId = bankRecord?.data?.linked_coa_id || '';
+        const linkedCoaRecord = linkedCoaId ? (getRecordById(linkedCoaId) || getRecordByLookupValue('chart_account', linkedCoaId)) : null;
+
+        return linkedCoaRecord?.record_number
+            || linkedCoaRecord?.data?.account_code
+            || getLookupLabel('chart_account', linkedCoaId)
+            || linkedCoaId
+            || bankRecord?.record_number
+            || '';
+    }
+
+    function syncIbtfAccountCodes({ changedField = '', preserveExisting = false } = {}) {
+        if (currentModuleKey !== 'ibtf') return;
+
+        const form = $('financeForm');
+        if (!form) return;
+
+        const map = {
+            source_bank_account_id: 'source_account_code',
+            destination_bank_account_id: 'destination_account_code',
+        };
+
+        Object.entries(map).forEach(([accountField, codeField]) => {
+            if (changedField && changedField !== accountField) return;
+
+            const accountValue = form.querySelector(`[name="data[${accountField}]"]`)?.value || '';
+            const codeInput = form.querySelector(`[name="data[${codeField}]"]`);
+            if (!codeInput) return;
+
+            const currentCode = String(codeInput.value || '').trim();
+            if (preserveExisting && currentCode) return;
+
+            codeInput.value = getBankAccountCodeValue(accountValue);
+            financeFormValues[codeField] = codeInput.value;
+            financeFormValues[`data[${codeField}]`] = codeInput.value;
+        });
+    }
+
     function syncPrRequesterFields({ preserveExisting = false } = {}) {
         if (currentModuleKey !== 'pr') return;
 
@@ -2893,6 +3066,45 @@
     function syncPrRequestDetails({ preserveExisting = false } = {}) {
         syncRequestOwnershipFields({ preserveExisting });
         syncPrVendorFields({ preserveExisting });
+    }
+
+    function updateCashAdvanceReleaseValues(changedFieldName = '') {
+        if (currentModuleKey !== 'ca') return;
+
+        const form = $('financeForm');
+        if (!form) return;
+
+        const amountInput = form.querySelector('input[name="data[amount_requested]"]');
+        const releaseCountInput = form.querySelector('input[name="data[release_count]"]');
+        const amountPerReleaseInput = form.querySelector('input[name="data[amount_per_release]"]');
+        const scheduleInput = form.querySelector('[name="data[release_schedule]"]');
+        const amount = parseFloat(amountInput?.value || '0') || 0;
+        let releaseCount = parseInt(releaseCountInput?.value || '1', 10);
+
+        if (!Number.isFinite(releaseCount) || releaseCount < 1) {
+            releaseCount = 1;
+        }
+
+        if (scheduleInput && !scheduleInput.value) {
+            scheduleInput.value = 'Full Release';
+        }
+
+        if (changedFieldName === 'release_schedule' && scheduleInput?.value === 'Full Release' && releaseCountInput) {
+            releaseCountInput.value = '1';
+            releaseCount = 1;
+        }
+
+        if (changedFieldName === 'release_count' && releaseCount > 1 && scheduleInput) {
+            scheduleInput.value = 'Staggered Release';
+        }
+
+        if (amountPerReleaseInput) {
+            amountPerReleaseInput.value = (amount / releaseCount).toFixed(2);
+        }
+
+        if ($('amountInput')) {
+            $('amountInput').value = amount.toFixed(2);
+        }
     }
 
     function formatPrQuantity(value) {
@@ -3157,7 +3369,7 @@
                 ];
             case 'ca':
                 return [
-                    { title: 'Request Details', fieldNames: ['requester_mode', 'requestor', 'department', 'purpose', 'needed_date', 'mode_of_release', 'amount_requested'] },
+                    { title: 'Request Details', fieldNames: ['requester_mode', 'requestor', 'department', 'purpose', 'needed_date', 'mode_of_release', 'amount_requested', 'release_schedule', 'release_count', 'amount_per_release', 'liquidation_calculation', 'cash_release_date', 'cash_release_time', 'paid_through'] },
                     { title: 'Funding & Notes', fieldNames: ['bank_account_id', 'coa_id', 'remarks'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
@@ -3171,7 +3383,7 @@
                 ];
             case 'err':
                 return [
-                    { title: 'Reimbursement Details', fieldNames: ['requester_mode', 'linked_lr_id', 'requestor', 'expense_details', 'amount', 'supplier_id', 'reimbursement_mode'] },
+                    { title: 'Reimbursement Details', fieldNames: ['requester_mode', 'linked_lr_id', 'requestor', 'expense_details', 'amount', 'reimbursement_payment_details', 'supplier_id', 'reimbursement_mode'] },
                     { title: 'Accounting & Funding', fieldNames: ['coa_id', 'bank_account_id', 'remarks'] },
                     { type: 'notes', renderer: () => renderFinanceReviewNotesSection(record) },
                 ];
@@ -3262,7 +3474,6 @@
             .map((label) => `<option value="${escapeHtml(label)}"></option>`)
             .join('');
         const isLiquidation = isLiquidationModule();
-        const isPurchaseRequest = currentModuleKey === 'pr';
         const title = isLiquidation ? 'Liquidation / Cost Details' : 'Line Items';
         const description = isLiquidation
             ? 'Enter up to 25 line items. Totals auto-calculate.'
@@ -3296,7 +3507,7 @@
                                 <button type="button" onclick="window.financeModule.removePrLineItemRow(this)" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-red-600 hover:bg-red-50">${escapeHtml(removeButtonLabel)}</button>
                             </div>
                             <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-                                <div class="grid grid-cols-1 gap-4 ${isPurchaseRequest ? 'md:grid-cols-2' : ''}">
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Item</label>
                                         <input
@@ -3330,23 +3541,21 @@
                                         <input type="number" step="0.01" min="0" name="data[line_items][${index}][quantity]" data-pr-line-item-field="quantity" value="${escapeHtml(row.quantity || '')}" class="w-full rounded-xl border border-gray-200 bg-white p-3" placeholder="0">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">${escapeHtml(isPurchaseRequest ? 'Unit Cost / Amount' : 'Unit Cost')}</label>
+                                        <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Unit Cost / Amount</label>
                                         <input type="number" step="0.01" min="0" name="data[line_items][${index}][amount]" data-pr-line-item-field="amount" value="${escapeHtml(row.amount || '')}" class="w-full rounded-xl border border-gray-200 bg-white p-3" placeholder="0.00">
                                     </div>
-                                    ${isPurchaseRequest ? `
-                                        <div>
-                                            <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Supplier</label>
-                                            <select name="data[line_items][${index}][supplier_id]" data-pr-line-item-field="supplier_id" class="w-full rounded-xl border border-gray-200 bg-white p-3">
-                                                ${renderLineItemLookupOptions('supplier', row.supplier_id || '', 'Unknown / leave blank')}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Client</label>
-                                            <select name="data[line_items][${index}][client_id]" data-pr-line-item-field="client_id" class="w-full rounded-xl border border-gray-200 bg-white p-3">
-                                                ${renderLineItemLookupOptions('client', row.client_id || '', 'Not for client / leave blank')}
-                                            </select>
-                                        </div>
-                                    ` : ''}
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Supplier</label>
+                                        <select name="data[line_items][${index}][supplier_id]" data-pr-line-item-field="supplier_id" class="w-full rounded-xl border border-gray-200 bg-white p-3">
+                                            ${renderLineItemLookupOptions('supplier', row.supplier_id || '', 'Unknown / leave blank')}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Client</label>
+                                        <select name="data[line_items][${index}][client_id]" data-pr-line-item-field="client_id" class="w-full rounded-xl border border-gray-200 bg-white p-3">
+                                            ${renderLineItemLookupOptions('client', row.client_id || '', 'Not for client / leave blank')}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div class="rounded-xl border border-blue-100 bg-white p-4">
@@ -3453,8 +3662,13 @@
                         </div>
                         <div class="rounded-lg border border-white/80 bg-white px-3 py-2">
                             <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">Route</p>
-                            <p class="mt-1 font-semibold text-gray-900">${escapeHtml(statusMeta.indicator === 'Shortage' ? 'ERR' : (statusMeta.indicator === 'Overage' ? 'CRF' : 'No follow-up'))}</p>
+                            <p data-liquidation-route-label class="mt-1 font-semibold text-gray-900">${escapeHtml(statusMeta.indicator === 'Shortage' ? 'ERR' : (statusMeta.indicator === 'Overage' ? 'Cash Return' : 'No follow-up'))}</p>
                         </div>
+                    </div>
+                    <div data-liquidation-route-actions class="mt-4 flex flex-wrap gap-3 ${statusMeta.indicator === 'Balanced' ? 'hidden' : ''}">
+                        <button type="button" data-liquidation-route-open onclick="window.financeModule.openPendingLiquidationBranch()" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                            Open ${escapeHtml(statusMeta.indicator === 'Shortage' ? 'ERR' : 'Cash Return')}
+                        </button>
                     </div>
                 </div>
                 <div class="rounded-xl border border-gray-200 bg-slate-50 p-4">
@@ -3788,6 +4002,8 @@
         const linkedCaId = fallbackValues['data[linked_ca_id]'] || data.linked_ca_id || '';
         const linkedCaLabel = getLookupLabel('ca', linkedCaId) || linkedCaId || 'N/A';
         const totalCashAdvance = fallbackValues['data[total_cash_advance]'] || data.total_cash_advance || '0.00';
+        const forClient = fallbackValues['data[for_client]'] || data.for_client || 'N/A';
+        const clientNames = fallbackValues['data[client_names]'] || data.client_names || 'N/A';
         const lineItemsTotal = fallbackValues['data[line_items_total]'] || data.line_items_total || '0.00';
         const actualExpenses = fallbackValues['data[actual_expenses]'] || data.actual_expenses || '0.00';
         const variance = fallbackValues['data[variance]'] || data.variance || '0.00';
@@ -3819,6 +4035,14 @@
                             <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-3">
                                 <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">Line Items Total</p>
                                 <p class="mt-1 text-sm font-semibold text-gray-900">${escapeHtml(formatCurrency(lineItemsTotal))}</p>
+                            </div>
+                            <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-3">
+                                <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">For Client?</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900 break-words">${escapeHtml(forClient)}</p>
+                            </div>
+                            <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-3 sm:col-span-2">
+                                <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">Client Name(s)</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900 break-words">${escapeHtml(clientNames)}</p>
                             </div>
                             <div class="rounded-xl border border-gray-100 bg-slate-50 px-3 py-3">
                                 <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">Actual Expenses</p>
@@ -3960,22 +4184,25 @@
             const varianceIndicatorInput = form.querySelector('input[name="data[variance_indicator]"]');
             const caAmountInput = form.querySelector('input[name="data[total_cash_advance]"]');
             const caAmount = parseFloat(caAmountInput?.value || '0') || 0;
-            const discount = parseFloat(discountInput?.value || '0') || 0;
-            const tax = parseFloat(taxInput?.value || '0') || 0;
-            const shipping = parseFloat(shippingInput?.value || '0') || 0;
-            const wht = parseFloat(whtInput?.value || '0') || 0;
-            const grandTotal = subtotal - discount + tax + shipping - wht;
-            const variance = caAmount - grandTotal;
+            const actualExpenses = grandTotal;
+            const variance = caAmount - actualExpenses;
             const statusMeta = getLiquidationStatusMeta(variance);
             const statusPanel = form.querySelector('[data-liquidation-status-panel]');
             const statusBadge = form.querySelector('[data-liquidation-status-badge]');
             const statusLabel = form.querySelector('[data-liquidation-status-label]');
             const statusAmount = form.querySelector('[data-liquidation-status-amount]');
             const statusMessage = form.querySelector('[data-liquidation-status-message]');
+            const routeLabel = form.querySelector('[data-liquidation-route-label]');
+            const routeActions = form.querySelector('[data-liquidation-route-actions]');
+            const routeOpenButton = form.querySelector('[data-liquidation-route-open]');
 
             if (subtotalInput) subtotalInput.value = subtotal.toFixed(2);
-            if (grandTotalInput) grandTotalInput.value = grandTotal.toFixed(2);
-            if (actualExpensesInput) actualExpensesInput.value = grandTotal.toFixed(2);
+            if (discountInput && !document.activeElement?.isSameNode(discountInput)) discountInput.value = discountAmountTotal.toFixed(2);
+            if (taxInput && !document.activeElement?.isSameNode(taxInput)) taxInput.value = taxAmountTotal.toFixed(2);
+            if (shippingInput && !document.activeElement?.isSameNode(shippingInput)) shippingInput.value = shippingAmountTotal.toFixed(2);
+            if (whtInput && !document.activeElement?.isSameNode(whtInput)) whtInput.value = whtAmountTotal.toFixed(2);
+            if (grandTotalInput) grandTotalInput.value = actualExpenses.toFixed(2);
+            if (actualExpensesInput) actualExpensesInput.value = actualExpenses.toFixed(2);
             if (varianceInput) varianceInput.value = variance.toFixed(2);
             if (varianceIndicatorInput) {
                 varianceIndicatorInput.value = statusMeta.indicator;
@@ -3996,6 +4223,16 @@
             }
             if (statusMessage) {
                 statusMessage.textContent = statusMeta.message;
+            }
+            pendingLiquidationBranchDraft = buildCurrentLiquidationDraft();
+            if (routeLabel) {
+                routeLabel.textContent = statusMeta.indicator === 'Shortage' ? 'ERR' : (statusMeta.indicator === 'Overage' ? 'Cash Return' : 'No follow-up');
+            }
+            if (routeActions) {
+                routeActions.classList.toggle('hidden', statusMeta.indicator === 'Balanced');
+            }
+            if (routeOpenButton) {
+                routeOpenButton.textContent = `Open ${statusMeta.indicator === 'Shortage' ? 'ERR' : 'Cash Return'}`;
             }
             return;
         }
@@ -4188,6 +4425,14 @@
             return formatCurrency(value);
         }
 
+        if (field.type === 'calculation') {
+            if (field.name === 'liquidation_calculation') {
+                return getCashAdvanceLiquidationCalculation(formValues);
+            }
+
+            return value || 'N/A';
+        }
+
         if (field.type === 'date') {
             return value || 'N/A';
         }
@@ -4242,11 +4487,17 @@
                 if (isLineItemModule()) {
                     updatePrTotals();
                 }
+                if (currentModuleKey === 'ca') {
+                    updateCashAdvanceReleaseValues(input.name?.match(/^data\[(.+)\]$/)?.[1] || '');
+                }
                 renderDrawerPreview();
             });
             input.addEventListener('change', () => {
                 if (isLineItemModule()) {
                     updatePrTotals();
+                }
+                if (currentModuleKey === 'ca') {
+                    updateCashAdvanceReleaseValues(input.name?.match(/^data\[(.+)\]$/)?.[1] || '');
                 }
                 renderDrawerPreview();
             });
@@ -4257,6 +4508,40 @@
             if (linkedCaSelect) {
                 linkedCaSelect.addEventListener('change', () => {
                     fetchLiquidationSource();
+                });
+            }
+        }
+
+        if (currentModuleKey === 'ibtf') {
+            ['source_bank_account_id', 'destination_bank_account_id'].forEach((fieldName) => {
+                const input = form.querySelector(`[name="data[${fieldName}]"]`);
+                if (input) {
+                    input.addEventListener('change', () => {
+                        syncIbtfAccountCodes({ changedField: fieldName, preserveExisting: false });
+                        renderDrawerPreview();
+                    });
+                }
+            });
+        }
+
+        if (currentModuleKey === 'err' || currentModuleKey === 'crf') {
+            const linkedLrSelect = form.querySelector('select[name="data[linked_lr_id]"]');
+            if (linkedLrSelect) {
+                linkedLrSelect.addEventListener('change', () => {
+                    const expectedIndicator = currentModuleKey === 'err' ? 'Shortage' : 'Overage';
+                    const linkedLrRecord = getLinkedLiquidationRecord(linkedLrSelect.value, expectedIndicator);
+                    if (!linkedLrRecord) {
+                        showFinanceToast(`Choose an approved ${expectedIndicator.toLowerCase()} liquidation report.`, 'warning');
+                        return;
+                    }
+
+                    financeDraftContext = {
+                        moduleKey: currentModuleKey,
+                        linkedRecord: linkedLrRecord,
+                        prefill: getLiquidationBranchPrefill(currentModuleKey, linkedLrRecord),
+                    };
+                    renderFinanceForm(currentEditRecordId ? getRecordById(currentEditRecordId) : null);
+                    renderDrawerPreview();
                 });
             }
         }
@@ -4490,6 +4775,8 @@
                 const hiddenActualExpenses = getDraftValue('actual_expenses', record);
                 const hiddenVariance = getDraftValue('variance', record);
                 const hiddenVarianceIndicator = getDraftValue('variance_indicator', record);
+                const forClientValue = getDraftValue('for_client', record);
+                const clientNamesValue = getDraftValue('client_names', record);
 
                 values.linked_ca_id = linkedCaId;
                 values['data[linked_ca_id]'] = linkedCaId;
@@ -4505,6 +4792,10 @@
                 values['data[variance]'] = hiddenVariance;
                 values.variance_indicator = hiddenVarianceIndicator;
                 values['data[variance_indicator]'] = hiddenVarianceIndicator;
+                values.for_client = forClientValue;
+                values['data[for_client]'] = forClientValue;
+                values.client_names = clientNamesValue;
+                values['data[client_names]'] = clientNamesValue;
 
                 return `
                     ${draftLinkedRecord ? `
@@ -4537,15 +4828,21 @@
                             <div class="md:col-span-2">
                                 ${renderDynamicField(textareaField('purpose', 'Justification / Business Need', { required: true, fullWidth: true }), purposeValue, values)}
                             </div>
+                            <div>
+                                ${renderDynamicField(textField('for_client', 'For Client?', { readOnly: true }), forClientValue, values)}
+                            </div>
+                            <div>
+                                ${renderDynamicField(textField('client_names', 'Client Name(s)', { readOnly: true }), clientNamesValue, values)}
+                            </div>
                         </div>
                     </div>
 
                     ${pendingLiquidationBranchDraft ? `
                         <div data-pending-liquidation-panel class="md:col-span-2 rounded-xl border ${pendingLiquidationBranchDraft.moduleKey === 'err' ? 'border-red-200 bg-red-50/40' : 'border-emerald-200 bg-emerald-50/40'} p-4">
                             <h4 class="text-sm font-semibold uppercase tracking-[0.24em] ${pendingLiquidationBranchDraft.moduleKey === 'err' ? 'text-red-700' : 'text-emerald-700'}">Next Section Available</h4>
-                            <p class="mt-2 text-sm text-gray-700">The liquidation result has been calculated. You can open <span class="font-semibold">${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'CRF')}</span> now, or stay here and continue editing.</p>
+                            <p class="mt-2 text-sm text-gray-700">The liquidation result has been calculated. You can open <span class="font-semibold">${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'Cash Return')}</span> now, or stay here and continue editing.</p>
                             <div class="mt-4 flex flex-wrap gap-3">
-                                <button type="button" onclick="window.financeModule.openPendingLiquidationBranch()" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Open ${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'CRF')}</button>
+                                <button type="button" onclick="window.financeModule.openPendingLiquidationBranch()" class="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Open ${escapeHtml(pendingLiquidationBranchDraft.moduleKey === 'err' ? 'ERR' : 'Cash Return')}</button>
                                 <button type="button" onclick="window.financeModule.dismissPendingLiquidationBranch()" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Stay Here</button>
                             </div>
                         </div>
@@ -4586,44 +4883,44 @@
                 const coaValue = getDraftValue('coa_id', record);
                 const reimbursementModeValue = getDraftValue('reimbursement_mode', record);
                 const bankAccountValue = getDraftValue('bank_account_id', record);
+                const reimbursementPaymentDetails = getDraftValue('reimbursement_payment_details', record);
+                const manualLiquidationEntry = getDraftValue('manual_liquidation_entry', record);
                 const remarksValue = getDraftValue('remarks', record);
+                const linkedLrRecord = draftLinkedRecord || getLinkedLiquidationRecord(linkedLrId, 'Shortage');
+                const linkedPrefill = linkedLrRecord ? getLiquidationBranchPrefill('err', linkedLrRecord) : {};
 
                 values.linked_lr_id = linkedLrId;
                 values['data[linked_lr_id]'] = linkedLrId;
                 values.requester_mode = requesterModeValue;
                 values['data[requester_mode]'] = requesterModeValue;
-                values.amount = amountValue;
-                values['data[amount]'] = amountValue;
-                values.requestor = requestorValue;
-                values['data[requestor]'] = requestorValue;
-                values.expense_details = expenseDetails;
-                values['data[expense_details]'] = expenseDetails;
+                values.amount = amountValue || linkedPrefill.amount || '';
+                values['data[amount]'] = values.amount;
+                values.requestor = requestorValue || linkedPrefill.requestor || '';
+                values['data[requestor]'] = values.requestor;
+                values.expense_details = expenseDetails || linkedPrefill.expense_details || '';
+                values['data[expense_details]'] = values.expense_details;
                 values.supplier_id = supplierValue;
                 values['data[supplier_id]'] = supplierValue;
-                values.coa_id = coaValue;
-                values['data[coa_id]'] = coaValue;
-                values.reimbursement_mode = reimbursementModeValue;
-                values['data[reimbursement_mode]'] = reimbursementModeValue;
-                values.bank_account_id = bankAccountValue;
-                values['data[bank_account_id]'] = bankAccountValue;
-                values.remarks = remarksValue;
-                values['data[remarks]'] = remarksValue;
+                values.coa_id = coaValue || linkedPrefill.coa_id || '';
+                values['data[coa_id]'] = values.coa_id;
+                values.reimbursement_mode = reimbursementModeValue || linkedPrefill.reimbursement_mode || '';
+                values['data[reimbursement_mode]'] = values.reimbursement_mode;
+                values.bank_account_id = bankAccountValue || linkedPrefill.bank_account_id || '';
+                values['data[bank_account_id]'] = values.bank_account_id;
+                values.reimbursement_payment_details = reimbursementPaymentDetails || linkedPrefill.reimbursement_payment_details || '';
+                values['data[reimbursement_payment_details]'] = values.reimbursement_payment_details;
+                values.manual_liquidation_entry = manualLiquidationEntry;
+                values['data[manual_liquidation_entry]'] = manualLiquidationEntry;
+                values.remarks = remarksValue || linkedPrefill.remarks || '';
+                values['data[remarks]'] = values.remarks;
 
                 return `
-                    ${draftLinkedRecord ? `
-                        <div class="md:col-span-2 rounded-xl border border-red-100 bg-red-50/40 p-4">
-                            <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-red-700">Linked Liquidation</h4>
-                            <p class="mt-2 text-sm text-gray-700">Shortage detected from <span class="font-semibold">${escapeHtml(getLookupLabel('ca', draftLinkedRecord.data?.linked_ca_id) || draftLinkedRecord.data?.linked_ca_id || 'N/A')}</span>.</p>
-                            ${renderLiquidationPreviewTable(draftLinkedRecord)}
-                            ${renderLiquidationPreviewSummary(draftLinkedRecord)}
-                        </div>
-                    ` : ''}
-                    <input type="hidden" name="data[linked_lr_id]" value="${escapeHtml(linkedLrId)}">
+                    ${renderLinkedLiquidationBranchPanel(linkedLrRecord, 'err', values)}
                     <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Reimbursement Details</h4>
                         <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'expense_details', 'amount', 'supplier_id', 'coa_id', 'reimbursement_mode', 'bank_account_id', 'remarks'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'linked_lr_id', 'expense_details', 'amount', 'reimbursement_payment_details', 'manual_liquidation_entry', 'supplier_id', 'coa_id', 'reimbursement_mode', 'bank_account_id', 'remarks'], values, record)}
                         </div>
                     </div>
                 `;
@@ -4638,41 +4935,39 @@
                 const receivingBankValue = getDraftValue('receiving_bank_account_id', record);
                 const coaValue = getDraftValue('coa_id', record);
                 const referenceNumberValue = getDraftValue('reference_number', record);
+                const manualLiquidationEntry = getDraftValue('manual_liquidation_entry', record);
                 const remarksValue = getDraftValue('remarks', record);
+                const linkedLrRecord = draftLinkedRecord || getLinkedLiquidationRecord(linkedLrId, 'Overage');
+                const linkedPrefill = linkedLrRecord ? getLiquidationBranchPrefill('crf', linkedLrRecord) : {};
 
                 values.linked_lr_id = linkedLrId;
                 values['data[linked_lr_id]'] = linkedLrId;
                 values.requester_mode = requesterModeValue;
                 values['data[requester_mode]'] = requesterModeValue;
-                values.requestor = requestorValue;
-                values['data[requestor]'] = requestorValue;
-                values.amount_returned = amountReturnedValue;
-                values['data[amount_returned]'] = amountReturnedValue;
-                values.mode_of_return = modeOfReturnValue;
-                values['data[mode_of_return]'] = modeOfReturnValue;
-                values.receiving_bank_account_id = receivingBankValue;
-                values['data[receiving_bank_account_id]'] = receivingBankValue;
-                values.coa_id = coaValue;
-                values['data[coa_id]'] = coaValue;
-                values.reference_number = referenceNumberValue;
-                values['data[reference_number]'] = referenceNumberValue;
-                values.remarks = remarksValue;
-                values['data[remarks]'] = remarksValue;
+                values.requestor = requestorValue || linkedPrefill.requestor || '';
+                values['data[requestor]'] = values.requestor;
+                values.amount_returned = amountReturnedValue || linkedPrefill.amount_returned || '';
+                values['data[amount_returned]'] = values.amount_returned;
+                values.mode_of_return = modeOfReturnValue || linkedPrefill.mode_of_return || '';
+                values['data[mode_of_return]'] = values.mode_of_return;
+                values.receiving_bank_account_id = receivingBankValue || linkedPrefill.receiving_bank_account_id || '';
+                values['data[receiving_bank_account_id]'] = values.receiving_bank_account_id;
+                values.coa_id = coaValue || linkedPrefill.coa_id || '';
+                values['data[coa_id]'] = values.coa_id;
+                values.reference_number = referenceNumberValue || linkedPrefill.reference_number || '';
+                values['data[reference_number]'] = values.reference_number;
+                values.manual_liquidation_entry = manualLiquidationEntry;
+                values['data[manual_liquidation_entry]'] = manualLiquidationEntry;
+                values.remarks = remarksValue || linkedPrefill.remarks || '';
+                values['data[remarks]'] = values.remarks;
 
                 return `
-                    ${draftLinkedRecord ? `
-                        <div class="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
-                            <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">Linked Liquidation</h4>
-                            <p class="mt-2 text-sm text-gray-700">Overage detected from <span class="font-semibold">${escapeHtml(getLookupLabel('ca', draftLinkedRecord.data?.linked_ca_id) || draftLinkedRecord.data?.linked_ca_id || 'N/A')}</span>.</p>
-                            ${renderLiquidationPreviewTable(draftLinkedRecord)}
-                            ${renderLiquidationPreviewSummary(draftLinkedRecord)}
-                        </div>
-                    ` : ''}
+                    ${renderLinkedLiquidationBranchPanel(linkedLrRecord, 'crf', values)}
                     <div class="md:col-span-2 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-blue-700">Return Details</h4>
                         <p class="mt-2 text-xs text-gray-500">Choose Own Request to auto-fill your account details, or Request for Another to enter someone else&apos;s information.</p>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'linked_lr_id', 'amount_returned', 'mode_of_return', 'receiving_bank_account_id', 'coa_id', 'reference_number', 'remarks'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['requester_mode', 'requestor', 'linked_lr_id', 'amount_returned', 'manual_liquidation_entry', 'mode_of_return', 'receiving_bank_account_id', 'coa_id', 'reference_number', 'remarks'], values, record)}
                         </div>
                     </div>
                 `;
@@ -4916,7 +5211,7 @@
                     <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Cash Advance Details</h4>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['amount_requested', 'mode_of_release', 'paid_through'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['amount_requested', 'release_schedule', 'release_count', 'amount_per_release', 'liquidation_calculation', 'cash_release_date', 'cash_release_time', 'mode_of_release', 'paid_through'], values, record)}
                         </div>
                     </div>
 
@@ -4956,7 +5251,7 @@
                     <div class="md:col-span-2 rounded-xl border border-gray-200 bg-white p-4">
                         <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-gray-700">Cash Advance Details</h4>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            ${renderFieldsByNames(moduleConfig, ['amount_requested', 'mode_of_release', 'paid_through'], values, record)}
+                            ${renderFieldsByNames(moduleConfig, ['amount_requested', 'release_schedule', 'release_count', 'amount_per_release', 'liquidation_calculation', 'cash_release_date', 'cash_release_time', 'mode_of_release', 'paid_through'], values, record)}
                         </div>
                     </div>
 
@@ -5097,7 +5392,7 @@
             if (currentModuleKey === 'arf') {
                 const linkedPoId = getDraftValue('linked_po_id', record);
                 const linkedDvId = getDraftValue('linked_dv_id', record);
-                const assetCodeValue = getDraftValue('asset_code', record);
+                const assetCodeValue = getDraftValue('asset_code', record) || recordNumberValue;
                 const assetDescriptionValue = getDraftValue('asset_description', record);
                 const assetCategoryValue = getDraftValue('asset_category', record);
                 const serialNumberValue = getDraftValue('serial_number', record);
@@ -5235,6 +5530,12 @@
         if (currentModuleKey === 'po') {
             syncPoLinkedPrFields({ preserveExisting: true });
         }
+        if (currentModuleKey === 'ca') {
+            updateCashAdvanceReleaseValues();
+        }
+        if (currentModuleKey === 'ibtf') {
+            syncIbtfAccountCodes({ preserveExisting: true });
+        }
         if (currentModuleKey === 'arf') {
             syncArfLinkedDocumentFields({ preserveExisting: true });
         }
@@ -5296,33 +5597,117 @@
         }
 
         if (currentModuleKey === 'arf') {
-            const assetCode = formValues['data[asset_code]'] || $('dynamicFields').querySelector('input[name="data[asset_code]"]')?.value || 'N/A';
+            const assetCode = formValues['data[asset_code]'] || $('dynamicFields').querySelector('input[name="data[asset_code]"]')?.value || recordNumber || 'N/A';
+            const linkedPo = getLookupLabel('po', formValues['data[linked_po_id]']) || formValues['data[linked_po_id]'] || 'N/A';
+            const linkedDv = getLookupLabel('dv', formValues['data[linked_dv_id]']) || formValues['data[linked_dv_id]'] || 'N/A';
+            const supplier = getLookupLabel('supplier', formValues['data[supplier_id]']) || formValues['data[supplier_id]'] || 'N/A';
+            const assetDescription = formValues['data[asset_description]'] || 'Not filled yet';
+            const assetCategory = formValues['data[asset_category]'] || 'Not filled yet';
+            const model = formValues['data[model]'] || 'Not filled yet';
+            const acquisitionCost = formValues['data[acquisition_cost]'] || '0.00';
+            const acquisitionDate = formValues['data[acquisition_date]'] || 'N/A';
+            const assetAccount = getLookupLabel('chart_account', formValues['data[asset_coa_id]']) || formValues['data[asset_coa_id]'] || 'N/A';
             const location = formValues['data[location]'] || $('dynamicFields').querySelector('input[name="data[location]"]')?.value || 'N/A';
+            const custodian = formValues['data[custodian]'] || 'N/A';
+            const usefulLife = formValues['data[useful_life]'] || 'N/A';
+            const residualValue = formValues['data[residual_value]'] || '0.00';
             const serialNumber = formValues['data[serial_number]'] || $('dynamicFields').querySelector('input[name="data[serial_number]"]')?.value || 'N/A';
             const barcodeSvg = generateFinanceBarcodeSvg(assetCode === 'N/A' ? '' : assetCode);
 
             $('drawerPreview').innerHTML = `
                 <div class="rounded-2xl border border-slate-200 bg-slate-100 p-4">
                     <div class="mb-3 flex items-center justify-between rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 shadow-sm">
-                        <span>Asset Tag</span>
+                        <span>PDF Holder</span>
                         <span>Live Preview</span>
                     </div>
                     <div class="mx-auto max-w-[760px] overflow-hidden rounded-[6px] border border-gray-300 bg-white shadow-lg">
                         <div class="relative px-5 py-5 text-center border-b border-gray-300 bg-white">
-                            <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500">JK&amp;C INC.</div>
-                            <div class="mt-2 text-[20px] font-black uppercase tracking-[0.24em] text-gray-900">ASSET TAG</div>
+                            <div class="mx-auto flex items-center justify-center rounded-xl bg-white px-4 py-2">
+                                <img src="${companyLogo}" alt="${escapeHtml(companyName)}" class="block h-20 w-auto max-w-[200px] object-contain">
+                            </div>
+                            <div class="mt-3 text-[16px] font-semibold leading-tight text-gray-900">${escapeHtml(companyName)}</div>
+                            <div class="text-[10px] font-medium tracking-[0.3em] text-gray-500">${escapeHtml(companyLegalName)}</div>
                         </div>
-                        <div class="grid grid-cols-[150px_minmax(0,1fr)] divide-x divide-gray-300">
-                            <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Asset Code</div>
-                            <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(assetCode || 'N/A')}</div>
-                            <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Location</div>
-                            <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(location || 'N/A')}</div>
-                            <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Serial Number</div>
-                            <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(serialNumber || 'N/A')}</div>
-                            <div class="bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Barcode</div>
-                            <div class="px-4 py-3">
-                                <div class="rounded-xl border border-gray-200 bg-white px-2 py-2 overflow-hidden">
-                                    ${barcodeSvg || '<div class="flex h-20 items-center justify-center text-xs text-gray-400">Enter an asset code to generate the barcode.</div>'}
+
+                        <div class="relative bg-blue-700 px-4 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.32em] text-white">
+                            ${escapeHtml(titleLabel)}
+                        </div>
+
+                        <div class="relative grid grid-cols-2 border-t border-gray-300 text-sm">
+                            ${summaryItems.map(([label, value], index) => `
+                                <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                    <p class="mt-1 text-[15px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Asset Details</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2">
+                                ${[
+                                    ['Linked PO', linkedPo],
+                                    ['Linked DV', linkedDv],
+                                    ['Supplier', supplier],
+                                    ['Asset Code', assetCode],
+                                    ['Asset Description', assetDescription],
+                                    ['Asset Category', assetCategory],
+                                    ['Serial Number', serialNumber],
+                                    ['Model', model],
+                                ].map(([label, value], index) => `
+                                    <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                        <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                        <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Valuation & Custody</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2">
+                                ${[
+                                    ['Acquisition Cost', acquisitionCost],
+                                    ['Acquisition Date', acquisitionDate],
+                                    ['Asset Account', assetAccount],
+                                    ['Location', location],
+                                    ['Custodian', custodian],
+                                    ['Useful Life', usefulLife],
+                                    ['Residual Value', residualValue],
+                                    ['Remarks', formValues['data[remarks]'] || 'N/A'],
+                                ].map(([label, value], index) => `
+                                    <div class="${index % 2 === 0 ? 'border-r' : ''} ${index > 1 ? 'border-t' : ''} border-gray-300 px-4 py-3">
+                                        <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">${escapeHtml(label)}</p>
+                                        <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(value)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="relative border-t border-gray-300">
+                            <div class="bg-gray-50 px-4 py-2 border-b border-gray-300">
+                                <h4 class="text-[12px] font-semibold uppercase tracking-[0.26em] text-gray-700">Asset Tag</h4>
+                            </div>
+                            <div class="relative px-5 py-5 text-center border-b border-gray-300 bg-white">
+                                <div class="mt-1 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500">JK&amp;C INC.</div>
+                                <div class="mt-2 text-[20px] font-black uppercase tracking-[0.24em] text-gray-900">ASSET TAG</div>
+                            </div>
+                            <div class="grid grid-cols-[150px_minmax(0,1fr)] divide-x divide-gray-300">
+                                <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Asset Code</div>
+                                <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(assetCode || 'N/A')}</div>
+                                <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Location</div>
+                                <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(location || 'N/A')}</div>
+                                <div class="border-b border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Serial Number</div>
+                                <div class="border-b border-gray-300 px-4 py-3 text-sm font-semibold text-gray-900 break-words">${escapeHtml(serialNumber || 'N/A')}</div>
+                                <div class="bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">Barcode</div>
+                                <div class="px-4 py-3">
+                                    <div class="rounded-xl border border-gray-200 bg-white px-2 py-2 overflow-hidden">
+                                        ${barcodeSvg || '<div class="flex h-20 items-center justify-center text-xs text-gray-400">Enter an asset code to generate the barcode.</div>'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -5345,6 +5730,8 @@
             const summaryValues = {
                 ca_reference_no: getLookupLabel('ca', formValues['data[linked_ca_id]']) || formValues['data[linked_ca_id]'] || 'N/A',
                 ca_amount: formValues['data[total_cash_advance]'] || '0.00',
+                for_client: formValues['data[for_client]'] || 'N/A',
+                client_names: formValues['data[client_names]'] || 'N/A',
                 line_items_total: rows.reduce((sum, row) => sum + (parseFloat(row.total || '0') || 0), 0).toFixed(2),
                 subtotal: formValues['data[subtotal]'] || '0.00',
                 discount_total: formValues['data[discount_total]'] || '0.00',
@@ -5405,6 +5792,14 @@
                                 <div class="px-4 py-3">
                                     <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Justification / Business Need</p>
                                     <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(formValues['data[purpose]'] || 'Not filled yet')}</p>
+                                </div>
+                                <div class="border-r border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">For Client?</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.for_client)}</p>
+                                </div>
+                                <div class="border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Client Name(s)</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.client_names)}</p>
                                 </div>
                             </div>
                         </div>
@@ -5593,11 +5988,18 @@
         }
 
         if (currentModuleKey === 'ca') {
+            const paidThroughValue = $('financeForm').querySelector('select[name="data[paid_through]"]')?.value || '';
             const summaryValues = {
                 amount_requested: $('financeForm').querySelector('input[name="data[amount_requested]"]')?.value || '0.00',
+                release_schedule: $('financeForm').querySelector('[name="data[release_schedule]"]')?.value || 'Full Release',
+                release_count: $('financeForm').querySelector('input[name="data[release_count]"]')?.value || '1',
+                amount_per_release: $('financeForm').querySelector('input[name="data[amount_per_release]"]')?.value || '0.00',
+                cash_release_date: $('financeForm').querySelector('input[name="data[cash_release_date]"]')?.value || 'N/A',
+                cash_release_time: $('financeForm').querySelector('input[name="data[cash_release_time]"]')?.value || 'N/A',
                 mode_of_release: $('financeForm').querySelector('select[name="data[mode_of_release]"]')?.value || 'N/A',
-                paid_through: $('financeForm').querySelector('select[name="data[paid_through]"]')?.value || 'N/A',
+                paid_through: getLookupLabel('chart_account', paidThroughValue) || paidThroughValue || 'N/A',
             };
+            summaryValues.liquidation_calculation = getCashAdvanceLiquidationCalculation(summaryValues);
 
             $('drawerPreview').innerHTML = `
                 <div class="rounded-2xl border border-slate-200 bg-slate-100 p-4">
@@ -5664,11 +6066,31 @@
                                     <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Mode of Release</p>
                                     <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.mode_of_release)}</p>
                                 </div>
-                                <div class="border-r border-gray-300 px-4 py-3">
+                                <div class="border-r border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Release Schedule</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.release_schedule)}</p>
+                                </div>
+                                <div class="border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Number of Releases</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.release_count)}</p>
+                                </div>
+                                <div class="border-r border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Amount per Release</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.amount_per_release)}</p>
+                                </div>
+                                <div class="border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Liquidation Calculation</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.liquidation_calculation)}</p>
+                                </div>
+                                <div class="border-r border-t border-gray-300 px-4 py-3">
+                                    <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Cash Release Date / Time</p>
+                                    <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml([summaryValues.cash_release_date, summaryValues.cash_release_time].filter((value) => value && value !== 'N/A').join(' ') || 'N/A')}</p>
+                                </div>
+                                <div class="border-t border-gray-300 px-4 py-3">
                                     <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Paid Through</p>
                                     <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(summaryValues.paid_through)}</p>
                                 </div>
-                                <div class="px-4 py-3">
+                                <div class="border-r border-t border-gray-300 px-4 py-3">
                                     <p class="text-[11px] uppercase tracking-[0.22em] text-gray-500">Other Business Purpose</p>
                                     <p class="mt-2 min-h-[20px] border-b border-gray-300 text-[14px] font-semibold text-gray-900 break-words">${escapeHtml(formValues['data[other_business_purpose_specify]'] || formValues['data[other_expense_specify]'] || 'Not filled yet')}</p>
                                 </div>
@@ -5995,39 +6417,16 @@
         setField('department', sourceData.department || '');
         setField('superior', sourceData.superior || '');
         setField('superior_email', sourceData.superior_email || '');
+        setField('for_client', sourceData.for_client || 'N/A');
+        setField('client_names', sourceData.client_names || '');
         setField('coa_id', sourceData.coa_id || '');
         setField('linked_dv_id', sourceData.linked_dv_id || '');
 
-        const linkedLrRecord = findLinkedLiquidationRecord(sourceId);
-
+        financeDraftContext = null;
+        pendingLiquidationBranchDraft = null;
         updatePrTotals();
         renderDrawerPreview();
-
-        if (!linkedLrRecord) {
-            financeDraftContext = null;
-            pendingLiquidationBranchDraft = null;
-            showFinanceToast('Liquidation details loaded from the selected CA. No linked liquidation record was found yet.', 'success');
-            return;
-        }
-
-        const branchDraft = buildLiquidationBranchDraft(linkedLrRecord);
-        if (!branchDraft) {
-            financeDraftContext = null;
-            pendingLiquidationBranchDraft = null;
-            renderFinanceForm(linkedLrRecord);
-            showFinanceToast('Linked liquidation loaded. The result is balanced, so no ERR or CRF shortcut is needed.', 'success');
-            return;
-        }
-
-        financeDraftContext = null;
-        pendingLiquidationBranchDraft = branchDraft;
-        renderFinanceForm(linkedLrRecord);
-        showFinanceToast(
-            branchDraft.moduleKey === 'err'
-                ? 'Shortage detected. Use the button to open ERR when you are ready.'
-                : 'Overage detected. Use the button to open CRF when you are ready.',
-            'success'
-        );
+        showFinanceToast('CA details loaded. Shortage or overage will be calculated from this liquidation report.', 'success');
     }
 
     function getRecordById(id) {
