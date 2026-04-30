@@ -672,6 +672,37 @@
             </div>
         </div>
 
+        @if($record->module_key === 'dv')
+            @php
+                $dvLineItems = array_values(array_filter((array) data_get($record->data, 'line_items', []), fn ($item) => is_array($item) && collect($item)->contains(fn ($value) => !blank($value))));
+            @endphp
+            <div class="section-box">
+                <div class="section-title">Breakdown / Line Items</div>
+                <div class="section-body">
+                    @if(count($dvLineItems))
+                        <table class="detail-table">
+                            <tr>
+                                <td><div class="detail-label">Description</div></td>
+                                <td><div class="detail-label">Account Code</div></td>
+                                <td><div class="detail-label">Debit</div></td>
+                                <td><div class="detail-label">Credit</div></td>
+                            </tr>
+                            @foreach($dvLineItems as $item)
+                                <tr>
+                                    <td><div class="detail-value">{{ data_get($item, 'description') ?: 'N/A' }}</div></td>
+                                    <td><div class="detail-value">{{ data_get($item, 'account_code') ?: 'N/A' }}</div></td>
+                                    <td><div class="detail-value">{{ number_format((float) data_get($item, 'debit', 0), 2) }}</div></td>
+                                    <td><div class="detail-value">{{ number_format((float) data_get($item, 'credit', 0), 2) }}</div></td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    @else
+                        <div class="muted">No line items added.</div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @if($record->module_key === 'lr')
             <div class="section-box">
                 <div class="section-title">Liquidation Report</div>
@@ -710,6 +741,16 @@
                                                     <td>
                                                         <div class="lr-metric-label">Line Items Total</div>
                                                         <div class="lr-metric-value">{{ $liquidationReport['line_items_total'] ?? '0.00' }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="lr-metric-label">For Client?</div>
+                                                        <div class="lr-metric-value">{{ $liquidationReport['for_client'] ?? 'N/A' }}</div>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        <div class="lr-metric-label">Client Name(s)</div>
+                                                        <div class="lr-metric-value">{{ $liquidationReport['client_names'] ?? 'N/A' }}</div>
                                                     </td>
                                                     <td>
                                                         <div class="lr-metric-label">Actual Expenses</div>
@@ -816,6 +857,14 @@
                                                 <div class="pr-field-label">Line Total</div>
                                                 <div class="pr-field-value">{{ $item['total'] }}</div>
                                             </div>
+                                            <div class="pr-line-field">
+                                                <div class="pr-field-label">Supplier</div>
+                                                <div class="pr-field-value">{{ $item['supplier_label'] ?? '' }}</div>
+                                            </div>
+                                            <div class="pr-line-field">
+                                                <div class="pr-field-label">Client</div>
+                                                <div class="pr-field-value">{{ $item['client_label'] ?? '' }}</div>
+                                            </div>
                                         </div>
                                         <div class="pr-line-summary">
                                             <div class="pr-summary-panel">
@@ -829,16 +878,26 @@
                                                     <div class="pr-summary-row">
                                                         <div class="pr-summary-cell">
                                                             <div class="pr-field-label">Discount</div>
-                                                            <div class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</div>
+                                                            <div class="pr-field-value">{{ $item['discount'] ?? '0%' }}</div>
                                                         </div>
                                                         <div class="pr-summary-cell">
-                                                            <div class="pr-field-label">Shipping</div>
-                                                            <div class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</div>
+                                                            <div class="pr-field-label">Discount Amount</div>
+                                                            <div class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</div>
                                                         </div>
                                                     </div>
                                                     <div class="pr-summary-row">
                                                         <div class="pr-summary-cell">
-                                                            <div class="pr-field-label">Tax</div>
+                                                            <div class="pr-field-label">Shipping</div>
+                                                            <div class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</div>
+                                                        </div>
+                                                        <div class="pr-summary-cell">
+                                                            <div class="pr-field-label">Tax (VAT/Non-VAT/N/A)</div>
+                                                            <div class="pr-field-value">{{ $item['tax_type'] ?? 'N/A' }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="pr-summary-row">
+                                                        <div class="pr-summary-cell">
+                                                            <div class="pr-field-label">Tax Amount</div>
                                                             <div class="pr-field-value">{{ $item['tax_amount'] ?? '0.00' }}</div>
                                                         </div>
                                                         <div class="pr-summary-cell">
@@ -847,7 +906,7 @@
                                                         </div>
                                                     </div>
                                                     <div class="pr-summary-full">
-                                                        <div class="pr-field-label">Line Total</div>
+                                                        <div class="pr-field-label">Grand Total</div>
                                                         <div class="pr-field-value">{{ $item['total'] }}</div>
                                                     </div>
                                                     <div class="pr-summary-formula">{{ $item['quantity'] }} x {{ $item['amount'] }} = {{ $item['total'] }}</div>
@@ -953,16 +1012,26 @@
                                                             <div class="pr-summary-row">
                                                                 <div class="pr-summary-cell">
                                                                     <div class="pr-field-label">Discount</div>
-                                                                    <div class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</div>
+                                                                    <div class="pr-field-value">{{ $item['discount'] ?? '0%' }}</div>
                                                                 </div>
                                                                 <div class="pr-summary-cell">
-                                                                    <div class="pr-field-label">Shipping</div>
-                                                                    <div class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</div>
+                                                                    <div class="pr-field-label">Discount Amount</div>
+                                                                    <div class="pr-field-value">{{ $item['discount_amount'] ?? '0.00' }}</div>
                                                                 </div>
                                                             </div>
                                                             <div class="pr-summary-row">
                                                                 <div class="pr-summary-cell">
-                                                                    <div class="pr-field-label">Tax</div>
+                                                                    <div class="pr-field-label">Shipping</div>
+                                                                    <div class="pr-field-value">{{ $item['shipping_amount'] ?? '0.00' }}</div>
+                                                                </div>
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">Tax (VAT/Non-VAT/N/A)</div>
+                                                                    <div class="pr-field-value">{{ $item['tax_type'] ?? 'N/A' }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="pr-summary-row">
+                                                                <div class="pr-summary-cell">
+                                                                    <div class="pr-field-label">Tax Amount</div>
                                                                     <div class="pr-field-value">{{ $item['tax_amount'] ?? '0.00' }}</div>
                                                                 </div>
                                                                 <div class="pr-summary-cell">
@@ -971,7 +1040,7 @@
                                                                 </div>
                                                             </div>
                                                             <div class="pr-summary-full">
-                                                                <div class="pr-field-label">Line Total</div>
+                                                                <div class="pr-field-label">Grand Total</div>
                                                                 <div class="pr-field-value">{{ $item['total'] }}</div>
                                                             </div>
                                                             <div class="pr-summary-formula">{{ $item['quantity'] }} x {{ $item['amount'] }} = {{ $item['total'] }}</div>

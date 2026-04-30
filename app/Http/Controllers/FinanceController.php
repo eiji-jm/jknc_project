@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\SupplierCompletionMail;
+use App\Models\Contact;
 use App\Models\FinanceRecord;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -227,6 +228,10 @@ SVG;
         $data = $record->data ?? [];
         $value = data_get($data, $fieldName);
 
+        if ($fieldName === 'liquidation_calculation') {
+            return $this->financeCashAdvanceLiquidationCalculation($data);
+        }
+
         if ($fieldName === 'requester_mode') {
             return match ($value) {
                 'own_request' => 'Own Request',
@@ -235,13 +240,13 @@ SVG;
             };
         }
 
-        if (in_array($fieldName, ['completion_mode', 'vat_status', 'accreditation_status', 'tax_type', 'payment_type', 'mode_of_release', 'mode_of_return', 'reimbursement_mode', 'bank_status', 'account_type', 'account_status', 'service_status', 'product_status', 'normal_balance', 'variance_indicator', 'purchase_type', 'priority', 'request_type'], true)) {
+        if (in_array($fieldName, ['completion_mode', 'vat_status', 'accreditation_status', 'tax_type', 'payment_type', 'mode_of_release', 'mode_of_return', 'reimbursement_mode', 'bank_status', 'account_type', 'account_status', 'service_status', 'product_status', 'normal_balance', 'variance_indicator', 'priority', 'request_type', 'release_schedule'], true)) {
             return $this->financePdfValue($value);
         }
 
         return match ($fieldName) {
             'supplier_id' => $this->financePdfLookupLabel($lookupOptions, 'supplier', $value) ?: $this->financePdfValue($value),
-            'coa_id', 'parent_account_id', 'payroll_expense_coa_id', 'asset_coa_id' => $this->financePdfLookupLabel($lookupOptions, 'chart_account', $value) ?: $this->financePdfValue($value),
+            'coa_id', 'parent_account_id', 'payroll_expense_coa_id', 'asset_coa_id', 'paid_through' => $this->financePdfLookupLabel($lookupOptions, 'chart_account', $value) ?: $this->financePdfValue($value),
             'bank_account_id', 'funding_bank_account_id', 'receiving_bank_account_id', 'source_bank_account_id', 'destination_bank_account_id' => $this->financePdfLookupLabel($lookupOptions, 'bank_account', $value) ?: $this->financePdfValue($value),
             'linked_pr_id' => $this->financePdfLookupLabel($lookupOptions, 'pr', $value) ?: $this->financePdfValue($value),
             'linked_po_id' => $this->financePdfLookupLabel($lookupOptions, 'po', $value) ?: $this->financePdfValue($value),
@@ -253,6 +258,22 @@ SVG;
             'linked_item_id' => $this->financePdfLookupLabel($lookupOptions, (string) data_get($data, 'linked_item_type', 'product'), $value) ?: $this->financePdfValue($value),
             default => $this->financePdfValue($value),
         };
+    }
+
+    private function financeCashAdvanceLiquidationCalculation(array $data): string
+    {
+        $amount = (float) (data_get($data, 'amount_requested') ?: 0);
+        $releaseCount = max((int) (data_get($data, 'release_count') ?: 1), 1);
+        $amountPerRelease = $amount / $releaseCount;
+        $releaseLabel = $releaseCount === 1 ? 'release' : 'releases';
+
+        return sprintf(
+            'CA %s / %d %s = %s per release. LR: CA - actual expenses = balance.',
+            number_format($amount, 2),
+            $releaseCount,
+            $releaseLabel,
+            number_format($amountPerRelease, 2)
+        );
     }
 
     private function financePreviewRow(FinanceRecord $record, array $lookupOptions, string $fieldName, ?string $label = null): array
@@ -350,14 +371,17 @@ SVG;
             $quantity = (float) data_get($item, 'quantity', 0);
             $amount = (float) data_get($item, 'amount', 0);
             $subtotal = (float) data_get($item, 'subtotal', $quantity * $amount);
+            $discount = (string) data_get($item, 'discount', '0%');
             $discountAmount = (float) data_get($item, 'discount_amount', 0);
             $shippingAmount = (float) data_get($item, 'shipping_amount', 0);
+            $taxType = (string) data_get($item, 'tax_type', 'N/A');
             $taxAmount = (float) data_get($item, 'tax_amount', 0);
             $whtAmount = (float) data_get($item, 'wht_amount', 0);
             $total = (float) data_get($item, 'total', $subtotal - $discountAmount + $shippingAmount + $taxAmount - $whtAmount);
             $supplierId = data_get($item, 'supplier_id')
                 ?: data_get($itemRecord?->data, 'supplier_id')
-                ?: data_get($data, 'supplier_id');
+                ?: ($record->module_key === 'pr' ? null : data_get($data, 'supplier_id'));
+            $clientId = data_get($item, 'client_id');
 
             $lineItems[] = [
                 'item_module' => $itemModule,
@@ -370,15 +394,24 @@ SVG;
                 'quantity' => $this->financePdfValue(data_get($item, 'quantity')),
                 'amount' => $this->financePdfValue(data_get($item, 'amount')),
                 'subtotal' => number_format($subtotal, 2),
+                'discount' => $this->financePdfValue($discount ?: '0%'),
                 'discount_amount' => number_format($discountAmount, 2),
                 'shipping_amount' => number_format($shippingAmount, 2),
+                'tax_type' => $this->financePdfValue($taxType ?: 'N/A'),
                 'tax_amount' => number_format($taxAmount, 2),
                 'wht_amount' => number_format($whtAmount, 2),
                 'total' => number_format($total, 2),
                 'total_value' => $total,
                 'supplier_id' => $supplierId,
-                'supplier_label' => $this->financePdfLookupLabel($lookupOptions, 'supplier', $supplierId)
-                    ?: $this->financePdfValue($supplierId),
+                'supplier_label' => blank($supplierId) ? '' : (
+                    $this->financePdfLookupLabel($lookupOptions, 'supplier', $supplierId)
+                    ?: $this->financePdfValue($supplierId)
+                ),
+                'client_id' => $clientId,
+                'client_label' => blank($clientId) ? '' : (
+                    $this->financePdfLookupLabel($lookupOptions, 'client', $clientId)
+                    ?: $this->financePdfValue($clientId)
+                ),
             ];
         }
 
@@ -473,6 +506,7 @@ SVG;
             'service' => [
                 $section('Service Profile', [
                     ['name' => 'service_description', 'label' => 'Service Description'],
+                    ['name' => 'products_services_provided', 'label' => 'Products / Services Provided'],
                     ['name' => 'supplier_id', 'label' => 'Supplier'],
                     ['name' => 'coa_id', 'label' => 'Account'],
                     ['name' => 'category', 'label' => 'Category'],
@@ -510,6 +544,11 @@ SVG;
                     ['name' => 'account_type', 'label' => 'Account Type'],
                     ['name' => 'account_group', 'label' => 'Account Group'],
                 ]),
+                $section('Bank Profile', [
+                    ['name' => 'bank_account_name', 'label' => 'Bank Account Name'],
+                    ['name' => 'bank_profile', 'label' => 'Bank Profile'],
+                    ['name' => 'bank_account_number', 'label' => 'Bank Account Number'],
+                ]),
                 $section('Balance & Status', [
                     ['name' => 'normal_balance', 'label' => 'Normal Balance'],
                     ['name' => 'account_status', 'label' => 'Status'],
@@ -535,15 +574,14 @@ SVG;
             'pr' => [
                 $section('Request Details', [
                     ['name' => 'requesting_department', 'label' => 'Department'],
-                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'request_type', 'label' => 'Type'],
                     ['name' => 'priority', 'label' => 'Priority'],
-                    ['name' => 'purchase_type', 'label' => 'Purchase Type'],
                     ['name' => 'needed_date', 'label' => 'Needed Date'],
                     ['name' => 'for_client', 'label' => 'Is this for a client?'],
                     ['name' => 'pr_reason_categories', 'label' => 'Reason (tick all that apply)'],
                 ]),
                 $section('Requester Details', [
+                    ['name' => 'requester_mode', 'label' => 'Requester Option'],
                     ['name' => 'requestor', 'label' => 'Employee Name'],
                     ['name' => 'employee_id', 'label' => 'Employee ID'],
                     ['name' => 'employee_email', 'label' => 'Email'],
@@ -613,6 +651,12 @@ SVG;
                 ]),
                 $section('Cash Advance Details', [
                     ['name' => 'amount_requested', 'label' => 'Amount Requested'],
+                    ['name' => 'release_schedule', 'label' => 'Release Schedule'],
+                    ['name' => 'release_count', 'label' => 'Number of Releases'],
+                    ['name' => 'amount_per_release', 'label' => 'Amount per Release'],
+                    ['name' => 'liquidation_calculation', 'label' => 'Liquidation Calculation'],
+                    ['name' => 'cash_release_date', 'label' => 'Cash Release Date'],
+                    ['name' => 'cash_release_time', 'label' => 'Cash Release Time'],
                     ['name' => 'mode_of_release', 'label' => 'Mode of Release'],
                     ['name' => 'paid_through', 'label' => 'Paid Through'],
                 ]),
@@ -637,6 +681,8 @@ SVG;
                     ['name' => 'linked_ca_id', 'label' => 'CA Reference No.'],
                     ['name' => 'total_cash_advance', 'label' => 'CA Amount'],
                     ['name' => 'purpose', 'label' => 'Justification / Business Need'],
+                    ['name' => 'for_client', 'label' => 'For Client?'],
+                    ['name' => 'client_names', 'label' => 'Client Name(s)'],
                 ]),
                 $section('Requester Details', [
                     ['name' => 'employee_id', 'label' => 'Employee ID'],
@@ -668,6 +714,7 @@ SVG;
                     ['name' => 'linked_lr_id', 'label' => 'Linked LR'],
                     ['name' => 'expense_details', 'label' => 'Expense Details'],
                     ['name' => 'amount', 'label' => 'Amount'],
+                    ['name' => 'reimbursement_payment_details', 'label' => 'Reimbursement Payment Details'],
                     ['name' => 'supplier_id', 'label' => 'Supplier'],
                     ['name' => 'reimbursement_mode', 'label' => 'Mode of Reimbursement'],
                 ]),
@@ -685,14 +732,37 @@ SVG;
                     ['name' => 'supplier_id', 'label' => 'Supplier'],
                     ['name' => 'amount', 'label' => 'Amount'],
                     ['name' => 'payment_type', 'label' => 'Payment Type'],
+                    ['name' => 'disbursement_type', 'label' => 'Disbursement Type'],
                     ['name' => 'payment_date', 'label' => 'Payment Date'],
+                    ['name' => 'due_date', 'label' => 'Due Date'],
                 ]),
                 $section('Accounting & Notes', [
                     ['name' => 'bank_account_id', 'label' => 'Bank Account'],
                     ['name' => 'coa_id', 'label' => 'Account'],
+                    ['name' => 'fund_source', 'label' => 'Fund Source / Project'],
+                    ['name' => 'department', 'label' => 'Department'],
                     ['name' => 'reference_number', 'label' => 'Reference Number'],
                     ['name' => 'purpose', 'label' => 'Purpose'],
                     ['name' => 'remarks', 'label' => 'Remarks'],
+                ]),
+                [
+                    'type' => 'dv_line_items',
+                    'title' => 'Breakdown / Line Items',
+                ],
+                $section('Tax & Receipt', [
+                    ['name' => 'withholding_tax', 'label' => 'Withholding Tax'],
+                    ['name' => 'vat_amount', 'label' => 'VAT'],
+                    ['name' => 'net_amount', 'label' => 'Net Amount'],
+                    ['name' => 'currency', 'label' => 'Currency'],
+                    ['name' => 'exchange_rate', 'label' => 'Exchange Rate'],
+                    ['name' => 'received_by_name', 'label' => 'Received By'],
+                    ['name' => 'received_by_signature', 'label' => 'Signature'],
+                    ['name' => 'date_received', 'label' => 'Date Received'],
+                ]),
+                $section('Signatories', [
+                    ['name' => 'prepared_by', 'label' => 'Prepared By'],
+                    ['name' => 'checked_by', 'label' => 'Checked By'],
+                    ['name' => 'approved_by_name', 'label' => 'Approved By'],
                 ]),
                 $notesSection,
             ],
@@ -861,6 +931,8 @@ SVG;
             ? [
                 'ca_reference_no' => $this->financePdfLookupLabel($lookupOptions, 'ca', data_get($data, 'linked_ca_id')) ?: data_get($data, 'linked_ca_id') ?: 'N/A',
                 'ca_amount' => data_get($data, 'total_cash_advance') ?: '0.00',
+                'for_client' => data_get($data, 'for_client') ?: 'N/A',
+                'client_names' => data_get($data, 'client_names') ?: 'N/A',
                 'line_items_total' => number_format($lineItemsTotal, 2),
                 'actual_expenses' => data_get($data, 'actual_expenses') ?: '0.00',
                 'variance' => data_get($data, 'variance') ?: '0.00',
@@ -1108,6 +1180,28 @@ SVG;
             ])
             ->values();
 
+        $options['lr_shortage'] = $this->acceptedRecordQuery('lr', ['variance_indicator' => 'Shortage'])
+            ->orderByDesc('record_date')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (FinanceRecord $record) => [
+                'id' => $record->id,
+                'label' => $this->optionLabel($record),
+                'record_number' => $record->record_number,
+                'record_title' => $record->record_title,
+            ])
+            ->values();
+
+        $options['client'] = Contact::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (Contact $contact) => [
+                'id' => $contact->id,
+                'label' => $contact->email ? "{$contact->name} ({$contact->email})" : $contact->name,
+                'record_title' => $contact->name,
+            ])
+            ->values();
+
         return $options;
     }
 
@@ -1219,6 +1313,7 @@ SVG;
     private function persistAttachments(Request $request, array $existingAttachments = []): array
     {
         $attachments = $existingAttachments;
+        $category = $request->input('attachment_category');
 
         if (!$request->hasFile('attachments')) {
             return $attachments;
@@ -1236,6 +1331,7 @@ SVG;
                 'path' => 'storage/' . $path,
                 'mime' => $file->getClientMimeType(),
                 'size' => $file->getSize(),
+                'category' => $category ?: 'Supporting Document',
             ];
         }
 
@@ -1250,11 +1346,12 @@ SVG;
             'record_title' => 'nullable|string|max:255',
             'record_date' => 'required|date',
             'amount' => 'nullable|numeric|min:0',
-            'status' => 'required|in:Active,Inactive',
+            'status' => 'required|in:Active,Inactive,Draft,For Approval,Approved,Released,Cancelled',
             'data' => 'nullable|array',
             'data.transaction_time' => 'nullable|date_format:H:i',
             'attachments' => 'nullable|array',
             'attachments.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx',
+            'attachment_category' => 'nullable|in:Invoice,OR,DR,Contract,Supporting Document',
         ];
     }
 
@@ -1285,6 +1382,7 @@ SVG;
             'service' => [
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
+                'data.products_services_provided' => 'nullable|string|max:2000',
             ],
             'product' => [
                 'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
@@ -1293,6 +1391,9 @@ SVG;
             'chart_account' => [
                 'data.is_sub_account' => 'nullable|boolean',
                 'data.parent_account_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
+                'data.bank_account_name' => 'nullable|string|max:255',
+                'data.bank_profile' => 'nullable|string|max:255',
+                'data.bank_account_number' => 'nullable|string|max:255',
             ],
             'bank_account' => [
                 'data.linked_coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
@@ -1302,13 +1403,21 @@ SVG;
                 'data.requester_mode' => 'nullable|in:own_request,request_for_another',
                 'data.requestor' => 'required|string|max:255',
                 'data.request_type' => 'required|in:Service,Product',
-                'data.supplier_id' => ['required', $this->acceptedLinkedRecordRule('supplier')],
-                'data.master_item_type' => 'required|in:product',
-                'data.master_item_id' => 'required|integer',
-                'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
+                'data.supplier_id' => ['nullable', $this->acceptedLinkedRecordRule('supplier')],
+                'data.master_item_type' => 'nullable|in:product',
+                'data.master_item_id' => 'nullable|integer',
+                'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
                 'data.quantity' => 'nullable|numeric|min:0',
                 'data.unit_cost' => 'nullable|numeric|min:0',
                 'data.estimated_total_cost' => 'nullable|numeric|min:0',
+                'data.line_items' => 'nullable|array',
+                'data.line_items.*.item_id' => 'nullable|string|max:255',
+                'data.line_items.*.description' => 'nullable|string|max:1000',
+                'data.line_items.*.category' => 'nullable|string|max:255',
+                'data.line_items.*.quantity' => 'nullable|numeric|min:0',
+                'data.line_items.*.amount' => 'nullable|numeric|min:0',
+                'data.line_items.*.supplier_id' => ['nullable', $this->acceptedLinkedRecordRule('supplier')],
+                'data.line_items.*.client_id' => ['nullable', Rule::exists('contacts', 'id')],
             ],
             'po' => [
                 'data.linked_pr_id' => ['required', $this->acceptedLinkedRecordRule('pr')],
@@ -1325,7 +1434,13 @@ SVG;
                 'data.requestor' => 'required|string|max:255',
                 'data.purpose' => 'required|string|max:2000',
                 'data.amount_requested' => 'required|numeric|min:0',
+                'data.release_schedule' => 'nullable|in:Full Release,Staggered Release',
+                'data.release_count' => 'nullable|integer|min:1',
+                'data.amount_per_release' => 'nullable|numeric|min:0',
+                'data.cash_release_date' => 'nullable|date',
+                'data.cash_release_time' => 'nullable|date_format:H:i',
                 'data.mode_of_release' => 'required|in:Cash,Bank Transfer,Check',
+                'data.paid_through' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
                 'data.bank_account_id' => ['nullable', $this->acceptedLinkedRecordRule('bank_account')],
                 'data.coa_id' => ['nullable', $this->acceptedLinkedRecordRule('chart_account')],
             ],
@@ -1343,6 +1458,8 @@ SVG;
                 'data.department' => 'nullable|string|max:255',
                 'data.superior' => 'nullable|string|max:255',
                 'data.superior_email' => 'nullable|email|max:255',
+                'data.for_client' => 'nullable|string|max:255',
+                'data.client_names' => 'nullable|string|max:1000',
                 'data.actual_expenses' => 'required|numeric|min:0',
                 'data.variance' => 'required|numeric',
                 'data.variance_indicator' => 'required|in:Shortage,Overage,Balanced',
@@ -1350,20 +1467,42 @@ SVG;
             ],
             'err' => [
                 'data.requester_mode' => 'nullable|in:own_request,request_for_another',
-                'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr')],
+                'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr', ['variance_indicator' => 'Shortage'])],
                 'data.amount' => 'required|numeric|min:0',
+                'data.reimbursement_payment_details' => 'nullable|string|max:1000',
+                'data.manual_liquidation_entry' => 'nullable|boolean',
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
                 'data.bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],
                 'data.supplier_id' => ['nullable', $this->acceptedLinkedRecordRule('supplier')],
             ],
             'dv' => [
-                'data.source_document_type' => 'required|in:pr,po,ca,lr,err,pda,crf,ibtf,arf',
+                'data.source_document_type' => 'required|in:ca,lr,err,pda,crf,ibtf,arf',
                 'data.source_document_id' => 'required',
                 'data.amount' => 'required|numeric|min:0',
                 'data.payment_type' => 'required|in:Cash,Check,Bank Transfer,E-Wallet',
+                'data.disbursement_type' => 'required|in:Cash,Check,Bank Transfer,Petty Cash',
                 'data.bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
                 'data.supplier_id' => ['nullable', $this->acceptedLinkedRecordRule('supplier')],
+                'data.fund_source' => 'nullable|string|max:255',
+                'data.department' => 'nullable|string|max:255',
+                'data.due_date' => 'nullable|date',
+                'data.prepared_by' => 'nullable|string|max:255',
+                'data.checked_by' => 'nullable|string|max:255',
+                'data.approved_by_name' => 'nullable|string|max:255',
+                'data.received_by_name' => 'nullable|string|max:255',
+                'data.received_by_signature' => 'nullable|string|max:255',
+                'data.date_received' => 'nullable|date',
+                'data.withholding_tax' => 'nullable|numeric|min:0',
+                'data.vat_amount' => 'nullable|numeric|min:0',
+                'data.net_amount' => 'nullable|numeric|min:0',
+                'data.currency' => 'nullable|string|max:10',
+                'data.exchange_rate' => 'nullable|numeric|min:0',
+                'data.line_items' => 'nullable|array',
+                'data.line_items.*.description' => 'nullable|string|max:1000',
+                'data.line_items.*.account_code' => 'nullable|string|max:255',
+                'data.line_items.*.debit' => 'nullable|numeric|min:0',
+                'data.line_items.*.credit' => 'nullable|numeric|min:0',
             ],
             'pda' => [
                 'data.total_payroll_amount' => 'required|numeric|min:0',
@@ -1375,6 +1514,7 @@ SVG;
                 'data.requestor' => 'required|string|max:255',
                 'data.linked_lr_id' => ['required', $this->acceptedLinkedRecordRule('lr', ['variance_indicator' => 'Overage'])],
                 'data.amount_returned' => 'required|numeric|min:0',
+                'data.manual_liquidation_entry' => 'nullable|boolean',
                 'data.receiving_bank_account_id' => ['required', $this->acceptedLinkedRecordRule('bank_account')],
                 'data.coa_id' => ['required', $this->acceptedLinkedRecordRule('chart_account')],
             ],
@@ -1498,8 +1638,6 @@ SVG;
             $sourceDocumentId = data_get($validated, 'data.source_document_id');
 
             $allowedModule = match ($sourceDocumentType) {
-                'pr' => 'pr',
-                'po' => 'po',
                 'ca' => 'ca',
                 'lr' => 'lr',
                 'err' => 'err',
@@ -1571,6 +1709,141 @@ SVG;
     {
         if ($moduleKey === 'supplier' && blank(data_get($data, 'completion_mode'))) {
             data_set($data, 'completion_mode', 'complete_internally');
+        }
+
+        if ($moduleKey === 'dv') {
+            $sourceType = (string) data_get($data, 'source_document_type', '');
+            $sourceId = data_get($data, 'source_document_id');
+            $sourceRecord = $sourceType && $sourceId
+                ? FinanceRecord::query()->where('module_key', $sourceType)->find($sourceId)
+                : null;
+
+            if ($sourceRecord) {
+                $sourcePayload = $this->fallbackDvPayload($sourceRecord);
+                foreach (['supplier_id', 'amount', 'coa_id', 'purpose', 'payment_date', 'remarks'] as $lockedField) {
+                    data_set($data, $lockedField, data_get($sourcePayload, $lockedField, data_get($data, $lockedField)));
+                }
+            }
+
+            if (blank(data_get($data, 'currency'))) {
+                data_set($data, 'currency', 'PHP');
+            }
+
+            if (blank(data_get($data, 'disbursement_type'))) {
+                data_set($data, 'disbursement_type', data_get($data, 'payment_type') ?: 'Cash');
+            }
+
+            if (blank(data_get($data, 'prepared_by'))) {
+                data_set($data, 'prepared_by', Auth::user()->name ?? 'Unknown User');
+            }
+
+            $amount = (float) data_get($data, 'amount', 0);
+            $withholdingTax = (float) data_get($data, 'withholding_tax', 0);
+            $vatAmount = (float) data_get($data, 'vat_amount', 0);
+            if (blank(data_get($data, 'net_amount'))) {
+                data_set($data, 'net_amount', max($amount + $vatAmount - $withholdingTax, 0));
+            }
+
+            $lineItems = array_values(array_filter((array) data_get($data, 'line_items', []), function ($item) {
+                return is_array($item) && collect($item)->contains(fn ($value) => !blank($value));
+            }));
+            data_set($data, 'line_items', $lineItems);
+        }
+
+        if ($moduleKey === 'lr') {
+            $lineItems = array_values(array_filter((array) data_get($data, 'line_items', []), function ($item) {
+                return is_array($item) && collect($item)->contains(fn ($value) => !blank($value));
+            }));
+
+            $subtotal = 0;
+            $discountTotal = 0;
+            $shippingTotal = 0;
+            $taxTotal = 0;
+            $whtTotal = 0;
+            $actualExpenses = 0;
+
+            foreach ($lineItems as $index => $item) {
+                $quantity = (float) data_get($item, 'quantity', 0);
+                $amount = (float) data_get($item, 'amount', 0);
+                $rowSubtotal = $quantity * $amount;
+                $discountPercent = (float) str_replace('%', '', (string) data_get($item, 'discount', '0'));
+                $manualDiscount = (float) data_get($item, 'discount_amount', 0);
+                $discountAmount = $discountPercent > 0 ? $rowSubtotal * ($discountPercent / 100) : $manualDiscount;
+                $shippingAmount = (float) data_get($item, 'shipping_amount', 0);
+                $taxAmount = (float) data_get($item, 'tax_amount', 0);
+                $whtAmount = (float) data_get($item, 'wht_amount', 0);
+                $rowTotal = $rowSubtotal - $discountAmount + $shippingAmount + $taxAmount - $whtAmount;
+
+                data_set($lineItems, "{$index}.subtotal", number_format($rowSubtotal, 2, '.', ''));
+                data_set($lineItems, "{$index}.discount_amount", number_format($discountAmount, 2, '.', ''));
+                data_set($lineItems, "{$index}.total", number_format($rowTotal, 2, '.', ''));
+
+                $subtotal += $rowSubtotal;
+                $discountTotal += $discountAmount;
+                $shippingTotal += $shippingAmount;
+                $taxTotal += $taxAmount;
+                $whtTotal += $whtAmount;
+                $actualExpenses += $rowTotal;
+            }
+
+            $cashAdvance = (float) data_get($data, 'total_cash_advance', 0);
+            $variance = $cashAdvance - $actualExpenses;
+            $varianceIndicator = $variance > 0 ? 'Overage' : ($variance < 0 ? 'Shortage' : 'Balanced');
+
+            data_set($data, 'line_items', $lineItems);
+            data_set($data, 'subtotal', number_format($subtotal, 2, '.', ''));
+            data_set($data, 'discount_total', number_format($discountTotal, 2, '.', ''));
+            data_set($data, 'shipping_total', number_format($shippingTotal, 2, '.', ''));
+            data_set($data, 'tax_total', number_format($taxTotal, 2, '.', ''));
+            data_set($data, 'wht_total', number_format($whtTotal, 2, '.', ''));
+            data_set($data, 'grand_total', number_format($actualExpenses, 2, '.', ''));
+            data_set($data, 'actual_expenses', number_format($actualExpenses, 2, '.', ''));
+            data_set($data, 'variance', number_format($variance, 2, '.', ''));
+            data_set($data, 'variance_indicator', $varianceIndicator);
+        }
+
+        if ($moduleKey === 'ibtf') {
+            $bankCodeFor = function (mixed $bankAccountId): string {
+                $bankAccount = blank($bankAccountId)
+                    ? null
+                    : FinanceRecord::query()->where('module_key', 'bank_account')->find($bankAccountId);
+                $linkedCoaId = data_get($bankAccount?->data, 'linked_coa_id');
+                $chartAccount = blank($linkedCoaId)
+                    ? null
+                    : FinanceRecord::query()->where('module_key', 'chart_account')->find($linkedCoaId);
+
+                return (string) (
+                    $chartAccount?->record_number
+                    ?: data_get($chartAccount?->data, 'account_code')
+                    ?: $linkedCoaId
+                    ?: $bankAccount?->record_number
+                    ?: ''
+                );
+            };
+
+            if (blank(data_get($data, 'source_account_code'))) {
+                data_set($data, 'source_account_code', $bankCodeFor(data_get($data, 'source_bank_account_id')));
+            }
+
+            if (blank(data_get($data, 'destination_account_code'))) {
+                data_set($data, 'destination_account_code', $bankCodeFor(data_get($data, 'destination_bank_account_id')));
+            }
+        }
+
+        if (in_array($moduleKey, ['err', 'crf'], true) && !filter_var(data_get($data, 'manual_liquidation_entry'), FILTER_VALIDATE_BOOLEAN)) {
+            $linkedLr = FinanceRecord::query()
+                ->where('module_key', 'lr')
+                ->find(data_get($data, 'linked_lr_id'));
+
+            if ($linkedLr) {
+                $variance = abs((float) data_get($linkedLr->data, 'variance', 0));
+                if ($moduleKey === 'err') {
+                    data_set($data, 'amount', number_format($variance, 2, '.', ''));
+                    data_set($data, 'expense_details', data_get($data, 'expense_details') ?: 'Shortage from linked liquidation report.');
+                } else {
+                    data_set($data, 'amount_returned', number_format($variance, 2, '.', ''));
+                }
+            }
         }
 
         return $data;
@@ -1683,7 +1956,7 @@ SVG;
             'record_number' => $recordNumber,
             'record_title' => $recordTitle,
             'record_date' => $recordDate,
-            'amount' => $request->amount,
+            'amount' => $request->module_key === 'dv' ? data_get($data, 'amount') : $request->amount,
             'status' => $request->status,
             'workflow_status' => $isApprover ? 'Accepted' : 'Uploaded',
             'approval_status' => $isApprover ? 'Approved' : 'Pending',
@@ -1744,7 +2017,7 @@ SVG;
             'record_number' => $recordNumber,
             'record_title' => $recordTitle,
             'record_date' => $recordDate,
-            'amount' => $request->amount,
+            'amount' => $request->module_key === 'dv' ? data_get($data, 'amount') : $request->amount,
             'status' => $request->status,
             'data' => $data,
             'attachments' => $attachments,
@@ -1928,16 +2201,21 @@ SVG;
             'data.phone_number' => 'required|string|max:255',
             'data.business_address' => 'nullable|string|max:1000',
             'data.billing_address' => 'nullable|string|max:1000',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx',
+            'attachment_category' => 'nullable|in:Invoice,OR,DR,Contract,Supporting Document',
         ]);
 
         $data = array_merge($record->data ?? [], $request->input('data', []));
         $data['business_name'] = $request->record_title;
+        $attachments = $this->persistAttachments($request, (array) ($record->attachments ?? []));
 
         $record->update([
             'record_number' => $request->record_number,
             'record_title' => $request->record_title,
             'record_date' => $request->record_date,
             'data' => $data,
+            'attachments' => $attachments,
             'workflow_status' => 'Submitted',
             'approval_status' => 'Pending',
             'supplier_completed_at' => now(),

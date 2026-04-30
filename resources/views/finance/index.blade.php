@@ -155,6 +155,17 @@
 
                             <div id="attachmentsSection">
                                 <label class="block text-sm font-medium mb-1 text-blue-700">Attachments</label>
+                                <select
+                                    id="attachmentCategoryInput"
+                                    name="attachment_category"
+                                    class="mb-2 w-full border border-blue-200 rounded-md p-2 bg-white text-sm"
+                                >
+                                    <option value="Supporting Document">Supporting Document</option>
+                                    <option value="Invoice">Invoice</option>
+                                    <option value="OR">OR</option>
+                                    <option value="DR">DR</option>
+                                    <option value="Contract">Contract</option>
+                                </select>
                                 <input
                                     id="attachmentsInput"
                                     name="attachments[]"
