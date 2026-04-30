@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Deal;
 use App\Models\DealProposal;
+use App\Models\DealStage;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\Service;
 use App\Services\DealProposalTemplateService;
+use App\Services\ProjectProvisioner;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\View as ViewFacade;
@@ -20,7 +25,10 @@ use Throwable;
 
 class DealProposalController extends Controller
 {
-    public function __construct(private readonly DealProposalTemplateService $templateService)
+    public function __construct(
+        private readonly DealProposalTemplateService $templateService,
+        private readonly ProjectProvisioner $projectProvisioner,
+    )
     {
     }
 
@@ -28,6 +36,7 @@ class DealProposalController extends Controller
     private const COMPANY_EMAIL = 'start@jknc.io';
     private const COMPANY_WEBSITE = 'jknc.io';
     private const COMPANY_ADDRESS = '3F, Cebu Holdings Center, Cebu Business Park, Cebu City, Philippines 6000.';
+    private const CLIENT_LINK_TTL_DAYS = 14;
 
     private const EXECUTIVE_SUMMARY = [
         "John Kelly & Company is a management consulting and corporate advisory company that assists businesses in growing, improving how they operate, and making better decisions for the future. With over 30 years of combined experience across the public and private sectors, the company works closely with organizations to strengthen systems, improve management discipline, and support compliance and governance needs with clarity and professionalism. John Kelly & Company is supported by a multidisciplinary team with legal, financial, operational, and governance expertise, including Atty. Jose B. Ogang, CPA, MMPSM, former Mediator-Arbiter of the Department of Labor and Employment (DOLE); Jose Tomayo Rio, MM-BA, CPA, former Municipal Accountant of LGU Madridejos, Cebu; Lyndon Earl P. Rio, RN, CB, with extensive experience as an accountant and bookkeeper across various industries; and John Kelly Abalde, CLSSBB, CPM, a corporate secretary and board director serving organizations across multiple industries-working together to support clients in managing their businesses effectively and sustainably.",
@@ -285,9 +294,13 @@ class DealProposalController extends Controller
     {
         $deal->loadMissing('contact', 'proposal');
 
-        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $proposal = $deal->proposal;
+        $readOnlyPreview = $proposal
+            && (strtolower((string) $proposal->status) === 'approved' || filled($proposal->client_approved_at));
 
-        return $this->renderProposalPage($deal, $proposal, false);
+        $proposal ??= DealProposal::create($this->defaultProposalPayload($deal));
+
+        return $this->renderProposalPage($deal, $proposal, (bool) $readOnlyPreview);
     }
 
     public function previewPage(Deal $deal): View
@@ -327,7 +340,7 @@ class DealProposalController extends Controller
             'documentData' => $documentData,
             'proposalDocumentHtml' => $this->resolveProposalDocumentHtml($documentData, $proposal->document_html, false),
             'generatedPdfUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath]) : null,
-            'generatedPdfDownloadUrl' => $generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath, 'download' => 1]) : null,
+            'generatedPdfDownloadUrl' => $proposal->exists ? route('deals.proposal.download', $deal) : ($generatedPdfPath ? route('uploads.show', ['path' => $generatedPdfPath, 'download' => 1]) : null),
             'requirementGroup' => $requirementGroup,
             'previewError' => $previewError,
             'readOnlyPreview' => $readOnlyPreview,
@@ -342,11 +355,329 @@ class DealProposalController extends Controller
         $validated = $this->validatedPayload($request);
 
         $proposal->fill($validated);
+        $proposal->status = $proposal->status === 'approved' ? 'approved' : 'saved';
         $proposal->save();
 
         return redirect()
             ->route('deals.proposal.show', $deal)
-            ->with('success', 'Proposal saved successfully.');
+            ->with('success', 'Saved current proposal changes. The downloadable PDF now uses these saved details.');
+    }
+
+    public function download(Deal $deal): Response
+    {
+        $deal->loadMissing('contact', 'proposal');
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+
+        return $this->proposalPdfDownloadResponse($deal, $proposal);
+    }
+
+    public function sendClientProposal(Request $request, Deal $deal): RedirectResponse
+    {
+        $deal->loadMissing('contact', 'proposal');
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(self::CLIENT_LINK_TTL_DAYS);
+        $recipientEmail = trim((string) $validated['recipient_email']);
+
+        $proposal->update([
+            'status' => 'sent',
+            'client_access_token' => $token,
+            'client_access_expires_at' => $expiresAt,
+            'client_form_sent_to_email' => $recipientEmail,
+            'client_form_sent_at' => now(),
+        ]);
+
+        $clientUrl = route('deals.proposal.client.show', ['token' => $token]);
+        $clientName = $this->clientNameForDeal($deal);
+
+        $emailHtml = view('emails.deals.proposal-client-link', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'clientName' => $clientName,
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $expiresAt,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $deal): void {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject('Proposal for '.($deal->company_name ?: $deal->deal_name ?: $deal->deal_code));
+        });
+
+        return redirect()
+            ->route('deals.proposal.show', $deal)
+            ->with('success', "Proposal saved link sent to {$recipientEmail}.")
+            ->with('proposal_client_link', $clientUrl);
+    }
+
+    public function clientProposal(Request $request, string $token): View
+    {
+        $proposal = $this->findProposalByClientToken($token);
+        $this->abortExpiredClientProposal($proposal);
+        $deal = $proposal->deal()->with('contact')->firstOrFail();
+        $documentData = $this->documentData($deal, $proposal);
+
+        return view('deals.proposal.client-form', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'proposalDocumentHtml' => $this->resolveProposalDocumentHtml($documentData, $proposal->document_html, false),
+            'downloadUrl' => route('deals.proposal.client.download', ['token' => $token]),
+            'approveUrl' => route('deals.proposal.client.approve', ['token' => $token]),
+        ]);
+    }
+
+    public function approveClientProposal(Request $request, string $token): RedirectResponse
+    {
+        $proposal = $this->findProposalByClientToken($token);
+        $this->abortExpiredClientProposal($proposal);
+
+        $validated = $request->validate([
+            'client_name' => ['nullable', 'string', 'max:255'],
+            'approval_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $deal = $proposal->deal;
+        $clientName = trim((string) ($validated['client_name'] ?? '')) ?: $this->clientNameForDeal($deal);
+
+        $proposal->update([
+            'status' => 'approved',
+            'client_approved_at' => now(),
+            'client_approved_by_name' => $clientName,
+            'client_approval_note' => trim((string) ($validated['approval_note'] ?? '')) ?: null,
+        ]);
+
+        $deal?->update([
+            'proposal_decision' => 'Approved',
+        ]);
+
+        if ($deal) {
+            $this->moveDealToStage($deal, 'Negotiation');
+        }
+
+        return redirect()
+            ->route('deals.proposal.client.show', ['token' => $token])
+            ->with('success', 'Proposal approved successfully. Thank you.');
+    }
+
+    public function downloadClientProposal(string $token): Response
+    {
+        $proposal = $this->findProposalByClientToken($token);
+        $this->abortExpiredClientProposal($proposal);
+        $deal = $proposal->deal()->with('contact')->firstOrFail();
+
+        return $this->proposalPdfDownloadResponse($deal, $proposal);
+    }
+
+    public function sendClientQuotation(Request $request, Deal $deal): RedirectResponse
+    {
+        $deal->loadMissing('contact', 'proposal');
+
+        $validated = $request->validate([
+            'recipient_email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $token = $this->ensureClientAccessToken($proposal);
+        $recipientEmail = trim((string) $validated['recipient_email']);
+        $clientUrl = route('deals.proposal.client.show', ['token' => $token]);
+
+        $emailHtml = view('emails.deals.quotation-client-link', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'clientName' => $this->clientNameForDeal($deal),
+            'clientUrl' => $clientUrl,
+            'expiresAt' => $proposal->client_access_expires_at,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $deal): void {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject('Quotation for '.($deal->company_name ?: $deal->deal_name ?: $deal->deal_code));
+        });
+
+        return redirect()
+            ->route('deals.show', $deal)
+            ->with('success', "Quotation link sent to {$recipientEmail}.")
+            ->with('proposal_client_link', $clientUrl);
+    }
+
+    public function sendFinanceQuotation(Request $request, Deal $deal): RedirectResponse
+    {
+        $deal->loadMissing('contact', 'proposal', 'assignedFinance');
+
+        $validated = $request->validate([
+            'recipient_email' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $recipientEmail = trim((string) ($deal->assignedFinance?->email ?: ($validated['recipient_email'] ?? '')));
+        if ($recipientEmail === '') {
+            return redirect()
+                ->route('deals.show', $deal)
+                ->with('error', 'Assign a finance user or enter a finance email before sending the quotation.');
+        }
+        $proposalUrl = route('deals.quotation.finance', $deal);
+
+        $emailHtml = view('emails.deals.quotation-finance-link', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'financeName' => $deal->assignedFinance?->name,
+            'clientName' => $this->clientNameForDeal($deal),
+            'proposalUrl' => $proposalUrl,
+        ])->render();
+
+        Mail::html($emailHtml, function ($message) use ($recipientEmail, $deal): void {
+            $message
+                ->from(config('mail.from.address'), 'John Kelly & Company')
+                ->to($recipientEmail)
+                ->subject('Immediate Issuance of Quotation');
+        });
+
+        return redirect()
+            ->route('deals.show', $deal)
+            ->with('success', "Quotation sent to finance at {$recipientEmail}.");
+    }
+
+    public function financeQuotation(Deal $deal): View
+    {
+        $deal->loadMissing('contact', 'proposal', 'assignedFinance');
+
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $documentData = $this->documentData($deal, $proposal);
+
+        return view('deals.quotation.finance', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'documentData' => $documentData,
+            'clientName' => $this->clientNameForDeal($deal),
+            'proposalDownloadUrl' => route('deals.proposal.download', $deal),
+        ]);
+    }
+
+    public function approveQuotation(Deal $deal): RedirectResponse
+    {
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+
+        if ($proposal->quotation_approved_at || $proposal->quotation_status === 'approved') {
+            return redirect()
+                ->route('deals.quotation.finance', $deal)
+                ->with('success', 'Quotation is already approved.');
+        }
+
+        $proposal->update([
+            'quotation_status' => 'approved',
+            'quotation_approved_at' => now(),
+            'quotation_approved_by_name' => auth()->user()?->name ?: 'Finance',
+        ]);
+        $this->moveDealToStage($deal, 'Payment');
+
+        return redirect()
+            ->route('deals.quotation.finance', $deal)
+            ->with('success', 'Quotation marked as approved. Deal moved to Payment.');
+    }
+
+    public function uploadFinanceQuotation(Request $request, Deal $deal): RedirectResponse
+    {
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        if ($proposal->quotation_approved_at || $proposal->quotation_status === 'approved') {
+            return redirect()
+                ->route('deals.quotation.finance', $deal)
+                ->with('error', 'Approved quotations cannot be replaced unless the deal is renegotiated.');
+        }
+        $this->storeQuotationUpload($request, $proposal, 'finance');
+
+        return redirect()
+            ->route('deals.quotation.finance', $deal)
+            ->with('success', 'Finance quotation uploaded.');
+    }
+
+    public function paymentInvoice(Deal $deal): View
+    {
+        $deal->loadMissing('contact', 'proposal', 'assignedFinance');
+
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        $documentData = $this->documentData($deal, $proposal);
+
+        return view('deals.invoice.payment', [
+            'deal' => $deal,
+            'proposal' => $proposal,
+            'documentData' => $documentData,
+            'clientName' => $this->clientNameForDeal($deal),
+        ]);
+    }
+
+    public function uploadInvoice(Request $request, Deal $deal): RedirectResponse
+    {
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+        if ($proposal->payment_confirmed_at || $proposal->invoice_status === 'payment_confirmed') {
+            return redirect()
+                ->route('deals.invoice.payment', $deal)
+                ->with('error', 'Invoices cannot be replaced after payment is confirmed.');
+        }
+        $this->storeInvoiceUpload($request, $proposal);
+
+        return redirect()
+            ->route('deals.invoice.payment', $deal)
+            ->with('success', 'Invoice uploaded successfully.');
+    }
+
+    public function confirmPayment(Deal $deal): RedirectResponse
+    {
+        $proposal = $deal->proposal ?: DealProposal::create($this->defaultProposalPayload($deal));
+
+        if ($proposal->payment_confirmed_at || $proposal->invoice_status === 'payment_confirmed') {
+            return redirect()
+                ->route('deals.invoice.payment', $deal)
+                ->with('success', 'Payment is already confirmed.');
+        }
+
+        $proposal->forceFill([
+            'invoice_status' => 'payment_confirmed',
+            'payment_confirmed_at' => now(),
+            'payment_confirmed_by_name' => auth()->user()?->name ?: 'Finance',
+        ])->save();
+
+        $freshDeal = $deal->fresh();
+        if ($freshDeal) {
+            $this->projectProvisioner->createOrSyncFromDeal($freshDeal);
+            $workspaces = $freshDeal->projects()->with('starts')->get();
+
+            foreach ($workspaces as $workspace) {
+                $start = $workspace->starts()->latest()->first();
+                if ($start && strtolower((string) $start->status) !== 'approved') {
+                    $start->forceFill([
+                        'status' => 'pending_approval',
+                        'approved_at' => null,
+                        'approved_by_name' => null,
+                        'rejected_at' => null,
+                        'rejected_by_name' => null,
+                        'rejection_reason' => null,
+                    ])->save();
+                }
+            }
+        }
+
+        return redirect()
+            ->route('deals.invoice.payment', $deal)
+            ->with('success', 'Payment confirmed. START has been submitted for approval.');
+    }
+
+    public function uploadClientQuotation(Request $request, string $token): RedirectResponse
+    {
+        $proposal = $this->findProposalByClientToken($token);
+        $this->abortExpiredClientProposal($proposal);
+        $this->storeQuotationUpload($request, $proposal, 'client');
+
+        return redirect()
+            ->route('deals.proposal.client.show', ['token' => $token])
+            ->with('success', 'Quotation uploaded successfully.');
     }
 
     public function preview(Request $request, Deal $deal): JsonResponse
@@ -457,7 +788,7 @@ class DealProposalController extends Controller
         );
         $serviceTotal = $this->resolveAmount($proposal->price_regular, $deal->total_service_fee);
         $productTotal = $this->resolveAmount(null, $deal->total_product_fee);
-        $discount = $this->resolveAmount($proposal->price_discount, null);
+        $discount = $this->resolveAmount($proposal->price_discount, $deal->deal_discount ?? null);
         $tax = $this->resolveAmount($proposal->price_tax, null);
         $serviceFeeRows = $this->buildFeeRows(
             $this->normalizeListValue($deal->services),
@@ -800,7 +1131,7 @@ class DealProposalController extends Controller
     {
         $serviceTotal = round((float) ($deal->total_service_fee ?? 0), 2);
         $productTotal = round((float) ($deal->total_product_fee ?? 0), 2);
-        $discount = 0.0;
+        $discount = round((float) ($deal->deal_discount ?? 0), 2);
         $tax = 0.0;
         $subtotal = max(($serviceTotal + $productTotal) - $discount, 0);
         $total = $subtotal + $tax;
@@ -928,5 +1259,126 @@ class DealProposalController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function proposalPdfDownloadResponse(Deal $deal, DealProposal $proposal): Response
+    {
+        $documentData = $this->documentData($deal, $proposal);
+        $pdf = Pdf::loadView('deals.proposal.pdf', [
+            'documentData' => $documentData,
+            'proposalHtml' => $this->resolveProposalDocumentHtml($documentData, $proposal->document_html, false),
+        ])->setPaper('a4', 'portrait');
+
+        $fileName = Str::slug((string) ($proposal->reference_id ?: $deal->deal_code ?: 'proposal')).'.pdf';
+
+        return $pdf->download($fileName);
+    }
+
+    private function findProposalByClientToken(string $token): DealProposal
+    {
+        return DealProposal::query()
+            ->where('client_access_token', $token)
+            ->firstOrFail();
+    }
+
+    private function ensureClientAccessToken(DealProposal $proposal): string
+    {
+        if (filled($proposal->client_access_token) && ! ($proposal->client_access_expires_at?->isPast())) {
+            return (string) $proposal->client_access_token;
+        }
+
+        $proposal->forceFill([
+            'client_access_token' => Str::random(64),
+            'client_access_expires_at' => now()->addDays(self::CLIENT_LINK_TTL_DAYS),
+        ])->save();
+
+        return (string) $proposal->client_access_token;
+    }
+
+    private function storeQuotationUpload(Request $request, DealProposal $proposal, string $source): void
+    {
+        $validated = $request->validate([
+            'quotation_file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+        ]);
+
+        $path = $validated['quotation_file']->store("deal-proposals/{$proposal->id}/quotations", 'public');
+        $column = $source === 'client' ? 'quotation_client_file_path' : 'quotation_finance_file_path';
+
+        if ($proposal->{$column} && Storage::disk('public')->exists($proposal->{$column})) {
+            Storage::disk('public')->delete($proposal->{$column});
+        }
+
+        $proposal->forceFill([
+            $column => $path,
+            'quotation_status' => $source === 'finance' ? 'uploaded' : ($proposal->quotation_status ?: 'client_uploaded'),
+        ])->save();
+    }
+
+    private function storeInvoiceUpload(Request $request, DealProposal $proposal): void
+    {
+        $validated = $request->validate([
+            'invoice_file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+        ]);
+
+        $path = $validated['invoice_file']->store("deal-proposals/{$proposal->id}/invoices", 'public');
+
+        if ($proposal->invoice_file_path && Storage::disk('public')->exists($proposal->invoice_file_path)) {
+            Storage::disk('public')->delete($proposal->invoice_file_path);
+        }
+
+        $proposal->forceFill([
+            'invoice_file_path' => $path,
+            'invoice_status' => 'uploaded',
+            'invoice_uploaded_at' => now(),
+        ])->save();
+    }
+
+    private function moveDealToStage(Deal $deal, string $stageName): void
+    {
+        $payload = ['stage' => $stageName];
+
+        if (Schema::hasTable('deal_stages') && Schema::hasColumn('deals', 'stage_id')) {
+            $stage = DealStage::query()
+                ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower(trim($stageName))])
+                ->first();
+
+            if (! $stage) {
+                $maxOrder = (int) DealStage::query()->max('order');
+                $stage = DealStage::query()->create([
+                    'name' => $stageName,
+                    'order' => $maxOrder + 1,
+                    'color' => $stageName === 'Activation' ? '#7c3aed' : ($stageName === 'Payment' ? '#059669' : '#1e293b'),
+                ]);
+            }
+
+            $stageId = $stage->id;
+            if ($stageId) {
+                $payload['stage_id'] = $stageId;
+            }
+        }
+
+        $deal->update($payload);
+    }
+
+    private function abortExpiredClientProposal(DealProposal $proposal): void
+    {
+        abort_if(
+            $proposal->client_access_expires_at && $proposal->client_access_expires_at->isPast(),
+            403,
+            'This proposal link has expired.'
+        );
+    }
+
+    private function clientNameForDeal(?Deal $deal): string
+    {
+        if (! $deal) {
+            return 'Client';
+        }
+
+        return trim(collect([
+            $deal->first_name ?: $deal->contact?->first_name,
+            $deal->middle_name ?: $deal->contact?->middle_name,
+            $deal->last_name ?: $deal->contact?->last_name,
+        ])->filter()->implode(' ')) ?: ($deal->company_name ?: 'Client');
     }
 }

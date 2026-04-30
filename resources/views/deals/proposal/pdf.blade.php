@@ -6,6 +6,24 @@
         $mime = mime_content_type($logoPath) ?: 'image/png';
         $logoSrc = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
     }
+
+    $pdfProposalHtml = $proposalHtml ?? null;
+
+    if (!empty($pdfProposalHtml) && $logoSrc) {
+        $pdfProposalHtml = preg_replace_callback('/<img\b[^>]*>/i', function ($matches) use ($logoSrc) {
+            $tag = $matches[0];
+
+            if (!preg_match('/\bclass=["\'][^"\']*\bproposal-brand-logo\b[^"\']*["\']/i', $tag)) {
+                return $tag;
+            }
+
+            if (preg_match('/\bsrc=["\'][^"\']*["\']/i', $tag)) {
+                return preg_replace('/\bsrc=["\'][^"\']*["\']/i', 'src="' . $logoSrc . '"', $tag, 1) ?? $tag;
+            }
+
+            return preg_replace('/<img\b/i', '<img src="' . $logoSrc . '"', $tag, 1) ?? $tag;
+        }, $pdfProposalHtml) ?? $pdfProposalHtml;
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -13,11 +31,12 @@
     <meta charset="UTF-8">
     <title>Deal Proposal</title>
     <style>
-        @page { size: A4 portrait; margin: 32px 36px; }
-        body { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.58; }
-        .proposal-page { page-break-after: always; position: relative; padding: 0 22px 70px; }
+        @page { size: A4 portrait; margin: 44px 52px 70px; }
+        body { margin: 0; font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.58; }
+        .proposal-doc { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.58; }
+        .proposal-page { page-break-after: always; position: relative; overflow: hidden; background: #fff; }
         .proposal-page:last-child { page-break-after: auto; }
-        .proposal-inner-page { min-height: 960px; padding-top: 26px; }
+        .proposal-inner-page { min-height: 900px; padding-top: 52px; }
         .proposal-page-body { width: 100%; }
         .proposal-cover { min-height: 980px; position: relative; }
         .proposal-cover-logo-wrap { width: 100%; }
@@ -28,13 +47,13 @@
         .proposal-cover-date { margin-top: 60px; font-size: 14px; color: #111827; font-style: italic; }
         .proposal-presented-label { margin-top: 70px; font-size: 15px; font-style: italic; }
         .proposal-presented-name, .proposal-presented-location { margin-top: 10px; font-size: 16px; font-weight: 700; font-style: italic; }
-        .proposal-cover-footer { position: absolute; left: 8px; right: 8px; bottom: 26px; }
+        .proposal-cover-footer { position: absolute; left: 6px; right: 6px; bottom: 10px; }
         .proposal-contact-strip { margin: 0; text-align: center; color: #0031af; font-style: italic; }
         .proposal-contact-inline { width: 100%; text-align: center; font-size: 12px; }
         .proposal-contact-inline span { display: inline-block; margin: 0 14px; }
         .proposal-contact-address { margin-top: 4px; text-align: center; color: #0031af; font-size: 13px; font-style: italic; }
-        .proposal-page-footer { position: absolute; left: 22px; right: 22px; bottom: 0; font-size: 10px; line-height: 1.2; color: #111827; }
-        .proposal-page-number { position: absolute; top: 0; right: 22px; font-size: 11px; font-weight: 700; color: #111827; }
+        .proposal-page-footer { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; line-height: 1.2; color: #111827; }
+        .proposal-page-number { position: absolute; top: 0; right: 0; font-size: 11px; font-weight: 700; color: #111827; }
         .proposal-page-footer div { margin: 0; }
         .proposal-section-heading { margin: 10px 0 18px; font-size: 18px; line-height: 1.22; color: #0031af; font-style: italic; font-weight: 700; letter-spacing: 0.01em; }
         .proposal-section-number { display: inline-block; min-width: 34px; margin-right: 8px; }
@@ -104,8 +123,8 @@
     </style>
 </head>
 <body>
-    @if (!empty($proposalHtml ?? null))
-        {!! $proposalHtml !!}
+    @if (!empty($pdfProposalHtml ?? null))
+        {!! $pdfProposalHtml !!}
     @else
         @include('deals.proposal.partials.document', ['documentData' => $documentData])
     @endif

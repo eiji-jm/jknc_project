@@ -124,8 +124,9 @@
     <div class="grid grid-cols-12 border-b border-gray-700">
         <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Professional Fee</div><div class="mt-1 min-h-5">{{ $text('estimated_professional_fee') }}</div></div>
         <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Government Fees</div><div class="mt-1 min-h-5">{{ $text('estimated_government_fees') }}</div></div>
-        <div class="col-span-3 border-r border-gray-700 p-2"><div class="text-[10px]">Service Support Fee</div><div class="mt-1 min-h-5">{{ $text('estimated_service_support_fee') }}</div></div>
-        <div class="col-span-3 p-2"><div class="text-[10px]">Total Value</div><div class="mt-1 min-h-5">{{ $text('total_estimated_engagement_value') }}</div></div>
+        <div class="col-span-2 border-r border-gray-700 p-2"><div class="text-[10px]">Service Support Fee</div><div class="mt-1 min-h-5">{{ $text('estimated_service_support_fee') }}</div></div>
+        <div class="col-span-2 border-r border-gray-700 p-2"><div class="text-[10px]">Discount</div><div class="mt-1 min-h-5">{{ $text('deal_discount') }}</div></div>
+        <div class="col-span-2 p-2"><div class="text-[10px]">Total Value</div><div class="mt-1 min-h-5">{{ $text('total_estimated_engagement_value') }}</div></div>
     </div>
     <div class="border-b border-gray-700 p-2"><div class="text-[10px]">Payment Terms</div><div class="mt-1 min-h-5">{{ $text('payment_terms') }} {{ filled($data['payment_terms_other'] ?? null) ? '- '.$data['payment_terms_other'] : '' }}</div></div>
 

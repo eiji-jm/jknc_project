@@ -31,6 +31,26 @@ class DealProposal extends Model
         'prepared_by_name',
         'prepared_by_id',
         'document_html',
+        'status',
+        'client_access_token',
+        'client_access_expires_at',
+        'client_form_sent_to_email',
+        'client_form_sent_at',
+        'client_approved_at',
+        'client_approved_by_name',
+        'client_approval_note',
+        'quotation_status',
+        'quotation_finance_file_path',
+        'quotation_client_file_path',
+        'quotation_finance_started_at',
+        'quotation_approved_at',
+        'quotation_approved_by_name',
+        'invoice_status',
+        'invoice_file_path',
+        'invoice_generated_at',
+        'invoice_uploaded_at',
+        'payment_confirmed_at',
+        'payment_confirmed_by_name',
     ];
 
     protected $casts = [
@@ -42,6 +62,14 @@ class DealProposal extends Model
         'price_total' => 'decimal:2',
         'price_down' => 'decimal:2',
         'price_balance' => 'decimal:2',
+        'client_access_expires_at' => 'datetime',
+        'client_form_sent_at' => 'datetime',
+        'client_approved_at' => 'datetime',
+        'quotation_finance_started_at' => 'datetime',
+        'quotation_approved_at' => 'datetime',
+        'invoice_generated_at' => 'datetime',
+        'invoice_uploaded_at' => 'datetime',
+        'payment_confirmed_at' => 'datetime',
     ];
 
     public function deal(): BelongsTo

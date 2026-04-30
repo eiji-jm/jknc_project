@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\GeneratesPdfPreview;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Deal;
+use App\Models\DealStage;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectNtp;
@@ -504,6 +505,7 @@ class ProjectController extends Controller
             'rejection_reason' => null,
         ])->save();
         $this->ensureServiceMemoGenerated($project, $start, $project->sows()->latest()->first());
+        $this->moveLinkedDealToStage($project, 'Activation');
 
         return redirect()
             ->route('admin.dashboard')
@@ -1315,6 +1317,28 @@ class ProjectController extends Controller
         $start->save();
 
         return $pdfPath;
+    }
+
+    private function moveLinkedDealToStage(Project $project, string $stageName): void
+    {
+        $deal = $project->deal()->first();
+        if (! $deal) {
+            return;
+        }
+
+        $payload = ['stage' => $stageName];
+
+        if (Schema::hasTable('deal_stages') && Schema::hasColumn('deals', 'stage_id')) {
+            $stage = DealStage::query()
+                ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower(trim($stageName))])
+                ->first();
+
+            if ($stage) {
+                $payload['stage_id'] = $stage->id;
+            }
+        }
+
+        $deal->forceFill($payload)->save();
     }
 
     private function resolveCurrentStart(Project $project): ?ProjectStart

@@ -6,6 +6,7 @@
     $panelTitle = $panelTitle ?? 'Create Deal';
     $panelSubtitle = $panelSubtitle ?? 'Select an existing client, then complete the consulting and deal form.';
     $draft = $dealDraft ?? [];
+    $financeUsers = $financeUsers ?? [];
     $contactRecords = $contactRecords ?? [];
     $companyRecords = $companyRecords ?? [];
     $serviceRequirementCatalog = $serviceRequirementCatalog ?? [];
@@ -313,6 +314,7 @@
     $selectedOwner = collect($owners)->firstWhere('id', (int) old('owner_id', $defaultOwnerId)) ?: collect($owners)->first();
     $selectedOwnerId = (int) ($selectedOwner['id'] ?? $defaultOwnerId ?? 0);
     $selectedOwnerName = $selectedOwner['name'] ?? $ownerLabel ?? 'Select Owner';
+    $selectedFinanceUserId = (int) old('assigned_finance_user_id', $draft['assigned_finance_user_id'] ?? 0);
     $currentUserName = auth()->user()->name ?? 'System';
     $draftDealCode = old('deal_code', $draft['deal_code'] ?? 'Auto-generated after save');
     $draftCreatedBy = old('created_by', $draft['created_by'] ?? $currentUserName);
@@ -723,6 +725,10 @@
                                     'estimated_service_support_fee',
                                     $draft['estimated_service_support_fee'] ?? ''
                                 );
+                                $dealDiscountValue = old(
+                                    'deal_discount',
+                                    $draft['deal_discount'] ?? ''
+                                );
                                 $totalEstimatedValue = old(
                                     'total_estimated_value',
                                     old('total_estimated_engagement_value', $draft['total_estimated_value'] ?? ($draft['total_estimated_engagement_value'] ?? ''))
@@ -748,7 +754,38 @@
                                 <div><label for="estimated_service_support_fee" class="mb-1 block text-sm font-medium text-gray-700">Estimated Service Support Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="estimated_service_support_fee" name="estimated_service_support_fee" inputmode="decimal" value="{{ $numericFieldValue($estimatedServiceSupportFeeValue) }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                 <div><label for="total_service_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Service Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_service_fee" name="total_service_fee" value="{{ $numericFieldValue(old('total_service_fee', $draft['total_service_fee'] ?? '')) }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                 <div><label for="total_product_fee" class="mb-1 block text-sm font-medium text-gray-700">Total Product Fee</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_product_fee" name="total_product_fee" value="{{ $numericFieldValue(old('total_product_fee', $draft['total_product_fee'] ?? '')) }}" readonly class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                                <div><label for="deal_discount" class="mb-1 block text-sm font-medium text-gray-700">Discount</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="deal_discount" name="deal_discount" inputmode="decimal" value="{{ $numericFieldValue($dealDiscountValue) }}" class="h-10 w-full rounded-lg border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
                                 <div><label for="total_estimated_engagement_value" class="mb-1 block text-sm font-medium text-gray-700">Total Estimated Engagement Value</label><div class="relative"><span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">P</span><input id="total_estimated_engagement_value" name="total_estimated_engagement_value" value="{{ $numericFieldValue($totalEstimatedValue) }}" class="h-10 w-full rounded-lg border border-gray-300 bg-gray-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div></div>
+                            </div>
+                            <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                                <div class="overflow-hidden rounded-xl border border-gray-200">
+                                    <div class="border-b border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">Services Pricing Guide</div>
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-white text-xs uppercase tracking-wide text-gray-500">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left font-semibold">Service</th>
+                                                <th class="px-3 py-2 text-right font-semibold">Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedServicesPricingRows" class="divide-y divide-gray-100">
+                                            <tr data-empty-row><td colspan="2" class="px-3 py-3 text-center text-xs text-gray-500">Select a service area to show service prices.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="overflow-hidden rounded-xl border border-gray-200">
+                                    <div class="border-b border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">Products Pricing Guide</div>
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-white text-xs uppercase tracking-wide text-gray-500">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left font-semibold">Product</th>
+                                                <th class="px-3 py-2 text-right font-semibold">Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedProductsPricingRows" class="divide-y divide-gray-100">
+                                            <tr data-empty-row><td colspan="2" class="px-3 py-3 text-center text-xs text-gray-500">Select a matching service area to show product prices.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                             <div id="otherFeesRows" class="mt-3 space-y-3">
                                 @for ($i = 0; $i < $otherFeesRowCount; $i++)
@@ -909,7 +946,18 @@
                                 <div><label for="internal_sales_marketing" class="mb-1 block text-sm font-medium text-gray-700">Sales & Marketing</label><input id="internal_sales_marketing" name="internal_sales_marketing" value="{{ old('internal_sales_marketing', $draft['internal_sales_marketing'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="lead_consultant" class="mb-1 block text-sm font-medium text-gray-700">Lead Consultant</label><input id="lead_consultant" name="lead_consultant" value="{{ old('lead_consultant', $draft['lead_consultant'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                                 <div><label for="lead_associate_assigned" class="mb-1 block text-sm font-medium text-gray-700">Lead Associate Assigned</label><input id="lead_associate_assigned" name="lead_associate_assigned" value="{{ old('lead_associate_assigned', $draft['lead_associate_assigned'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
-                                <div><label for="internal_finance" class="mb-1 block text-sm font-medium text-gray-700">Finance</label><input id="internal_finance" name="internal_finance" value="{{ old('internal_finance', $draft['internal_finance'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
+                                <div>
+                                    <label for="assigned_finance_user_id" class="mb-1 block text-sm font-medium text-gray-700">Finance</label>
+                                    <select id="assigned_finance_user_id" name="assigned_finance_user_id" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" onchange="this.form.querySelector('[name=internal_finance]').value = this.options[this.selectedIndex]?.dataset.name || ''">
+                                        <option value="">Assign finance</option>
+                                        @foreach ($financeUsers as $financeUser)
+                                            <option value="{{ $financeUser['id'] }}" data-name="{{ $financeUser['name'] }}" @selected($selectedFinanceUserId === (int) $financeUser['id'])>
+                                                {{ $financeUser['name'] }}{{ filled($financeUser['email'] ?? null) ? ' - '.$financeUser['email'] : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <input type="hidden" name="internal_finance" value="{{ old('internal_finance', $draft['internal_finance'] ?? '') }}">
+                                </div>
                                 <div><label for="internal_president" class="mb-1 block text-sm font-medium text-gray-700">President</label><input id="internal_president" name="internal_president" value="{{ old('internal_president', $draft['internal_president'] ?? '') }}" class="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></div>
                             </div>
                         </section>
@@ -957,10 +1005,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('[name="estimated_service_support_fee"]'),
         document.querySelector('[name="total_service_fee"]'),
         document.querySelector('[name="total_product_fee"]'),
+        document.querySelector('[name="deal_discount"]'),
     ].filter(Boolean);
     const totalInput = document.querySelector('[name="total_estimated_value"]') || document.querySelector('[name="total_estimated_engagement_value"]');
     const otherFeesRows = document.getElementById('otherFeesRows');
     const addOtherFeeBtn = document.getElementById('addOtherFeeBtn');
+    const selectedServicesPricingRows = document.getElementById('selectedServicesPricingRows');
+    const selectedProductsPricingRows = document.getElementById('selectedProductsPricingRows');
     const contactRecords = @json($contactRecords);
     const companyRecords = @json($companyRecords ?? []);
     const servicePricing = @json($servicePricing);
@@ -1191,27 +1242,123 @@ document.addEventListener('DOMContentLoaded', function () {
         return row;
     };
 
-    const recalculateSectionTotals = () => {
-        const selectedServices = Array.from(document.querySelectorAll('input[name="service_options[]"]:checked'))
-            .reduce((sum, input) => sum + normalizeCurrency(servicePricing[input.value] ?? 0), 0);
-        const customServices = Array.from(document.querySelectorAll('input[name="services_other[]"]'))
-            .reduce((sum) => sum + customServicePrice, 0);
+    const formatCurrency = (value) => `P${Number(value || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })}`;
 
-        const selectedProducts = Array.from(document.querySelectorAll('input[name="product_options[]"]:checked'))
+    const renderPricingRows = (tbody, rows, emptyText) => {
+        if (!tbody) {
+            return;
+        }
+
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr data-empty-row><td colspan="2" class="px-3 py-3 text-center text-xs text-gray-500">${emptyText}</td></tr>`;
+            return;
+        }
+
+        tbody.replaceChildren(...rows.map((row) => {
+            const tr = document.createElement('tr');
+            const name = document.createElement('td');
+            name.className = 'px-3 py-2 text-gray-700';
+            name.textContent = row.name;
+            const price = document.createElement('td');
+            price.className = 'px-3 py-2 text-right font-medium text-gray-900';
+            price.textContent = formatCurrency(row.price);
+            tr.append(name, price);
+            return tr;
+        }));
+    };
+
+    const selectedServiceRows = () => {
+        const selected = Array.from(document.querySelectorAll('input[name="service_options[]"]:checked'))
+            .filter((input) => Object.prototype.hasOwnProperty.call(servicePricing, input.value))
+            .map((input) => ({
+                name: input.value,
+                price: normalizeCurrency(servicePricing[input.value] ?? 0),
+            }));
+        const custom = Array.from(document.querySelectorAll('input[name="services_other[]"]'))
+            .filter((input) => String(input.value || '').trim() !== '')
+            .map((input) => ({
+                name: input.value,
+                price: customServicePrice,
+            }));
+
+        return [...selected, ...custom];
+    };
+
+    const selectedProductRows = () => {
+        const selected = Array.from(document.querySelectorAll('input[name="product_options[]"]:checked'))
             .filter((input) => input.value !== 'Others')
-            .reduce((sum, input) => sum + normalizeCurrency(productPricing[input.value] ?? 0), 0);
-        const customProducts = Array.from(document.querySelectorAll('input[name="products_other_entries[]"]'))
-            .reduce((sum) => sum + customProductPrice, 0);
+            .filter((input) => Object.prototype.hasOwnProperty.call(productPricing, input.value))
+            .map((input) => ({
+                name: input.value,
+                price: normalizeCurrency(productPricing[input.value] ?? 0),
+            }));
+        const custom = Array.from(document.querySelectorAll('input[name="products_other_entries[]"]'))
+            .filter((input) => String(input.value || '').trim() !== '')
+            .map((input) => ({
+                name: input.value,
+                price: customProductPrice,
+            }));
+
+        return [...selected, ...custom];
+    };
+
+    const serviceGuideRows = () => {
+        const visibleCatalogRows = Array.from(document.querySelectorAll('input[name="service_options[]"][data-service-group-option]'))
+            .filter((input) => !input.closest('[data-service-group]')?.classList.contains('hidden'))
+            .map((input) => ({
+                name: input.value,
+                price: normalizeCurrency(servicePricing[input.value] ?? 0),
+            }));
+        const customRows = Array.from(document.querySelectorAll('input[name="services_other[]"]'))
+            .filter((input) => String(input.value || '').trim() !== '')
+            .map((input) => ({
+                name: input.value,
+                price: customServicePrice,
+            }));
+
+        return [...visibleCatalogRows, ...customRows];
+    };
+
+    const productGuideRows = () => {
+        const visibleCatalogRows = Array.from(document.querySelectorAll('input[name="product_options[]"]'))
+            .filter((input) => input.value !== 'Others')
+            .filter((input) => Object.prototype.hasOwnProperty.call(productPricing, input.value))
+            .filter((input) => !input.closest('[data-product-option]')?.classList.contains('hidden'))
+            .map((input) => ({
+                name: input.value,
+                price: normalizeCurrency(productPricing[input.value] ?? 0),
+            }));
+        const customRows = Array.from(document.querySelectorAll('input[name="products_other_entries[]"]'))
+            .filter((input) => String(input.value || '').trim() !== '')
+            .map((input) => ({
+                name: input.value,
+                price: customProductPrice,
+            }));
+
+        return [...visibleCatalogRows, ...customRows];
+    };
+
+    const renderSelectedPricingGuides = () => {
+        renderPricingRows(selectedServicesPricingRows, serviceGuideRows(), 'Select a service area to show service prices.');
+        renderPricingRows(selectedProductsPricingRows, productGuideRows(), 'Select a matching service area to show product prices.');
+    };
+
+    const recalculateSectionTotals = () => {
+        const selectedServices = selectedServiceRows().reduce((sum, row) => sum + normalizeCurrency(row.price), 0);
+        const selectedProducts = selectedProductRows().reduce((sum, row) => sum + normalizeCurrency(row.price), 0);
 
         if (serviceFeeInput) {
-            const serviceTotal = selectedServices + customServices;
-            serviceFeeInput.value = serviceTotal > 0 ? serviceTotal.toFixed(2) : '';
+            serviceFeeInput.value = selectedServices > 0 ? selectedServices.toFixed(2) : '';
         }
 
         if (productFeeInput) {
-            const productTotal = selectedProducts + customProducts;
-            productFeeInput.value = productTotal > 0 ? productTotal.toFixed(2) : '';
+            productFeeInput.value = selectedProducts > 0 ? selectedProducts.toFixed(2) : '';
         }
+
+        renderSelectedPricingGuides();
     };
 
     const recalculateTotal = () => {
@@ -1229,13 +1376,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const support = normalizeCurrency(document.querySelector('[name="estimated_service_support_fee"]')?.value);
         const totalServiceFee = normalizeCurrency(document.querySelector('[name="total_service_fee"]')?.value);
         const totalProductFee = normalizeCurrency(document.querySelector('[name="total_product_fee"]')?.value);
+        const discount = normalizeCurrency(document.querySelector('[name="deal_discount"]')?.value);
 
         let otherTotal = 0;
         otherFeeAmountInputs().forEach((input) => {
             otherTotal += normalizeCurrency(input.value);
         });
 
-        const total = professional + government + support + totalServiceFee + totalProductFee + otherTotal;
+        const total = Math.max((professional + government + support + totalServiceFee + totalProductFee + otherTotal) - discount, 0);
         totalInput.value = total > 0 ? total.toFixed(2) : '';
     };
 
@@ -2215,6 +2363,7 @@ document.addEventListener('DOMContentLoaded', function () {
             target.name === 'estimated_government_fee' ||
             target.name === 'estimated_government_fees' ||
             target.name === 'estimated_service_support_fee' ||
+            target.name === 'deal_discount' ||
             target.name === 'service_options[]' ||
             target.name === 'product_options[]' ||
             target.name === 'services_other[]' ||
