@@ -14,17 +14,20 @@
         .button-blue { background: #2563eb; color: #fff; }
         .button-green { background: #059669; color: #fff; }
         .button-muted { background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; }
-        .shell { max-width: 1120px; margin: 22px auto; padding: 0 16px 32px; }
+        .shell { max-width: 1220px; margin: 22px auto; padding: 0 16px 32px; }
+        .preview-shell { border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 16px; overflow: hidden; }
+        .preview-shell-header { border-bottom: 1px solid #f1f5f9; background: #fff; padding: 16px 20px; }
+        .preview-shell-title { margin: 0; font-size: 14px; font-weight: 700; color: #111827; }
+        .preview-shell-subtitle { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
+        .preview-pane { padding: 20px; }
         .notice { margin-bottom: 14px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #047857; padding: 12px 14px; border-radius: 10px; font-size: 14px; font-weight: 700; }
         .approval { margin-bottom: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; padding: 14px; border: 1px solid #dbe2ea; background: #fff; border-radius: 10px; }
         .approval label { display: block; margin-bottom: 6px; font-size: 12px; color: #475569; font-weight: 700; }
         .approval input, .approval textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
         .approval textarea { min-height: 42px; resize: vertical; }
-        .upload-panel { margin-bottom: 16px; padding: 14px; border: 1px solid #dbe2ea; background: #fff; border-radius: 10px; }
-        .upload-panel label { display: block; margin-bottom: 6px; font-size: 12px; color: #475569; font-weight: 700; }
-        .upload-panel input { display: block; width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 10px; font-size: 14px; }
-        .upload-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
-        .proposal-frame { overflow: auto; background: #eef2f7; border: 1px solid #dbe2ea; border-radius: 10px; padding: 12px; }
+        .approval-only { display: flex; justify-content: flex-end; }
+        .conforme-approved-stamp { margin-top: 10px; font-size: 11px; font-style: italic; color: #047857; }
+        .proposal-frame { overflow: auto; background: #eef2f7; border: 1px solid #dbe2ea; border-radius: 16px; padding: 12px; }
         .proposal-doc { font-family: Georgia, "Times New Roman", serif; color: #111827; font-size: 12px; line-height: 1.58; }
         .proposal-page { box-sizing: border-box; width: 210mm; max-width: 210mm; height: 297mm; margin: 0 auto 16px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); border: 1px solid #dbe2ea; padding: 44px 52px 70px; position: relative; overflow: hidden; }
         .proposal-inner-page { height: 297mm; padding-top: 52px; overflow: hidden; }
@@ -143,35 +146,38 @@
         @else
             <form method="POST" action="{{ $approveUrl }}" class="approval">
                 @csrf
-                <div>
-                    <label for="client_name">Approver Name</label>
-                    <input id="client_name" name="client_name" type="text" value="{{ old('client_name') }}" placeholder="Your name">
+                <div class="approval-only">
+                    <button type="submit" class="button button-green">Approve Proposal</button>
                 </div>
-                <div>
-                    <label for="approval_note">Note</label>
-                    <textarea id="approval_note" name="approval_note" placeholder="Optional note">{{ old('approval_note') }}</textarea>
-                </div>
-                <button type="submit" class="button button-green">Approve Proposal</button>
             </form>
         @endif
 
-        <form method="POST" action="{{ route('deals.proposal.client.quotation-upload', ['token' => request()->route('token')]) }}" enctype="multipart/form-data" class="upload-panel">
-            @csrf
-            <div class="upload-row">
-                <div>
-                    <label for="quotation_file">Upload Quotation (Optional)</label>
-                    <input id="quotation_file" type="file" name="quotation_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                    @if ($proposal->quotation_client_file_path)
-                        <p style="margin:8px 0 0;font-size:12px"><a href="{{ route('uploads.show', ['path' => $proposal->quotation_client_file_path]) }}" target="_blank">View uploaded quotation</a></p>
-                    @endif
-                </div>
-                <button type="submit" class="button button-muted">Upload</button>
+        <div class="preview-shell">
+            <div class="preview-shell-header">
+                <h2 class="preview-shell-title">Proposal Preview</h2>
+                <p class="preview-shell-subtitle">This client view follows the same branded preview format as the proposal draft.</p>
             </div>
-        </form>
-
-        <div class="proposal-frame">
-            {!! $proposalDocumentHtml !!}
+            <div class="preview-pane">
+                <div class="proposal-frame">
+                    {!! $proposalDocumentHtml !!}
+                </div>
+            </div>
         </div>
     </main>
+    @if ($proposal->client_approved_at)
+    <script>
+        (() => {
+            const clientBlock = document.querySelector('.proposal-signature-grid .proposal-signature-block');
+            if (!clientBlock || clientBlock.querySelector('.conforme-approved-stamp')) {
+                return;
+            }
+
+            const stamp = document.createElement('div');
+            stamp.className = 'conforme-approved-stamp';
+            stamp.textContent = 'Approved on {{ optional($proposal->client_approved_at)->format('F j, Y g:i A') }}';
+            clientBlock.appendChild(stamp);
+        })();
+    </script>
+    @endif
 </body>
 </html>

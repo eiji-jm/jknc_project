@@ -389,6 +389,7 @@ class ProjectController extends Controller
     {
         $payload = $this->buildProjectDocumentPayload($project);
         extract($payload);
+        $sowAutoReportSettings = $this->projectAutoReportSettings($project, 'sow');
         $ntpRecord = $project->ntps()->latest()->first();
         $coc = null;
         $sowTemplates = Schema::hasTable('form_templates')
@@ -402,7 +403,30 @@ class ProjectController extends Controller
             [, $coc] = $this->buildProjectCocPreviewData($project);
         }
 
-        return view('project.show', compact('project', 'start', 'sow', 'report', 'ntpRecord', 'sowTemplates', 'tab', 'coc'));
+        return view('project.show', compact('project', 'start', 'sow', 'report', 'ntpRecord', 'sowTemplates', 'tab', 'coc', 'sowAutoReportSettings'));
+    }
+
+    public function updateSowAutoReportSettings(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'day_of_month' => ['required', 'integer', 'min:1', 'max:31'],
+        ]);
+
+        $metadata = (array) ($project->metadata ?? []);
+        $current = $this->projectAutoReportSettings($project, 'sow');
+
+        Arr::set($metadata, 'auto_report.sow', [
+            'enabled' => (bool) ($validated['enabled'] ?? false),
+            'day_of_month' => (int) $validated['day_of_month'],
+            'last_generated_on' => $current['last_generated_on'],
+        ]);
+
+        $project->forceFill(['metadata' => $metadata])->save();
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
+            ->with('success', 'SOW auto-report schedule updated.');
     }
 
     public function downloadStartPdf(Project $project)
@@ -2212,6 +2236,17 @@ class ProjectController extends Controller
             ?: ''));
 
         return $email !== '' ? $email : null;
+    }
+
+    private function projectAutoReportSettings(Project $project, string $key): array
+    {
+        $raw = (array) data_get($project->metadata, "auto_report.{$key}", []);
+
+        return [
+            'enabled' => (bool) ($raw['enabled'] ?? false),
+            'day_of_month' => (int) ($raw['day_of_month'] ?? 30),
+            'last_generated_on' => filled($raw['last_generated_on'] ?? null) ? (string) $raw['last_generated_on'] : null,
+        ];
     }
 
     private function supportsProjectSowReportClientPortal(): bool

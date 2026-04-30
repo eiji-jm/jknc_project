@@ -345,11 +345,37 @@ class RegularController extends Controller
         $rsatTemplates = Schema::hasTable('form_templates')
             ? FormTemplate::query()->where('type', 'regular_rsat')->orderBy('name')->get()
             : collect();
+        $rsatAutoReportSettings = $this->regularAutoReportSettings($regular);
         $tab = in_array((string) $request->query('tab', 'rsat'), ['rsat', 'report'], true)
             ? (string) $request->query('tab', 'rsat')
             : 'rsat';
 
-        return view('regular.show', compact('regular', 'rsat', 'report', 'generatedReports', 'rsatTemplates', 'tab'));
+        return view('regular.show', compact('regular', 'rsat', 'report', 'generatedReports', 'rsatTemplates', 'tab', 'rsatAutoReportSettings'));
+    }
+
+    public function updateRsatAutoReportSettings(Request $request, Project $regular): RedirectResponse
+    {
+        abort_unless($this->isRegularEngagement($regular->engagement_type), 404);
+
+        $validated = $request->validate([
+            'enabled' => ['nullable', 'boolean'],
+            'day_of_month' => ['required', 'integer', 'min:1', 'max:31'],
+        ]);
+
+        $metadata = (array) ($regular->metadata ?? []);
+        $current = $this->regularAutoReportSettings($regular);
+
+        data_set($metadata, 'auto_report.rsat', [
+            'enabled' => (bool) ($validated['enabled'] ?? false),
+            'day_of_month' => (int) $validated['day_of_month'],
+            'last_generated_on' => $current['last_generated_on'],
+        ]);
+
+        $regular->forceFill(['metadata' => $metadata])->save();
+
+        return redirect()
+            ->route('regular.show', ['regular' => $regular->id, 'tab' => 'rsat'])
+            ->with('success', 'RSAT auto-report schedule updated.');
     }
 
     public function updateRsat(Request $request, Project $regular): RedirectResponse
@@ -1495,5 +1521,16 @@ class RegularController extends Controller
         abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate NTP PDF preview.');
 
         return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
+    private function regularAutoReportSettings(Project $regular): array
+    {
+        $raw = (array) data_get($regular->metadata, 'auto_report.rsat', []);
+
+        return [
+            'enabled' => (bool) ($raw['enabled'] ?? false),
+            'day_of_month' => (int) ($raw['day_of_month'] ?? 30),
+            'last_generated_on' => filled($raw['last_generated_on'] ?? null) ? (string) $raw['last_generated_on'] : null,
+        ];
     }
 }

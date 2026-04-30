@@ -27,5 +27,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('townhall:archive-expired')->everyMinute();
+        $schedule->command('reports:generate-scheduled')->everyMinute();
     })
     ->create();

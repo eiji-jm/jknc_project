@@ -118,6 +118,12 @@
     .project-doc-summary-box { border: 1px solid #dbe3f0; background: #f8fbff; padding: 12px; }
     .project-doc-summary-box span { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
     .project-doc-summary-box strong { display: block; margin-top: 8px; font-size: 1.4rem; color: #0f172a; }
+    .project-settings-trigger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #cbd5e1; background: #fff; color: #475569; cursor: pointer; }
+    .project-settings-modal { position: fixed; inset: 0; z-index: 75; display: none; }
+    .project-settings-modal.is-open { display: block; }
+    .project-settings-overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5); }
+    .project-settings-frame { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .project-settings-card { width: 100%; max-width: 430px; background: #fff; border: 1px solid #dbe3f0; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.2); }
     .project-ntp-modal { position: fixed; inset: 0; z-index: 70; display: none; }
     .project-ntp-modal.is-open { display: block; }
     .project-ntp-overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.55); }
@@ -235,7 +241,12 @@
                             </div>
                         </div>
                         <div class="project-quick-group">
-                            <p class="project-quick-label">Document Actions</p>
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="project-quick-label">Document Actions</p>
+                                <button type="button" id="projectSowAutoSettingsOpen" class="project-settings-trigger" title="Auto-report settings">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
                             <div class="project-quick-stack">
                                 <button type="submit" form="project-sow-form" class="project-doc-primary">Save Scope of Work</button>
                                 <button type="submit" form="project-sow-form" formaction="{{ route('project.sow.generate', $project) }}" class="project-doc-action">Generate SOW Report</button>
@@ -325,6 +336,32 @@
 </div>
 @endif
 @if ($tab === 'sow')
+<div id="projectSowAutoSettingsModal" class="project-settings-modal" aria-hidden="true">
+    <button id="projectSowAutoSettingsOverlay" type="button" class="project-settings-overlay" aria-label="Close auto-report settings"></button>
+    <div class="project-settings-frame">
+        <div class="project-settings-card p-5">
+            <h3 class="text-lg font-semibold text-slate-900">SOW Auto-Generate Report</h3>
+            <p class="mt-1 text-sm text-slate-500">Set a monthly day when SOW reports auto-generate.</p>
+            <form method="POST" action="{{ route('project.sow.auto-settings', $project) }}" class="mt-4 space-y-4">
+                @csrf
+                <label class="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="hidden" name="enabled" value="0">
+                    <input type="checkbox" name="enabled" value="1" class="h-4 w-4" {{ !empty($sowAutoReportSettings['enabled']) ? 'checked' : '' }}>
+                    Enable monthly auto-generation
+                </label>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Day of Month</label>
+                    <input type="number" min="1" max="31" name="day_of_month" value="{{ (int) ($sowAutoReportSettings['day_of_month'] ?? 30) }}" class="mt-1 w-full border border-slate-300 px-3 py-2 text-sm">
+                </div>
+                <p class="text-xs text-slate-500">If a month has fewer days, it runs on the last day of that month.</p>
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="projectSowAutoSettingsClose" class="project-doc-action">Cancel</button>
+                    <button type="submit" class="project-doc-primary">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <script>
     (() => {
         const action = document.getElementById('projectNtpAction');
@@ -342,6 +379,10 @@
         const cocClose = document.getElementById('projectCocClose');
         const makeTemplateButton = document.getElementById('projectMakeTemplateButton');
         const sowForm = document.getElementById('project-sow-form');
+        const autoSettingsOpen = document.getElementById('projectSowAutoSettingsOpen');
+        const autoSettingsModal = document.getElementById('projectSowAutoSettingsModal');
+        const autoSettingsOverlay = document.getElementById('projectSowAutoSettingsOverlay');
+        const autoSettingsClose = document.getElementById('projectSowAutoSettingsClose');
 
         if (!action) {
             return;
@@ -384,6 +425,20 @@
 
             cocModal.classList.remove('is-open');
             cocModal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        const openAutoSettingsModal = () => {
+            if (!autoSettingsModal) return;
+            autoSettingsModal.classList.add('is-open');
+            autoSettingsModal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        const closeAutoSettingsModal = () => {
+            if (!autoSettingsModal) return;
+            autoSettingsModal.classList.remove('is-open');
+            autoSettingsModal.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('overflow-hidden');
         };
 
@@ -460,6 +515,9 @@
             sowForm.submit();
             sowForm.setAttribute('action', previousAction || '');
         });
+        autoSettingsOpen?.addEventListener('click', openAutoSettingsModal);
+        autoSettingsOverlay?.addEventListener('click', closeAutoSettingsModal);
+        autoSettingsClose?.addEventListener('click', closeAutoSettingsModal);
 
         approvedNtpOverlay?.addEventListener('click', closeApprovedNtpModal);
         approvedNtpClose?.addEventListener('click', closeApprovedNtpModal);
