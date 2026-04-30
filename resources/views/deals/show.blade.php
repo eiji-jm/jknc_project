@@ -28,6 +28,9 @@
     $stageDataJson = collect($stages ?? [])->values()->all();
     $currentStageIdJson = $deal['stage_id'] ?? null;
     $startSectionAvailable = isset($project) && $project && ! str_contains(strtolower(trim((string) $project->engagement_type)), 'regular');
+    $serviceMemo = $serviceMemo ?? null;
+    $dealServiceMemoUrl = null;
+    $dealServiceMemoDownloadUrl = null;
 @endphp
 
 <style>
@@ -65,6 +68,36 @@
         display: grid;
         gap: 10px;
         margin-top: 10px;
+    }
+    .project-doc-view-body { max-height: calc(100vh - 210px); overflow-y: auto; padding: 24px; background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%); }
+    .project-doc-view-sheet { display: flex; justify-content: center; }
+    .project-doc-view-paper { width: min(100%, 860px); border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); padding: 0; }
+    .project-ntp-sheet { border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05); }
+    .project-ntp-doc { padding: 32px 34px 36px; border: 2px solid #1c4587; }
+    .project-ntp-title { font-family: Georgia, "Times New Roman", serif; font-size: 18pt; font-weight: 700; line-height: 1.05; }
+    .project-ntp-code { margin-bottom: 24px; font-family: Georgia, "Times New Roman", serif; font-size: 8pt; font-weight: 700; }
+    .project-ntp-light { font-weight: 400; }
+    .project-ntp-meta, .project-ntp-signatures { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .project-ntp-meta td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; font-family: Georgia, "Times New Roman", serif; font-size: 11pt; font-weight: 700; }
+    .project-ntp-copy { margin-top: 22px; font-size: 11pt; line-height: 1.35; }
+    .project-ntp-copy p { margin: 0 0 18px; text-align: justify; }
+    .project-ntp-signatures { margin-top: 34px; }
+    .project-ntp-signatures td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; }
+    .project-ntp-sign-box { height: 96px; text-align: center; vertical-align: middle; font-family: Georgia, "Times New Roman", serif; font-size: 11pt; font-weight: 700; }
+    .project-service-memo-doc { min-height: 1030px; padding: 28px 32px 22px; display: flex; flex-direction: column; }
+    .project-service-memo-meta { margin-top: 18px; }
+    .project-service-memo-meta td { padding: 6px 9px; font-size: 10pt; }
+    .project-service-memo-copy { margin-top: 18px; font-size: 10.5pt; line-height: 1.3; }
+    .project-service-memo-copy p { margin-bottom: 12px; }
+    .project-service-memo-signatures { margin-top: 18px; }
+    .project-service-memo-signatures .project-ntp-sign-box { height: 78px; font-size: 10pt; }
+    .project-service-memo-footer { margin-top: auto; padding-top: 16px; font-family: Georgia, "Times New Roman", serif; font-size: 8pt; line-height: 1.25; color: #0f172a; }
+    .project-service-memo-footer p { margin: 0; }
+    @media (max-width: 768px) {
+        .project-doc-view-body { padding: 14px; }
+        .project-ntp-doc { padding: 20px 18px 24px; }
+        .project-service-memo-doc { min-height: 980px; }
+        .project-ntp-meta td, .project-ntp-sign-box { font-size: 9pt; }
     }
 </style>
 
@@ -184,6 +217,28 @@
                                 <a href="{{ route('project.start.download', $project) }}" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                     <i class="fas fa-file-arrow-down mr-1"></i>Download START PDF
                                 </a>
+                                <button type="button" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50" data-open-start-drawer="project-start-drawer-{{ $project->id }}">
+                                    <i class="far fa-pen-to-square mr-1"></i>Edit START
+                                </button>
+                                @if (strtolower((string) ($start?->status ?? 'pending')) === 'approved' && $start?->approved_at)
+                                    @php
+                                        $dealServiceMemoPath = (string) data_get($start?->attachments, 'service_memo_pdf_path', '');
+                                        $dealServiceMemoUrl = $dealServiceMemoPath !== '' ? route('uploads.show', ['path' => $dealServiceMemoPath]) : null;
+                                        $dealServiceMemoDownloadUrl = $dealServiceMemoPath !== '' ? route('uploads.show', ['path' => $dealServiceMemoPath, 'download' => 1]) : null;
+                                    @endphp
+                                    @if ($dealServiceMemoUrl)
+                                        <button id="dealServiceMemoViewButton" type="button" class="inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                                            <i class="fas fa-file-lines mr-1"></i>View Service Memo
+                                        </button>
+                                        <a href="{{ $dealServiceMemoDownloadUrl }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                                            <i class="fas fa-file-arrow-down mr-1"></i>Download Service Memo
+                                        </a>
+                                    @else
+                                        <a href="{{ route('project.service-memo.download', $project) }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                                            <i class="fas fa-file-lines mr-1"></i>Generate Service Memo
+                                        </a>
+                                    @endif
+                                @endif
                                 <a href="{{ route('project.show', ['project' => $project->id, 'tab' => 'start']) }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
                                     <i class="fas fa-up-right-from-square mr-1"></i>Open Full Project
                                 </a>
@@ -205,6 +260,38 @@
                             ])
                         </div>
                     </article>
+
+                    @if ($dealServiceMemoUrl && $serviceMemo)
+                        <div id="dealServiceMemoModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+                            <button id="dealServiceMemoOverlay" type="button" class="absolute inset-0 bg-slate-950/60" aria-label="Close service memo preview"></button>
+                            <div class="absolute inset-0 overflow-y-auto p-4">
+                                <div class="mx-auto max-w-[1080px] rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                                    <div class="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+                                        <div class="max-w-2xl">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project Document Viewer</p>
+                                            <h2 class="mt-2 text-xl font-semibold text-slate-950">Service Memo</h2>
+                                            <p class="mt-2 text-sm leading-6 text-slate-600">Review the approved service memo in the same branded workspace viewer while preserving the original document structure.</p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2">
+                                            <a href="{{ $dealServiceMemoDownloadUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                                <i class="fas fa-file-arrow-down mr-2"></i>Download PDF
+                                            </a>
+                                            <button id="dealServiceMemoCloseButton" type="button" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                                Close View
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="project-doc-view-body">
+                                        <div class="project-doc-view-sheet">
+                                            <div class="project-doc-view-paper">
+                                                @include('project.partials.service-memo-document', ['serviceMemo' => $serviceMemo])
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @endif
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -609,6 +696,32 @@ document.addEventListener('DOMContentLoaded', function () {
     stagePrimary?.addEventListener('click', openStageModal);
     stageModalOverlay?.addEventListener('click', closeStageModal);
     stageModalCancel?.addEventListener('click', closeStageModal);
+
+    const dealServiceMemoViewButton = document.getElementById('dealServiceMemoViewButton');
+    const dealServiceMemoModal = document.getElementById('dealServiceMemoModal');
+    const dealServiceMemoOverlay = document.getElementById('dealServiceMemoOverlay');
+    const dealServiceMemoCloseButton = document.getElementById('dealServiceMemoCloseButton');
+
+    const openDealServiceMemoModal = () => {
+        if (!dealServiceMemoModal) {
+            return;
+        }
+        dealServiceMemoModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const closeDealServiceMemoModal = () => {
+        if (!dealServiceMemoModal) {
+            return;
+        }
+        dealServiceMemoModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    };
+
+    dealServiceMemoViewButton?.addEventListener('click', openDealServiceMemoModal);
+    dealServiceMemoOverlay?.addEventListener('click', closeDealServiceMemoModal);
+    dealServiceMemoCloseButton?.addEventListener('click', closeDealServiceMemoModal);
+
     if (!stageToast?.classList.contains('hidden')) {
         showStageToast(stageToast.textContent.trim() || 'Stage updated successfully.');
     }

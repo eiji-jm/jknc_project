@@ -445,104 +445,95 @@ class ProjectController extends Controller
         return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
     }
 
+    public function downloadServiceMemoPdf(Project $project): RedirectResponse
+    {
+        $payload = $this->buildProjectDocumentPayload($project);
+        extract($payload);
+
+        abort_unless($start && strtolower((string) $start->status) === 'approved' && $start->approved_at, 404, 'Service memo is only available for approved START records.');
+
+        $pdfPath = $this->ensureServiceMemoGenerated($project, $start, $sow);
+
+        return redirect()->route('uploads.show', ['path' => $pdfPath, 'download' => 1]);
+    }
+
     public function updateStart(Request $request, Project $project): RedirectResponse
     {
-        $validated = $request->validate([
-            'form_date' => ['nullable', 'date'],
-            'date_started' => ['nullable', 'date'],
-            'date_completed' => ['nullable', 'date'],
-            'status' => ['required', 'string', 'max:50'],
-            'checklist_label' => ['nullable', 'array'],
-            'checklist_label.*' => ['nullable', 'string', 'max:255'],
-            'checklist_status' => ['nullable', 'array'],
-            'checklist_status.*' => ['nullable', 'in:provided,pending'],
-            'kyc_sole_label' => ['nullable', 'array'],
-            'kyc_sole_label.*' => ['nullable', 'string', 'max:255'],
-            'kyc_sole_status' => ['nullable', 'array'],
-            'kyc_sole_status.*' => ['nullable', 'in:provided,pending'],
-            'kyc_juridical_label' => ['nullable', 'array'],
-            'kyc_juridical_label.*' => ['nullable', 'string', 'max:255'],
-            'kyc_juridical_status' => ['nullable', 'array'],
-            'kyc_juridical_status.*' => ['nullable', 'in:provided,pending'],
-            'engagement_requirement' => ['nullable', 'array'],
-            'engagement_requirement.*' => ['nullable', 'string', 'max:255'],
-            'engagement_notes' => ['nullable', 'array'],
-            'engagement_notes.*' => ['nullable', 'string', 'max:255'],
-            'engagement_purpose' => ['nullable', 'array'],
-            'engagement_purpose.*' => ['nullable', 'string', 'max:255'],
-            'engagement_provided_by' => ['nullable', 'array'],
-            'engagement_provided_by.*' => ['nullable', 'string', 'max:255'],
-            'engagement_submitted_to' => ['nullable', 'array'],
-            'engagement_submitted_to.*' => ['nullable', 'string', 'max:255'],
-            'engagement_assigned_to' => ['nullable', 'array'],
-            'engagement_assigned_to.*' => ['nullable', 'string', 'max:255'],
-            'engagement_timeline' => ['nullable', 'array'],
-            'engagement_timeline.*' => ['nullable', 'string', 'max:255'],
-            'approval_requirement' => ['nullable', 'array'],
-            'approval_requirement.*' => ['nullable', 'string', 'max:255'],
-            'approval_responsible_person' => ['nullable', 'array'],
-            'approval_responsible_person.*' => ['nullable', 'string', 'max:255'],
-            'approval_name_and_signature' => ['nullable', 'array'],
-            'approval_name_and_signature.*' => ['nullable', 'string', 'max:255'],
-            'approval_date_time_done' => ['nullable', 'array'],
-            'approval_date_time_done.*' => ['nullable', 'string', 'max:255'],
-            'clearance_assigned_team_lead' => ['nullable', 'string', 'max:255'],
-            'clearance_assigned_team_lead_signature' => ['nullable', 'string', 'max:255'],
-            'clearance_lead_consultant_confirmed' => ['nullable', 'string', 'max:255'],
-            'clearance_lead_consultant_signature' => ['nullable', 'string', 'max:255'],
-            'clearance_lead_associate_assigned' => ['nullable', 'string', 'max:255'],
-            'clearance_lead_associate_signature' => ['nullable', 'string', 'max:255'],
-            'clearance_sales_marketing' => ['nullable', 'string', 'max:255'],
-            'clearance_sales_marketing_signature' => ['nullable', 'string', 'max:255'],
-            'clearance_record_custodian_name' => ['nullable', 'string', 'max:255'],
-            'clearance_record_custodian_signature' => ['nullable', 'string', 'max:255'],
-            'clearance_date_recorded' => ['nullable', 'date'],
-            'clearance_date_signed' => ['nullable', 'date'],
-            'routing_role' => ['nullable', 'array'],
-            'routing_role.*' => ['nullable', 'string', 'max:255'],
-            'routing_status' => ['nullable', 'array'],
-            'routing_status.*' => ['nullable', 'in:pending,approved,rejected'],
-            'rejection_reason' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $validated = $this->validateStartPayload($request);
+        $this->persistStartForm($request, $project, $validated);
 
-        $start = $project->starts()->latest()->first() ?: new ProjectStart(['project_id' => $project->id]);
-        $resolvedFormDate = $validated['form_date']
-            ?? optional($start->form_date)->toDateString()
-            ?? optional($start->created_at)->toDateString()
-            ?? now()->toDateString();
-        $start->fill([
-            'form_date' => $resolvedFormDate,
-            'date_started' => $validated['date_started'] ?? null,
-            'date_completed' => $validated['date_completed'] ?? null,
-            'status' => $validated['status'],
-            'checklist' => $this->buildChecklistPayload($request),
-            'kyc_requirements' => $this->buildKycRequirementsPayload($request, $start->kyc_requirements ?? []),
-            'engagement_requirements' => $this->buildRequirementRows($request, 'engagement'),
-            'approval_steps' => $this->buildApprovalRows($request),
-            'routing' => $this->buildRoutingRows($request),
-            'clearance' => $this->buildClearancePayload($validated),
-            'rejection_reason' => $validated['rejection_reason'] ?? null,
-        ]);
-        $start->project_id = $project->id;
-        $start->save();
+        return $this->redirectToStartTarget($request, $project, 'START form updated successfully.');
+    }
 
-        $redirectUrl = $request->input('redirect_url');
-        if (is_string($redirectUrl) && $redirectUrl !== '' && URL::isValidUrl($redirectUrl)) {
-            $allowedBases = collect([
-                rtrim((string) config('app.url'), '/'),
-                rtrim($request->getSchemeAndHttpHost(), '/'),
-            ])->filter()->unique();
+    public function submitStartForApproval(Request $request, Project $project): RedirectResponse
+    {
+        $validated = $this->validateStartPayload($request);
+        $start = $this->persistStartForm($request, $project, $validated);
 
-            if ($allowedBases->contains(fn (string $base): bool => str_starts_with($redirectUrl, $base))) {
-                return redirect()
-                    ->to($redirectUrl)
-                    ->with('success', 'START form updated successfully.');
-            }
+        if (strtolower((string) $start->status) === 'approved') {
+            return redirect()
+                ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
+                ->with('error', 'This START form is already approved.');
         }
 
+        $start->forceFill([
+            'status' => 'pending_approval',
+            'approved_at' => null,
+            'approved_by_name' => null,
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+        ])->save();
+
+        return $this->redirectToStartTarget($request, $project, 'START form submitted for admin approval.');
+    }
+
+    public function approveStart(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->canReviewStart($request), 403, 'Unauthorized');
+
+        $start = $this->resolveCurrentStart($project);
+        abort_unless($start, 404, 'START form not found.');
+        abort_if(strtolower((string) $start->status) !== 'pending_approval', 422, 'Only submitted START forms can be approved.');
+
+        $start->forceFill([
+            'status' => 'approved',
+            'approved_at' => now(),
+            'approved_by_name' => $request->user()?->name ?? 'System User',
+            'rejected_at' => null,
+            'rejected_by_name' => null,
+            'rejection_reason' => null,
+        ])->save();
+        $this->ensureServiceMemoGenerated($project, $start, $project->sows()->latest()->first());
+
         return redirect()
-            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
-            ->with('success', 'START form updated successfully.');
+            ->route('admin.dashboard')
+            ->with('success', 'START form approved successfully.');
+    }
+
+    public function rejectStart(Request $request, Project $project): RedirectResponse
+    {
+        abort_unless($this->canReviewStart($request), 403, 'Unauthorized');
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $start = $this->resolveCurrentStart($project);
+        abort_unless($start, 404, 'START form not found.');
+        abort_if(strtolower((string) $start->status) !== 'pending_approval', 422, 'Only submitted START forms can be rejected.');
+
+        $start->forceFill([
+            'status' => 'rejected',
+            'approved_at' => null,
+            'approved_by_name' => null,
+            'rejected_at' => now(),
+            'rejected_by_name' => $request->user()?->name ?? 'System User',
+            'rejection_reason' => trim((string) ($validated['reason'] ?? '')) ?: 'START form rejected during admin review.',
+        ])->save();
+
+        return redirect()
+            ->route('admin.dashboard')
+            ->with('success', 'START form rejected.');
     }
 
     public function updateSow(Request $request, Project $project): RedirectResponse
@@ -1019,6 +1010,40 @@ class ProjectController extends Controller
         return [$project, $coc];
     }
 
+    private function buildServiceMemoPayload(Project $project, ProjectStart $start, ?ProjectSow $sow): array
+    {
+        $project->loadMissing([
+            'deal:id,deal_code,engagement_type',
+            'company:id,company_name',
+            'contact:id,first_name,last_name,email,company_name',
+        ]);
+
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        return [
+            'title' => 'SERVICE MEMO',
+            'form_code' => 'ENG-F-003-v1.0-03.16.26',
+            'date_issued' => optional($start->approved_at)->format('F d, Y') ?: now()->format('F d, Y'),
+            'engagement_type' => $project->engagement_type ?: ($project->deal?->engagement_type ?: '-'),
+            'start_ref_no' => $start->start_code ?: '-',
+            'start_cleared_date' => optional($start->approved_at)->format('F d, Y') ?: '-',
+            'condeal_reference_no' => $project->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $project->business_name ?: ($project->company?->company_name ?: '-'),
+            'engagement_reference_no' => $sow?->sow_number ?: '-',
+            'approved_start_date' => optional($start->date_started ?: $project->planned_start_date)->format('F d, Y') ?: '-',
+            'target_completion_date' => optional($project->target_completion_date)->format('F d, Y') ?: '-',
+            'rsat_template' => data_get($project->metadata, 'template_name') ?: '-',
+            'sow_template' => data_get($sow?->metadata, 'template_name') ?: ($sow?->version_number ?: '-'),
+            'lead_consultant' => $project->assigned_consultant ?: ' ',
+            'associate' => $project->assigned_associate ?: ' ',
+            'sales_marketing' => 'Sales and Marketing',
+            'finance' => 'Finance',
+            'office_of_president' => 'Office of the President',
+        ];
+    }
+
     private function validateSowPayload(Request $request): array
     {
         return $request->validate([
@@ -1150,7 +1175,7 @@ class ProjectController extends Controller
         })->filter()->values()->all();
     }
 
-    private function buildKycRequirementsPayload(Request $request, array $existing = []): array
+    private function buildKycRequirementsPayload(Request $request, Project $project, array $existing = []): array
     {
         $buildGroup = function (string $prefix) use ($request): array {
             $labels = (array) $request->input("kyc_{$prefix}_label", []);
@@ -1169,11 +1194,164 @@ class ProjectController extends Controller
             })->filter()->values()->all();
         };
 
+        $organizationType = strtolower(trim((string) ($existing['organization_type'] ?? '')));
+        if ($organizationType === '' || $organizationType === 'unknown') {
+            $organizationType = $this->resolveStartOrganizationType($project);
+        }
+
         return [
-            'organization_type' => (string) ($existing['organization_type'] ?? 'unknown'),
+            'organization_type' => $organizationType === '' ? 'unknown' : $organizationType,
             'sole' => $buildGroup('sole'),
             'juridical' => $buildGroup('juridical'),
         ];
+    }
+
+    private function validateStartPayload(Request $request): array
+    {
+        return $request->validate([
+            'form_date' => ['nullable', 'date'],
+            'date_started' => ['nullable', 'date'],
+            'date_completed' => ['nullable', 'date'],
+            'checklist_label' => ['nullable', 'array'],
+            'checklist_label.*' => ['nullable', 'string', 'max:255'],
+            'checklist_status' => ['nullable', 'array'],
+            'checklist_status.*' => ['nullable', 'in:provided,pending'],
+            'kyc_sole_label' => ['nullable', 'array'],
+            'kyc_sole_label.*' => ['nullable', 'string', 'max:255'],
+            'kyc_sole_status' => ['nullable', 'array'],
+            'kyc_sole_status.*' => ['nullable', 'in:provided,pending'],
+            'kyc_juridical_label' => ['nullable', 'array'],
+            'kyc_juridical_label.*' => ['nullable', 'string', 'max:255'],
+            'kyc_juridical_status' => ['nullable', 'array'],
+            'kyc_juridical_status.*' => ['nullable', 'in:provided,pending'],
+            'engagement_requirement' => ['nullable', 'array'],
+            'engagement_requirement.*' => ['nullable', 'string', 'max:255'],
+            'engagement_notes' => ['nullable', 'array'],
+            'engagement_notes.*' => ['nullable', 'string', 'max:255'],
+            'engagement_purpose' => ['nullable', 'array'],
+            'engagement_purpose.*' => ['nullable', 'string', 'max:255'],
+            'engagement_provided_by' => ['nullable', 'array'],
+            'engagement_provided_by.*' => ['nullable', 'string', 'max:255'],
+            'engagement_submitted_to' => ['nullable', 'array'],
+            'engagement_submitted_to.*' => ['nullable', 'string', 'max:255'],
+            'engagement_assigned_to' => ['nullable', 'array'],
+            'engagement_assigned_to.*' => ['nullable', 'string', 'max:255'],
+            'engagement_timeline' => ['nullable', 'array'],
+            'engagement_timeline.*' => ['nullable', 'string', 'max:255'],
+            'approval_requirement' => ['nullable', 'array'],
+            'approval_requirement.*' => ['nullable', 'string', 'max:255'],
+            'approval_responsible_person' => ['nullable', 'array'],
+            'approval_responsible_person.*' => ['nullable', 'string', 'max:255'],
+            'approval_name_and_signature' => ['nullable', 'array'],
+            'approval_name_and_signature.*' => ['nullable', 'string', 'max:255'],
+            'approval_date_time_done' => ['nullable', 'array'],
+            'approval_date_time_done.*' => ['nullable', 'string', 'max:255'],
+            'clearance_assigned_team_lead' => ['nullable', 'string', 'max:255'],
+            'clearance_assigned_team_lead_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_consultant_confirmed' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_consultant_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_associate_assigned' => ['nullable', 'string', 'max:255'],
+            'clearance_lead_associate_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_sales_marketing' => ['nullable', 'string', 'max:255'],
+            'clearance_sales_marketing_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_record_custodian_name' => ['nullable', 'string', 'max:255'],
+            'clearance_record_custodian_signature' => ['nullable', 'string', 'max:255'],
+            'clearance_date_recorded' => ['nullable', 'date'],
+            'clearance_date_signed' => ['nullable', 'date'],
+            'routing_role' => ['nullable', 'array'],
+            'routing_role.*' => ['nullable', 'string', 'max:255'],
+            'routing_status' => ['nullable', 'array'],
+            'routing_status.*' => ['nullable', 'in:pending,approved,rejected'],
+            'rejection_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+    }
+
+    private function persistStartForm(Request $request, Project $project, array $validated): ProjectStart
+    {
+        $start = $this->resolveCurrentStart($project) ?: new ProjectStart(['project_id' => $project->id]);
+        $resolvedFormDate = $validated['form_date']
+            ?? optional($start->form_date)->toDateString()
+            ?? optional($start->created_at)->toDateString()
+            ?? now()->toDateString();
+        $existingStatus = strtolower((string) ($start->status ?? 'draft'));
+        $status = in_array($existingStatus, ['pending_approval', 'approved'], true) ? $existingStatus : 'draft';
+
+        $start->fill([
+            'form_date' => $resolvedFormDate,
+            'date_started' => $validated['date_started'] ?? null,
+            'date_completed' => $validated['date_completed'] ?? null,
+            'status' => $status,
+            'checklist' => $this->buildChecklistPayload($request),
+            'kyc_requirements' => $this->buildKycRequirementsPayload($request, $project, $start->kyc_requirements ?? []),
+            'engagement_requirements' => $this->buildRequirementRows($request, 'engagement'),
+            'approval_steps' => $this->buildApprovalRows($request),
+            'routing' => $this->buildRoutingRows($request),
+            'clearance' => $this->buildClearancePayload($validated),
+            'rejection_reason' => $validated['rejection_reason'] ?? null,
+        ]);
+
+        $start->project_id = $project->id;
+        $start->save();
+
+        return $start;
+    }
+
+    private function ensureServiceMemoGenerated(Project $project, ProjectStart $start, ?ProjectSow $sow): string
+    {
+        $attachments = (array) ($start->attachments ?? []);
+        $existingPath = (string) ($attachments['service_memo_pdf_path'] ?? '');
+        if ($existingPath !== '' && Storage::disk('public')->exists($existingPath)) {
+            return $existingPath;
+        }
+
+        $serviceMemo = $this->buildServiceMemoPayload($project, $start, $sow);
+        $targetPath = 'generated-previews/project/service-memo/' . ($project->project_code ?: $project->id) . '-' . ($start->start_code ?: $start->id) . '-service-memo.pdf';
+        $pdfPath = $this->generatePdfPreview('project.pdf.service-memo', compact('project', 'start', 'sow', 'serviceMemo'), $targetPath);
+
+        abort_unless($pdfPath && Storage::disk('public')->exists($pdfPath), 500, 'Unable to generate service memo preview.');
+
+        $attachments['service_memo_pdf_path'] = $pdfPath;
+        $start->attachments = $attachments;
+        $start->save();
+
+        return $pdfPath;
+    }
+
+    private function resolveCurrentStart(Project $project): ?ProjectStart
+    {
+        return $project->starts()
+            ->orderByRaw("
+                CASE
+                    WHEN LOWER(COALESCE(status, '')) = 'approved' THEN 1
+                    WHEN LOWER(COALESCE(status, '')) = 'pending_approval' THEN 2
+                    WHEN LOWER(COALESCE(status, '')) = 'rejected' THEN 3
+                    ELSE 4
+                END
+            ")
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function redirectToStartTarget(Request $request, Project $project, string $message): RedirectResponse
+    {
+        $redirectUrl = $request->input('redirect_url');
+        if (is_string($redirectUrl) && $redirectUrl !== '' && URL::isValidUrl($redirectUrl)) {
+            $allowedBases = collect([
+                rtrim((string) config('app.url'), '/'),
+                rtrim($request->getSchemeAndHttpHost(), '/'),
+            ])->filter()->unique();
+
+            if ($allowedBases->contains(fn (string $base): bool => str_starts_with($redirectUrl, $base))) {
+                return redirect()
+                    ->to($redirectUrl)
+                    ->with('success', $message);
+            }
+        }
+
+        return redirect()
+            ->route('project.show', ['project' => $project->id, 'tab' => 'sow'])
+            ->with('success', $message);
     }
 
     private function buildRoutingRows(Request $request): array
@@ -1279,7 +1457,7 @@ class ProjectController extends Controller
             'ntps' => fn ($query) => $query->latest(),
         ]);
 
-        $start = $project->starts->first();
+        $start = $this->resolveCurrentStart($project);
         if ($start) {
             $start->kyc_requirements = $this->defaultStartKycRequirementsForProject($project);
         }
@@ -2203,5 +2381,14 @@ class ProjectController extends Controller
             ->implode(', ');
 
         return $value !== '' ? Str::limit($value, 1000, '') : null;
+    }
+
+    private function canReviewStart(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user !== null
+            && method_exists($user, 'hasPermission')
+            && ($user->hasPermission('access_admin_dashboard') || $user->hasPermission('approve_townhall'));
     }
 }

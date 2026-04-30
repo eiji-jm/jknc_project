@@ -315,7 +315,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/project/manual', [ProjectController::class, 'storeManual'])->name('project.manual.store');
     Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
+    Route::get('/project/{project}/service-memo/download', [ProjectController::class, 'downloadServiceMemoPdf'])->name('project.service-memo.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
+    Route::post('/project/{project}/start/submit', [ProjectController::class, 'submitStartForApproval'])->name('project.start.submit');
+    Route::post('/project/{project}/start/approve', [ProjectController::class, 'approveStart'])->name('project.start.approve');
+    Route::post('/project/{project}/start/reject', [ProjectController::class, 'rejectStart'])->name('project.start.reject');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
     Route::post('/project/{project}/sow/templates', [ProjectController::class, 'storeSowTemplate'])->name('project.sow.templates.store');
     Route::get('/project/{project}/sow/download', [ProjectController::class, 'downloadSowPdf'])->name('project.sow.download');

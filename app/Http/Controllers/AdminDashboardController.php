@@ -7,6 +7,7 @@ use App\Models\CompanyBif;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Product;
+use App\Models\ProjectStart;
 use App\Models\Service;
 use App\Models\TownHallCommunication;
 use App\Models\User;
@@ -36,6 +37,7 @@ class AdminDashboardController extends Controller
             ->merge($this->companyApprovalItems($userNames))
             ->merge($this->companyChangeRequestItems($userNames))
             ->merge($this->dealApprovalItems())
+            ->merge($this->startApprovalItems())
             ->merge($this->serviceApprovalItems($userNames))
             ->merge($this->productApprovalItems($userNames))
             ->merge($this->catalogChangeRequestItems());
@@ -284,6 +286,67 @@ class AdminDashboardController extends Controller
             });
     }
 
+    private function startApprovalItems(): Collection
+    {
+        return ProjectStart::query()
+            ->with(['project.deal', 'project.company', 'project.contact'])
+            ->latest('updated_at')
+            ->get()
+            ->groupBy('project_id')
+            ->map(function (Collection $starts): ?ProjectStart {
+                return $starts->sort(function ($left, $right) {
+                    $rank = fn ($item) => match (strtolower((string) ($item->status ?? ''))) {
+                        'approved' => 1,
+                        'pending_approval' => 2,
+                        'rejected' => 3,
+                        default => 4,
+                    };
+
+                    $leftRank = $rank($left);
+                    $rightRank = $rank($right);
+                    if ($leftRank !== $rightRank) {
+                        return $leftRank <=> $rightRank;
+                    }
+
+                    $leftTime = optional($left->updated_at)->getTimestamp() ?? 0;
+                    $rightTime = optional($right->updated_at)->getTimestamp() ?? 0;
+                    if ($leftTime !== $rightTime) {
+                        return $rightTime <=> $leftTime;
+                    }
+
+                    return ((int) $right->id) <=> ((int) $left->id);
+                })->first();
+            })
+            ->filter()
+            ->filter(function (ProjectStart $start): bool {
+                return in_array(strtolower((string) ($start->status ?? 'draft')), ['pending_approval', 'approved', 'rejected'], true);
+            })
+            ->map(function (ProjectStart $start): object {
+                $statusKey = strtolower((string) ($start->status ?? 'draft'));
+                $project = $start->project;
+                $contactName = trim(collect([$project?->contact?->first_name, $project?->contact?->last_name])->filter()->implode(' '))
+                    ?: ($project?->client_name ?: 'Project #'.$start->project_id);
+                $businessName = $project?->business_name ?: ($project?->company?->company_name ?: 'Project');
+
+                return (object) [
+                    'ref_no' => $start->start_code ?: 'START-'.$start->id,
+                    'module' => 'START',
+                    'file_name' => $businessName.' - '.$contactName,
+                    'department' => 'Projects',
+                    'uploaded_by' => $project?->assigned_consultant ?: 'Unknown',
+                    'date_uploaded' => $this->displayDate($start->updated_at ?: $start->created_at),
+                    'approver' => $start->approved_by_name ?: ($start->rejected_by_name ?: '-'),
+                    'priority' => $statusKey === 'pending_approval' ? 'High' : 'Low',
+                    'status' => $this->normalizeStatusFromKey($statusKey),
+                    'show_route' => route('project.show', ['project' => $project?->id, 'tab' => 'sow']),
+                    'approve_route' => $statusKey === 'pending_approval' ? route('project.start.approve', $project) : null,
+                    'reject_route' => $statusKey === 'pending_approval' ? route('project.start.reject', $project) : null,
+                    'revise_route' => null,
+                    'date_sort' => $this->sortTimestamp($start->updated_at ?: $start->created_at),
+                ];
+            });
+    }
+
     private function serviceApprovalItems(Collection $userNames): Collection
     {
         return Service::query()
@@ -422,6 +485,7 @@ class AdminDashboardController extends Controller
     private function normalizeStatusFromKey(string $status): string
     {
         return match (strtolower(trim($status))) {
+            'draft' => 'Needs Revision',
             'pending', 'pending approval', 'pending_approval' => 'Pending Approval',
             'approved' => 'Approved',
             'rejected' => 'Rejected',

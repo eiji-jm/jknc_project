@@ -162,6 +162,7 @@
                                     'Contacts' => 'bg-purple-50 text-purple-700',
                                     'Company' => 'bg-indigo-50 text-indigo-700',
                                     'Deals' => 'bg-amber-50 text-amber-700',
+                                    'START' => 'bg-cyan-50 text-cyan-700',
                                     'Services' => 'bg-teal-50 text-teal-700',
                                     'Products' => 'bg-emerald-50 text-emerald-700',
                                     default => 'bg-gray-100 text-gray-700',

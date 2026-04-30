@@ -3274,10 +3274,37 @@ class DealController extends Controller
         $project->loadMissing([
             'deal:id,deal_code,engagement_type',
             'contact:id,first_name,last_name,email,phone,company_name',
+            'company.primaryContact:id,first_name,middle_name,last_name,email,phone,company_name,cif_status,organization_type,business_type_organization,ownership_flag,foreign_business_nature',
+            'company.latestBif',
             'starts' => fn ($query) => $query->latest(),
+            'sows' => fn ($query) => $query->latest(),
         ]);
 
-        $start = $project->starts->first();
+        $start = $project->starts
+            ->sort(function ($left, $right) {
+                $rank = fn ($item) => match (strtolower((string) ($item->status ?? ''))) {
+                    'approved' => 1,
+                    'pending_approval' => 2,
+                    'rejected' => 3,
+                    default => 4,
+                };
+
+                $leftRank = $rank($left);
+                $rightRank = $rank($right);
+                if ($leftRank !== $rightRank) {
+                    return $leftRank <=> $rightRank;
+                }
+
+                $leftTime = optional($left->updated_at)->getTimestamp() ?? 0;
+                $rightTime = optional($right->updated_at)->getTimestamp() ?? 0;
+                if ($leftTime !== $rightTime) {
+                    return $rightTime <=> $leftTime;
+                }
+
+                return ((int) $right->id) <=> ((int) $left->id);
+            })
+            ->first();
+        $sow = $project->sows->first();
         $startChecklist = collect($start?->checklist ?? [])->whenEmpty(fn () => collect([
             ['label' => 'Client Contact Form', 'status' => 'pending'],
             ['label' => 'Deal Form', 'status' => 'pending'],
@@ -3287,6 +3314,10 @@ class DealController extends Controller
             ['label' => 'Others', 'status' => 'pending'],
         ]));
         $startKyc = (array) ($start?->kyc_requirements ?? []);
+        $hasVisibleKycRows = collect($startKyc['sole'] ?? [])->isNotEmpty() || collect($startKyc['juridical'] ?? [])->isNotEmpty();
+        if (! $hasVisibleKycRows) {
+            $startKyc = $this->projectProvisioner->resolveDealWorkspaceStartKyc($project);
+        }
         $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([[
             'number' => 1,
             'requirement' => '',
@@ -3328,6 +3359,35 @@ class DealController extends Controller
             'startApprovalSteps' => $startApprovalSteps,
             'startClearance' => (array) ($start?->clearance ?? []),
             'routing' => $routing,
+            'serviceMemo' => $start ? $this->buildDealServiceMemoPayload($project, $start, $sow) : null,
+        ];
+    }
+
+    private function buildDealServiceMemoPayload(Project $project, $start, $sow): array
+    {
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        return [
+            'title' => 'SERVICE MEMO',
+            'form_code' => 'ENG-F-003-v1.0-03.16.26',
+            'date_issued' => optional($start->approved_at)->format('F d, Y') ?: now()->format('F d, Y'),
+            'engagement_type' => $project->engagement_type ?: ($project->deal?->engagement_type ?: '-'),
+            'start_ref_no' => $start->start_code ?: '-',
+            'start_cleared_date' => optional($start->approved_at)->format('F d, Y') ?: '-',
+            'condeal_reference_no' => $project->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $project->business_name ?: ($project->company?->company_name ?: '-'),
+            'engagement_reference_no' => $sow?->sow_number ?: '-',
+            'approved_start_date' => optional($start->date_started ?: $project->planned_start_date)->format('F d, Y') ?: '-',
+            'target_completion_date' => optional($project->target_completion_date)->format('F d, Y') ?: '-',
+            'rsat_template' => data_get($project->metadata, 'template_name') ?: '-',
+            'sow_template' => data_get($sow?->metadata, 'template_name') ?: ($sow?->version_number ?: '-'),
+            'lead_consultant' => $project->assigned_consultant ?: ' ',
+            'associate' => $project->assigned_associate ?: ' ',
+            'sales_marketing' => 'Sales and Marketing',
+            'finance' => 'Finance',
+            'office_of_president' => 'Office of the President',
         ];
     }
 }
