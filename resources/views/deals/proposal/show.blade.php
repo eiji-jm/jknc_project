@@ -22,6 +22,7 @@
     .proposal-page {
         box-sizing: border-box;
         width: min(100%, 210mm);
+        height: 297mm;
         min-height: 297mm;
         margin: 0 auto 16px;
         background: #fff;
@@ -30,9 +31,9 @@
         padding: 44px 52px 70px;
         position: relative;
     }
-    .proposal-inner-page { min-height: 297mm; padding-top: 52px; }
+    .proposal-inner-page { height: 297mm; min-height: 297mm; padding-top: 52px; overflow: hidden; }
     .proposal-page-body { width: 100%; }
-    .proposal-cover { min-height: 297mm; position: relative; }
+    .proposal-cover { height: 297mm; min-height: 297mm; position: relative; overflow: hidden; }
     .proposal-cover-logo-wrap { width: 100%; }
     .proposal-brand-logo { width: 470px; max-width: 100%; height: auto; object-fit: contain; }
     .proposal-cover-body { margin-top: 165px; color: #0031af; }
