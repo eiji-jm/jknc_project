@@ -21,7 +21,7 @@
     .proposal-preview-html-wrap { width: fit-content; min-width: 100%; margin: 0 auto; }
     .proposal-page {
         box-sizing: border-box;
-        width: min(100%, 200mm);
+        width: min(100%, 210mm);
         min-height: 297mm;
         margin: 0 auto 16px;
         background: #fff;
@@ -30,9 +30,9 @@
         padding: 44px 52px 70px;
         position: relative;
     }
-    .proposal-inner-page { min-height: 282mm; padding-top: 52px; }
+    .proposal-inner-page { min-height: 297mm; padding-top: 52px; }
     .proposal-page-body { width: 100%; }
-    .proposal-cover { min-height: 282mm; position: relative; }
+    .proposal-cover { min-height: 297mm; position: relative; }
     .proposal-cover-logo-wrap { width: 100%; }
     .proposal-brand-logo { width: 470px; max-width: 100%; height: auto; object-fit: contain; }
     .proposal-cover-body { margin-top: 165px; color: #0031af; }
@@ -57,6 +57,11 @@
 .proposal-need-heading { margin-top: 76px; }
     .proposal-term-number { display: inline-block; min-width: 18px; }
     .proposal-paragraph, .proposal-note, .proposal-system-note { margin: 0 0 12px; font-size: 11.5px; line-height: 1.7; text-align: justify; }
+    .proposal-highlights-intro { width: 74%; margin: 36px auto 48px; font-size: 14px; line-height: 1.35; text-align: justify; }
+    .proposal-highlights-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 60px 80px; width: 74%; margin: 0 auto; }
+    .proposal-highlight-item h3 { margin: 0 0 14px; font-size: 15px; line-height: 1.25; font-weight: 700; color: #111827; }
+    .proposal-highlight-item p { margin: 0; font-size: 14px; line-height: 1.25; text-align: justify; }
+    .proposal-commitment-lead strong { font-style: italic; }
     .proposal-note { color: #475569; font-style: italic; }
     .proposal-system-note { margin-top: 18px; font-size: 10px; color: #475569; }
     .proposal-bullet-list, .proposal-numbered-list { margin: 0 0 10px 18px; padding: 0; font-size: 11.5px; line-height: 1.7; }
@@ -81,6 +86,8 @@
     .proposal-service-scope-list li { margin: 0 0 4px; }
     .proposal-service-scope-list ol[type="a"] { list-style-type: lower-alpha; }
     .proposal-service-table { margin-top: 22px; }
+.proposal-product-offerings-heading { margin-top: 24px; }
+.proposal-product-table { margin-top: 10px; }
 .proposal-pricing-table, .proposal-data-table { margin-top: 16px; }
 .proposal-availed-table { margin: 36px 0 14px; table-layout: fixed; }
 .proposal-availed-table th, .proposal-availed-table td { padding: 6px 7px; font-size: 10.5px; line-height: 1.35; }
@@ -614,7 +621,7 @@
     const syncStructuredFieldsFromDocument = () => {
         const serviceType = extractFieldText('.proposal-cover-title');
         const location = extractFieldText('.proposal-presented-location');
-        const proposalText = extractFieldMultiline('.proposal-page:nth-of-type(4) .proposal-paragraph');
+        const proposalText = extractFieldMultiline('.proposal-page:nth-of-type(7) .proposal-paragraph');
         const preparedByName = extractFieldText('.proposal-signature-line');
 
         if (inputByName('service_type') && serviceType) inputByName('service_type').value = serviceType;

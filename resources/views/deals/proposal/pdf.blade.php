@@ -45,6 +45,13 @@
         .proposal-need-heading { margin-top: 76px; }
         .proposal-term-number { display: inline-block; min-width: 18px; }
         .proposal-paragraph, .proposal-note, .proposal-system-note { margin: 0 0 12px; font-size: 11.5px; line-height: 1.7; text-align: justify; }
+        .proposal-highlights-intro { width: 74%; margin: 36px auto 48px; font-size: 14px; line-height: 1.35; text-align: justify; }
+        .proposal-highlights-grid { width: 74%; margin: 0 auto; }
+        .proposal-highlight-item { width: 43%; display: inline-block; vertical-align: top; margin: 0 6% 56px 0; }
+        .proposal-highlight-item:nth-child(even) { margin-right: 0; }
+        .proposal-highlight-item h3 { margin: 0 0 14px; font-size: 15px; line-height: 1.25; font-weight: 700; color: #111827; }
+        .proposal-highlight-item p { margin: 0; font-size: 14px; line-height: 1.25; text-align: justify; }
+        .proposal-commitment-lead strong { font-style: italic; }
         .proposal-note { color: #475569; font-style: italic; }
         .proposal-system-note { margin-top: 18px; font-size: 10px; color: #475569; }
         .proposal-bullet-list, .proposal-numbered-list { margin: 0 0 10px 18px; padding: 0; font-size: 11.5px; line-height: 1.7; }
@@ -64,6 +71,8 @@
         .proposal-service-scope-list li { margin: 0 0 4px; }
         .proposal-service-scope-list ol[type="a"] { list-style-type: lower-alpha; }
         .proposal-service-table { margin-top: 22px; }
+        .proposal-product-offerings-heading { margin-top: 24px; }
+        .proposal-product-table { margin-top: 10px; }
         .proposal-pricing-table, .proposal-data-table { margin-top: 16px; }
         .proposal-availed-table { margin: 36px 0 14px; table-layout: fixed; }
         .proposal-availed-table th, .proposal-availed-table td { padding: 6px 7px; font-size: 10.5px; line-height: 1.35; }

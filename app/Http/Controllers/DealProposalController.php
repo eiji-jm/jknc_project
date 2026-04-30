@@ -516,7 +516,8 @@ class DealProposalController extends Controller
             'executive_summary' => self::EXECUTIVE_SUMMARY,
             'role_and_value' => self::ROLE_AND_VALUE,
             'why_partner' => self::WHY_PARTNER,
-            'service_areas' => self::SERVICE_AREAS,
+            'service_areas' => $this->serviceAreaSupportRows(),
+            'product_areas' => $this->productAreaOfferRows(),
             'proposal_highlights' => self::HIGHLIGHTS,
             'commitment' => self::COMMITMENT,
             'agreement_inclusions' => self::AGREEMENT_INCLUSIONS,
@@ -674,6 +675,98 @@ class DealProposalController extends Controller
     private function normalizeLookupKey(string $value): string
     {
         return Str::lower(trim($value));
+    }
+
+    private function serviceAreaSupportRows(): array
+    {
+        $services = Service::query()
+            ->whereNull('company_id')
+            ->where('status', 'Active')
+            ->orderBy('service_name')
+            ->get(['service_name', 'service_area', 'service_area_other']);
+
+        $grouped = [];
+
+        foreach ($services as $service) {
+            $areas = collect($service->service_area ?? [])
+                ->map(fn ($area) => trim((string) $area))
+                ->filter()
+                ->values();
+
+            if ($areas->contains('Others') && filled($service->service_area_other)) {
+                $areas = $areas
+                    ->reject(fn ($area) => $area === 'Others')
+                    ->push(trim((string) $service->service_area_other))
+                    ->values();
+            }
+
+            if ($areas->isEmpty() && filled($service->service_area_other)) {
+                $areas = collect([trim((string) $service->service_area_other)]);
+            }
+
+            foreach ($areas as $area) {
+                $grouped[$area] ??= [];
+                $grouped[$area][] = (string) $service->service_name;
+            }
+        }
+
+        if ($grouped === []) {
+            return self::SERVICE_AREAS;
+        }
+
+        return $this->catalogAreaRows($grouped, 'service_area', 'scope');
+    }
+
+    private function productAreaOfferRows(): array
+    {
+        $products = Product::query()
+            ->where('status', 'Active')
+            ->orderBy('product_name')
+            ->get(['product_name', 'product_area', 'product_area_other']);
+
+        $grouped = [];
+
+        foreach ($products as $product) {
+            $areas = collect($product->product_area ?? [])
+                ->map(fn ($area) => trim((string) $area))
+                ->filter()
+                ->values();
+
+            if ($areas->contains('Others') && filled($product->product_area_other)) {
+                $areas = $areas
+                    ->reject(fn ($area) => $area === 'Others')
+                    ->push(trim((string) $product->product_area_other))
+                    ->values();
+            }
+
+            if ($areas->isEmpty() && filled($product->product_area_other)) {
+                $areas = collect([trim((string) $product->product_area_other)]);
+            }
+
+            foreach ($areas as $area) {
+                $grouped[$area] ??= [];
+                $grouped[$area][] = (string) $product->product_name;
+            }
+        }
+
+        return $this->catalogAreaRows($grouped, 'product_area', 'products');
+    }
+
+    private function catalogAreaRows(array $grouped, string $areaKey, string $itemsKey): array
+    {
+        return collect($grouped)
+            ->sortKeys()
+            ->map(fn (array $scope, string $area): array => [
+                $areaKey => $area,
+                $itemsKey => collect($scope)->unique()->values()->all(),
+            ])
+            ->values()
+            ->map(fn (array $row, int $index): array => [
+                'no' => (string) ($index + 1),
+                $areaKey => $row[$areaKey],
+                $itemsKey => $row[$itemsKey],
+            ])
+            ->all();
     }
 
     private function validatedPayload(Request $request): array

@@ -56,7 +56,7 @@
         ['title' => 'Why John Kelly & Company is the Right Partner', 'content' => 'why_partner'],
     ];
 
-    $totalPages = 7;
+    $totalPages = 10;
     $renderPageFooter = function () use ($d) {
         return '
             <div class="proposal-page-footer">
@@ -163,6 +163,7 @@
                 @endforeach
             </tbody>
         </table>
+
         </div>
         {!! $renderPageFooter() !!}
     </section>
@@ -171,7 +172,83 @@
         {!! $renderPageNumber(3) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
+            <span class="proposal-section-number">{{ $toRoman(3) }}.</span>
+            <span>Products Offered</span>
+        </h2>
+        <table class="proposal-service-table proposal-product-table">
+            <thead>
+                <tr>
+                    <th class="proposal-service-no">No.</th>
+                    <th class="proposal-service-area">Product Area</th>
+                    <th class="proposal-service-scope">Products Offered</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse (($d['product_areas'] ?? []) as $productArea)
+                    <tr>
+                        <td class="proposal-service-no">{{ $productArea['no'] ?? '' }}</td>
+                        <td class="proposal-service-area-title">{{ $productArea['product_area'] ?? '' }}</td>
+                        <td class="proposal-service-scope-list">
+                            <ol type="a">
+                                @foreach (($productArea['products'] ?? []) as $product)
+                                    <li>{{ $product }}</li>
+                                @endforeach
+                            </ol>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td class="proposal-service-no">1</td>
+                        <td class="proposal-service-area-title">Products</td>
+                        <td class="proposal-service-scope-list">No active product records found.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        </div>
+        {!! $renderPageFooter() !!}
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(4) !!}
+        <div class="proposal-page-body">
+        <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(4) }}.</span>
+            <span>Highlights from Our Proposal and Approach</span>
+        </h2>
+        <p class="proposal-paragraph proposal-highlights-intro">At <strong>John Kelly &amp; Company</strong>, we believe that real progress begins with clear communication, teamwork, and trust. Our goal is to make every step of the process simple, organized, and meaningful for your business.</p>
+
+        <div class="proposal-highlights-grid">
+            @foreach (($d['proposal_highlights'] ?? []) as $highlight)
+                <div class="proposal-highlight-item">
+                    <h3>{{ $highlight['title'] ?? '' }}</h3>
+                    <p>{{ $highlight['body'] ?? '' }}</p>
+                </div>
+            @endforeach
+        </div>
+        </div>
+        {!! $renderPageFooter() !!}
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(5) !!}
+        <div class="proposal-page-body">
+        <h2 class="proposal-section-heading">
+            <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
+            <span>Our Commitment</span>
+        </h2>
+        @foreach (($d['commitment'] ?? []) as $item)
+            <p class="proposal-paragraph">{{ $item }}</p>
+        @endforeach
+        </div>
+        {!! $renderPageFooter() !!}
+    </section>
+
+    <section class="proposal-page proposal-inner-page">
+        {!! $renderPageNumber(6) !!}
+        <div class="proposal-page-body">
+        <h2 class="proposal-section-heading">
+            <span class="proposal-section-number">{{ $toRoman(6) }}.</span>
             <span>{{ $d['proposal_intro'] ?? 'Our Proposal' }}</span>
         </h2>
         <div
@@ -386,24 +463,8 @@
     </section>
 
     <section class="proposal-page proposal-inner-page">
-        {!! $renderPageNumber(4) !!}
+        {!! $renderPageNumber(7) !!}
         <div class="proposal-page-body">
-        <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">{{ $toRoman(5) }}.</span>
-            <span>Proposal Highlights</span>
-        </h2>
-        @foreach (($d['proposal_highlights'] ?? []) as $highlight)
-            <p class="proposal-paragraph"><strong>{{ $highlight['title'] ?? '' }}.</strong> {{ $highlight['body'] ?? '' }}</p>
-        @endforeach
-
-        <h2 class="proposal-section-heading">
-            <span class="proposal-section-number">{{ $toRoman(6) }}.</span>
-            <span>Our Commitment</span>
-        </h2>
-        @foreach (($d['commitment'] ?? []) as $item)
-            <p class="proposal-paragraph">{{ $item }}</p>
-        @endforeach
-
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(7) }}.</span>
             <span>Agreement Inclusions and Exclusions</span>
@@ -446,7 +507,7 @@
     </section>
 
     <section class="proposal-page proposal-inner-page">
-        {!! $renderPageNumber(5) !!}
+        {!! $renderPageNumber(8) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(8) }}.</span>
@@ -485,7 +546,7 @@
     </section>
 
     <section class="proposal-page proposal-inner-page">
-        {!! $renderPageNumber(6) !!}
+        {!! $renderPageNumber(9) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(9) }}.</span>
@@ -520,7 +581,7 @@
     </section>
 
     <section class="proposal-page proposal-inner-page">
-        {!! $renderPageNumber(7) !!}
+        {!! $renderPageNumber(10) !!}
         <div class="proposal-page-body">
         <h2 class="proposal-section-heading">
             <span class="proposal-section-number">{{ $toRoman(10) }}.</span>
