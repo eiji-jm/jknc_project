@@ -10,7 +10,11 @@
                 <h1 class="text-lg font-semibold text-gray-900">Organizational</h1>
             </div>
 
-            <button type="button" onclick="openAddSection()" class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0 hover:bg-blue-700 transition">
+            <button
+                type="button"
+                onclick="openAddSection()"
+                class="bg-blue-600 text-white px-6 py-2 rounded text-sm shrink-0 hover:bg-blue-700 transition"
+            >
                 + Add
             </button>
         </div>
@@ -18,24 +22,13 @@
         {{-- TABS --}}
         <div class="px-4 py-3 border-b bg-white shrink-0 overflow-x-auto">
             <div class="inline-flex min-w-max rounded-md border border-gray-200 overflow-hidden">
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-blue-50 text-blue-700 font-medium" data-tab="address" onclick="changeTab('address', this)">
-                    Address
-                </button>
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="office" onclick="changeTab('office', this)">
-                    Office
-                </button>
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="branch" onclick="changeTab('branch', this)">
-                    Branch
-                </button>
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="department" onclick="changeTab('department', this)">
-                    Department
-                </button>
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="division" onclick="changeTab('division', this)">
-                    Division
-                </button>
-                <button type="button" class="org-tab-btn px-4 py-2 text-sm bg-white text-gray-600 hover:bg-gray-50" data-tab="unit" onclick="changeTab('unit', this)">
-                    Unit
-                </button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-blue-50 text-blue-700 font-medium" data-tab="address" onclick="changeTab('address', this)">Address</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="branch" onclick="changeTab('branch', this)">Branch</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="office" onclick="changeTab('office', this)">Office</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="department" onclick="changeTab('department', this)">Department</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="division" onclick="changeTab('division', this)">Division</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm border-r border-gray-200 bg-white text-gray-600 hover:bg-gray-50" data-tab="unit" onclick="changeTab('unit', this)">Unit</button>
+                <button type="button" class="org-tab-btn px-4 py-2 text-sm bg-white text-gray-600 hover:bg-gray-50" data-tab="position" onclick="changeTab('position', this)">Position</button>
             </div>
         </div>
 
@@ -52,183 +45,265 @@
         </div>
 
         {{-- ADD SLIDE OVER --}}
-        <div id="addSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
-            <div id="addBackdrop" class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
+        <div id="addSection" class="hidden fixed inset-0 z-50">
+            <div class="absolute inset-0 bg-black/40" onclick="closeAddSection()"></div>
 
-            <div class="absolute inset-y-0 right-0 flex max-w-full">
-                <div
-                    id="addPanel"
-                    class="w-[35%] min-w-[380px] max-w-[650px] bg-white shadow-2xl flex flex-col h-full transform translate-x-full transition-transform duration-300 ease-in-out"
-                >
-                    <div class="p-6 border-b flex items-center justify-between shrink-0">
-                        <h2 id="formTitle" class="font-bold text-lg text-gray-900">Add Business Address</h2>
-                        <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
-                    </div>
+            <div
+                id="addPanel"
+                class="absolute top-0 right-0 h-full w-full max-w-[760px] bg-white shadow-2xl flex flex-col overflow-hidden transform translate-x-full transition-transform duration-300 ease-in-out"
+            >
+                <div class="p-6 border-b flex items-center justify-between shrink-0">
+                    <h2 id="formTitle" class="font-bold text-lg text-gray-900">Add Address</h2>
+                    <button type="button" onclick="closeAddSection()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+                </div>
 
-                    <div class="px-6 pt-4">
-                        <div id="formError" class="hidden rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
-                    </div>
+                <div class="px-6 pt-4 shrink-0">
+                    <div id="formError" class="hidden rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"></div>
+                </div>
 
-                    <div class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
-                        {{-- ADDRESS --}}
-                        <div id="form-address" class="org-form-section">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Business Address</label>
-                                <textarea id="business_address" rows="5" class="w-full border rounded-md p-2" placeholder="Enter business address"></textarea>
-                            </div>
-                        </div>
-
-                        {{-- OFFICE --}}
-                        <div id="form-office" class="org-form-section hidden">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office Name</label>
-                                <input id="office_name" class="w-full border rounded-md p-2" placeholder="Office name">
+                <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+                    {{-- ADDRESS --}}
+                    <div id="form-address" class="org-form-section w-full">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Country</label>
+                                <input id="address_country" class="w-full border rounded-md p-2 bg-gray-50" value="Philippines" readonly>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office Address</label>
-                                <textarea id="office_address" rows="4" class="w-full border rounded-md p-2" placeholder="Office address"></textarea>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Region</label>
+                                <select id="address_region_code" class="w-full border rounded-md p-2" onchange="onRegionChange()"></select>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Head of Office</label>
-                                <input id="office_head" class="w-full border rounded-md p-2" placeholder="Head of office">
-                            </div>
-                        </div>
-
-                        {{-- BRANCH --}}
-                        <div id="form-branch" class="org-form-section hidden">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office</label>
-                                <select id="branch_office_id" class="w-full border rounded-md p-2"></select>
+                            <div class="w-full">
+                                <label id="provinceLabel" class="block text-sm font-medium mb-1">Province / District</label>
+                                <select id="address_province_code" class="w-full border rounded-md p-2" onchange="onProvinceChange()"></select>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch Name</label>
-                                <input id="branch_name" class="w-full border rounded-md p-2" placeholder="Branch name">
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">City / Municipality</label>
+                                <select id="address_city_code" class="w-full border rounded-md p-2" onchange="onCityChange()"></select>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch Address</label>
-                                <textarea id="branch_address" rows="4" class="w-full border rounded-md p-2" placeholder="Branch address"></textarea>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Barangay</label>
+                                <select id="address_barangay_code" class="w-full border rounded-md p-2"></select>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch Head</label>
-                                <input id="branch_head" class="w-full border rounded-md p-2" placeholder="Branch head">
-                            </div>
-                        </div>
-
-                        {{-- DEPARTMENT --}}
-                        <div id="form-department" class="org-form-section hidden">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office</label>
-                                <select id="department_office_id" class="w-full border rounded-md p-2"></select>
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Postal Code</label>
+                                <input id="address_postal_code" class="w-full border rounded-md p-2" placeholder="Postal code">
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch</label>
-                                <select id="department_branch_id" class="w-full border rounded-md p-2"></select>
+                            <div class="md:col-span-2 w-full">
+                                <label class="block text-sm font-medium mb-1">Street Address</label>
+                                <input id="address_street_address" class="w-full border rounded-md p-2" placeholder="House no., street, purok, etc.">
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Department Name</label>
-                                <input id="department_name" class="w-full border rounded-md p-2" placeholder="Department name">
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Subdivision / Building</label>
+                                <input id="address_subdivision_building" class="w-full border rounded-md p-2" placeholder="Subdivision / Building">
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Department Address</label>
-                                <textarea id="department_address" rows="4" class="w-full border rounded-md p-2" placeholder="Department address"></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Department Head</label>
-                                <input id="department_head" class="w-full border rounded-md p-2" placeholder="Department head">
-                            </div>
-                        </div>
-
-                        {{-- DIVISION --}}
-                        <div id="form-division" class="org-form-section hidden">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office</label>
-                                <select id="division_office_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch</label>
-                                <select id="division_branch_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Department</label>
-                                <select id="division_department_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Division Name</label>
-                                <input id="division_name" class="w-full border rounded-md p-2" placeholder="Division name">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Division Address</label>
-                                <textarea id="division_address" rows="4" class="w-full border rounded-md p-2" placeholder="Division address"></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Division Head</label>
-                                <input id="division_head" class="w-full border rounded-md p-2" placeholder="Division head">
-                            </div>
-                        </div>
-
-                        {{-- UNIT --}}
-                        <div id="form-unit" class="org-form-section hidden">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Office</label>
-                                <select id="unit_office_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Branch</label>
-                                <select id="unit_branch_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Department</label>
-                                <select id="unit_department_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Division</label>
-                                <select id="unit_division_id" class="w-full border rounded-md p-2"></select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Unit Name</label>
-                                <input id="unit_name" class="w-full border rounded-md p-2" placeholder="Unit name">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Unit Address</label>
-                                <textarea id="unit_address" rows="4" class="w-full border rounded-md p-2" placeholder="Unit address"></textarea>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Unit Head</label>
-                                <input id="unit_head" class="w-full border rounded-md p-2" placeholder="Unit head">
+                            <div class="w-full">
+                                <label class="block text-sm font-medium mb-1">Unit No.</label>
+                                <input id="address_unit_no" class="w-full border rounded-md p-2" placeholder="Unit no.">
                             </div>
                         </div>
                     </div>
 
-                    <div class="p-6 border-t flex gap-2 shrink-0">
-                        <button type="button" onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
-                        <button type="button" id="saveButton" onclick="saveOrganizationalEntry()" class="flex-1 bg-blue-600 text-white rounded py-2 hover:bg-blue-700 transition">
-                            Save
-                        </button>
+                    {{-- BRANCH --}}
+                    <div id="form-branch" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch Name</label>
+                            <input id="branch_name" class="w-full border rounded-md p-2" placeholder="Branch name">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <select id="branch_address_id" class="w-full border rounded-md p-2"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch Head</label>
+                            <input id="branch_head" class="w-full border rounded-md p-2" placeholder="Branch head">
+                        </div>
                     </div>
+
+                    {{-- OFFICE --}}
+                    <div id="form-office" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Office Name</label>
+                            <input id="office_name" class="w-full border rounded-md p-2" placeholder="Office of the President, Office of the Treasurer, etc.">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Head of Office</label>
+                            <input id="office_head" class="w-full border rounded-md p-2" placeholder="Head of office">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch</label>
+                            <select id="office_branch_id" class="w-full border rounded-md p-2" onchange="syncOfficeReadonlyFields()"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <textarea id="office_address_preview" rows="4" class="w-full border rounded-md p-2 bg-gray-50 resize-none" readonly></textarea>
+                        </div>
+                    </div>
+
+                    {{-- DEPARTMENT --}}
+                    <div id="form-department" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Department Name</label>
+                            <input id="department_name" class="w-full border rounded-md p-2" placeholder="Department name">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Department Head</label>
+                            <input id="department_head" class="w-full border rounded-md p-2" placeholder="Department head">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Office</label>
+                            <select id="department_office_id" class="w-full border rounded-md p-2" onchange="syncDepartmentReadonlyFields()"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch</label>
+                            <input id="department_branch_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <textarea id="department_address_preview" rows="4" class="w-full border rounded-md p-2 bg-gray-50 resize-none" readonly></textarea>
+                        </div>
+                    </div>
+
+                    {{-- DIVISION --}}
+                    <div id="form-division" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Division Name</label>
+                            <input id="division_name" class="w-full border rounded-md p-2" placeholder="Division name">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Division Head</label>
+                            <input id="division_head" class="w-full border rounded-md p-2" placeholder="Division head">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Department</label>
+                            <select id="division_department_id" class="w-full border rounded-md p-2" onchange="syncDivisionReadonlyFields()"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Office</label>
+                            <input id="division_office_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch</label>
+                            <input id="division_branch_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <textarea id="division_address_preview" rows="4" class="w-full border rounded-md p-2 bg-gray-50 resize-none" readonly></textarea>
+                        </div>
+                    </div>
+
+                    {{-- UNIT --}}
+                    <div id="form-unit" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Unit Name</label>
+                            <input id="unit_name" class="w-full border rounded-md p-2" placeholder="Unit name">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Unit Head</label>
+                            <input id="unit_head" class="w-full border rounded-md p-2" placeholder="Unit head">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Division</label>
+                            <select id="unit_division_id" class="w-full border rounded-md p-2" onchange="syncUnitReadonlyFields()"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Department</label>
+                            <input id="unit_department_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Office</label>
+                            <input id="unit_office_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch</label>
+                            <input id="unit_branch_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <textarea id="unit_address_preview" rows="4" class="w-full border rounded-md p-2 bg-gray-50 resize-none" readonly></textarea>
+                        </div>
+                    </div>
+
+                    {{-- POSITION --}}
+                    <div id="form-position" class="org-form-section hidden w-full space-y-4">
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Position Name</label>
+                            <input id="position_name" class="w-full border rounded-md p-2" placeholder="Position name">
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Unit</label>
+                            <select id="position_unit_id" class="w-full border rounded-md p-2" onchange="syncPositionReadonlyFields()"></select>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Division</label>
+                            <input id="position_division_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Department</label>
+                            <input id="position_department_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Office</label>
+                            <input id="position_office_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Branch</label>
+                            <input id="position_branch_preview" class="w-full border rounded-md p-2 bg-gray-50" readonly>
+                        </div>
+
+                        <div class="w-full">
+                            <label class="block text-sm font-medium mb-1">Address</label>
+                            <textarea id="position_address_preview" rows="4" class="w-full border rounded-md p-2 bg-gray-50 resize-none" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 border-t flex gap-2 shrink-0 bg-white">
+                    <button type="button" onclick="closeAddSection()" class="flex-1 border rounded py-2">Cancel</button>
+                    <button
+                        type="button"
+                        id="saveButton"
+                        onclick="saveOrganizationalEntry()"
+                        class="flex-1 bg-blue-600 text-white rounded py-2 hover:bg-blue-700 transition"
+                    >
+                        Save
+                    </button>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -237,75 +312,98 @@ let activeTab = 'address';
 
 let organizationalRows = {
     address: @json($addresses),
-    office: @json($offices),
     branch: @json($branches),
+    office: @json($offices),
     department: @json($departments),
     division: @json($divisions),
     unit: @json($units),
+    position: @json($positions),
 };
 
-let officeOptions = @json($officeOptions);
+let addressOptions = @json($addressOptions);
 let branchOptions = @json($branchOptions);
+let officeOptions = @json($officeOptions);
 let departmentOptions = @json($departmentOptions);
 let divisionOptions = @json($divisionOptions);
+let unitOptions = @json($unitOptions);
 
 const storeUrl = @json(route('human-capital.organizational.store'));
 const csrfToken = @json(csrf_token());
 
+const regionsUrl = @json(route('human-capital.organizational.locations.regions'));
+const provincesOrDistrictsUrlTemplate = @json(route('human-capital.organizational.locations.provinces-or-districts', ['regionCode' => '__REGION__']));
+const citiesUrlTemplate = @json(route('human-capital.organizational.locations.cities-municipalities', ['type' => '__TYPE__', 'code' => '__CODE__']));
+const barangaysUrlTemplate = @json(route('human-capital.organizational.locations.barangays', ['cityCode' => '__CITY__']));
+
+let currentProvinceType = 'province';
+
 const tableColumns = {
     address: [
-        { key: 'business_address', label: 'Business Address', width: '' },
-    ],
-    office: [
-        { key: 'office_name', label: 'Office Name', width: 'w-56' },
-        { key: 'office_address', label: 'Office Address', width: '' },
-        { key: 'office_head', label: 'Head of Office', width: 'w-56' },
+        { key: 'region_name', label: 'Region', width: 'w-40' },
+        { key: 'province_name', label: 'Province / District', width: 'w-40' },
+        { key: 'city_name', label: 'City / Municipality', width: 'w-44' },
+        { key: 'barangay_name', label: 'Barangay', width: 'w-40' },
+        { key: 'full_address', label: 'Full Address', width: '' },
     ],
     branch: [
-        { key: 'office_name', label: 'Office', width: 'w-44' },
-        { key: 'branch_name', label: 'Branch Name', width: 'w-44' },
-        { key: 'branch_address', label: 'Branch Address', width: '' },
-        { key: 'branch_head', label: 'Branch Head', width: 'w-44' },
+        { key: 'branch_name', label: 'Branch Name', width: 'w-48' },
+        { key: 'address', label: 'Address', width: '' },
+        { key: 'branch_head', label: 'Branch Head', width: 'w-48' },
+    ],
+    office: [
+        { key: 'office_name', label: 'Office', width: 'w-52' },
+        { key: 'branch_name', label: 'Branch', width: 'w-44' },
+        { key: 'address', label: 'Address', width: '' },
+        { key: 'office_head', label: 'Head of Office', width: 'w-44' },
     ],
     department: [
-        { key: 'office_name', label: 'Office', width: 'w-36' },
-        { key: 'branch_name', label: 'Branch', width: 'w-36' },
-        { key: 'department_name', label: 'Department Name', width: 'w-48' },
-        { key: 'department_address', label: 'Department Address', width: '' },
+        { key: 'department_name', label: 'Department', width: 'w-44' },
+        { key: 'office_name', label: 'Office', width: 'w-44' },
+        { key: 'branch_name', label: 'Branch', width: 'w-44' },
+        { key: 'address', label: 'Address', width: '' },
         { key: 'department_head', label: 'Department Head', width: 'w-44' },
     ],
     division: [
-        { key: 'office_name', label: 'Office', width: 'w-32' },
-        { key: 'branch_name', label: 'Branch', width: 'w-32' },
-        { key: 'department_name', label: 'Department', width: 'w-40' },
-        { key: 'division_name', label: 'Division Name', width: 'w-40' },
-        { key: 'division_address', label: 'Division Address', width: '' },
-        { key: 'division_head', label: 'Division Head', width: 'w-40' },
+        { key: 'division_name', label: 'Division', width: 'w-44' },
+        { key: 'department_name', label: 'Department', width: 'w-44' },
+        { key: 'office_name', label: 'Office', width: 'w-44' },
+        { key: 'branch_name', label: 'Branch', width: 'w-44' },
+        { key: 'address', label: 'Address', width: '' },
+        { key: 'division_head', label: 'Division Head', width: 'w-44' },
     ],
     unit: [
-        { key: 'office_name', label: 'Office', width: 'w-28' },
-        { key: 'branch_name', label: 'Branch', width: 'w-28' },
-        { key: 'department_name', label: 'Department', width: 'w-36' },
-        { key: 'division_name', label: 'Division', width: 'w-36' },
-        { key: 'unit_name', label: 'Unit Name', width: 'w-36' },
-        { key: 'unit_address', label: 'Unit Address', width: '' },
-        { key: 'unit_head', label: 'Unit Head', width: 'w-36' },
+        { key: 'unit_name', label: 'Unit', width: 'w-40' },
+        { key: 'division_name', label: 'Division', width: 'w-40' },
+        { key: 'department_name', label: 'Department', width: 'w-40' },
+        { key: 'office_name', label: 'Office', width: 'w-40' },
+        { key: 'branch_name', label: 'Branch', width: 'w-40' },
+        { key: 'address', label: 'Address', width: '' },
+        { key: 'unit_head', label: 'Unit Head', width: 'w-40' },
+    ],
+    position: [
+        { key: 'position_name', label: 'Position', width: 'w-40' },
+        { key: 'unit_name', label: 'Unit', width: 'w-40' },
+        { key: 'division_name', label: 'Division', width: 'w-40' },
+        { key: 'department_name', label: 'Department', width: 'w-40' },
+        { key: 'office_name', label: 'Office', width: 'w-40' },
+        { key: 'branch_name', label: 'Branch', width: 'w-40' },
+        { key: 'address', label: 'Address', width: '' },
     ],
 };
 
 const formTitles = {
-    address: 'Add Business Address',
-    office: 'Add Office',
+    address: 'Add Address',
     branch: 'Add Branch',
+    office: 'Add Office',
     department: 'Add Department',
     division: 'Add Division',
     unit: 'Add Unit',
+    position: 'Add Position',
 };
 
 function openAddSection() {
     resetFormDefaults();
     populateAllSelects();
-
     document.getElementById('formTitle').textContent = formTitles[activeTab] || 'Add Entry';
     showFormSection(activeTab);
 
@@ -317,6 +415,16 @@ function openAddSection() {
     requestAnimationFrame(() => {
         addPanel.classList.remove('translate-x-full');
     });
+
+    if (activeTab === 'address') {
+        loadRegions();
+    }
+
+    syncOfficeReadonlyFields();
+    syncDepartmentReadonlyFields();
+    syncDivisionReadonlyFields();
+    syncUnitReadonlyFields();
+    syncPositionReadonlyFields();
 }
 
 function closeAddSection() {
@@ -412,66 +520,98 @@ function populateSelect(selectId, items, placeholder, labelKey) {
     let html = `<option value="">${placeholder}</option>`;
 
     items.forEach(item => {
-        html += `<option value="${item.id}">${item[labelKey] ?? ''}</option>`;
+        html += `<option value="${item.id}">${escapeHtml(item[labelKey] ?? '')}</option>`;
     });
 
     select.innerHTML = html;
 }
 
 function populateAllSelects() {
-    populateSelect('branch_office_id', officeOptions, 'Select office', 'office_name');
-
+    populateSelect('branch_address_id', addressOptions, 'Select address', 'full_address');
+    populateSelect('office_branch_id', branchOptions, 'Select branch', 'branch_name');
     populateSelect('department_office_id', officeOptions, 'Select office', 'office_name');
-    populateSelect('department_branch_id', branchOptions, 'Select branch', 'branch_name');
-
-    populateSelect('division_office_id', officeOptions, 'Select office', 'office_name');
-    populateSelect('division_branch_id', branchOptions, 'Select branch', 'branch_name');
     populateSelect('division_department_id', departmentOptions, 'Select department', 'department_name');
-
-    populateSelect('unit_office_id', officeOptions, 'Select office', 'office_name');
-    populateSelect('unit_branch_id', branchOptions, 'Select branch', 'branch_name');
-    populateSelect('unit_department_id', departmentOptions, 'Select department', 'department_name');
     populateSelect('unit_division_id', divisionOptions, 'Select division', 'division_name');
+    populateSelect('position_unit_id', unitOptions, 'Select unit', 'unit_name');
 }
 
 function resetFormDefaults() {
     hideFormError();
 
     const fields = [
-        'business_address',
-        'office_name',
-        'office_address',
-        'office_head',
-        'branch_office_id',
+        'address_country',
+        'address_region_code',
+        'address_province_code',
+        'address_city_code',
+        'address_barangay_code',
+        'address_street_address',
+        'address_subdivision_building',
+        'address_unit_no',
+        'address_postal_code',
+
         'branch_name',
-        'branch_address',
+        'branch_address_id',
         'branch_head',
-        'department_office_id',
-        'department_branch_id',
+
+        'office_name',
+        'office_head',
+        'office_branch_id',
+        'office_address_preview',
+
         'department_name',
-        'department_address',
         'department_head',
-        'division_office_id',
-        'division_branch_id',
-        'division_department_id',
+        'department_office_id',
+        'department_branch_preview',
+        'department_address_preview',
+
         'division_name',
-        'division_address',
         'division_head',
-        'unit_office_id',
-        'unit_branch_id',
-        'unit_department_id',
-        'unit_division_id',
+        'division_department_id',
+        'division_office_preview',
+        'division_branch_preview',
+        'division_address_preview',
+
         'unit_name',
-        'unit_address',
         'unit_head',
+        'unit_division_id',
+        'unit_department_preview',
+        'unit_office_preview',
+        'unit_branch_preview',
+        'unit_address_preview',
+
+        'position_name',
+        'position_unit_id',
+        'position_division_preview',
+        'position_department_preview',
+        'position_office_preview',
+        'position_branch_preview',
+        'position_address_preview',
     ];
 
     fields.forEach(id => {
         const element = document.getElementById(id);
-        if (element) {
-            element.value = '';
+        if (!element) return;
+
+        if (id === 'address_country') {
+            element.value = 'Philippines';
+            return;
         }
+
+        element.value = '';
     });
+
+    document.getElementById('provinceLabel').textContent = 'Province / District';
+    currentProvinceType = 'province';
+    clearSelect('address_region_code', 'Select region');
+    clearSelect('address_province_code', 'Select province / district');
+    clearSelect('address_city_code', 'Select city / municipality');
+    clearSelect('address_barangay_code', 'Select barangay');
+}
+
+function clearSelect(selectId, placeholder) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = `<option value="">${placeholder}</option>`;
 }
 
 function showFormError(message) {
@@ -486,62 +626,244 @@ function hideFormError() {
     errorBox.classList.add('hidden');
 }
 
+async function loadRegions() {
+    clearSelect('address_region_code', 'Loading regions...');
+    clearSelect('address_province_code', 'Select province / district');
+    clearSelect('address_city_code', 'Select city / municipality');
+    clearSelect('address_barangay_code', 'Select barangay');
+
+    const response = await fetch(regionsUrl, {
+        headers: { 'Accept': 'application/json' }
+    });
+
+    const data = await response.json();
+
+    let html = `<option value="">Select region</option>`;
+    data.forEach(item => {
+        html += `<option value="${item.code}">${escapeHtml(item.name)}</option>`;
+    });
+
+    document.getElementById('address_region_code').innerHTML = html;
+}
+
+async function onRegionChange() {
+    const regionCode = document.getElementById('address_region_code').value;
+
+    clearSelect('address_city_code', 'Select city / municipality');
+    clearSelect('address_barangay_code', 'Select barangay');
+
+    if (!regionCode) {
+        document.getElementById('provinceLabel').textContent = 'Province / District';
+        clearSelect('address_province_code', 'Select province / district');
+        return;
+    }
+
+    const url = provincesOrDistrictsUrlTemplate.replace('__REGION__', encodeURIComponent(regionCode));
+    const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
+    const data = await response.json();
+
+    currentProvinceType = data.type || 'province';
+    document.getElementById('provinceLabel').textContent = data.label === 'District' ? 'District' : 'Province';
+
+    let html = `<option value="">Select ${data.label === 'District' ? 'district' : 'province'}</option>`;
+    (data.items || []).forEach(item => {
+        html += `<option value="${item.code}" data-type="${item.type}">${escapeHtml(item.name)}</option>`;
+    });
+
+    document.getElementById('address_province_code').innerHTML = html;
+}
+
+async function onProvinceChange() {
+    const provinceSelect = document.getElementById('address_province_code');
+    const code = provinceSelect.value;
+
+    clearSelect('address_barangay_code', 'Select barangay');
+
+    if (!code) {
+        clearSelect('address_city_code', 'Select city / municipality');
+        return;
+    }
+
+    const selectedOption = provinceSelect.options[provinceSelect.selectedIndex];
+    const type = selectedOption?.dataset?.type || currentProvinceType || 'province';
+
+    const url = citiesUrlTemplate
+        .replace('__TYPE__', encodeURIComponent(type))
+        .replace('__CODE__', encodeURIComponent(code));
+
+    const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
+    const data = await response.json();
+
+    let html = `<option value="">Select city / municipality</option>`;
+    data.forEach(item => {
+        html += `<option value="${item.code}">${escapeHtml(item.name)}</option>`;
+    });
+
+    document.getElementById('address_city_code').innerHTML = html;
+}
+
+async function onCityChange() {
+    const cityCode = document.getElementById('address_city_code').value;
+
+    if (!cityCode) {
+        clearSelect('address_barangay_code', 'Select barangay');
+        return;
+    }
+
+    const url = barangaysUrlTemplate.replace('__CITY__', encodeURIComponent(cityCode));
+    const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+    });
+    const data = await response.json();
+
+    let html = `<option value="">Select barangay</option>`;
+    data.forEach(item => {
+        html += `<option value="${item.code}">${escapeHtml(item.name)}</option>`;
+    });
+
+    document.getElementById('address_barangay_code').innerHTML = html;
+}
+
+function getSelectedText(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select || !select.value) return '';
+    return select.options[select.selectedIndex]?.text || '';
+}
+
+function getBranchById(id) {
+    return (organizationalRows.branch || []).find(item => String(item.id) === String(id)) || null;
+}
+
+function getOfficeById(id) {
+    return (organizationalRows.office || []).find(item => String(item.id) === String(id)) || null;
+}
+
+function getDepartmentById(id) {
+    return (organizationalRows.department || []).find(item => String(item.id) === String(id)) || null;
+}
+
+function getDivisionById(id) {
+    return (organizationalRows.division || []).find(item => String(item.id) === String(id)) || null;
+}
+
+function getUnitById(id) {
+    return (organizationalRows.unit || []).find(item => String(item.id) === String(id)) || null;
+}
+
+function syncOfficeReadonlyFields() {
+    const branchId = document.getElementById('office_branch_id')?.value;
+    const branch = getBranchById(branchId);
+    document.getElementById('office_address_preview').value = branch?.address || '';
+}
+
+function syncDepartmentReadonlyFields() {
+    const officeId = document.getElementById('department_office_id')?.value;
+    const office = getOfficeById(officeId);
+    document.getElementById('department_branch_preview').value = office?.branch_name || '';
+    document.getElementById('department_address_preview').value = office?.address || '';
+}
+
+function syncDivisionReadonlyFields() {
+    const departmentId = document.getElementById('division_department_id')?.value;
+    const department = getDepartmentById(departmentId);
+    document.getElementById('division_office_preview').value = department?.office_name || '';
+    document.getElementById('division_branch_preview').value = department?.branch_name || '';
+    document.getElementById('division_address_preview').value = department?.address || '';
+}
+
+function syncUnitReadonlyFields() {
+    const divisionId = document.getElementById('unit_division_id')?.value;
+    const division = getDivisionById(divisionId);
+    document.getElementById('unit_department_preview').value = division?.department_name || '';
+    document.getElementById('unit_office_preview').value = division?.office_name || '';
+    document.getElementById('unit_branch_preview').value = division?.branch_name || '';
+    document.getElementById('unit_address_preview').value = division?.address || '';
+}
+
+function syncPositionReadonlyFields() {
+    const unitId = document.getElementById('position_unit_id')?.value;
+    const unit = getUnitById(unitId);
+    document.getElementById('position_division_preview').value = unit?.division_name || '';
+    document.getElementById('position_department_preview').value = unit?.department_name || '';
+    document.getElementById('position_office_preview').value = unit?.office_name || '';
+    document.getElementById('position_branch_preview').value = unit?.branch_name || '';
+    document.getElementById('position_address_preview').value = unit?.address || '';
+}
+
 function getPayload() {
     switch (activeTab) {
-        case 'address':
+        case 'address': {
+            const provinceSelect = document.getElementById('address_province_code');
+            const selectedProvinceOption = provinceSelect.options[provinceSelect.selectedIndex];
+
             return {
                 type: 'address',
-                business_address: document.getElementById('business_address').value.trim(),
+                country: document.getElementById('address_country').value.trim(),
+                region_code: document.getElementById('address_region_code').value,
+                region_name: getSelectedText('address_region_code'),
+                province_code: document.getElementById('address_province_code').value || null,
+                province_name: getSelectedText('address_province_code') || null,
+                province_type: selectedProvinceOption?.dataset?.type || currentProvinceType || null,
+                city_code: document.getElementById('address_city_code').value,
+                city_name: getSelectedText('address_city_code'),
+                barangay_code: document.getElementById('address_barangay_code').value,
+                barangay_name: getSelectedText('address_barangay_code'),
+                street_address: document.getElementById('address_street_address').value.trim(),
+                subdivision_building: document.getElementById('address_subdivision_building').value.trim(),
+                unit_no: document.getElementById('address_unit_no').value.trim(),
+                postal_code: document.getElementById('address_postal_code').value.trim(),
+            };
+        }
+
+        case 'branch':
+            return {
+                type: 'branch',
+                branch_name: document.getElementById('branch_name').value.trim(),
+                address_id: document.getElementById('branch_address_id').value,
+                branch_head: document.getElementById('branch_head').value.trim(),
             };
 
         case 'office':
             return {
                 type: 'office',
                 office_name: document.getElementById('office_name').value.trim(),
-                office_address: document.getElementById('office_address').value.trim(),
+                branch_id: document.getElementById('office_branch_id').value,
                 office_head: document.getElementById('office_head').value.trim(),
-            };
-
-        case 'branch':
-            return {
-                type: 'branch',
-                office_id: document.getElementById('branch_office_id').value,
-                branch_name: document.getElementById('branch_name').value.trim(),
-                branch_address: document.getElementById('branch_address').value.trim(),
-                branch_head: document.getElementById('branch_head').value.trim(),
             };
 
         case 'department':
             return {
                 type: 'department',
-                office_id: document.getElementById('department_office_id').value,
-                branch_id: document.getElementById('department_branch_id').value,
                 department_name: document.getElementById('department_name').value.trim(),
-                department_address: document.getElementById('department_address').value.trim(),
+                office_id: document.getElementById('department_office_id').value,
                 department_head: document.getElementById('department_head').value.trim(),
             };
 
         case 'division':
             return {
                 type: 'division',
-                office_id: document.getElementById('division_office_id').value,
-                branch_id: document.getElementById('division_branch_id').value,
-                department_id: document.getElementById('division_department_id').value,
                 division_name: document.getElementById('division_name').value.trim(),
-                division_address: document.getElementById('division_address').value.trim(),
+                department_id: document.getElementById('division_department_id').value,
                 division_head: document.getElementById('division_head').value.trim(),
             };
 
         case 'unit':
             return {
                 type: 'unit',
-                office_id: document.getElementById('unit_office_id').value,
-                branch_id: document.getElementById('unit_branch_id').value,
-                department_id: document.getElementById('unit_department_id').value,
-                division_id: document.getElementById('unit_division_id').value,
                 unit_name: document.getElementById('unit_name').value.trim(),
-                unit_address: document.getElementById('unit_address').value.trim(),
+                division_id: document.getElementById('unit_division_id').value,
                 unit_head: document.getElementById('unit_head').value.trim(),
+            };
+
+        case 'position':
+            return {
+                type: 'position',
+                position_name: document.getElementById('position_name').value.trim(),
+                unit_id: document.getElementById('position_unit_id').value,
             };
 
         default:
@@ -550,10 +872,10 @@ function getPayload() {
 }
 
 function refreshOptions(recordType, record) {
-    if (recordType === 'office') {
-        officeOptions.unshift({
+    if (recordType === 'address') {
+        addressOptions.unshift({
             id: record.id,
-            office_name: record.office_name,
+            full_address: record.full_address,
         });
     }
 
@@ -561,6 +883,16 @@ function refreshOptions(recordType, record) {
         branchOptions.unshift({
             id: record.id,
             branch_name: record.branch_name,
+            address_id: record.address_id,
+        });
+    }
+
+    if (recordType === 'office') {
+        officeOptions.unshift({
+            id: record.id,
+            office_name: record.office_name,
+            branch_id: record.branch_id,
+            address_id: record.address_id,
         });
     }
 
@@ -568,6 +900,8 @@ function refreshOptions(recordType, record) {
         departmentOptions.unshift({
             id: record.id,
             department_name: record.department_name,
+            office_id: record.office_id,
+            address_id: record.address_id,
         });
     }
 
@@ -575,6 +909,17 @@ function refreshOptions(recordType, record) {
         divisionOptions.unshift({
             id: record.id,
             division_name: record.division_name,
+            department_id: record.department_id,
+            address_id: record.address_id,
+        });
+    }
+
+    if (recordType === 'unit') {
+        unitOptions.unshift({
+            id: record.id,
+            unit_name: record.unit_name,
+            division_id: record.division_id,
+            address_id: record.address_id,
         });
     }
 }
@@ -621,6 +966,7 @@ async function saveOrganizationalEntry() {
 
         organizationalRows[activeTab].unshift(data.record);
         refreshOptions(activeTab, data.record);
+        populateAllSelects();
         drawTableRows();
         closeAddSection();
         return true;
@@ -632,6 +978,15 @@ async function saveOrganizationalEntry() {
         saveButton.disabled = false;
         saveButton.textContent = originalText;
     }
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
 populateAllSelects();

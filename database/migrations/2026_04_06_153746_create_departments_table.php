@@ -10,10 +10,9 @@ return new class extends Migration
     {
         Schema::create('departments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->string('department_name');
-            $table->text('department_address');
+            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
+            $table->foreignId('address_id')->constrained('organizational_addresses')->cascadeOnDelete();
             $table->string('department_head');
             $table->timestamps();
         });

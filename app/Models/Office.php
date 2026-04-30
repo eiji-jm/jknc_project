@@ -8,7 +8,23 @@ class Office extends Model
 {
     protected $fillable = [
         'office_name',
-        'office_address',
+        'branch_id',
+        'address_id',
         'office_head',
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
+
+    public function address()
+    {
+        return $this->belongsTo(OrganizationalAddress::class, 'address_id');
+    }
+
+    public function departments()
+    {
+        return $this->hasMany(Department::class, 'office_id');
+    }
 }
