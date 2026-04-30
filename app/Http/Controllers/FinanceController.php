@@ -1193,12 +1193,12 @@ SVG;
             ->values();
 
         $options['client'] = Contact::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'email'])
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'email'])
             ->map(fn (Contact $contact) => [
                 'id' => $contact->id,
-                'label' => $contact->email ? "{$contact->name} ({$contact->email})" : $contact->name,
-                'record_title' => $contact->name,
+                'label' => $contact->email ? "{$contact->first_name} {$contact->last_name} ({$contact->email})" : "{$contact->first_name} {$contact->last_name}",
+                'record_title' => "{$contact->first_name} {$contact->last_name}",
             ])
             ->values();
 
