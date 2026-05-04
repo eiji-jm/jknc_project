@@ -10,59 +10,116 @@ use Carbon\Carbon;
 
 class CorrespondenceController extends Controller
 {
+    public function page()
+    {
+        return view('corporate.correspondence');
+    }
+
+    private function canApproveCorporate(): bool
+    {
+        return Auth::check() && Auth::user()->hasPermission('approve_corporate');
+    }
+
+    private function canEditRecord(Correspondence $record): bool
+    {
+        if ($this->canApproveCorporate()) {
+            return true;
+        }
+
+        return (int) $record->submitted_by === (int) Auth::id()
+            && in_array($record->workflow_status ?? 'Uploaded', ['Uploaded', 'Reverted'], true);
+    }
+
+    private function transformRecord(Correspondence $item): array
+    {
+        return [
+            'id' => $item->id,
+            'type' => $item->type,
+            'uploaded_date' => $item->uploaded_date?->format('Y-m-d'),
+            'user' => $item->user,
+            'submitted_by' => $item->submitted_by,
+            'tin' => $item->tin,
+            'subject' => $item->subject,
+            'sender_type' => $item->sender_type,
+            'sender' => $item->sender,
+            'department' => $item->department,
+            'details' => $item->details,
+            'date' => $item->date?->format('Y-m-d'),
+            'time' => $item->time ? Carbon::parse($item->time)->format('H:i') : null,
+            'deadline' => $item->deadline?->format('Y-m-d'),
+            'sent_via' => $item->sent_via,
+            'status' => $item->computed_status,
+            'workflow_status' => $item->workflow_status ?? 'Uploaded',
+            'approval_status' => $item->approval_status ?? 'Pending',
+            'approved_by' => $item->approved_by,
+            'approved_at' => optional($item->approved_at)->format('Y-m-d H:i:s'),
+            'review_note' => $item->review_note,
+            'can_edit' => $this->canEditRecord($item),
+            'can_submit' => (
+                (int) $item->submitted_by === (int) Auth::id()
+                && in_array($item->workflow_status ?? 'Uploaded', ['Uploaded', 'Reverted'], true)
+            ),
+        ];
+    }
+
     public function index(Request $request)
     {
         $query = Correspondence::query();
 
+        if (!$this->canApproveCorporate()) {
+            $query->where('submitted_by', Auth::id());
+        }
+
         if ($request->filled('type') && $request->type !== 'All') {
             $query->where('type', $request->type);
+        }
+
+        if ($request->filled('workflow_status') && $request->workflow_status !== 'all') {
+            $query->where('workflow_status', ucfirst($request->workflow_status));
         }
 
         $data = $query
             ->orderBy('uploaded_date', 'desc')
             ->orderBy('id', 'desc')
             ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'type' => $item->type,
-                    'uploaded_date' => $item->uploaded_date?->format('Y-m-d'),
-                    'user' => $item->user,
-                    'tin' => $item->tin,
-                    'subject' => $item->subject,
-                    'sender_type' => $item->sender_type,
-                    'sender' => $item->sender,
-                    'department' => $item->department,
-                    'details' => $item->details,
-                    'date' => $item->date?->format('Y-m-d'),
-                    'time' => $item->time ? Carbon::parse($item->time)->format('H:i') : null,
-                    'deadline' => $item->deadline?->format('Y-m-d'),
-                    'sent_via' => $item->sent_via,
-                    'status' => $item->computed_status,
-                ];
-            });
+            ->map(fn ($item) => $this->transformRecord($item))
+            ->values();
 
         return response()->json($data);
+    }
+
+    public function show($id)
+    {
+        $record = Correspondence::findOrFail($id);
+
+        if (!$this->canApproveCorporate() && (int) $record->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        return response()->json($this->transformRecord($record));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'type' => 'required|in:Letters,Demand Letter,Request Letter,Follow Up Letter,Memo,Notice',
-            'tin' => 'nullable|string',
-            'subject' => 'required|string',
+            'tin' => 'nullable|string|max:255',
+            'subject' => 'required|string|max:255',
             'sender_type' => 'required|in:From,To',
-            'sender' => 'required|string',
-            'department' => 'nullable|string',
+            'sender' => 'required|string|max:255',
+            'department' => 'nullable|string|max:255',
             'details' => 'nullable|string',
             'deadline' => 'nullable|date',
-            'sent_via' => 'nullable|string',
+            'sent_via' => 'nullable|string|max:255',
         ]);
+
+        $isApprover = $this->canApproveCorporate();
 
         $entry = Correspondence::create([
             'type' => $validated['type'],
             'uploaded_date' => now()->toDateString(),
             'user' => Auth::check() ? Auth::user()->name : 'System',
+            'submitted_by' => Auth::id(),
             'tin' => $validated['tin'] ?? null,
             'subject' => $validated['subject'],
             'sender_type' => $validated['sender_type'],
@@ -73,14 +130,92 @@ class CorrespondenceController extends Controller
             'time' => now()->format('H:i:s'),
             'deadline' => $validated['deadline'] ?? null,
             'sent_via' => $validated['sent_via'] ?? 'Email',
+            'workflow_status' => $isApprover ? 'Accepted' : 'Uploaded',
+            'approval_status' => $isApprover ? 'Approved' : 'Pending',
+            'approved_by' => $isApprover ? Auth::id() : null,
+            'approved_at' => $isApprover ? now() : null,
+            'review_note' => null,
         ]);
 
         return response()->json([
             'success' => true,
             'id' => $entry->id,
-            'message' => 'Correspondence saved successfully.',
-            'status' => $entry->computed_status,
+            'message' => $isApprover
+                ? 'Correspondence saved successfully.'
+                : 'Correspondence saved as uploaded record.',
+            'data' => $this->transformRecord($entry),
         ], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $record = Correspondence::findOrFail($id);
+
+        if (!$this->canEditRecord($record)) {
+            abort(403, 'This record can no longer be edited.');
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|in:Letters,Demand Letter,Request Letter,Follow Up Letter,Memo,Notice',
+            'tin' => 'nullable|string|max:255',
+            'subject' => 'required|string|max:255',
+            'sender_type' => 'required|in:From,To',
+            'sender' => 'required|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'details' => 'nullable|string',
+            'deadline' => 'nullable|date',
+            'sent_via' => 'nullable|string|max:255',
+        ]);
+
+        $payload = [
+            'type' => $validated['type'],
+            'tin' => $validated['tin'] ?? null,
+            'subject' => $validated['subject'],
+            'sender_type' => $validated['sender_type'],
+            'sender' => $validated['sender'],
+            'department' => $validated['department'] ?? null,
+            'details' => $validated['details'] ?? null,
+            'deadline' => $validated['deadline'] ?? null,
+            'sent_via' => $validated['sent_via'] ?? 'Email',
+        ];
+
+        if (($record->workflow_status ?? 'Uploaded') === 'Reverted') {
+            $payload['approval_status'] = 'Pending';
+            $payload['review_note'] = null;
+        }
+
+        $record->update($payload);
+
+        return response()->json([
+            'message' => 'Correspondence updated successfully.',
+            'data' => $this->transformRecord($record->fresh()),
+        ]);
+    }
+
+    public function submit($id)
+    {
+        $record = Correspondence::findOrFail($id);
+
+        if ((int) $record->submitted_by !== (int) Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        if (!in_array($record->workflow_status ?? 'Uploaded', ['Uploaded', 'Reverted'], true)) {
+            return response()->json([
+                'message' => 'Only uploaded or reverted records can be submitted.'
+            ], 422);
+        }
+
+        $record->update([
+            'workflow_status' => 'Submitted',
+            'approval_status' => 'Pending',
+            'review_note' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Correspondence submitted for approval successfully.',
+            'data' => $this->transformRecord($record->fresh()),
+        ]);
     }
 
     protected function typeMap(): array

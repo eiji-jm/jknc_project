@@ -12,7 +12,9 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "*",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "openai-php/client": "*",
+        "resend/resend-laravel": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -45,6 +47,12 @@
             "@php artisan migrate --force",
             "npm install",
             "npm run build"
+        ],
+        "data:export": [
+            "@php artisan project-data:export"
+        ],
+        "data:import": [
+            "@php artisan project-data:import"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",

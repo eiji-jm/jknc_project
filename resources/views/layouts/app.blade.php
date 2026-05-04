@@ -3,309 +3,852 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>John Kelly & Company | CRM</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'John Kelly & Company | CRM')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/image.png') }}">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+
+        .ql-toolbar.ql-snow {
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            border-color: rgb(209 213 219);
+        }
+
+        .ql-container.ql-snow {
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+            border-color: rgb(209 213 219);
+            min-height: 260px;
+            font-size: 14px;
+        }
+
+        .ql-editor {
+            min-height: 260px;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+
+    @stack('styles')
 </head>
 
 <body class="bg-gray-50 font-sans">
+    @php
+        $user = Auth::user();
+        $canSeeCrmModules = !$user->isClient();
 
-@php
-    $isCorporateSection =
-        request()->is('/') ||
-        request()->is('corporate') ||
-        request()->is('lgu') ||
-        request()->is('accounting') ||
-        request()->is('accounting-page') ||
-        request()->is('banking') ||
-        request()->is('legal') ||
-        request()->is('operations') ||
-        request()->is('correspondence');
+        $canSeeAdminIcon =
+            $user->hasPermission('access_admin_dashboard') ||
+            $user->hasPermission('approve_townhall') ||
+            $user->hasPermission('manage_users');
 
-    $isHumanCapitalSection =
-        request()->is('human-capital') ||
-        request()->is('human-capital/*');
-@endphp
+        $adminLandingRoute = null;
 
-<!-- HEADER -->
-<header class="h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
-    <div class="h-full px-4 flex items-center justify-between">
+        if ($user->hasPermission('manage_users')) {
+            $adminLandingRoute = route('admin.users');
+        } elseif ($user->hasPermission('access_admin_dashboard') || $user->hasPermission('approve_townhall')) {
+            $adminLandingRoute = route('admin.dashboard');
+        }
 
-        <div class="flex items-center gap-3 w-[260px]">
-            <img src="/images/imaglogo.png" class="h-10 w-auto">
-        </div>
+        $isHumanCapitalSection =
+            request()->is('human-capital') ||
+            request()->is('human-capital/*');
+    @endphp
 
-        <div class="flex-1 flex justify-center px-6">
-            <div class="relative w-full max-w-xl">
-                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                <input
-                    type="text"
-                    placeholder="Search"
-                    class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-full pl-11 pr-4 py-2 text-sm outline-none transition"
-                >
+    <!-- HEADER -->
+    <header class="h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="h-full px-4 flex items-center justify-between">
+
+            <div class="flex items-center gap-3 w-[260px]">
+                <img src="/images/imaglogo.png" class="h-10 w-auto" alt="Logo">
             </div>
-        </div>
 
-        <div class="w-[260px] flex justify-end">
-            <div class="flex items-center gap-4">
-
-                <button class="relative h-9 w-9 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center transition">
-                    <i class="far fa-bell text-lg"></i>
-                    <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
-
-                <div x-data="{ open: false }" class="relative">
-                    <button
-                        type="button"
-                        @click="open = !open"
-                        class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition"
+            <div class="flex-1 flex justify-center px-6">
+                <div class="relative w-full max-w-xl">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input
+                        type="text"
+                        placeholder="Search"
+                        class="w-full bg-gray-100 focus:bg-white border border-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-full pl-11 pr-4 py-2 text-sm outline-none transition"
                     >
-                        {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+                </div>
+            </div>
+
+            <div class="w-[260px] flex justify-end">
+                <div class="flex items-center gap-4">
+
+                    <button class="relative h-9 w-9 rounded-full hover:bg-gray-100 text-gray-500 flex items-center justify-center transition">
+                        <i class="far fa-bell text-lg"></i>
+                        <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                     </button>
 
-                    <div
-                        x-show="open"
-                        @click.outside="open = false"
-                        x-transition
-                        class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"
-                        style="display: none;"
-                    >
-                        <div class="px-4 py-3 border-b text-sm">
-                            <p class="font-semibold text-gray-800">
-                                {{ Auth::user()->name }}
-                            </p>
+                    <div x-data="{ open:false }" class="relative">
+                        <button
+                            @click="open=!open"
+                            class="h-9 w-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 font-semibold hover:ring-2 hover:ring-gray-300 transition"
+                        >
+                            {{ strtoupper(substr(Auth::user()->name,0,1)) }}
+                        </button>
 
-                            <p class="text-gray-400 text-xs">
-                                {{ Auth::user()->role }}
-                            </p>
+                        <div
+                            x-show="open"
+                            @click.outside="open=false"
+                            x-transition
+                            class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"
+                            style="display:none;"
+                        >
+                            <div class="px-4 py-3 border-b text-sm">
+                                <p class="font-semibold text-gray-800">{{ Auth::user()->name }}</p>
+                                <p class="text-gray-400 text-xs">{{ Auth::user()->role }}</p>
+                            </div>
+
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition"
+                                >
+                                    <i class="fas fa-sign-out-alt mr-2"></i>
+                                    Logout
+                                </button>
+                            </form>
                         </div>
+                    </div>
 
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button
-                                type="submit"
-                                class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 transition"
-                            >
-                                <i class="fas fa-sign-out-alt mr-2"></i>
-                                Logout
-                            </button>
-                        </form>
+                </div>
+            </div>
+
+        </div>
+    </header>
+
+    <div class="flex h-[calc(100vh-4rem)]">
+
+        <!-- MINI SIDEBAR -->
+        <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
+
+            @if($canSeeAdminIcon && $adminLandingRoute)
+                <a href="{{ $adminLandingRoute }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('admin.*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-user-shield text-base"></i>
+                    <span>Admin</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_townhall'))
+                <a href="{{ route('townhall') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                  {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-bullhorn text-base"></i>
+                    <span>Town Hall</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_corporate'))
+                <a href="{{ route('finance') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('finance*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-coins text-base"></i>
+                    <span>Finance</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_corporate'))
+                <a href="{{ route('corporate') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('corporate') || request()->routeIs('corporate.formation') || request()->routeIs('corporate.sec_aoi') || request()->routeIs('corporate.bylaws') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-building text-base"></i>
+                    <span>Corporate</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_human_capital'))
+                <a href="{{ route('human-capital.dashboard') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ $isHumanCapitalSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-user-tie text-base"></i>
+                    <span>Human Capital</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_activities'))
+                <a href="{{ route('activities') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('activities*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-list-check text-base"></i>
+                    <span>Activities</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_contacts'))
+                <a href="{{ route('contacts.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('contacts*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-users text-base"></i>
+                    <span>Contacts</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_company'))
+                <a href="{{ route('company.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('company*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-city text-base"></i>
+                    <span>Company</span>
+                </a>
+            @endif
+
+            @if(Auth::user()->hasPermission('access_transmittal'))
+                <a href="{{ route('transmittal.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('transmittal*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-file-signature text-base"></i>
+                    <span>Transmittal</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_deals'))
+                <a href="{{ route('deals.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('deals*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-handshake text-base"></i>
+                    <span>Deals</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_services'))
+                <a href="{{ route('services.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('services*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-briefcase text-base"></i>
+                    <span>Services</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_project'))
+                <a href="{{ route('project.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('project*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-diagram-project text-base"></i>
+                    <span>Project</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_regular'))
+                <a href="{{ route('regular.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('regular*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-arrows-rotate text-base"></i>
+                    <span>Regular</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_product'))
+                <a href="{{ route('products.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('products*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-box-open text-base"></i>
+                    <span>Product</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_sales_marketing'))
+                <a href="{{ route('sales-marketing.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('sales-marketing*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-chart-line text-base"></i>
+                    <span>Sales</span>
+                </a>
+            @endif
+
+            @if($canSeeCrmModules && Auth::user()->hasPermission('access_policies'))
+                <a href="{{ route('policies.index') }}"
+                   class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition
+                   {{ request()->routeIs('policies*') ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
+                    <i class="fas fa-file-contract text-base"></i>
+                    <span>Policies</span>
+                </a>
+            @endif
+
+        </aside>
+
+        <!-- SECOND SIDEBAR -->
+        @if(request()->routeIs('townhall*'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Town Hall</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('townhall') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('townhall*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Communications
+                        </a>
+
+                        <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
+                            <a href="{{ route('townhall.department') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.department') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Department
+                            </a>
+
+                            <a href="{{ route('townhall.attachments') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('townhall.attachments') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Attachments
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+        @elseif(request()->routeIs('admin.*') && $canSeeAdminIcon)
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Admin Panel
+                    </p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.users') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.users') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Users
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.role-permissions') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.role-permissions') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Role Permissions
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('manage_users'))
+                            <a href="{{ route('admin.user-permissions') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.user-permissions') || request()->routeIs('admin.user-permissions.edit') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                User Permissions
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('access_admin_dashboard') || Auth::user()->hasPermission('approve_townhall'))
+                            <a href="{{ route('admin.dashboard') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Town Hall
+                            </a>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('approve_corporate'))
+                            <a href="{{ route('admin.corporate.dashboard') }}"
+                               class="block px-3 py-2 rounded-lg transition
+                               {{ request()->routeIs('admin.corporate.dashboard') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                Corporate
+                            </a>
+                        @endif
+
+                        <a href="{{ route('admin.policies.index') }}"
+                           class="flex items-center px-4 py-2 rounded-lg text-sm font-medium
+                           {{ request()->routeIs('admin.policies.*') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100' }}">
+                            Policies
+                        </a>
+
                     </div>
                 </div>
 
-            </div>
-        </div>
+            </aside>
 
-    </div>
-</header>
+        @elseif(request()->routeIs('finance*'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Finance</p>
+                </div>
 
-<div class="flex h-[calc(100vh-4rem)]">
-
-    <!-- MINI SIDEBAR -->
-    <aside class="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-2">
-
-        <a href="#"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
-            <i class="fas fa-bullhorn text-base"></i>
-            <span>Town Hall</span>
-        </a>
-
-        <a href="{{ route('corporate') }}"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] transition {{ $isCorporateSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-            <i class="fas fa-building text-base"></i>
-            <span>Corporate</span>
-        </a>
-
-        <a href="{{ route('human-capital.organizational') }}"
-            class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-center transition {{ $isHumanCapitalSection ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-600 hover:bg-gray-100' }}">
-            <i class="fas fa-user-tie text-base"></i>
-            <span>Human Capital</span>
-        </a>
-
-        <a href="#"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
-            <i class="fas fa-list-check text-base"></i>
-            <span>Activities</span>
-        </a>
-
-        <a href="#"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
-            <i class="fas fa-users text-base"></i>
-            <span>Contacts</span>
-        </a>
-
-        <a href="#"
-           class="w-12 h-12 rounded-xl flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 hover:bg-gray-100 transition">
-            <i class="fas fa-city text-base"></i>
-            <span>Company</span>
-        </a>
-
-    </aside>
-
-    <!-- SECOND SIDEBAR -->
-    <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
-
-        <div class="px-4 py-3 border-b border-gray-100">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                {{ $isHumanCapitalSection ? 'Human Capital' : 'Corporate' }}
-            </p>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-3">
-            <div class="space-y-1 text-sm">
-
-                @if($isHumanCapitalSection)
-
-
-                    <a href="{{ route('human-capital.organizational') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/organizational') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Organizational
-                    </a>
-
-                    <a href="{{ route('human-capital.payroll') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/payroll') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Payroll
-                    </a>
-
-                    <a href="{{ route('human-capital.employee-profile') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-profile') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Employee Profile
-                    </a>
-
-                    <a href="{{ route('human-capital.recruitment') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/recruitment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Recruitment
-                    </a>
-
-                    <a href="{{ route('human-capital.attendance') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/attendance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Attendance
-                    </a>
-
-                    <a href="{{ route('human-capital.employee-requests') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-requests') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Employee Requests
-                    </a>
-
-                    <a href="{{ route('human-capital.employee-relations') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-relations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Employee Relations
-                    </a>
-
-                    <a href="{{ route('human-capital.training') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/training') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Training
-                    </a>
-
-                    <a href="{{ route('human-capital.performance') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/performance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Performance
-                    </a>
-
-                    <a href="{{ route('human-capital.offboarding') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/offboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        OffBoarding
-                    </a>
-
-                @else
-
-                    <a href="{{ route('corporate') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Company General Information
-                    </a>
-
-                    <a href="#"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                        Corporate/Formation
-                    </a>
-
-                    <a href="#"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                        BIR & Tax
-                    </a>
-
-                    <a href="#"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                        NatGov
-                    </a>
-
-                    <a href="{{ route('lgu') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        LGU
-                    </a>
-
-                    <a href="{{ route('accounting') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('accounting') || request()->is('accounting-page') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Accounting
-                    </a>
-
-                    <a href="{{ route('banking') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('banking') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Banking
-                    </a>
-
-                    <a href="{{ route('legal') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('legal') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Legal
-                    </a>
-
-                    <a href="{{ route('operations') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Operations
-                    </a>
-
-                    <a href="{{ route('correspondence') }}"
-                       class="block px-3 py-2 rounded-lg transition {{ request()->is('correspondence') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
-                        Correspondence
-                    </a>
-
-                    <div class="mt-3 pt-3 border-t border-gray-100 space-y-1">
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Priority
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('finance', ['module' => 'supplier']) }}" data-finance-module="supplier"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module', 'supplier') === 'supplier' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Supplier
                         </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Status
+                        <a href="{{ route('finance', ['module' => 'service']) }}" data-finance-module="service"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'service' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Service
                         </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Tag
+                        <a href="{{ route('finance', ['module' => 'product']) }}" data-finance-module="product"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'product' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Product
                         </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Task Name
+                        <a href="{{ route('finance', ['module' => 'chart_account']) }}" data-finance-module="chart_account"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'chart_account' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Chart of Accounts
                         </a>
-
-                        <a href="#"
-                           class="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700">
-                            Task Owner
+                        <a href="{{ route('finance', ['module' => 'bank_account']) }}" data-finance-module="bank_account"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'bank_account' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Bank Accounts
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'pr']) }}" data-finance-module="pr"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'pr' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Purchase Request
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'po']) }}" data-finance-module="po"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'po' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Purchase Order
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'ca']) }}" data-finance-module="ca"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'ca' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Cash Advance
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'lr']) }}" data-finance-module="lr"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'lr' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Liquidation Report
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'err']) }}" data-finance-module="err"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'err' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Expense Reimbursement Request
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'dv']) }}" data-finance-module="dv"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'dv' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Disbursement Voucher
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'pda']) }}" data-finance-module="pda"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'pda' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Payroll Disbursement Authorization
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'crf']) }}" data-finance-module="crf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'crf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Cash Return Form
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'ibtf']) }}" data-finance-module="ibtf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'ibtf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Interbank Fund Transfer Form
+                        </a>
+                        <a href="{{ route('finance', ['module' => 'arf']) }}" data-finance-module="arf"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request('module') === 'arf' ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Asset Registration Form
                         </a>
                     </div>
+                </div>
+            </aside>
 
-                @endif
+        @elseif($isHumanCapitalSection && Auth::user()->hasPermission('access_human_capital'))
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Human Capital</p>
+                </div>
 
-            </div>
-        </div>
-    </aside>
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('human-capital.dashboard') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Dashboard
+                        </a>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto">
-        @yield('content')
-    </main>
+                        <a href="{{ route('human-capital.organizational') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/organizational') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Organizational
+                        </a>
 
-</div>
+                        <a href="{{ route('human-capital.payroll') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/payroll') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Payroll
+                        </a>
 
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+                        <a href="{{ route('human-capital.employee-profile') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-profile') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Profile
+                        </a>
 
-@stack('scripts')
+                        <a href="{{ route('human-capital.recruitment') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/recruitment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Recruitment
+                        </a>
 
+                        <a href="{{ route('human-capital.onboarding') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/onboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            On Boarding
+                        </a>
+
+                        <a href="{{ route('human-capital.deployment') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/deployment') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Deployment
+                        </a>
+
+                        <a href="{{ route('human-capital.attendance') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/attendance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Attendance
+                        </a>
+
+                        <a href="{{ route('human-capital.employee-requests') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-requests') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Requests
+                        </a>
+
+                        <a href="{{ route('human-capital.employee-relations') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/employee-relations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Employee Relations
+                        </a>
+
+                        <a href="{{ route('human-capital.training') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/training') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Training
+                        </a>
+
+                        <a href="{{ route('human-capital.performance') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/performance') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Performance
+                        </a>
+
+                        <a href="{{ route('human-capital.offboarding') }}"
+                           class="block px-3 py-2 rounded-lg transition {{ request()->is('human-capital/offboarding') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            OffBoarding
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+        @elseif(
+            $canSeeCrmModules
+            && Auth::user()->hasPermission('access_sales_marketing')
+            && request()->routeIs('sales-marketing*')
+        )
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sales & Marketing</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('sales-marketing.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.index') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Dashboard
+                        </a>
+
+                        <a href="{{ route('sales-marketing.earners.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.earners.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Commission Earners
+                        </a>
+
+                        <a href="{{ route('sales-marketing.ida.index') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('sales-marketing.ida.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            IDA Records
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+        @elseif(
+            $canSeeCrmModules
+            && Auth::user()->hasPermission('access_company')
+            && request()->routeIs('company.*')
+            && ! request()->routeIs('company.index')
+        )
+            <aside class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Company</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3">
+                    <div class="space-y-1 text-sm">
+                        @php
+                            $currentCompany = request()->route('company');
+                            $currentCompanyId = is_object($currentCompany)
+                                ? $currentCompany->id
+                                : ($currentCompany ?: request()->segment(2));
+                            $hasCompanyContext = filled($currentCompanyId);
+                        @endphp
+
+                        @if(! $hasCompanyContext)
+                            <div class="px-3 py-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg">
+                                Company context unavailable for sidebar links.
+                            </div>
+                        @endif
+
+                        @if($hasCompanyContext)
+                            <div class="space-y-1">
+                                <a href="{{ route('company.kyc', ['company' => $currentCompanyId, 'tab' => 'business-client-information']) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.kyc') || request()->routeIs('company.bif.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    KYC
+                                </a>
+
+                                <a href="{{ route('company.history', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.history') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    History
+                                </a>
+
+                                <a href="{{ route('company.consultation-notes', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.consultation-notes*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Consultation Notes
+                                </a>
+
+                                <a href="{{ route('company.activities', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.activities*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Activities
+                                </a>
+
+                                <a href="{{ route('company.deals', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.deals*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Deals
+                                </a>
+
+                                <a href="{{ route('company.contacts', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.contacts*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Contacts
+                                </a>
+
+                                <a href="{{ route('company.projects', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.projects') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Projects
+                                </a>
+
+                                <a href="{{ route('company.regular', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.regular') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Regular
+                                </a>
+
+                                <a href="{{ route('company.products', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.products*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Products
+                                </a>
+
+                                <a href="{{ route('company.services.index', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.services.*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Services
+                                </a>
+
+                                <a href="{{ route('company.lgu', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.lgu*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    LGU
+                                </a>
+
+                                <a href="{{ route('company.accounting', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.accounting*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Accounting
+                                </a>
+
+                                <a href="{{ route('company.banking', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.banking*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Banking
+                                </a>
+
+                                <a href="{{ route('company.operations', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.operations*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Operations
+                                </a>
+
+                                <a href="{{ route('company.correspondence', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.correspondence*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Correspondence
+                                </a>
+
+                                <a href="{{ route('company.bir-tax', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.bir-tax*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    BIR & Tax
+                                </a>
+
+                                <a href="{{ route('company.corporate-formation', $currentCompanyId) }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('company.corporate-formation*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Corporate Formation
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </aside>
+
+        @elseif(
+            Auth::user()->hasPermission('access_corporate')
+            && (
+                request()->routeIs('corporate*')
+                || request()->routeIs('stock-transfer-book*')
+                || request()->routeIs('bir-tax*')
+                || request()->routeIs('natgov*')
+                || request()->routeIs('notices*')
+                || request()->routeIs('minutes*')
+                || request()->routeIs('resolutions*')
+                || request()->routeIs('secretary-certificates*')
+                || request()->routeIs('accounting')
+                || request()->routeIs('banking')
+                || request()->routeIs('legal')
+                || request()->routeIs('operations')
+                || request()->routeIs('correspondence')
+            )
+        )
+            <aside x-data="{ scrollCorporateNav(amount) { this.$refs.corporateNav?.scrollBy({ top: amount, behavior: 'smooth' }); } }"
+                   class="w-72 bg-white border-r border-gray-200 flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Corporate</p>
+                </div>
+
+                <div x-ref="corporateNav" class="flex-1 overflow-y-auto p-3 no-scrollbar">
+                    <div class="space-y-1 text-sm">
+                        <a href="{{ route('corporate') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('corporate') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Company General Information
+                        </a>
+
+                        <a href="{{ route('corporate.formation') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('corporate.formation') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Corporate Formation
+                        </a>
+
+                        <div x-data="{ open: {{ request()->routeIs('stock-transfer-book*') ? 'true' : 'false' }} }" class="space-y-1">
+                            <button type="button"
+                                    @click="open = !open"
+                                    class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition border
+                                    {{ request()->routeIs('stock-transfer-book*') ? 'bg-blue-50 text-blue-700 border-blue-100 font-semibold' : 'border-transparent hover:bg-gray-100 text-gray-700' }}">
+                                <span>Stock and Transfer Book</span>
+                                <i class="fas fa-chevron-down text-[11px] transition-transform duration-200" :class="open ? 'rotate-180' : ''"></i>
+                            </button>
+
+                            <div x-cloak x-show="open" x-transition class="pl-3 space-y-1">
+                                <a href="{{ route('stock-transfer-book.index') }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('stock-transfer-book.index*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Index
+                                </a>
+                                <a href="{{ route('stock-transfer-book.journal') }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('stock-transfer-book.journal*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Journal
+                                </a>
+                                <a href="{{ route('stock-transfer-book.ledger') }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('stock-transfer-book.ledger*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Ledger
+                                </a>
+                                <a href="{{ route('stock-transfer-book.installment') }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('stock-transfer-book.installment*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Installment
+                                </a>
+                                <a href="{{ route('stock-transfer-book.certificates') }}"
+                                   class="block px-3 py-2 rounded-lg transition
+                                   {{ request()->routeIs('stock-transfer-book.certificates*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                                    Certificates
+                                </a>
+                            </div>
+                        </div>
+
+                        <a href="{{ route('bir-tax') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('bir-tax*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            BIR & Tax
+                        </a>
+
+                        <a href="{{ route('natgov') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->routeIs('natgov*') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            NatGov
+                        </a>
+
+                        <a href="{{ route('corporate.lgu') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('corporate/lgu') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            LGU
+                        </a>
+
+                        <a href="{{ route('accounting') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('accounting') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Accounting
+                        </a>
+
+                        <a href="{{ route('banking') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('banking') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Banking
+                        </a>
+
+                        <a href="{{ route('legal') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('legal') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Legal
+                        </a>
+
+                        <a href="{{ route('operations') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('operations') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Operations
+                        </a>
+
+                        <a href="{{ route('correspondence') }}"
+                           class="block px-3 py-2 rounded-lg transition
+                           {{ request()->is('correspondence') ? 'bg-blue-50 text-blue-700 border border-blue-100 font-semibold' : 'hover:bg-gray-100 text-gray-700' }}">
+                            Correspondence
+                        </a>
+                    </div>
+                </div>
+            </aside>
+        @endif
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 overflow-y-auto">
+            @yield('content')
+        </main>
+
+    </div>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    @stack('scripts')
 </body>
 </html>

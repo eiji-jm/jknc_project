@@ -1,0 +1,42 @@
+[
+    {
+        "id": "DQ3oVDgfTl3Ty6R1er8SfHIizhEAF2Vm5RGYDhpp",
+        "user_id": null,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Herd/1.26.0 Chrome/120.0.6099.291 Electron/28.2.5 Safari/537.36",
+        "payload": "YTozOntzOjY6Il90b2tlbiI7czo0MDoiM0czYms5RFZYWkFjbFNmRmZkWkdoOEJpWnpXb21QeGFPZHp0Mm55aiI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6Mzk6Imh0dHA6Ly9qa25jX2Vvcy1tYWluLnRlc3QvP2hlcmQ9cHJldmlldyI7czo1OiJyb3V0ZSI7Tjt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319fQ==",
+        "last_activity": 1772698162
+    },
+    {
+        "id": "N9uOE9HjKlvUTbiqIgkNu1l3Jf8V2e0Nr9KFs7iw",
+        "user_id": null,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+        "payload": "YTozOntzOjY6Il90b2tlbiI7czo0MDoiRmJiQlYycmFBZ05RdWl4anFPY0pVdkpxSklhd0QxanMyVzkxenBMQSI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6MjU6Imh0dHA6Ly9qa25jX2Vvcy1tYWluLnRlc3QiO3M6NToicm91dGUiO047fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fX0=",
+        "last_activity": 1771583253
+    },
+    {
+        "id": "pAYmXhkpw7tXuIUzOSlW4sMxyfFPY8cej2QTBS5M",
+        "user_id": null,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+        "payload": "YTozOntzOjY6Il90b2tlbiI7czo0MDoiS2k0cU10aURwRE5PY3F3clhkT2loRWhtRFlKQWR6YkZ5ZFB0aUFMNSI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6MjU6Imh0dHA6Ly9qa25jX2Vvcy1tYWluLnRlc3QiO3M6NToicm91dGUiO047fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fX0=",
+        "last_activity": 1771651418
+    },
+    {
+        "id": "T80nd4zbGvkSzD1MjIhGTO4Axq02vyU7KVWWeEBM",
+        "user_id": null,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Herd/1.26.0 Chrome/120.0.6099.291 Electron/28.2.5 Safari/537.36",
+        "payload": "YTozOntzOjY6Il90b2tlbiI7czo0MDoiUE1XY2tJbkswbTVXM1RvelA4UVIzU3c1RzRtUFJWZ0h4NGFMNGN1NyI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6Mzk6Imh0dHA6Ly9qa25jX2Vvcy1tYWluLnRlc3QvP2hlcmQ9cHJldmlldyI7czo1OiJyb3V0ZSI7Tjt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319fQ==",
+        "last_activity": 1773310903
+    },
+    {
+        "id": "Wt8YeMHddwMsoxxkFR9aq7nzU2KPToZvdUDwhmGu",
+        "user_id": null,
+        "ip_address": "127.0.0.1",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Herd/1.26.0 Chrome/120.0.6099.291 Electron/28.2.5 Safari/537.36",
+        "payload": "YTozOntzOjY6Il90b2tlbiI7czo0MDoiUEw3dldMZWNmU3VXenBXejBtYmtTZElvdTVacVRSUmNrOFpNcGFVUiI7czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6Mzk6Imh0dHA6Ly9qa25jX2Vvcy1tYWluLnRlc3QvP2hlcmQ9cHJldmlldyI7czo1OiJyb3V0ZSI7Tjt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319fQ==",
+        "last_activity": 1772698156
+    }
+]

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title', 'Legal')
 @section('content')
 <div
     id="legal-page"
@@ -7,7 +7,6 @@
     x-data="{
         showSlideOver: false,
         currentType: 'All Types',
-        currentStatus: 'All',
         previewLegalType: 'Contract',
         previewClient: '',
         previewTin: '',
@@ -21,7 +20,6 @@
 >
     <div class="bg-white rounded-xl border border-gray-200 flex flex-col flex-grow min-h-0 overflow-hidden">
 
-        {{-- TOP BAR --}}
         <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
             <div class="flex items-center flex-1 min-w-0">
                 <h1 class="text-lg font-semibold text-gray-900">Legal</h1>
@@ -32,20 +30,30 @@
             </button>
         </div>
 
-        {{-- STATUS FILTERS --}}
-        <div class="px-4 py-3 border-b bg-gray-50 flex items-center gap-2 shrink-0">
-            <button type="button" class="legal-status-tab active px-4 py-1.5 rounded-full text-sm border border-gray-300 bg-white hover:bg-gray-100" data-status="All">
-                All
-            </button>
-            <button type="button" class="legal-status-tab px-4 py-1.5 rounded-full text-sm border border-gray-300 bg-white hover:bg-gray-100" data-status="Completed">
-                Completed
-            </button>
-            <button type="button" class="legal-status-tab px-4 py-1.5 rounded-full text-sm border border-gray-300 bg-white hover:bg-gray-100" data-status="Pending">
-                Pending
-            </button>
+        <div class="px-4 pt-4 bg-white border-b border-gray-100">
+            <div class="flex gap-8 text-[15px] text-gray-700 overflow-x-auto">
+                <button onclick="applyLegalWorkflowFilter('uploaded')" id="tab-uploaded" class="pb-3 whitespace-nowrap border-b-2 border-blue-600 font-medium text-gray-900">
+                    Uploaded
+                </button>
+                <button onclick="applyLegalWorkflowFilter('submitted')" id="tab-submitted" class="pb-3 whitespace-nowrap">
+                    Submitted
+                </button>
+                <button onclick="applyLegalWorkflowFilter('accepted')" id="tab-accepted" class="pb-3 whitespace-nowrap">
+                    Accepted
+                </button>
+                <button onclick="applyLegalWorkflowFilter('reverted')" id="tab-reverted" class="pb-3 whitespace-nowrap">
+                    Reverted
+                </button>
+                <button onclick="applyLegalWorkflowFilter('archived')" id="tab-archived" class="pb-3 whitespace-nowrap">
+                    Archived
+                </button>
+            </div>
+
+            <div id="legalStatusMessage" class="mt-3 mb-4 border border-blue-200 bg-blue-50 text-blue-700 text-[14px] px-4 py-3 rounded-md">
+                These records are uploaded and ready for submission.
+            </div>
         </div>
 
-        {{-- TABLE SECTION --}}
         <div id="legalTableSection" class="flex-1 min-h-0 p-4">
             <div class="h-full border border-gray-200 rounded-xl overflow-hidden">
                 <div class="h-full overflow-auto">
@@ -74,33 +82,21 @@
                                                 id="legalTypeFilterMenu"
                                                 class="hidden absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden"
                                             >
-                                                <button type="button" onclick="setLegalTypeFilter('All Types')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    All Types
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Contract')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Contract
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Affidavit')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Affidavit
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Memorandum')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Memorandum
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Complaint')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Complaint
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Demand Letter')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Demand Letter
-                                                </button>
-                                                <button type="button" onclick="setLegalTypeFilter('Notice')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                                                    Notice
-                                                </button>
+                                                <button type="button" onclick="setLegalTypeFilter('All Types')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">All Types</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Contract')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Contract</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Affidavit')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Affidavit</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Memorandum')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Memorandum</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Complaint')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Complaint</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Demand Letter')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Demand Letter</button>
+                                                <button type="button" onclick="setLegalTypeFilter('Notice')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Notice</button>
                                             </div>
                                         </div>
                                     </div>
                                 </th>
 
                                 <th class="px-4 py-3 border-b border-r border-gray-200 font-semibold whitespace-nowrap">Status</th>
+                                <th class="px-4 py-3 border-b border-r border-gray-200 font-semibold whitespace-nowrap">Workflow Status</th>
+                                <th class="px-4 py-3 border-b border-r border-gray-200 font-semibold whitespace-nowrap">Approval Status</th>
                                 <th class="px-4 py-3 border-b font-semibold whitespace-nowrap">Document</th>
                             </tr>
                         </thead>
@@ -110,7 +106,6 @@
             </div>
         </div>
 
-        {{-- SAVED PREVIEW SECTION --}}
         <div id="legalPreviewSection" class="hidden p-4 flex-grow overflow-hidden">
             <div class="h-full flex gap-4">
                 <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -144,8 +139,11 @@
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Document Name</span><span id="infoDocumentName" class="text-right font-medium text-gray-900 break-all"></span></div>
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Uploader</span><span id="infoUploader" class="text-right font-medium text-gray-900"></span></div>
                             <div class="flex justify-between gap-4"><span class="text-gray-500">Status</span><span id="infoStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Workflow</span><span id="infoWorkflowStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Approval</span><span id="infoApprovalStatus" class="text-right font-medium text-gray-900"></span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-500">Review Note</span><span id="infoReviewNote" class="text-right font-medium text-gray-900 break-words"></span></div>
 
-                            <div class="pt-2 border-t border-gray-200">
+                            <div class="pt-2 border-t border-gray-200 space-y-3" id="legalPreviewActions">
                                 <a id="openLegalPreviewBtn" href="#" target="_blank" class="text-sm text-blue-600 hover:underline">
                                     Open in New Tab
                                 </a>
@@ -156,12 +154,10 @@
             </div>
         </div>
 
-        {{-- SLIDE OVER --}}
         <div x-show="showSlideOver" x-cloak class="fixed inset-0 z-50 overflow-hidden">
             <div class="absolute inset-0 bg-black/40" @click="closeLegalAddSection()"></div>
 
             <div class="absolute inset-0 flex">
-                {{-- LEFT PREVIEW --}}
                 <div
                     x-show="showSlideOver"
                     x-transition:enter="transform transition ease-in-out duration-300"
@@ -202,7 +198,6 @@
                     </div>
                 </div>
 
-                {{-- RIGHT FORM --}}
                 <div
                     x-show="showSlideOver"
                     x-transition:enter="transform transition ease-in-out duration-300"
@@ -291,12 +286,11 @@
                 </div>
             </div>
         </div>
-        {{-- END SLIDE OVER --}}
     </div>
 </div>
 
 <style>
-    .legal-status-tab.active {
+    .legal-type-tab.active {
         background-color: #2563eb;
         color: white;
         border-color: #2563eb;
@@ -307,6 +301,15 @@
 @push('scripts')
 <script>
 let legalRows = [];
+let currentLegalWorkflowFilter = 'uploaded';
+
+const urlParams = new URLSearchParams(window.location.search);
+const autoOpenRecordId = urlParams.get('record');
+const autoOpenTab = (urlParams.get('tab') || '').toLowerCase();
+
+if (['uploaded', 'submitted', 'accepted', 'reverted', 'archived'].includes(autoOpenTab)) {
+    currentLegalWorkflowFilter = autoOpenTab;
+}
 
 function getLegalAlpineData() {
     const root = document.getElementById('legal-page');
@@ -317,6 +320,45 @@ function showLegalOnlySection(sectionId) {
     document.getElementById('legalTableSection').classList.add('hidden');
     document.getElementById('legalPreviewSection').classList.add('hidden');
     document.getElementById(sectionId).classList.remove('hidden');
+}
+
+function updateLegalStatusMessage() {
+    const messageBox = document.getElementById('legalStatusMessage');
+
+    if (currentLegalWorkflowFilter === 'uploaded') {
+        messageBox.className = 'mt-3 mb-4 border border-blue-200 bg-blue-50 text-blue-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are uploaded and ready for submission.';
+    } else if (currentLegalWorkflowFilter === 'submitted') {
+        messageBox.className = 'mt-3 mb-4 border border-yellow-200 bg-yellow-50 text-yellow-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are already submitted and waiting for admin approval.';
+    } else if (currentLegalWorkflowFilter === 'accepted') {
+        messageBox.className = 'mt-3 mb-4 border border-green-200 bg-green-50 text-green-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records were already accepted.';
+    } else if (currentLegalWorkflowFilter === 'reverted') {
+        messageBox.className = 'mt-3 mb-4 border border-red-200 bg-red-50 text-red-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records were reverted and can be corrected then resubmitted.';
+    } else {
+        messageBox.className = 'mt-3 mb-4 border border-gray-200 bg-gray-50 text-gray-700 text-[14px] px-4 py-3 rounded-md';
+        messageBox.textContent = 'These records are archived.';
+    }
+}
+
+function setActiveLegalTab() {
+    ['uploaded', 'submitted', 'accepted', 'reverted', 'archived'].forEach(tab => {
+        const el = document.getElementById(`tab-${tab}`);
+        if (!el) return;
+
+        if (tab === currentLegalWorkflowFilter) {
+            el.className = 'pb-3 whitespace-nowrap border-b-2 border-blue-600 font-medium text-gray-900';
+        } else {
+            el.className = 'pb-3 whitespace-nowrap text-gray-700';
+        }
+    });
+}
+
+function applyLegalWorkflowFilter(filterValue) {
+    currentLegalWorkflowFilter = filterValue;
+    renderLegalTable();
 }
 
 function showLegalError(message) {
@@ -424,6 +466,23 @@ function getLegalStatusClasses(status) {
     return { textClass: 'text-gray-500', dotClass: 'bg-gray-400' };
 }
 
+function getWorkflowClasses(status) {
+    if (status === 'Uploaded') return 'text-orange-600';
+    if (status === 'Submitted') return 'text-blue-600';
+    if (status === 'Accepted') return 'text-green-600';
+    if (status === 'Reverted') return 'text-yellow-600';
+    if (status === 'Archived') return 'text-gray-600';
+    return 'text-gray-500';
+}
+
+function getApprovalClasses(status) {
+    if (status === 'Approved') return 'text-green-600';
+    if (status === 'Rejected') return 'text-red-600';
+    if (status === 'Needs Revision') return 'text-yellow-600';
+    if (status === 'Pending') return 'text-blue-600';
+    return 'text-gray-500';
+}
+
 function detectFileKind(path = '') {
     const lower = path.toLowerCase();
 
@@ -456,7 +515,7 @@ function openLegalPreview(index) {
     const imageWrap = document.getElementById('savedPreviewImageWrap');
     const image = document.getElementById('savedPreviewImage');
     const empty = document.getElementById('savedPreviewEmpty');
-    const openBtn = document.getElementById('openLegalPreviewBtn');
+    const actions = document.getElementById('legalPreviewActions');
 
     pdfFrame.classList.add('hidden');
     imageWrap.classList.add('hidden');
@@ -474,15 +533,10 @@ function openLegalPreview(index) {
         } else {
             empty.classList.remove('hidden');
         }
-
-        openBtn.href = item.document_url;
-        openBtn.classList.remove('pointer-events-none', 'opacity-50');
     } else {
         pdfFrame.src = '';
         image.src = '';
         empty.classList.remove('hidden');
-        openBtn.href = '#';
-        openBtn.classList.add('pointer-events-none', 'opacity-50');
     }
 
     document.getElementById('infoLegalType').textContent = item.legal_type ?? '';
@@ -492,6 +546,23 @@ function openLegalPreview(index) {
     document.getElementById('infoDocumentName').textContent = item.document_name ?? 'N/A';
     document.getElementById('infoUploader').textContent = item.user ?? '';
     document.getElementById('infoStatus').textContent = item.status ?? '';
+    document.getElementById('infoWorkflowStatus').textContent = item.workflow_status ?? '';
+    document.getElementById('infoApprovalStatus').textContent = item.approval_status ?? '';
+    document.getElementById('infoReviewNote').textContent = item.review_note ?? '—';
+
+    actions.innerHTML = `
+        <a id="openLegalPreviewBtn" href="${item.document_url ?? '#'}" target="_blank" class="text-sm text-blue-600 hover:underline">
+            Open in New Tab
+        </a>
+    `;
+
+    if (item.can_submit) {
+        actions.innerHTML += `
+            <button type="button" onclick="submitLegal(${item.id})" class="w-full bg-blue-600 text-white rounded-md py-2 hover:bg-blue-700 mt-3">
+                Submit for Approval
+            </button>
+        `;
+    }
 
     showLegalOnlySection('legalPreviewSection');
 }
@@ -502,7 +573,6 @@ function closeLegalPreview() {
     document.getElementById('savedPreviewPdf').classList.add('hidden');
     document.getElementById('savedPreviewImageWrap').classList.add('hidden');
     document.getElementById('savedPreviewEmpty').classList.add('hidden');
-    document.getElementById('openLegalPreviewBtn').href = '#';
     showLegalOnlySection('legalTableSection');
 }
 
@@ -513,9 +583,8 @@ async function fetchLegalData() {
     if (alpineData?.currentType && alpineData.currentType !== 'All Types') {
         params.append('type', alpineData.currentType);
     }
-    if (alpineData?.currentStatus && alpineData.currentStatus !== 'All') {
-        params.append('status', alpineData.currentStatus);
-    }
+
+    params.append('workflow_status', currentLegalWorkflowFilter);
 
     const query = params.toString() ? `?${params.toString()}` : '';
     const response = await fetch(`/legal/data${query}`, {
@@ -534,10 +603,13 @@ async function renderLegalTable() {
     const data = await fetchLegalData();
     legalRows = data || [];
 
+    updateLegalStatusMessage();
+    setActiveLegalTab();
+
     if (!legalRows.length) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                     No legal records found.
                 </td>
             </tr>
@@ -562,6 +634,8 @@ async function renderLegalTable() {
                         ${item.status ?? ''}
                     </span>
                 </td>
+                <td class="px-4 py-3 border-r border-gray-200 whitespace-nowrap ${getWorkflowClasses(item.workflow_status)} font-medium">${item.workflow_status ?? ''}</td>
+                <td class="px-4 py-3 border-r border-gray-200 whitespace-nowrap ${getApprovalClasses(item.approval_status)} font-medium">${item.approval_status ?? ''}</td>
                 <td class="px-4 py-3 whitespace-nowrap">
                     ${hasDocument
                         ? `<button type="button" onclick="event.stopPropagation(); openLegalPreview(${index})" class="text-blue-600 hover:underline">View</button>`
@@ -571,6 +645,13 @@ async function renderLegalTable() {
             </tr>
         `;
     });
+
+    if (autoOpenRecordId) {
+        const targetIndex = legalRows.findIndex(row => String(row.id) === String(autoOpenRecordId));
+        if (targetIndex !== -1) {
+            openLegalPreview(targetIndex);
+        }
+    }
 }
 
 async function addLegal() {
@@ -625,7 +706,8 @@ async function addLegal() {
             return;
         }
 
-        showLegalSuccess('Legal document saved successfully.');
+        showLegalSuccess(data.message || 'Legal document saved successfully.');
+        currentLegalWorkflowFilter = 'uploaded';
         await renderLegalTable();
         setLegalSaveLoading(false);
         closeLegalAddSection();
@@ -635,22 +717,31 @@ async function addLegal() {
     }
 }
 
+async function submitLegal(id) {
+    const res = await fetch(`/legal/${id}/submit`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        alert(data.message || 'Unable to submit record.');
+        return;
+    }
+
+    alert(data.message || 'Submitted successfully.');
+    currentLegalWorkflowFilter = 'submitted';
+    closeLegalPreview();
+    await renderLegalTable();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const alpineData = getLegalAlpineData();
     const documentInput = document.getElementById('documentInput');
-
-    document.querySelectorAll('.legal-status-tab').forEach(tab => {
-        tab.addEventListener('click', function () {
-            document.querySelectorAll('.legal-status-tab').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-
-            if (alpineData) {
-                alpineData.currentStatus = this.dataset.status;
-            }
-
-            renderLegalTable();
-        });
-    });
 
     if (documentInput) {
         documentInput.addEventListener('change', function (event) {

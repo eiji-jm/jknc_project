@@ -1,0 +1,11 @@
+@extends('layouts.app')
+@section('title', 'Consultation Notes')
+
+@section('content')
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4 pb-8">
+    <div class="bg-white border border-gray-100 rounded-md overflow-hidden">
+        @include('company.partials.company-header', ['company' => $company])
+        @include('company.partials.consultation-notes-app', ['company' => $company, 'consultationNotes' => $consultationNotes])
+    </div>
+</div>
+@endsection

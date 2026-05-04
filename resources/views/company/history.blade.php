@@ -1,0 +1,11 @@
+@extends('layouts.app')
+@section('title', 'Company History')
+
+@section('content')
+<div class="w-full px-4 sm:px-6 lg:px-8 mt-4 pb-8">
+    <div class="bg-white border border-gray-100 rounded-md overflow-hidden">
+        @include('company.partials.company-header', ['company' => $company])
+        @include('company.partials.history-feed', ['historyItems' => $historyItems])
+    </div>
+</div>
+@endsection

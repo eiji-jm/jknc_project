@@ -1,0 +1,236 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="w-full px-6 mt-4 pb-8 flex flex-col">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col shadow-sm min-h-[calc(100vh-100px)]">
+        <div class="flex items-center justify-between px-4 py-3 border-b shrink-0 gap-4">
+            <div class="flex items-center flex-1 min-w-0 gap-3">
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900">Finance Operations</h1>
+                    <p class="text-xs text-gray-500">Connected master data and transaction workflows</p>
+                </div>
+            </div>
+
+            <button id="addButton" onclick="window.openFinanceDrawer()" class="bg-blue-600 text-white px-5 py-2 rounded-md text-sm shrink-0 hover:bg-blue-700 transition">
+                + Add
+            </button>
+        </div>
+
+        <div class="px-4 pt-4 bg-white border-b border-gray-100">
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="window.scrollFinanceModuleTabs(-1)" class="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center shrink-0">
+                    <i class="fas fa-chevron-left text-[11px]"></i>
+                </button>
+
+                <div id="moduleTabsShell" class="flex-1 overflow-hidden">
+                    <div id="moduleTabs" class="flex flex-nowrap gap-2 overflow-x-auto scroll-smooth no-scrollbar py-1 snap-x snap-mandatory"></div>
+                </div>
+
+                <button type="button" onclick="window.scrollFinanceModuleTabs(1)" class="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center shrink-0">
+                    <i class="fas fa-chevron-right text-[11px]"></i>
+                </button>
+            </div>
+
+            <div id="workflowTabs" class="flex gap-2 text-[13px] overflow-x-auto pb-3 border-t border-gray-100 pt-3"></div>
+            <div id="statusMessage" class="mt-1 mb-4 border border-blue-200 bg-blue-50 text-blue-700 text-[14px] px-4 py-3 rounded-md">
+                Finance records are ready for encoding.
+            </div>
+        </div>
+
+        <div id="tableSection" class="p-4">
+            <div class="border rounded-md bg-white">
+                <table class="w-full text-sm table-fixed border-collapse">
+                    <thead class="bg-gray-50 text-gray-600 sticky top-0 z-20">
+                        <tr id="tableHeadRow"></tr>
+                    </thead>
+                    <tbody id="tableBody" class="bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="previewSection" class="hidden p-4">
+            <div class="flex gap-4 items-start">
+                <div class="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl">
+                    <div class="p-6" id="previewDocument"></div>
+                </div>
+
+                <div class="w-[380px] shrink-0 flex flex-col gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                        <h2 class="text-[20px] font-semibold text-gray-900">Record Preview</h2>
+                        <button type="button" onclick="window.closePreview()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-xl px-5 py-6">
+                        <h3 id="previewModuleTitle" class="text-[18px] font-semibold text-gray-900 mb-6">Finance Record</h3>
+                        <div class="inline-flex rounded-full border border-gray-200 bg-gray-50 p-1 mb-4 shadow-sm">
+                            <button type="button" id="previewTabDetails" onclick="window.financeModule.changePreviewTab('details')" class="rounded-full px-4 py-2 text-sm font-medium transition bg-white text-blue-700 shadow-sm border border-gray-200">Details</button>
+                            <button type="button" id="previewTabAttachments" onclick="window.financeModule.changePreviewTab('attachments')" class="rounded-full px-4 py-2 text-sm font-medium transition text-gray-600 hover:text-gray-900">Attachments</button>
+                        </div>
+
+                        <div id="previewTabContent"></div>
+                        <div class="mt-6 flex flex-col gap-2" id="previewActions"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="drawerSection" class="hidden fixed inset-0 z-50" aria-hidden="true">
+            <div class="absolute inset-0 bg-black/40" onclick="window.closeFinanceDrawer()"></div>
+            <div class="absolute inset-y-0 right-0 flex max-w-full">
+                <div id="drawerPanel" class="w-screen max-w-[100vw] bg-white shadow-2xl flex h-full transform translate-x-full transition-transform duration-300 ease-in-out">
+                <div id="drawerPreviewPane" class="flex-1 min-w-0 p-4 bg-gray-50 border-r border-gray-200">
+                        <div class="h-full bg-white border border-gray-200 rounded-xl overflow-auto">
+                            <div class="p-6 border-b border-gray-100">
+                                <h3 class="text-[18px] font-semibold text-gray-900" id="drawerPreviewTitle">New Finance Record</h3>
+                                <p class="text-xs text-gray-500 mt-1">The printable preview updates as we encode the record.</p>
+                            </div>
+                            <div class="p-6" id="drawerPreview">
+                                <div class="text-sm text-gray-400 italic">Start filling out the form to see the preview.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="drawerFormPane" class="w-full max-w-[540px] bg-white flex flex-col h-full">
+                        <div class="p-6 border-b flex items-center justify-between shrink-0">
+                            <div>
+                                <h2 class="font-bold text-lg text-gray-900" id="drawerTitle">Add Finance Record</h2>
+                                <p class="text-xs text-gray-500 mt-1" id="drawerSubtitle">Choose a tab, then encode the record.</p>
+                            </div>
+                            <button type="button" onclick="window.closeFinanceDrawer()" class="text-sm text-gray-500 hover:text-gray-700">
+                                Close
+                            </button>
+                        </div>
+
+                        <form id="financeForm" class="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
+                            @csrf
+                            <input type="hidden" id="financeRecordId" name="finance_record_id" value="">
+                            <input type="hidden" id="financeModuleKey" name="module_key" value="">
+                            <input type="hidden" id="existingAttachmentsJson" name="existing_attachments_json" value="[]">
+
+                            <div id="supplierModeTabs" class="hidden"></div>
+
+                            <div id="recordCoreFields" class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" id="recordNumberLabel">Record Number</label>
+                                    <div class="relative">
+                                        <input id="recordNumberInput" name="record_number" type="text" class="w-full border rounded-md p-2 pr-16" placeholder="PR-00001">
+                                        <button
+                                            id="recordNumberEditButton"
+                                            type="button"
+                                            onclick="window.financeModule.toggleRecordNumberEditMode()"
+                                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                            aria-pressed="false"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" id="recordTitleLabel">Name</label>
+                                    <input id="recordTitleInput" name="record_title" type="text" class="w-full border rounded-md p-2" placeholder="Name">
+                                </div>
+                            </div>
+
+                            <div id="recordMetaFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" id="recordDateLabel">Date</label>
+                                    <input id="recordDateInput" name="record_date" type="date" class="w-full border rounded-md p-2">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1" for="recordTimeInput">Time</label>
+                                    <input id="recordTimeInput" name="data[transaction_time]" type="time" class="w-full border rounded-md p-2">
+                                </div>
+                            </div>
+                            <input id="amountInput" name="amount" type="hidden" step="0.01" value="">
+
+                            <div id="statusField">
+                                <label class="block text-sm font-medium mb-1">Status</label>
+                                <select id="statusInput" name="status" class="w-full border rounded-md p-2">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+
+                            <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                            <div id="attachmentsSection">
+                                <label class="block text-sm font-medium mb-1 text-blue-700">Attachments</label>
+                                <select
+                                    id="attachmentCategoryInput"
+                                    name="attachment_category"
+                                    class="mb-2 w-full border border-blue-200 rounded-md p-2 bg-white text-sm"
+                                >
+                                    <option value="Supporting Document">Supporting Document</option>
+                                    <option value="Invoice">Invoice</option>
+                                    <option value="OR">OR</option>
+                                    <option value="DR">DR</option>
+                                    <option value="Contract">Contract</option>
+                                </select>
+                                <input
+                                    id="attachmentsInput"
+                                    name="attachments[]"
+                                    type="file"
+                                    multiple
+                                    class="w-full border border-blue-200 rounded-md p-2 bg-blue-50"
+                                >
+                                <p id="attachmentHint" class="mt-2 text-xs text-gray-500">Upload supporting files if needed.</p>
+                                <div id="existingAttachmentList" class="mt-3 space-y-2"></div>
+                            </div>
+                        </form>
+
+                        <div class="p-6 border-t flex gap-2 shrink-0">
+                            <button onclick="window.closeFinanceDrawer()" class="flex-1 border rounded py-2">Cancel</button>
+                            <button id="drawerSaveButton" onclick="window.saveFinanceRecord(event)" class="flex-1 bg-blue-600 text-white rounded py-2 hover:bg-blue-700 transition">
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</div>
+</div>
+
+<div id="financeToastStack" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+<div id="financeLookupSelectorModal" class="hidden fixed inset-0 z-[70]">
+    <div class="absolute inset-0 bg-black/40" onclick="window.financeModule.closeLookupSelector()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-7xl h-[86vh] rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+            <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+                <div>
+                    <h3 id="financeLookupSelectorTitle" class="text-lg font-semibold text-gray-900">Select Account</h3>
+                    <p id="financeLookupSelectorSubtitle" class="mt-1 text-xs text-gray-500">Choose a linked record from the selector list.</p>
+                </div>
+                <button type="button" onclick="window.financeModule.closeLookupSelector()" class="text-sm text-gray-500 hover:text-gray-700">Close</button>
+            </div>
+            <div class="p-5 space-y-4 flex-1 flex flex-col">
+                <input id="financeLookupSelectorSearch" type="text" class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" placeholder="Search accounts...">
+                <div class="rounded-2xl border border-gray-200 bg-white flex-1 flex flex-col overflow-hidden shadow-sm">
+                    <div class="border-b border-gray-100 px-4 py-3">
+                        <p class="text-sm font-semibold text-gray-900">Existing Accounts</p>
+                        <p class="text-xs text-gray-500">Select an account first before linking it.</p>
+                    </div>
+                    <div id="financeLookupSelectorList" class="flex-1 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.financeBootstrap = @js([
+        'records' => $records,
+        'sourceRecords' => $sourceRecords,
+        'moduleLabels' => $moduleLabels,
+        'lookupOptions' => $lookupOptions,
+        'currentModule' => $currentModule,
+        'currentWorkflowFilter' => $currentWorkflowFilter,
+        'canApproveFinance' => $canApproveFinance,
+        'currentUserName' => $currentUserName,
+        'currentUserEmail' => $currentUserEmail,
+        'csrfToken' => csrf_token(),
+    ]);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="{{ asset('js/finance.js') }}?v={{ filemtime(public_path('js/finance.js')) }}"></script>
+@endsection

@@ -1,0 +1,163 @@
+@extends('layouts.app')
+@section('title', 'Edit User Permissions')
+
+@section('content')
+<div class="w-full h-full px-6 py-5">
+
+    @if(session('success'))
+        <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <div class="bg-white border border-gray-200 rounded-xl min-h-[calc(100vh-7rem)] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+                <h1 class="text-[30px] font-semibold text-gray-800 leading-none">Edit Employee Permissions</h1>
+                <p class="text-sm text-gray-500 mt-1">{{ $user->name }} • {{ $user->email }}</p>
+            </div>
+
+            <a href="{{ route('admin.user-permissions') }}"
+               class="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                Back
+            </a>
+        </div>
+
+        <div class="p-5">
+            <form action="{{ route('admin.user-permissions.update', $user->id) }}" method="POST" class="border border-gray-200 rounded-xl p-5">
+                @csrf
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="manage_users" {{ $permission->manage_users ? 'checked' : '' }}>
+                        <span>Manage Users</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_admin_dashboard" {{ $permission->access_admin_dashboard ? 'checked' : '' }}>
+                        <span>Access Admin Dashboard</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_townhall" {{ $permission->approve_townhall ? 'checked' : '' }}>
+                        <span>Approve Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_townhall" {{ $permission->create_townhall ? 'checked' : '' }}>
+                        <span>Create Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_corporate" {{ $permission->create_corporate ? 'checked' : '' }}>
+                        <span>Create Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_corporate" {{ $permission->approve_corporate ? 'checked' : '' }}>
+                        <span>Approve Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_townhall" {{ $permission->access_townhall ? 'checked' : '' }}>
+                        <span>Access Town Hall</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_corporate" {{ $permission->access_corporate ? 'checked' : '' }}>
+                        <span>Access Corporate</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_activities" {{ $permission->access_activities ? 'checked' : '' }}>
+                        <span>Access Activities</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_contacts" {{ $permission->access_contacts ? 'checked' : '' }}>
+                        <span>Access Contacts</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_company" {{ $permission->access_company ? 'checked' : '' }}>
+                        <span>Access Company</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_policies" {{ $permission->approve_policies ? 'checked' : '' }}>
+                        <span>Approve Policies</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_transmittal" {{ $permission->access_transmittal ? 'checked' : '' }}>
+                        <span>Access Transmittal</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_deals" {{ $permission->access_deals ? 'checked' : '' }}>
+                        <span>Access Deals</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_services" {{ $permission->access_services ? 'checked' : '' }}>
+                        <span>Access Services</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_project" {{ $permission->access_project ? 'checked' : '' }}>
+                        <span>Access Project</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_regular" {{ $permission->access_regular ? 'checked' : '' }}>
+                        <span>Access Regular</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_product" {{ $permission->access_product ? 'checked' : '' }}>
+                        <span>Access Product</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_policies" {{ $permission->access_policies ? 'checked' : '' }}>
+                        <span>Access Policies</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="create_sales_marketing" {{ $permission->create_sales_marketing ? 'checked' : '' }}>
+                        <span>Create Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="approve_sales_marketing" {{ $permission->approve_sales_marketing ? 'checked' : '' }}>
+                        <span>Approve Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_sales_marketing" {{ $permission->access_sales_marketing ? 'checked' : '' }}>
+                        <span>Access Sales & Marketing</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 border rounded-lg p-3">
+                        <input type="checkbox" name="access_human_capital" {{ $permission->access_human_capital ? 'checked' : '' }}>
+                        <span>Access Human Capital</span>
+                    </label>
+                </div>
+
+                <div class="mt-5">
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        Save Permissions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection

@@ -1,0 +1,19 @@
+[
+    {
+        "id": 2,
+        "contact_id": 105,
+        "bif_no": null,
+        "date": "2026-04-11",
+        "client_type": "new",
+        "business_name_left": "Consulting Group",
+        "business_name_right": "Consulting Group",
+        "account_number_left": null,
+        "account_number_right": null,
+        "signatories": "[{\"name\":null,\"signature\":null},{\"name\":null,\"signature\":null},{\"name\":null,\"signature\":null},{\"name\":null,\"signature\":null},{\"name\":null,\"signature\":null},{\"name\":null,\"signature\":null}]",
+        "authentication_data": "{\"signature_combination\":null,\"signature_class\":null,\"left_client_name\":\"Christian Parot Crisostomo\",\"left_cif_no\":null,\"left_cif_dated\":\"2026-04-11\",\"right_client_name\":\"Christian Parot Crisostomo\",\"right_cif_no\":null,\"right_cif_dated\":\"2026-04-11\",\"authenticated_by\":null,\"board_resolution_spa_no\":null,\"board_resolution_spa_date\":null,\"signature_over_printed_name\":null,\"authorized_signatory_signature\":null,\"authorized_signatory_date\":null,\"processing_instruction\":null,\"sales_marketing\":null,\"processed_by\":null,\"processed_date\":null,\"finance\":null,\"scanned_by\":null,\"scanned_date\":null}",
+        "remarks": null,
+        "created_by": "Shine",
+        "created_at": "2026-04-11 09:21:49",
+        "updated_at": "2026-04-11 09:21:49"
+    }
+]

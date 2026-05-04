@@ -18,6 +18,12 @@ class Permit extends Model
         'tin',
         'document_name',
         'document_path',
+        'approval_status',
+        'workflow_status',
+        'submitted_by',
+        'approved_by',
+        'approved_at',
+        'review_note',
     ];
 
     protected $appends = ['status'];
@@ -26,6 +32,7 @@ class Permit extends Model
         'date_of_registration' => 'date:Y-m-d',
         'approved_date_of_registration' => 'date:Y-m-d',
         'expiration_date_of_registration' => 'date:Y-m-d',
+        'approved_at' => 'datetime',
     ];
 
     public function getStatusAttribute()
