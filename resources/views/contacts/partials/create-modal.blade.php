@@ -256,7 +256,7 @@
                         <h3 class="text-base font-semibold text-gray-900">Lead Stage</h3>
                         <p class="mb-4 text-xs text-gray-500">Current stage of the lead in the pipeline.</p>
                         @php
-                            $leadStageOptions = ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'];
+                            $leadStageOptions = ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Won', 'Closed Lost'];
                             $selectedLeadStage = old('lead_stage', 'Inquiry');
                         @endphp
                         <div>

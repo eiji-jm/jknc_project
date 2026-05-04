@@ -100,6 +100,7 @@ class DealController extends Controller
 
         $deals = [];
         $owners = $this->ownerOptions();
+        $financeUsers = $this->financeUserOptions();
         $defaultOwnerId = (int) ($owners[0]['id'] ?? 1001);
         $defaultOwner = collect($owners)->firstWhere('id', $defaultOwnerId) ?: collect($owners)->first();
         $companyOptions = [
@@ -325,12 +326,16 @@ class DealController extends Controller
                 $this->backfillMissingDealCodes();
 
                 $storedDeals = Deal::query()
-                    ->with('contact:id,first_name,last_name')
+                    ->with(['contact:id,first_name,last_name', 'stage'])
                     ->latest()
                     ->get();
 
                 $storedDeals->each(function (Deal $deal): void {
                     $this->ensureDealCodeAssigned($deal);
+                    $stageRelation = $deal->relationLoaded('stage') ? $deal->getRelation('stage') : null;
+                    if ($deal->stage_id && $stageRelation instanceof DealStage && (string) $deal->getAttribute('stage') !== (string) $stageRelation->name) {
+                        $deal->forceFill(['stage' => $stageRelation->name])->save();
+                    }
                 });
 
                 $dealRecords = $storedDeals
@@ -459,6 +464,7 @@ class DealController extends Controller
             'productPricing' => $productCatalog['productPricing'],
             'ownerLabel' => $defaultOwner['name'] ?? 'Shine Florence Padillo',
             'owners' => $owners,
+            'financeUsers' => $financeUsers,
             'defaultOwnerId' => $defaultOwnerId,
         ]);
     }
@@ -1263,7 +1269,7 @@ class DealController extends Controller
     public function show(int $id): View|RedirectResponse
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'regularProject', 'proposal'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'project', 'regularProject', 'proposal', 'assignedFinance'])->find($id);
             if ($storedDeal) {
                 $stages = $this->dealStages();
                 $currentStage = null;
@@ -1356,10 +1362,13 @@ class DealController extends Controller
                     'ownership' => [
                         'lead_consultant' => $storedDeal->assigned_consultant ?: '-',
                         'lead_associate' => $storedDeal->assigned_associate ?: '-',
+                        'finance' => $storedDeal->assignedFinance?->name ?: '-',
+                        'finance_email' => $storedDeal->assignedFinance?->email,
                         'handling_team' => $storedDeal->service_department_unit ?: '-',
                         'assigned_members' => array_values(array_filter([
                             $storedDeal->assigned_consultant,
                             $storedDeal->assigned_associate,
+                            $storedDeal->assignedFinance?->name,
                         ])),
                     ],
                     'project' => [
@@ -1404,9 +1413,11 @@ class DealController extends Controller
                     'detail' => $detail,
                     'stages' => $stages,
                     'hasSavedProposal' => $storedDeal->proposal !== null,
+                    'proposalRecord' => $storedDeal->proposal,
                     'dealFormData' => $this->storedDealFormData($storedDeal),
                     ...$linkedProjectContext,
                     ...$this->dealPanelContext($this->storedDealFormData($storedDeal)),
+                    'financeUsers' => $this->financeUserOptions(),
                     'openDealModal' => (bool) request()->boolean('edit_deal'),
                 ]);
             }
@@ -1510,6 +1521,7 @@ class DealController extends Controller
                 'hasSavedProposal' => false,
                 'dealFormData' => $this->normalizeDealFormData($mockPayload),
                 ...$this->dealPanelContext($this->normalizeDealFormData($mockPayload)),
+                'financeUsers' => $this->financeUserOptions(),
                 'openDealModal' => (bool) request()->boolean('edit_deal'),
             ]);
         }
@@ -1562,6 +1574,8 @@ class DealController extends Controller
             'ownership' => [
                 'lead_consultant' => 'Admin User',
                 'lead_associate' => 'Karen User',
+                'finance' => '-',
+                'finance_email' => null,
                 'handling_team' => 'Tax Team',
                 'assigned_members' => ['Admin User', 'Karen User', 'John Adams'],
             ],
@@ -1694,6 +1708,7 @@ class DealController extends Controller
                 'email' => $detail['email_address'] ?? null,
                 'mobile' => $detail['contact_number'] ?? null,
             ])),
+            'financeUsers' => $this->financeUserOptions(),
             'openDealModal' => (bool) request()->boolean('edit_deal'),
         ]);
     }
@@ -1718,7 +1733,8 @@ class DealController extends Controller
             ['id' => null, 'name' => 'Negotiation', 'order' => 5, 'color' => '#ea580c'],
             ['id' => null, 'name' => 'Payment', 'order' => 6, 'color' => '#059669'],
             ['id' => null, 'name' => 'Activation', 'order' => 7, 'color' => '#7c3aed'],
-            ['id' => null, 'name' => 'Closed Lost', 'order' => 8, 'color' => '#dc2626'],
+            ['id' => null, 'name' => 'Closed Won', 'order' => 8, 'color' => '#16a34a'],
+            ['id' => null, 'name' => 'Closed Lost', 'order' => 9, 'color' => '#dc2626'],
         ];
 
         $stages = DealStage::query()
@@ -2068,6 +2084,7 @@ class DealController extends Controller
             'estimated_service_support_fee',
             'total_service_fee',
             'total_product_fee',
+            'deal_discount',
             'total_estimated_engagement_value',
         ] as $moneyField) {
             if (! array_key_exists($moneyField, $normalized) || blank($normalized[$moneyField])) {
@@ -2112,13 +2129,15 @@ class DealController extends Controller
             'company_name' => $storedDeal->company_name ?: $contact?->company_name,
             'company_address' => $storedDeal->company_address ?: $contact?->company_address,
             'position' => $storedDeal->position ?: $contact?->position,
+            'assigned_finance_user_id' => $storedDeal->assigned_finance_user_id,
+            'internal_finance' => $storedDeal->assignedFinance?->name,
         ]);
     }
 
     private function buildDealPdfPayload(int $id): array
     {
         if (Schema::hasTable('deals')) {
-            $storedDeal = Deal::query()->with(['contact', 'stage'])->find($id);
+            $storedDeal = Deal::query()->with(['contact', 'stage', 'assignedFinance'])->find($id);
             if ($storedDeal) {
                 $this->ensureDealCodeAssigned($storedDeal);
                 $stages = collect($this->dealStages());
@@ -2328,6 +2347,7 @@ class DealController extends Controller
             'estimated_government_fees' => ['nullable', 'numeric'],
             'estimated_government_fee' => ['nullable', 'numeric'],
             'estimated_service_support_fee' => ['nullable', 'numeric'],
+            'deal_discount' => ['nullable', 'numeric', 'min:0'],
             'total_estimated_engagement_value' => ['nullable', 'numeric'],
             'total_estimated_value' => ['nullable', 'numeric'],
             'other_fees_titles' => ['nullable', 'array'],
@@ -2358,6 +2378,7 @@ class DealController extends Controller
             'qualification_notes' => ['nullable', 'string'],
             'assigned_consultant' => ['nullable', 'string', 'max:255'],
             'assigned_associate' => ['nullable', 'string', 'max:255'],
+            'assigned_finance_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'service_department_unit' => ['nullable', 'string', 'max:255'],
             'consultant_notes' => ['nullable', 'string'],
             'associate_notes' => ['nullable', 'string'],
@@ -2411,6 +2432,7 @@ class DealController extends Controller
             'estimated_service_support_fee',
             'total_service_fee',
             'total_product_fee',
+            'deal_discount',
             'total_estimated_engagement_value',
         ] as $moneyField) {
             if (blank($validated[$moneyField] ?? null)) {
@@ -2546,6 +2568,7 @@ class DealController extends Controller
         $validated['rejected_by_name'] = null;
         $validated['rejection_reason'] = null;
         $validated['stage'] = trim((string) ($validated['stage'] ?? 'Qualification')) ?: 'Qualification';
+        $validated['internal_finance'] = $this->financeNameForUserId((int) ($validated['assigned_finance_user_id'] ?? 0));
 
         return $validated;
     }
@@ -2618,11 +2641,12 @@ class DealController extends Controller
             $validated['total_service_fee'] ?? 0,
             $validated['total_product_fee'] ?? 0,
         ])->sum();
+        $discount = (float) ($validated['deal_discount'] ?? 0);
 
         $otherFeesTotal = collect($validated['other_fees'] ?? [])
             ->sum(fn (array $fee): float => (float) ($fee['amount'] ?? 0));
 
-        $total = (float) $baseTotal + (float) $otherFeesTotal;
+        $total = max(((float) $baseTotal + (float) $otherFeesTotal) - $discount, 0);
 
         return $total > 0 ? round($total, 2) : null;
     }
@@ -2636,6 +2660,7 @@ class DealController extends Controller
             'estimated_service_support_fee' => $this->normalizeCurrencyInputValue($request->input('estimated_service_support_fee')),
             'total_service_fee' => $this->normalizeCurrencyInputValue($request->input('total_service_fee')),
             'total_product_fee' => $this->normalizeCurrencyInputValue($request->input('total_product_fee')),
+            'deal_discount' => $this->normalizeCurrencyInputValue($request->input('deal_discount')),
             'total_estimated_engagement_value' => $this->normalizeCurrencyInputValue($request->input('total_estimated_engagement_value', $request->input('total_estimated_value'))),
             'total_estimated_value' => $this->normalizeCurrencyInputValue($request->input('total_estimated_value', $request->input('total_estimated_engagement_value'))),
             'other_fees_amounts' => collect((array) $request->input('other_fees_amounts', []))
@@ -2716,6 +2741,7 @@ class DealController extends Controller
         $support = (float) ($validated['estimated_service_support_fee'] ?? 0);
         $totalServiceFee = (float) ($validated['total_service_fee'] ?? 0);
         $totalProductFee = (float) ($validated['total_product_fee'] ?? 0);
+        $discount = (float) ($validated['deal_discount'] ?? 0);
         $otherFees = $validated['other_fees'] ?? [];
         $total = $this->computeTotalEstimatedEngagementValue([
             'estimated_professional_fee' => $professional,
@@ -2723,6 +2749,7 @@ class DealController extends Controller
             'estimated_service_support_fee' => $support,
             'total_service_fee' => $totalServiceFee,
             'total_product_fee' => $totalProductFee,
+            'deal_discount' => $discount,
             'other_fees' => $otherFees,
         ]);
 
@@ -2737,6 +2764,10 @@ class DealController extends Controller
 
         if (Schema::hasColumn('deals', 'total_product_fee')) {
             $deal->total_product_fee = $totalProductFee ?: null;
+        }
+
+        if (Schema::hasColumn('deals', 'deal_discount')) {
+            $deal->deal_discount = $discount ?: null;
         }
 
         if (Schema::hasColumn('deals', 'other_fees')) {
@@ -3220,6 +3251,36 @@ class DealController extends Controller
         return is_array($owner) ? ($owner['name'] ?? null) : null;
     }
 
+    private function financeUserOptions(): array
+    {
+        if (! Schema::hasTable('users')) {
+            return [];
+        }
+
+        return User::query()
+            ->select(['id', 'name', 'email', 'role'])
+            ->whereIn('role', ['Admin', 'Employee', 'SuperAdmin'])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $user): array => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function financeNameForUserId(int $userId): ?string
+    {
+        if ($userId <= 0 || ! Schema::hasTable('users')) {
+            return null;
+        }
+
+        return User::query()->whereKey($userId)->value('name');
+    }
+
     private function isDealReviewer(Request $request): bool
     {
         return in_array((string) ($request->user()?->role ?? ''), ['Admin', 'SuperAdmin'], true);
@@ -3274,10 +3335,37 @@ class DealController extends Controller
         $project->loadMissing([
             'deal:id,deal_code,engagement_type',
             'contact:id,first_name,last_name,email,phone,company_name',
+            'company.primaryContact:id,first_name,middle_name,last_name,email,phone,company_name,cif_status,organization_type,business_type_organization,ownership_flag,foreign_business_nature',
+            'company.latestBif',
             'starts' => fn ($query) => $query->latest(),
+            'sows' => fn ($query) => $query->latest(),
         ]);
 
-        $start = $project->starts->first();
+        $start = $project->starts
+            ->sort(function ($left, $right) {
+                $rank = fn ($item) => match (strtolower((string) ($item->status ?? ''))) {
+                    'approved' => 1,
+                    'pending_approval' => 2,
+                    'rejected' => 3,
+                    default => 4,
+                };
+
+                $leftRank = $rank($left);
+                $rightRank = $rank($right);
+                if ($leftRank !== $rightRank) {
+                    return $leftRank <=> $rightRank;
+                }
+
+                $leftTime = optional($left->updated_at)->getTimestamp() ?? 0;
+                $rightTime = optional($right->updated_at)->getTimestamp() ?? 0;
+                if ($leftTime !== $rightTime) {
+                    return $rightTime <=> $leftTime;
+                }
+
+                return ((int) $right->id) <=> ((int) $left->id);
+            })
+            ->first();
+        $sow = $project->sows->first();
         $startChecklist = collect($start?->checklist ?? [])->whenEmpty(fn () => collect([
             ['label' => 'Client Contact Form', 'status' => 'pending'],
             ['label' => 'Deal Form', 'status' => 'pending'],
@@ -3287,6 +3375,10 @@ class DealController extends Controller
             ['label' => 'Others', 'status' => 'pending'],
         ]));
         $startKyc = (array) ($start?->kyc_requirements ?? []);
+        $hasVisibleKycRows = collect($startKyc['sole'] ?? [])->isNotEmpty() || collect($startKyc['juridical'] ?? [])->isNotEmpty();
+        if (! $hasVisibleKycRows) {
+            $startKyc = $this->projectProvisioner->resolveDealWorkspaceStartKyc($project);
+        }
         $startReqs = collect($start?->engagement_requirements ?? [])->whenEmpty(fn () => collect([[
             'number' => 1,
             'requirement' => '',
@@ -3328,6 +3420,35 @@ class DealController extends Controller
             'startApprovalSteps' => $startApprovalSteps,
             'startClearance' => (array) ($start?->clearance ?? []),
             'routing' => $routing,
+            'serviceMemo' => $start ? $this->buildDealServiceMemoPayload($project, $start, $sow) : null,
+        ];
+    }
+
+    private function buildDealServiceMemoPayload(Project $project, $start, $sow): array
+    {
+        $contactName = trim(collect([$project->contact?->first_name, $project->contact?->last_name])->filter()->implode(' '))
+            ?: ($project->client_name ?: '-');
+
+        return [
+            'title' => 'SERVICE MEMO',
+            'form_code' => 'ENG-F-003-v1.0-03.16.26',
+            'date_issued' => optional($start->approved_at)->format('F d, Y') ?: now()->format('F d, Y'),
+            'engagement_type' => $project->engagement_type ?: ($project->deal?->engagement_type ?: '-'),
+            'start_ref_no' => $start->start_code ?: '-',
+            'start_cleared_date' => optional($start->approved_at)->format('F d, Y') ?: '-',
+            'condeal_reference_no' => $project->deal?->deal_code ?: '-',
+            'client_name' => $contactName,
+            'business_name' => $project->business_name ?: ($project->company?->company_name ?: '-'),
+            'engagement_reference_no' => $sow?->sow_number ?: '-',
+            'approved_start_date' => optional($start->date_started ?: $project->planned_start_date)->format('F d, Y') ?: '-',
+            'target_completion_date' => optional($project->target_completion_date)->format('F d, Y') ?: '-',
+            'rsat_template' => data_get($project->metadata, 'template_name') ?: '-',
+            'sow_template' => data_get($sow?->metadata, 'template_name') ?: ($sow?->version_number ?: '-'),
+            'lead_consultant' => $project->assigned_consultant ?: ' ',
+            'associate' => $project->assigned_associate ?: ' ',
+            'sales_marketing' => 'Sales and Marketing',
+            'finance' => 'Finance',
+            'office_of_president' => 'Office of the President',
         ];
     }
 }

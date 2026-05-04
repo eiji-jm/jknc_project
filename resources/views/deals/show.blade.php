@@ -12,6 +12,7 @@
         'Negotiation' => 'bg-orange-100 text-orange-700 border border-orange-200',
         'Payment' => 'bg-emerald-100 text-emerald-700 border border-emerald-200',
         'Activation' => 'bg-violet-100 text-violet-700 border border-violet-200',
+        'Closed Won' => 'bg-green-100 text-green-700 border border-green-200',
         'Closed Lost' => 'bg-red-100 text-red-700 border border-red-200',
     ];
     $dealStatusClasses = [
@@ -28,9 +29,26 @@
     $stageDataJson = collect($stages ?? [])->values()->all();
     $currentStageIdJson = $deal['stage_id'] ?? null;
     $startSectionAvailable = isset($project) && $project && ! str_contains(strtolower(trim((string) $project->engagement_type)), 'regular');
+    $serviceMemo = $serviceMemo ?? null;
+    $dealServiceMemoUrl = null;
+    $dealServiceMemoDownloadUrl = null;
+    $clientQuotationEmail = old('recipient_email', $detail['email_address'] ?? '');
+    $assignedFinanceName = data_get($detail, 'ownership.finance');
+    $assignedFinanceEmail = data_get($detail, 'ownership.finance_email');
+    $proposalRecord = $proposalRecord ?? data_get($detail, 'proposal');
 @endphp
 
 <style>
+    .deal-workspace {
+        background:
+            radial-gradient(circle at top left, rgba(13, 70, 140, 0.08), transparent 28%),
+            linear-gradient(180deg, #f2f6fc 0%, #fbfcfe 26%, #fbfcfe 100%);
+    }
+    .deal-top-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
+    }
     .deal-quick-actions {
         border: 1px solid #d8e1ee;
         background: rgba(255, 255, 255, 0.96);
@@ -66,13 +84,87 @@
         gap: 10px;
         margin-top: 10px;
     }
+    .deal-action-btn {
+        display: flex;
+        min-height: 2.25rem;
+        align-items: center;
+        border-radius: 0.5rem;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #334155;
+        transition: all 0.15s ease;
+    }
+    .deal-action-btn:hover {
+        border-color: #9eb2cf;
+        background: #f8fbff;
+        color: #1c4587;
+    }
+    .deal-action-primary {
+        border-color: #1c4587;
+        background: #1c4587;
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(28, 69, 135, 0.16);
+    }
+    .deal-action-primary:hover {
+        border-color: #17376d;
+        background: #17376d;
+        color: #fff;
+    }
+    .deal-flow-card {
+        border: 1px solid #d8e1ee;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    }
+    .deal-flow-form {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background: #fff;
+        padding: 0.75rem;
+    }
+    .project-doc-view-body { max-height: calc(100vh - 210px); overflow-y: auto; padding: 24px; background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%); }
+    .project-doc-view-sheet { display: flex; justify-content: center; }
+    .project-doc-view-paper { width: min(100%, 860px); border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); padding: 0; }
+    .project-ntp-sheet { border: 1px solid #d8e1ee; background: #fff; box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05); }
+    .project-ntp-doc { padding: 32px 34px 36px; border: 2px solid #1c4587; }
+    .project-ntp-title { font-family: Georgia, "Times New Roman", serif; font-size: 18pt; font-weight: 700; line-height: 1.05; }
+    .project-ntp-code { margin-bottom: 24px; font-family: Georgia, "Times New Roman", serif; font-size: 8pt; font-weight: 700; }
+    .project-ntp-light { font-weight: 400; }
+    .project-ntp-meta, .project-ntp-signatures { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .project-ntp-meta td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; font-family: Georgia, "Times New Roman", serif; font-size: 11pt; font-weight: 700; }
+    .project-ntp-copy { margin-top: 22px; font-size: 11pt; line-height: 1.35; }
+    .project-ntp-copy p { margin: 0 0 18px; text-align: justify; }
+    .project-ntp-signatures { margin-top: 34px; }
+    .project-ntp-signatures td { border: 1px solid #000; padding: 8px 10px; vertical-align: top; }
+    .project-ntp-sign-box { height: 96px; text-align: center; vertical-align: middle; font-family: Georgia, "Times New Roman", serif; font-size: 11pt; font-weight: 700; }
+    .project-service-memo-doc { min-height: 1030px; padding: 28px 32px 22px; display: flex; flex-direction: column; }
+    .project-service-memo-meta { margin-top: 18px; }
+    .project-service-memo-meta td { padding: 6px 9px; font-size: 10pt; }
+    .project-service-memo-copy { margin-top: 18px; font-size: 10.5pt; line-height: 1.3; }
+    .project-service-memo-copy p { margin-bottom: 12px; }
+    .project-service-memo-signatures { margin-top: 18px; }
+    .project-service-memo-signatures .project-ntp-sign-box { height: 78px; font-size: 10pt; }
+    .project-service-memo-footer { margin-top: auto; padding-top: 16px; font-family: Georgia, "Times New Roman", serif; font-size: 8pt; line-height: 1.25; color: #0f172a; }
+    .project-service-memo-footer p { margin: 0; }
+    @media (max-width: 768px) {
+        .project-doc-view-body { padding: 14px; }
+        .project-ntp-doc { padding: 20px 18px 24px; }
+        .project-service-memo-doc { min-height: 980px; }
+        .project-ntp-meta td, .project-ntp-sign-box { font-size: 9pt; }
+    }
 </style>
 
-<div class="bg-[#f7f6f2] p-6">
+<div class="deal-workspace p-6">
     <div class="mx-auto max-w-[1500px] space-y-4">
         @if (session('success'))
             <div class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
                 {{ session('success') }}
+                @if (session('proposal_client_link'))
+                    <a href="{{ session('proposal_client_link') }}" target="_blank" class="ml-2 font-medium underline">Open client link</a>
+                @endif
             </div>
         @endif
 
@@ -82,13 +174,13 @@
             </div>
         @endif
 
-        <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600">
+        <div class="deal-top-card rounded-xl px-5 py-4 text-sm text-gray-600">
             <a href="{{ route('deals.index') }}" class="hover:text-blue-700"><i class="fas fa-arrow-left mr-1"></i>Deals</a>
             <span class="mx-1">/</span>
             <span class="font-medium text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</span>
         </div>
 
-        <div class="rounded-xl border border-gray-200 bg-white px-5 py-4">
+        <div class="deal-top-card rounded-xl px-5 py-4">
             <div class="flex flex-wrap items-center gap-2">
                 <h1 class="text-2xl font-semibold text-gray-900">{{ $deal['deal_code'] ?? 'DEAL' }}</h1>
                 <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $dealStatusClasses[$detail['deal_status'] ?? 'Pending'] ?? 'bg-gray-100 text-gray-700 border border-gray-200' }}">{{ $detail['deal_status'] ?? 'Pending' }}</span>
@@ -154,6 +246,7 @@
                     <div class="grid gap-4 text-sm md:grid-cols-2">
                         <div><p class="text-xs text-gray-500">Lead Consultant</p><p class="font-medium text-gray-800">{{ data_get($detail, 'ownership.lead_consultant', '-') }}</p></div>
                         <div><p class="text-xs text-gray-500">Lead Associate</p><p class="font-medium text-gray-800">{{ data_get($detail, 'ownership.lead_associate', '-') }}</p></div>
+                        <div><p class="text-xs text-gray-500">Finance</p><p class="font-medium text-gray-800">{{ data_get($detail, 'ownership.finance', '-') }}</p></div>
                         <div><p class="text-xs text-gray-500">Handling Team</p><p class="font-medium text-gray-800">{{ data_get($detail, 'ownership.handling_team', '-') }}</p></div>
                         <div>
                             <p class="text-xs text-gray-500">Assigned Team Members</p>
@@ -181,10 +274,32 @@
                                 <p class="mt-1 text-sm text-gray-500">Manage the project START intake directly from this deal.</p>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                <a href="{{ route('project.start.download', $project) }}" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                <a href="{{ route('project.start.download', $project) }}" class="deal-action-btn">
                                     <i class="fas fa-file-arrow-down mr-1"></i>Download START PDF
                                 </a>
-                                <a href="{{ route('project.show', ['project' => $project->id, 'tab' => 'start']) }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                                <button type="button" class="deal-action-btn" data-open-start-drawer="project-start-drawer-{{ $project->id }}">
+                                    <i class="far fa-pen-to-square mr-1"></i>Edit START
+                                </button>
+                                @if (strtolower((string) ($start?->status ?? 'pending')) === 'approved' && $start?->approved_at)
+                                    @php
+                                        $dealServiceMemoPath = (string) data_get($start?->attachments, 'service_memo_pdf_path', '');
+                                        $dealServiceMemoUrl = $dealServiceMemoPath !== '' ? route('uploads.show', ['path' => $dealServiceMemoPath]) : null;
+                                        $dealServiceMemoDownloadUrl = $dealServiceMemoPath !== '' ? route('uploads.show', ['path' => $dealServiceMemoPath, 'download' => 1]) : null;
+                                    @endphp
+                                    @if ($dealServiceMemoUrl)
+                                        <button id="dealServiceMemoViewButton" type="button" class="deal-action-btn">
+                                            <i class="fas fa-file-lines mr-1"></i>View Service Memo
+                                        </button>
+                                        <a href="{{ $dealServiceMemoDownloadUrl }}" class="deal-action-btn">
+                                            <i class="fas fa-file-arrow-down mr-1"></i>Download Service Memo
+                                        </a>
+                                    @else
+                                        <a href="{{ route('project.service-memo.download', $project) }}" class="deal-action-btn">
+                                            <i class="fas fa-file-lines mr-1"></i>Generate Service Memo
+                                        </a>
+                                    @endif
+                                @endif
+                                <a href="{{ route('project.show', ['project' => $project->id, 'tab' => 'start']) }}" class="deal-action-btn">
                                     <i class="fas fa-up-right-from-square mr-1"></i>Open Full Project
                                 </a>
                             </div>
@@ -205,6 +320,38 @@
                             ])
                         </div>
                     </article>
+
+                    @if ($dealServiceMemoUrl && $serviceMemo)
+                        <div id="dealServiceMemoModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+                            <button id="dealServiceMemoOverlay" type="button" class="absolute inset-0 bg-slate-950/60" aria-label="Close service memo preview"></button>
+                            <div class="absolute inset-0 overflow-y-auto p-4">
+                                <div class="mx-auto max-w-[1080px] rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                                    <div class="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+                                        <div class="max-w-2xl">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project Document Viewer</p>
+                                            <h2 class="mt-2 text-xl font-semibold text-slate-950">Service Memo</h2>
+                                            <p class="mt-2 text-sm leading-6 text-slate-600">Review the approved service memo in the same branded workspace viewer while preserving the original document structure.</p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-end gap-2">
+                                            <a href="{{ $dealServiceMemoDownloadUrl }}" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                                <i class="fas fa-file-arrow-down mr-2"></i>Download PDF
+                                            </a>
+                                            <button id="dealServiceMemoCloseButton" type="button" class="inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                                Close View
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="project-doc-view-body">
+                                        <div class="project-doc-view-sheet">
+                                            <div class="project-doc-view-paper">
+                                                @include('project.partials.service-memo-document', ['serviceMemo' => $serviceMemo])
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @endif
 
                 <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -315,19 +462,23 @@
                                 <p class="deal-quick-label">Deal Actions</p>
                                 <div class="deal-quick-stack">
                                     @if ($startSectionAvailable)
-                                        <a href="#deal-start-form" class="flex h-9 items-center rounded-lg bg-blue-700 px-3 text-sm font-medium text-white hover:bg-blue-800">
+                                        <a href="#deal-start-form" class="deal-action-btn deal-action-primary">
                                             <i class="fas fa-clipboard-check mr-1"></i>START Form
                                         </a>
                                     @endif
-                                    @if (($deal['stage'] ?? '') === 'Proposal')
-                                        <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="flex h-9 items-center rounded-lg border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-700 hover:bg-amber-100">
-                                            <i class="fas fa-file-signature mr-1"></i>Create Proposal
+                                    @if (($deal['stage'] ?? '') === 'Proposal' || (($hasSavedProposal ?? false) === true))
+                                        <a href="{{ route('deals.proposal.show', $deal['id']) }}" class="deal-action-btn">
+                                            @if (($hasSavedProposal ?? false) === true)
+                                                <i class="fas fa-eye mr-1"></i>View Proposal
+                                            @else
+                                                <i class="fas fa-file-signature mr-1"></i>Create Proposal
+                                            @endif
                                         </a>
                                     @endif
-                                    <button id="openStageUpdateModalBtn" type="button" class="h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100 text-left">
+                                    <button id="openStageUpdateModalBtn" type="button" class="deal-action-btn">
                                         <i class="fas fa-arrow-up-right-dots mr-1"></i>Update Stage
                                     </button>
-                                    <button id="openCreateDealModalBtn" type="button" class="h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 text-left">
+                                    <button id="openCreateDealModalBtn" type="button" class="deal-action-btn">
                                         <i class="far fa-pen-to-square mr-1"></i>Edit Deal
                                     </button>
                                 </div>
@@ -336,12 +487,12 @@
                                 <p class="deal-quick-label">Workspaces</p>
                                 <div class="deal-quick-stack">
                                     @if (data_get($detail, 'project.id'))
-                                        <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="flex h-9 items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                                        <a href="{{ route('project.show', data_get($detail, 'project.id')) }}" class="deal-action-btn">
                                             <i class="fas fa-diagram-project mr-1"></i>Open Project Workspace
                                         </a>
                                     @endif
                                     @if (data_get($detail, 'regular_project.id'))
-                                        <a href="{{ route('regular.show', data_get($detail, 'regular_project.id')) }}" class="flex h-9 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100">
+                                        <a href="{{ route('regular.show', data_get($detail, 'regular_project.id')) }}" class="deal-action-btn">
                                             <i class="fas fa-clipboard-list mr-1"></i>Open Regular
                                         </a>
                                     @endif
@@ -350,13 +501,95 @@
                             <div class="deal-quick-group">
                                 <p class="deal-quick-label">Exports</p>
                                 <div class="deal-quick-stack">
-                                    <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    <a href="{{ route('deals.download-pdf', ['id' => $deal['id'], 'autoprint' => 1]) }}" target="_blank" class="deal-action-btn">
                                         <i class="fas fa-file-pdf mr-1"></i>Download PDF
                                     </a>
                                 </div>
                             </div>
                         </div>
                     </section>
+
+                    @if (in_array(($deal['stage'] ?? ''), ['Negotiation', 'Payment', 'Activation'], true) && (($hasSavedProposal ?? false) === true))
+                    <section class="deal-flow-card rounded-2xl px-4 py-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="deal-quick-title">Quotation</p>
+                                <p class="mt-1 text-xs text-slate-500">Send the approved proposal as the quotation for this deal.</p>
+                            </div>
+                            <a href="{{ route('deals.quotation.finance', $deal['id']) }}" class="deal-action-btn whitespace-nowrap">
+                                <i class="fas fa-file-invoice-dollar mr-1"></i>View
+                            </a>
+                        </div>
+                        <div class="mt-4 grid gap-3">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="font-semibold">Status</span>
+                                    <span class="rounded-full bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        {{ str_replace('_', ' ', $proposalRecord?->quotation_status ?: 'not started') }}
+                                    </span>
+                                </div>
+                                @if ($proposalRecord?->quotation_finance_started_at)
+                                    <div class="mt-1 text-xs text-slate-500">Started {{ optional($proposalRecord->quotation_finance_started_at)->format('F j, Y g:i A') }}</div>
+                                @endif
+                                @if ($proposalRecord?->quotation_approved_at)
+                                    <div class="mt-1 text-xs text-slate-500">Approved by {{ $proposalRecord->quotation_approved_by_name ?: 'Finance' }} on {{ optional($proposalRecord->quotation_approved_at)->format('F j, Y g:i A') }}</div>
+                                @endif
+                            </div>
+                            <form method="POST" action="{{ route('deals.quotation.send-client', $deal['id']) }}" class="deal-flow-form">
+                                @csrf
+                                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Client Email</label>
+                                <input type="email" name="recipient_email" value="{{ $clientQuotationEmail }}" placeholder="client@email.com" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" required>
+                                <button type="submit" class="deal-action-btn deal-action-primary mt-2 w-full justify-center">
+                                    <i class="fas fa-paper-plane mr-1"></i>Send to Client
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('deals.quotation.send-finance', $deal['id']) }}" class="deal-flow-form">
+                                @csrf
+                                <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Finance Email</label>
+                                @if (filled($assignedFinanceEmail))
+                                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                        <div class="font-semibold">{{ $assignedFinanceName ?: 'Assigned Finance' }}</div>
+                                        <div class="text-xs text-slate-500">{{ $assignedFinanceEmail }}</div>
+                                    </div>
+                                @else
+                                    <input type="email" name="recipient_email" value="{{ old('recipient_email') }}" placeholder="finance@email.com" class="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <p class="mt-1 text-xs text-slate-500">No finance user assigned yet. Edit the deal to assign one.</p>
+                                @endif
+                                <button type="submit" class="deal-action-btn mt-2 w-full justify-center">
+                                    <i class="fas fa-building-columns mr-1"></i>Send to Finance
+                                </button>
+                            </form>
+                        </div>
+                    </section>
+                    @endif
+
+                    @if (in_array(($deal['stage'] ?? ''), ['Payment', 'Activation'], true) && (($hasSavedProposal ?? false) === true))
+                    <section class="deal-flow-card rounded-2xl px-4 py-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="deal-quick-title">Payment / Invoice</p>
+                                <p class="mt-1 text-xs text-slate-500">Generate or upload the invoice and confirm payment.</p>
+                            </div>
+                            <a href="{{ route('deals.invoice.payment', $deal['id']) }}" class="deal-action-btn whitespace-nowrap">
+                                <i class="fas fa-file-invoice mr-1"></i>Open
+                            </a>
+                        </div>
+                        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="font-semibold">Status</span>
+                                <span class="rounded-full bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    {{ str_replace('_', ' ', $proposalRecord?->invoice_status ?: 'not started') }}
+                                </span>
+                            </div>
+                            @if ($proposalRecord?->invoice_uploaded_at)
+                                <div class="mt-1 text-xs text-slate-500">Invoice uploaded {{ optional($proposalRecord->invoice_uploaded_at)->format('F j, Y g:i A') }}</div>
+                            @endif
+                            @if ($proposalRecord?->payment_confirmed_at)
+                                <div class="mt-1 text-xs text-slate-500">Payment confirmed by {{ $proposalRecord->payment_confirmed_by_name ?: 'Finance' }} on {{ optional($proposalRecord->payment_confirmed_at)->format('F j, Y g:i A') }}</div>
+                            @endif
+                        </div>
+                    </section>
+                    @endif
 
                     <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <h3 class="mb-3 text-base font-semibold text-gray-900">Related Contact</h3>
@@ -369,13 +602,6 @@
                             <p class="mt-1 text-xs text-gray-600"><i class="fas fa-phone mr-1"></i>{{ $detail['contact_number'] ?? '-' }}</p>
                         </div>
                     </div>
-                    @if (($hasSavedProposal ?? false) === true)
-                        <div class="mt-4 border-t border-gray-100 pt-4">
-                            <a href="{{ route('deals.proposal.preview-page', $deal['id']) }}" class="block w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium text-blue-700 hover:bg-blue-100">
-                                <i class="fas fa-eye mr-1"></i>{{ $deal['deal_code'] ?? 'Proposal Preview' }}
-                            </a>
-                        </div>
-                    @endif
                     </article>
 
                     <article class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -432,6 +658,7 @@
     'productOptionsByServiceArea' => $productOptionsByServiceArea ?? [],
     'ownerLabel' => $ownerLabel,
     'owners' => $owners,
+    'financeUsers' => $financeUsers ?? [],
     'defaultOwnerId' => $defaultOwnerId,
     'dealDraft' => $dealFormData,
     'openDealModal' => $openDealModal ?? false,
@@ -609,6 +836,32 @@ document.addEventListener('DOMContentLoaded', function () {
     stagePrimary?.addEventListener('click', openStageModal);
     stageModalOverlay?.addEventListener('click', closeStageModal);
     stageModalCancel?.addEventListener('click', closeStageModal);
+
+    const dealServiceMemoViewButton = document.getElementById('dealServiceMemoViewButton');
+    const dealServiceMemoModal = document.getElementById('dealServiceMemoModal');
+    const dealServiceMemoOverlay = document.getElementById('dealServiceMemoOverlay');
+    const dealServiceMemoCloseButton = document.getElementById('dealServiceMemoCloseButton');
+
+    const openDealServiceMemoModal = () => {
+        if (!dealServiceMemoModal) {
+            return;
+        }
+        dealServiceMemoModal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const closeDealServiceMemoModal = () => {
+        if (!dealServiceMemoModal) {
+            return;
+        }
+        dealServiceMemoModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    };
+
+    dealServiceMemoViewButton?.addEventListener('click', openDealServiceMemoModal);
+    dealServiceMemoOverlay?.addEventListener('click', closeDealServiceMemoModal);
+    dealServiceMemoCloseButton?.addEventListener('click', closeDealServiceMemoModal);
+
     if (!stageToast?.classList.contains('hidden')) {
         showStageToast(stageToast.textContent.trim() || 'Stage updated successfully.');
     }

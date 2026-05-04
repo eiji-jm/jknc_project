@@ -337,6 +337,12 @@
         color: #fff;
         box-shadow: 0 10px 24px rgba(28, 69, 135, 0.18);
     }
+    .rsat-settings-trigger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #cbd5e1; background: #fff; color: #475569; cursor: pointer; }
+    .rsat-settings-modal { position: fixed; inset: 0; z-index: 75; display: none; }
+    .rsat-settings-modal.is-open { display: block; }
+    .rsat-settings-overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5); }
+    .rsat-settings-frame { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .rsat-settings-card { width: 100%; max-width: 430px; background: #fff; border: 1px solid #dbe3f0; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.2); }
     @media (max-width: 1024px) {
         .rsat-work-grid { grid-template-columns: 1fr; }
         .rsat-quick-grid { grid-template-columns: 1fr; }
@@ -412,7 +418,12 @@
                 <p class="rsat-quick-title">Quick Actions</p>
                 <div class="rsat-quick-grid">
                     <div class="rsat-quick-group">
-                        <p class="rsat-quick-label">Document Actions</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="rsat-quick-label">Document Actions</p>
+                            <button type="button" id="regularRsatAutoSettingsOpen" class="rsat-settings-trigger" title="Auto-report settings">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                        </div>
                         <div class="rsat-quick-stack">
                             <button type="submit" form="regular-rsat-form" class="rsat-doc-primary">Save RSAT</button>
                             <button type="submit" form="regular-rsat-form" formaction="{{ route('regular.report.generate', $regular) }}" class="rsat-doc-action">Generate RSAT Report</button>
@@ -802,6 +813,33 @@
     </div>
 </div>
 
+<div id="regularRsatAutoSettingsModal" class="rsat-settings-modal" aria-hidden="true">
+    <button id="regularRsatAutoSettingsOverlay" type="button" class="rsat-settings-overlay" aria-label="Close auto-report settings"></button>
+    <div class="rsat-settings-frame">
+        <div class="rsat-settings-card p-5">
+            <h3 class="text-lg font-semibold text-slate-900">RSAT Auto-Generate Report</h3>
+            <p class="mt-1 text-sm text-slate-500">Set a monthly day when RSAT reports auto-generate.</p>
+            <form method="POST" action="{{ route('regular.rsat.auto-settings', $regular) }}" class="mt-4 space-y-4">
+                @csrf
+                <label class="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="hidden" name="enabled" value="0">
+                    <input type="checkbox" name="enabled" value="1" class="h-4 w-4" {{ !empty($rsatAutoReportSettings['enabled']) ? 'checked' : '' }}>
+                    Enable monthly auto-generation
+                </label>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Day of Month</label>
+                    <input type="number" min="1" max="31" name="day_of_month" value="{{ (int) ($rsatAutoReportSettings['day_of_month'] ?? 30) }}" class="mt-1 w-full border border-slate-300 px-3 py-2 text-sm">
+                </div>
+                <p class="text-xs text-slate-500">If a month has fewer days, it runs on the last day of that month.</p>
+                <div class="flex justify-end gap-2">
+                    <button type="button" id="regularRsatAutoSettingsClose" class="rsat-doc-action">Cancel</button>
+                    <button type="submit" class="rsat-doc-primary">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div id="regularReportDeleteModal" class="fixed inset-0 z-[70] hidden" aria-hidden="true">
     <button id="regularReportDeleteOverlay" type="button" aria-label="Close delete reports modal" class="absolute inset-0 bg-slate-900/45"></button>
     <div class="absolute inset-0 flex items-center justify-center px-4">
@@ -872,6 +910,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const addAttachmentInputButton = document.getElementById('add-rsat-attachment-input');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+    const autoSettingsOpen = document.getElementById('regularRsatAutoSettingsOpen');
+    const autoSettingsModal = document.getElementById('regularRsatAutoSettingsModal');
+    const autoSettingsOverlay = document.getElementById('regularRsatAutoSettingsOverlay');
+    const autoSettingsClose = document.getElementById('regularRsatAutoSettingsClose');
 
     const syncRowNumbers = (container) => {
         if (!container) {
@@ -947,9 +989,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const openAutoSettingsModal = () => {
+        if (!autoSettingsModal) return;
+        autoSettingsModal.classList.add('is-open');
+        autoSettingsModal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+    };
+
+    const closeAutoSettingsModal = () => {
+        if (!autoSettingsModal) return;
+        autoSettingsModal.classList.remove('is-open');
+        autoSettingsModal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden');
+    };
+
     tabButtons.forEach((button) => {
         button.addEventListener('click', () => activateTab(button.dataset.tabButton));
     });
+    autoSettingsOpen?.addEventListener('click', openAutoSettingsModal);
+    autoSettingsOverlay?.addEventListener('click', closeAutoSettingsModal);
+    autoSettingsClose?.addEventListener('click', closeAutoSettingsModal);
 
     (() => {
         const searchInput = document.getElementById('regularReportSearch');

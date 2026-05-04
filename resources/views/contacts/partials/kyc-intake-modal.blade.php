@@ -29,7 +29,7 @@
         'Radio Advertisement', 'Returning Client', 'Influencer / Content Creator',
         'Television Advertisement', 'Other',
     ];
-    $intakeLeadStageOptions = ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Lost'];
+    $intakeLeadStageOptions = ['Inquiry', 'Qualification', 'Consultation', 'Proposal', 'Negotiation', 'Payment', 'Activation', 'Closed Won', 'Closed Lost'];
     $intakeServiceTypes = old('_from_contact_intake_edit') ? old('service_inquiry_types', []) : ($contact->service_inquiry_types ?? []);
     $intakeRecommendations = old('_from_contact_intake_edit') ? old('recommendation_options', []) : ($contact->recommendation_options ?? []);
     $intakeLeadSources = old('_from_contact_intake_edit') ? old('lead_source_channels', []) : ($contact->lead_source_channels ?? []);

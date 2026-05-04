@@ -57,7 +57,7 @@
         <div id="dealsBoard" class="flex min-w-max gap-3">
             @foreach ($stageColumns as $column)
                 @php
-                    $stageBorderColor = $column['color'] ?: ($column['stage'] === 'Closed Lost' ? '#dc2626' : '#1e293b');
+                    $stageBorderColor = $column['color'] ?: ($column['stage'] === 'Closed Lost' ? '#dc2626' : ($column['stage'] === 'Closed Won' ? '#16a34a' : '#1e293b'));
                     $headerClass = 'bg-slate-800';
                 @endphp
                 <section class="stage-column w-[230px] overflow-hidden rounded-xl border border-gray-200 bg-gray-50" data-stage-id="{{ $column['id'] ?? '' }}" data-stage-column="{{ $column['stage'] }}" data-stage-color="{{ $stageBorderColor }}">
@@ -202,6 +202,7 @@
     'productPricing' => $productPricing ?? [],
     'ownerLabel' => $ownerLabel,
     'owners' => $owners,
+    'financeUsers' => $financeUsers ?? [],
     'defaultOwnerId' => $defaultOwnerId,
     'dealDraft' => $dealDraft ?? [],
     'openDealModal' => $openDealModal ?? false,
@@ -485,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'decline_reason',
             'assigned_consultant',
             'assigned_associate',
+            'assigned_finance_user_id',
             'service_department_unit',
             'consultant_notes',
             'associate_notes',

@@ -123,6 +123,10 @@ Route::get('/regular/report/respond/{token}/download', [RegularController::class
 Route::get('/regular/ntp/respond/{token}', [RegularController::class, 'clientNtp'])->name('regular.ntp.client.show');
 Route::post('/regular/ntp/respond/{token}', [RegularController::class, 'submitClientNtp'])->name('regular.ntp.client.submit');
 Route::get('/regular/ntp/respond/{token}/download', [RegularController::class, 'downloadClientNtp'])->name('regular.ntp.client.download');
+Route::get('/proposal/respond/{token}', [DealProposalController::class, 'clientProposal'])->name('deals.proposal.client.show');
+Route::post('/proposal/respond/{token}/approve', [DealProposalController::class, 'approveClientProposal'])->name('deals.proposal.client.approve');
+Route::post('/proposal/respond/{token}/quotation-upload', [DealProposalController::class, 'uploadClientQuotation'])->name('deals.proposal.client.quotation-upload');
+Route::get('/proposal/respond/{token}/download', [DealProposalController::class, 'downloadClientProposal'])->name('deals.proposal.client.download');
 
 /*
 |--------------------------------------------------------------------------
@@ -304,6 +308,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/deals/{deal}/proposal', [DealProposalController::class, 'show'])->name('deals.proposal.show');
     Route::get('/deals/{deal}/proposal/preview-view', [DealProposalController::class, 'previewPage'])->name('deals.proposal.preview-page');
     Route::post('/deals/{deal}/proposal/preview', [DealProposalController::class, 'preview'])->name('deals.proposal.preview');
+    Route::post('/deals/{deal}/proposal/send', [DealProposalController::class, 'sendClientProposal'])->name('deals.proposal.send');
+    Route::get('/deals/{deal}/quotation/finance', [DealProposalController::class, 'financeQuotation'])->name('deals.quotation.finance');
+    Route::post('/deals/{deal}/quotation/send-client', [DealProposalController::class, 'sendClientQuotation'])->name('deals.quotation.send-client');
+    Route::post('/deals/{deal}/quotation/send-finance', [DealProposalController::class, 'sendFinanceQuotation'])->name('deals.quotation.send-finance');
+    Route::post('/deals/{deal}/quotation/approve', [DealProposalController::class, 'approveQuotation'])->name('deals.quotation.approve');
+    Route::post('/deals/{deal}/quotation/upload-finance', [DealProposalController::class, 'uploadFinanceQuotation'])->name('deals.quotation.upload-finance');
+    Route::get('/deals/{deal}/invoice/payment', [DealProposalController::class, 'paymentInvoice'])->name('deals.invoice.payment');
+    Route::post('/deals/{deal}/invoice/upload', [DealProposalController::class, 'uploadInvoice'])->name('deals.invoice.upload');
+    Route::post('/deals/{deal}/payment/confirm', [DealProposalController::class, 'confirmPayment'])->name('deals.payment.confirm');
+    Route::get('/deals/{deal}/proposal/download', [DealProposalController::class, 'download'])->name('deals.proposal.download');
     Route::match(['put', 'patch'], '/deals/{deal}/proposal', [DealProposalController::class, 'update'])->name('deals.proposal.update');
     Route::get('/deals/{id}/download', [DealController::class, 'downloadPdf'])->name('deals.download');
     Route::get('/deals/{id}/download-pdf', [DealController::class, 'downloadPdf'])->name('deals.download-pdf');
@@ -318,8 +332,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/project/manual', [ProjectController::class, 'storeManual'])->name('project.manual.store');
     Route::get('/project/{project}', [ProjectController::class, 'show'])->name('project.show');
     Route::get('/project/{project}/start/download', [ProjectController::class, 'downloadStartPdf'])->name('project.start.download');
+    Route::get('/project/{project}/service-memo/download', [ProjectController::class, 'downloadServiceMemoPdf'])->name('project.service-memo.download');
     Route::post('/project/{project}/start', [ProjectController::class, 'updateStart'])->name('project.start.update');
+    Route::post('/project/{project}/start/submit', [ProjectController::class, 'submitStartForApproval'])->name('project.start.submit');
+    Route::post('/project/{project}/start/approve', [ProjectController::class, 'approveStart'])->name('project.start.approve');
+    Route::post('/project/{project}/start/reject', [ProjectController::class, 'rejectStart'])->name('project.start.reject');
     Route::post('/project/{project}/sow', [ProjectController::class, 'updateSow'])->name('project.sow.update');
+    Route::post('/project/{project}/sow/auto-report-settings', [ProjectController::class, 'updateSowAutoReportSettings'])->name('project.sow.auto-settings');
     Route::post('/project/{project}/sow/templates', [ProjectController::class, 'storeSowTemplate'])->name('project.sow.templates.store');
     Route::get('/project/{project}/sow/download', [ProjectController::class, 'downloadSowPdf'])->name('project.sow.download');
     Route::get('/project/{project}/coc/preview', [ProjectController::class, 'showCocPreview'])->name('project.coc.preview');
@@ -337,6 +356,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/regular/manual', [RegularController::class, 'storeManual'])->name('regular.manual.store');
     Route::get('/regular/{regular}', [RegularController::class, 'show'])->name('regular.show');
     Route::post('/regular/{regular}/rsat', [RegularController::class, 'updateRsat'])->name('regular.rsat.update');
+    Route::post('/regular/{regular}/rsat/auto-report-settings', [RegularController::class, 'updateRsatAutoReportSettings'])->name('regular.rsat.auto-settings');
     Route::post('/regular/{regular}/rsat/templates', [RegularController::class, 'storeRsatTemplate'])->name('regular.rsat.templates.store');
     Route::post('/regular/{regular}/report/generate', [RegularController::class, 'generateReport'])->name('regular.report.generate');
     Route::get('/regular/{regular}/report/{report}', [RegularController::class, 'showGeneratedReport'])->name('regular.report.preview');

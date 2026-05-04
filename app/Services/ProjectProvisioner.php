@@ -15,6 +15,26 @@ use Illuminate\Support\Str;
 
 class ProjectProvisioner
 {
+    public function resolveDealWorkspaceStartKyc(Project $project): array
+    {
+        $project->loadMissing([
+            'deal:id,deal_code,engagement_type,contact_id,company_name,planned_start_date,estimated_completion_date,client_preferred_completion_date,assigned_consultant,assigned_associate,service_area,services,products,total_estimated_engagement_value,scope_of_work,engagement_type,deal_status',
+            'contact:id,first_name,middle_name,last_name,email,phone,company_name,cif_status,organization_type,business_type_organization,ownership_flag,foreign_business_nature',
+            'company.primaryContact:id,first_name,middle_name,last_name,email,phone,company_name,cif_status,organization_type,business_type_organization,ownership_flag,foreign_business_nature',
+            'company.latestBif',
+        ]);
+
+        if (! $project->deal) {
+            return [
+                'organization_type' => 'unknown',
+                'sole' => [],
+                'juridical' => [],
+            ];
+        }
+
+        return $this->defaultStartKycRequirements($project->deal, $project->contact, $project->company);
+    }
+
     public function createFromApprovedDeal(Deal $deal): ?Project
     {
         return $this->createOrSyncFromDeal($deal);

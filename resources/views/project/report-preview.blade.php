@@ -179,13 +179,25 @@
         border-top: 0;
         min-height: 66px;
         display: flex;
-        align-items: flex-end;
+        flex-direction: column;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         justify-content: center;
         padding: 10px 16px;
         font-family: Georgia, "Times New Roman", serif;
         font-size: 0.8rem;
         font-style: italic;
         color: #111827;
+        text-align: center;
+    }
+    .project-sow-signature-name {
+        min-width: min(100%, 420px);
+        border-bottom: 1px solid #111827;
+        padding: 0 12px 6px;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        font-style: normal;
         text-align: center;
     }
     .project-sow-approval-grid {
@@ -498,11 +510,8 @@
                 <div class="project-sow-section">
                     <div class="project-sow-section-title">CLIENT CONFIRMATION</div>
                     <div class="project-sow-signature-box">
+                        <div class="project-sow-signature-name">{{ $clientConfirmationName ?: '-' }}</div>
                         Client Fullname &amp; Signature
-                    </div>
-                    <div class="mt-4 project-sow-meta-row">
-                        <span class="project-sow-meta-label">Client Confirmation Name:</span>
-                        <span class="project-sow-line">{{ $clientConfirmationName ?: '-' }}</span>
                     </div>
                     <div class="mt-4 project-sow-meta-row">
                         <span class="project-sow-meta-label">Client Attachment:</span>

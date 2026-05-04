@@ -31,6 +31,7 @@ class Deal extends Model
         'total_service_fee',
         'products',
         'total_product_fee',
+        'deal_discount',
         'scope_of_work',
         'engagement_type',
         'requirements_status',
@@ -55,6 +56,7 @@ class Deal extends Model
         'decline_reason',
         'assigned_consultant',
         'assigned_associate',
+        'assigned_finance_user_id',
         'service_department_unit',
         'consultant_notes',
         'associate_notes',
@@ -88,6 +90,7 @@ class Deal extends Model
         'estimated_service_support_fee' => 'decimal:2',
         'total_service_fee' => 'decimal:2',
         'total_product_fee' => 'decimal:2',
+        'deal_discount' => 'decimal:2',
         'other_fees' => 'array',
         'total_estimated_engagement_value' => 'decimal:2',
     ];
@@ -141,6 +144,11 @@ class Deal extends Model
     public function stage(): BelongsTo
     {
         return $this->belongsTo(DealStage::class, 'stage_id');
+    }
+
+    public function assignedFinance(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_finance_user_id');
     }
 
     public function project(): HasOne
